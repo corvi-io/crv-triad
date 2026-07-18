@@ -56,6 +56,8 @@ target's resources and required values are verified, set that environment's
 - Feature branches merge into `staging` through a pull request that passes `Develop Pipeline`.
 - A push to `staging` runs `Homolog Pipeline` against `hml`.
 - Promotion from `staging` to `main` happens through a pull request that passes `Promotion Pipeline`.
+  This pull-request validation does not attach to `prd` or read production deployment values;
+  production access begins only after the merge into `main`.
 - A push to `main` runs `Production Pipeline` against `prd`.
 - Release automation remains disabled until `CICD__RELEASE_ENABLED=true` and
   `CICD__RELEASE_TOKEN` is provisioned.

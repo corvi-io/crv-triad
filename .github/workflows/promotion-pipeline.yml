@@ -16,13 +16,9 @@ jobs:
   promotion-pipeline:
     name: Promotion Pipeline
     runs-on: ubuntu-latest
-    environment:
-      name: prd
-      deployment: false
     env:
       CICD__BASE_SHA: ${{ github.event.pull_request.base.sha }}
       CICD__HEAD_SHA: ${{ github.sha }}
-      CICD__DEPLOY_ENABLED: ${{ vars.CICD__DEPLOY_ENABLED }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -59,22 +55,9 @@ jobs:
         if: ${{ steps.affected.outputs.idp == 'true' }}
         run: bash .github/scripts/run-quality-gate.sh idp
 
-      - name: Export Site Build Env
-        if: ${{ steps.affected.outputs.site == 'true' && env.CICD__DEPLOY_ENABLED == 'true' }}
-        env:
-          SITE__PUBLIC_SITE_URL: ${{ vars.SITE__PUBLIC_SITE_URL }}
-        run: bun .github/scripts/env-management.ts export --app site --target prd --github-env "$GITHUB_ENV"
-
       - name: Site Quality Gate
         if: ${{ steps.affected.outputs.site == 'true' }}
         run: bash .github/scripts/run-quality-gate.sh site
-
-      - name: Export Web Build Env
-        if: ${{ steps.affected.outputs.web == 'true' && env.CICD__DEPLOY_ENABLED == 'true' }}
-        env:
-          WEB__VITE_AUTH_BASE_URL: ${{ vars.WEB__VITE_AUTH_BASE_URL }}
-          WEB__VITE_API_BASE_URL: ${{ vars.WEB__VITE_API_BASE_URL }}
-        run: bun .github/scripts/env-management.ts export --app web --target prd --github-env "$GITHUB_ENV"
 
       - name: Web Quality Gate
         if: ${{ steps.affected.outputs.web == 'true' }}

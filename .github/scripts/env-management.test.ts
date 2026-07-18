@@ -193,6 +193,14 @@ describe("env-management", () => {
     }
   })
 
+  it("keeps the promotion pull-request check independent from the production environment", () => {
+    const content = readFileSync(".github/workflows/promotion-pipeline.yml", "utf8")
+
+    expect(content).not.toMatch(/^\s+environment:/m)
+    expect(content).not.toContain("--target prd")
+    expect(content).not.toContain("vars.CICD__DEPLOY_ENABLED")
+  })
+
   it("maps app-prefixed GitHub names to runtime names", () => {
     const selection = selectRuntimeEnv(schema, "api", "dev", {
       API__DATABASE_URL: "postgresql://user:secret@example.test/db",
