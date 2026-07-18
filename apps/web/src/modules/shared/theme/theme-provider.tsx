@@ -6,6 +6,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
 } from "react"
 
 type Theme = "light" | "dark"
@@ -19,20 +20,20 @@ type ThemeContextValue = {
 const THEME_STORAGE_KEY = "triad-web-theme"
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
-function getSystemTheme(): Theme {
+function getSystemThemeSnapshot(): Theme {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light"
 }
 
-function resolveTheme(preference: ThemePreference): Theme {
-  if (preference !== "system") {
-    return preference
-  }
+function subscribeToSystemTheme(onStoreChange: () => void) {
+  const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)")
+  if (!mediaQuery) return () => undefined
 
-  if (typeof window === "undefined") {
-    return "light"
-  }
+  mediaQuery.addEventListener("change", onStoreChange)
+  return () => mediaQuery.removeEventListener("change", onStoreChange)
+}
 
-  return getSystemTheme()
+function resolveTheme(preference: ThemePreference, systemTheme: Theme): Theme {
+  return preference === "system" ? systemTheme : preference
 }
 
 function getInitialPreference(): ThemePreference {
@@ -50,35 +51,21 @@ function getInitialPreference(): ThemePreference {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>(getInitialPreference)
-  const [theme, setThemeState] = useState<Theme>(() => resolveTheme(getInitialPreference()))
+  const systemTheme = useSyncExternalStore<Theme>(
+    subscribeToSystemTheme,
+    getSystemThemeSnapshot,
+    (): Theme => "light",
+  )
+  const theme = resolveTheme(preference, systemTheme)
 
   const setPreference = useCallback((nextPreference: ThemePreference) => {
     setPreferenceState(nextPreference)
-    setThemeState(resolveTheme(nextPreference))
     window.localStorage?.setItem(THEME_STORAGE_KEY, nextPreference)
   }, [])
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark")
   }, [theme])
-
-  useEffect(() => {
-    if (preference !== "system") {
-      return
-    }
-
-    const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)")
-    if (!mediaQuery) {
-      return
-    }
-
-    function handleSystemThemeChange() {
-      setThemeState(resolveTheme("system"))
-    }
-
-    mediaQuery.addEventListener("change", handleSystemThemeChange)
-    return () => mediaQuery.removeEventListener("change", handleSystemThemeChange)
-  }, [preference])
 
   const value = useMemo(
     () => ({ preference, setPreference, theme }),

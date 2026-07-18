@@ -57,6 +57,10 @@ Use this skill for `apps/web/**`. Follow root `AGENTS.md` and `apps/web/AGENTS.m
 - Keep CRV Triad Workspace shell, overview, breadcrumbs, notification/search
   placeholders, and the frontend module registry under `src/modules/shared`;
   `workspace` is the authenticated app shell, not a feature module.
+- Keep the foundation domain-neutral. Do not restore inherited business routes,
+  catalogs, fixtures, placeholder mutations, or navigation entries. Introduce
+  a business domain only through an accepted initiative with explicit API,
+  authorization, persistence, and product contracts.
 - When a component is split into multiple companion files, put the files in a
   dedicated component folder with an `index.tsx` public entrypoint. Prefer
   domain-specific composition names such as `workspace-shell/sidebar-user-menu`
@@ -145,14 +149,9 @@ Use this skill for `apps/web/**`. Follow root `AGENTS.md` and `apps/web/AGENTS.m
 - Compose domain forms explicitly instead of building a schema/JSON-driven
   universal renderer. Prefer explicit variants and slots over boolean-prop
   proliferation, and do not create `packages/*` for web-only form reuse.
-- Use `ReferenceFormDrawer` for authenticated reference forms that do not have a
-  mutation yet. Its primary command may validate or review locally, but must not
-  close, toast, claim create/save success, persist drafts, or emit API/IDP writes.
-  Keep the form visually final: do not expose prototype, local-only, unavailable,
-  deferred, missing-catalog, or no-persistence implementation notes in visible or
-  accessibility-only copy. Verify the no-write boundary through request and
-  storage tests. Where a selector-looking field has no accepted catalog contract,
-  keep it locally editable without inventing a catalog, upload, or mutation.
+- Do not expose creation or edit forms without real mutation and authorization
+  contracts. Keep initiative-specific prototypes outside authenticated
+  production routes and do not invent catalogs, uploads, or persistence.
 - Treat shared mask values as canonical strings and display formatting as a
   separate concern. Keep completeness, impossible-date, range, checksum, and
   business validation in Zod/domain helpers, and wait for accepted API contracts

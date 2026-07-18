@@ -14,37 +14,20 @@ Routes:
 
 - `/login`
 - `/workspace-preview` (development-only visual shell preview; no login required)
-- `/workspace-preview/forms` (redirects to the development company form catalog)
-- `/workspace-preview/forms/companies` (development-only; no login required)
-- `/workspace-preview/forms/customers` (development-only; no login required)
-- `/workspace-preview/forms/products` (development-only; no login required)
-- `/workspace-preview/forms/warehouses` (development-only; no login required)
-- `/workspace-preview/forms/trucks` (development-only; no login required)
-- `/workspace-preview/forms/drivers` (development-only; no login required)
-- `/workspace-preview/forms/collaborators` (development-only; no login required)
-- `/workspace-preview/forms/permission-profiles` (development-only; no login required)
 - `/overview`
-- `/companies`
-- `/customers`
-- `/inventory/products`
-- `/inventory/warehouses`
-- `/fleet/trucks`
-- `/drivers`
 - `/users`
-- `/users/collaborators`
-- `/users/permission-profiles`
+- `/users/list`
+- `/users/invitations`
 - `/profile`
 - `/preferences`
 
-The eight reference CRUD routes provide authenticated, route-level-loaded form drawers with local
-validation only. Their domain chunks are imported only after the authentication gate renders the
-child route. They do not create records or issue business/identity writes. See
-[`docs/web/forms-and-drawers.md`](../../docs/web/forms-and-drawers.md) for the component and testing
-contract.
+The workspace intentionally exposes only the neutral shell and identity administration. New business
+domains require an accepted initiative and their own API contracts; inherited business catalogs and
+placeholder mutations are not part of the foundation.
 
-All `/workspace-preview/forms/**` routes redirect to `/login` in production before any domain form
-chunk is requested. Verify both the redirect and request boundary with
-`bun --filter web test:e2e:production` after a production build.
+`/workspace-preview` redirects to `/login` in production. Verify the development preview and the
+production boundary with `bun --filter web test:e2e` and
+`bun --filter web test:e2e:production`.
 
 Runtime env:
 

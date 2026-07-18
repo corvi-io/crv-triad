@@ -1,32 +1,7 @@
 import type { LucideIcon as LucideIconType } from "lucide-react"
-import {
-  BellIcon,
-  Building2Icon,
-  FileChartPieIcon,
-  FileTextIcon,
-  HomeIcon,
-  IdCardLanyardIcon,
-  PackageIcon,
-  ReceiptIcon,
-  Settings2Icon,
-  SettingsIcon,
-  TruckIcon,
-  UserRoundIcon,
-  UsersIcon,
-  WarehouseIcon,
-} from "lucide-react"
+import { HomeIcon, Settings2Icon, SettingsIcon, UserRoundIcon, UsersIcon } from "lucide-react"
 
-export type WorkspaceModulePath =
-  | "/overview"
-  | "/users"
-  | "/companies"
-  | "/customers"
-  | "/inventory/products"
-  | "/inventory/warehouses"
-  | "/fleet/trucks"
-  | "/drivers"
-  | "/users/collaborators"
-  | "/users/permission-profiles"
+export type WorkspaceModulePath = "/overview" | "/users"
 export type WorkspaceRoutePath = WorkspaceModulePath | "/profile" | "/preferences"
 
 type WorkspaceRoute = {
@@ -43,26 +18,14 @@ export type WorkspaceModule = WorkspaceRoute & {
   path: WorkspaceModulePath
 }
 
-type WorkspaceNavigationItemBase = {
-  activePathPrefix?: string
+export type WorkspaceNavigationItem = {
   id: string
   label: string
   description: string
   icon: LucideIconType
-  showDisclosure?: boolean
-}
-
-export type WorkspaceActiveNavigationItem = WorkspaceNavigationItemBase & {
-  status: "active"
   path: WorkspaceRoutePath
+  status: "active"
 }
-
-export type WorkspacePlannedNavigationItem = WorkspaceNavigationItemBase & {
-  status: "planned"
-  path?: never
-}
-
-export type WorkspaceNavigationItem = WorkspaceActiveNavigationItem | WorkspacePlannedNavigationItem
 
 export const workspacePrimaryNavigation = [
   {
@@ -74,76 +37,16 @@ export const workspacePrimaryNavigation = [
     status: "active",
   },
   {
-    id: "operations",
-    label: "Central de Operações",
-    description: "Módulo visual aguardando integração operacional.",
-    icon: FileTextIcon,
-    showDisclosure: true,
-    status: "planned",
-  },
-  {
-    id: "customers",
-    label: "Clientes",
-    description: "Cadastros e condições comerciais de clientes.",
+    id: "users",
+    label: "Usuários",
+    description: "Usuários e convites do provedor de identidade.",
     icon: UsersIcon,
-    path: "/customers",
-    showDisclosure: true,
+    path: "/users",
     status: "active",
-  },
-  {
-    id: "fleet",
-    label: "Frota",
-    description: "Veículos, capacidades e parâmetros da frota.",
-    icon: TruckIcon,
-    path: "/fleet/trucks",
-    showDisclosure: true,
-    status: "active",
-  },
-  {
-    id: "drivers",
-    label: "Motoristas",
-    description: "Motoristas, habilitações e vínculos operacionais.",
-    icon: IdCardLanyardIcon,
-    path: "/drivers",
-    showDisclosure: true,
-    status: "active",
-  },
-  {
-    id: "inventory",
-    label: "Estoque",
-    description: "Produtos, depósitos e parâmetros de estoque.",
-    icon: WarehouseIcon,
-    activePathPrefix: "/inventory",
-    path: "/inventory/products",
-    showDisclosure: true,
-    status: "active",
-  },
-  {
-    id: "finance",
-    label: "Financeiro",
-    description: "Módulo visual aguardando a iniciativa financeira.",
-    icon: ReceiptIcon,
-    showDisclosure: true,
-    status: "planned",
-  },
-  {
-    id: "reports",
-    label: "Relatórios",
-    description: "Módulo visual aguardando a iniciativa de relatórios.",
-    icon: FileChartPieIcon,
-    showDisclosure: true,
-    status: "planned",
   },
 ] as const satisfies readonly WorkspaceNavigationItem[]
 
 export const workspaceSecondaryNavigation = [
-  {
-    id: "alerts",
-    label: "Central de alertas",
-    description: "Superfície reservada sem dados, contadores ou atualização em segundo plano.",
-    icon: BellIcon,
-    status: "planned",
-  },
   {
     id: "settings",
     label: "Configurações",
@@ -175,81 +78,6 @@ export const workspaceModules = [
   },
 ] as const satisfies readonly WorkspaceModule[]
 
-export const workspaceReferenceRoutes = [
-  {
-    id: "companies",
-    label: "Empresas",
-    path: "/companies",
-    icon: Building2Icon,
-    breadcrumbLabel: "Empresas",
-    description: "Dados cadastrais, fiscais e operacionais das empresas.",
-    commandKeywords: ["empresas", "companhias", "cnpj"],
-  },
-  {
-    id: "customers",
-    label: "Clientes",
-    path: "/customers",
-    icon: UsersIcon,
-    breadcrumbLabel: "Clientes",
-    description: "Dados cadastrais e condições comerciais dos clientes.",
-    commandKeywords: ["clientes", "cpf", "cnpj"],
-  },
-  {
-    id: "products",
-    label: "Produtos",
-    path: "/inventory/products",
-    icon: PackageIcon,
-    breadcrumbLabel: "Produtos",
-    description: "Informações fiscais, comerciais e de estoque dos produtos.",
-    commandKeywords: ["produtos", "estoque", "inventário"],
-  },
-  {
-    id: "warehouses",
-    label: "Depósitos",
-    path: "/inventory/warehouses",
-    icon: WarehouseIcon,
-    breadcrumbLabel: "Depósitos",
-    description: "Localização, responsáveis e parâmetros dos depósitos.",
-    commandKeywords: ["depósitos", "armazéns", "estoque"],
-  },
-  {
-    id: "trucks",
-    label: "Caminhões",
-    path: "/fleet/trucks",
-    icon: TruckIcon,
-    breadcrumbLabel: "Caminhões",
-    description: "Identificação, capacidade e operação dos caminhões.",
-    commandKeywords: ["caminhões", "frota", "veículos"],
-  },
-  {
-    id: "drivers",
-    label: "Motoristas",
-    path: "/drivers",
-    icon: IdCardLanyardIcon,
-    breadcrumbLabel: "Motoristas",
-    description: "Dados pessoais, habilitação e operação dos motoristas.",
-    commandKeywords: ["motoristas", "cnh", "frota"],
-  },
-  {
-    id: "collaborators",
-    label: "Colaboradores",
-    path: "/users/collaborators",
-    icon: UsersIcon,
-    breadcrumbLabel: "Colaboradores",
-    description: "Dados de acesso, empresa e configurações dos colaboradores.",
-    commandKeywords: ["colaboradores", "usuários", "equipe"],
-  },
-  {
-    id: "permission-profiles",
-    label: "Perfis de permissão",
-    path: "/users/permission-profiles",
-    icon: Settings2Icon,
-    breadcrumbLabel: "Perfis de permissão",
-    description: "Conjuntos de permissões atribuídos aos colaboradores.",
-    commandKeywords: ["permissões", "perfis", "acesso"],
-  },
-] as const satisfies readonly WorkspaceModule[]
-
 export const workspaceAccountRoutes = [
   {
     id: "profile",
@@ -271,22 +99,10 @@ export const workspaceAccountRoutes = [
   },
 ] as const satisfies readonly WorkspaceRoute[]
 
-export const workspacePlannedModules: readonly WorkspacePlannedNavigationItem[] =
-  workspacePrimaryNavigation.filter((item) => item.status === "planned")
-
-const workspaceRoutes = [
-  ...workspaceReferenceRoutes,
-  ...workspaceModules,
-  ...workspaceAccountRoutes,
-] as const
+const workspaceRoutes = [...workspaceModules, ...workspaceAccountRoutes] as const
 
 export function isWorkspaceNavigationItemActive(item: WorkspaceNavigationItem, pathname: string) {
-  if (item.status !== "active") {
-    return false
-  }
-
-  const activePath = item.activePathPrefix ?? item.path
-  return pathname === item.path || (activePath !== "/overview" && pathname.startsWith(activePath))
+  return pathname === item.path || (item.path !== "/overview" && pathname.startsWith(item.path))
 }
 
 export function getWorkspaceRouteByPath(pathname: string) {

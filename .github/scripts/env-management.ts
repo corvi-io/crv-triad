@@ -6,6 +6,7 @@ import { appendFileSync } from "node:fs"
 
 type GitHubSourceKind = "secret" | "variable"
 type AppRuntime = "fly" | "cloudflare-pages-static"
+type PlatformEnvScope = "environment" | "repository"
 
 export type EnvEntry = {
   source: string
@@ -28,8 +29,21 @@ export type AppConfig = {
   env: EnvEntry[]
 }
 
+export type PlatformEnvEntry = {
+  source: string
+  github: GitHubSourceKind
+  scope: PlatformEnvScope
+  required: boolean
+}
+
+export type PlatformConfig = {
+  owner: string
+  env: PlatformEnvEntry[]
+}
+
 export type EnvSchema = {
   schema_version: number
+  platform: Record<"cicd" | "infra", PlatformConfig>
   apps: Record<string, AppConfig>
 }
 
@@ -94,6 +108,45 @@ export function assertSchema(value: unknown): asserts value is EnvSchema {
   }
 
   const seenSources = new Set<string>()
+
+  if (!isRecord(value.platform)) {
+    throw new EnvManagementError("env-schema.yaml must declare platform env categories.")
+  }
+
+  for (const platformName of ["cicd", "infra"] as const) {
+    const platform = value.platform[platformName]
+    if (!isRecord(platform) || typeof platform.owner !== "string") {
+      throw new EnvManagementError(`Platform category "${platformName}" is invalid.`)
+    }
+    if (!Array.isArray(platform.env) || platform.env.length === 0) {
+      throw new EnvManagementError(`Platform category "${platformName}" must declare env entries.`)
+    }
+
+    const sourcePrefix = `${platformName.toUpperCase()}__`
+    for (const entry of platform.env) {
+      if (!isRecord(entry) || typeof entry.source !== "string") {
+        throw new EnvManagementError(`Platform category "${platformName}" has an invalid entry.`)
+      }
+      if (!SOURCE_NAME_PATTERN.test(entry.source) || !entry.source.startsWith(sourcePrefix)) {
+        throw new EnvManagementError(
+          `Platform source "${entry.source}" must use the prefix "${sourcePrefix}".`,
+        )
+      }
+      if (seenSources.has(entry.source)) {
+        throw new EnvManagementError(`Duplicate source name "${entry.source}".`)
+      }
+      seenSources.add(entry.source)
+      if (entry.github !== "secret" && entry.github !== "variable") {
+        throw new EnvManagementError(`Platform source "${entry.source}" has invalid GitHub kind.`)
+      }
+      if (entry.scope !== "environment" && entry.scope !== "repository") {
+        throw new EnvManagementError(`Platform source "${entry.source}" has invalid scope.`)
+      }
+      if (typeof entry.required !== "boolean") {
+        throw new EnvManagementError(`Platform source "${entry.source}" must declare required.`)
+      }
+    }
+  }
 
   for (const [appName, app] of Object.entries(value.apps)) {
     if (!isRecord(app)) {

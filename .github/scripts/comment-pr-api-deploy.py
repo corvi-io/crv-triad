@@ -57,23 +57,23 @@ def badge_label(value: str) -> str:
 
 
 def main() -> None:
-    token = env("GITHUB_TOKEN")
+    token = env("CICD__GITHUB_TOKEN")
     repository = env("GITHUB_REPOSITORY")
-    pr_number = env("PR_NUMBER")
-    commit_sha = env("COMMIT_SHA")
-    env_code = optional_env("ENV_CODE") or "DEV"
-    env_name = optional_env("ENV_NAME") or "DEVELOPMENT"
-    api_deployed = optional_env("API_DEPLOYED")
-    api_url = env("API_URL")
-    health_url = env("HEALTH_URL")
-    idp_deployed = optional_env("IDP_DEPLOYED")
-    idp_url = optional_env("IDP_URL")
-    idp_health_url = optional_env("IDP_HEALTH_URL")
-    site_deployed = optional_env("SITE_DEPLOYED")
-    site_url = optional_env("SITE_URL")
-    web_deployed = optional_env("WEB_DEPLOYED")
-    web_url = optional_env("WEB_URL")
-    run_url = env("RUN_URL")
+    pr_number = env("CICD__PR_NUMBER")
+    commit_sha = env("CICD__COMMIT_SHA")
+    env_code = optional_env("CICD__ENV_CODE") or "DEV"
+    env_name = optional_env("CICD__ENV_NAME") or "DEVELOPMENT"
+    api_deployed = optional_env("CICD__API_DEPLOYED")
+    api_url = env("CICD__API_URL")
+    health_url = env("CICD__API_HEALTH_URL")
+    idp_deployed = optional_env("CICD__IDP_DEPLOYED")
+    idp_url = optional_env("CICD__IDP_URL")
+    idp_health_url = optional_env("CICD__IDP_HEALTH_URL")
+    site_deployed = optional_env("CICD__SITE_DEPLOYED")
+    site_url = optional_env("CICD__SITE_URL")
+    web_deployed = optional_env("CICD__WEB_DEPLOYED")
+    web_url = optional_env("CICD__WEB_URL")
+    run_url = env("CICD__RUN_URL")
 
     short_sha = commit_sha[:7]
     environment_badge = (

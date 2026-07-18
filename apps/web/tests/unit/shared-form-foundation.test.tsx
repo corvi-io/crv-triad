@@ -97,11 +97,11 @@ describe("shared form foundation", () => {
       const [value, setValue] = useState("")
       return (
         <>
-          <label htmlFor="company-status">Situação</label>
+          <label htmlFor="entity-status">Situação</label>
           <SelectInput
-            aria-describedby="company-status-error"
+            aria-describedby="entity-status-error"
             aria-invalid
-            id="company-status"
+            id="entity-status"
             placeholder="Selecione uma situação"
             value={value}
             options={[
@@ -110,7 +110,7 @@ describe("shared form foundation", () => {
             ]}
             onValueChange={setValue}
           />
-          <p id="company-status-error">Selecione uma situação.</p>
+          <p id="entity-status-error">Selecione uma situação.</p>
         </>
       )
     }
@@ -132,14 +132,14 @@ describe("shared form foundation", () => {
       const [checked, setChecked] = useState(false)
       return (
         <>
-          <label htmlFor="inventory-switch">Controla estoque</label>
-          <SwitchControl checked={checked} id="inventory-switch" onCheckedChange={setChecked} />
+          <label htmlFor="feature-switch">Recurso ativo</label>
+          <SwitchControl checked={checked} id="feature-switch" onCheckedChange={setChecked} />
         </>
       )
     }
 
     render(<Harness />)
-    const control = screen.getByRole("switch", { name: "Controla estoque" })
+    const control = screen.getByRole("switch", { name: "Recurso ativo" })
     expect(control).toHaveAttribute("aria-checked", "false")
     control.focus()
     await user.keyboard(" ")
@@ -152,11 +152,11 @@ describe("shared form foundation", () => {
     const onOptionSelect = vi.fn()
     render(
       <ComboboxInput
-        id="company"
+        id="entity"
         value=""
         options={[
-          { label: "Empresa Alfa", value: "alpha" },
-          { label: "Empresa Beta", value: "beta" },
+          { label: "Opção Alfa", value: "alpha" },
+          { label: "Opção Beta", value: "beta" },
         ]}
         onOptionSelect={onOptionSelect}
         onValueChange={vi.fn()}
@@ -167,7 +167,7 @@ describe("shared form foundation", () => {
     await user.click(combobox)
     await user.keyboard("{ArrowDown}{ArrowDown}{Enter}")
 
-    expect(onOptionSelect).toHaveBeenCalledWith({ label: "Empresa Beta", value: "beta" })
+    expect(onOptionSelect).toHaveBeenCalledWith({ label: "Opção Beta", value: "beta" })
     expect(combobox).toHaveAttribute("aria-expanded", "false")
   })
 
@@ -177,11 +177,11 @@ describe("shared form foundation", () => {
       <>
         <button type="button">Antes</button>
         <ComboboxInput
-          id="company-tab-order"
+          id="entity-tab-order"
           value=""
           options={[
-            { label: "Empresa Alfa", value: "alpha" },
-            { label: "Empresa Beta", value: "beta" },
+            { label: "Opção Alfa", value: "alpha" },
+            { label: "Opção Beta", value: "beta" },
           ]}
           onOptionSelect={vi.fn()}
           onValueChange={vi.fn()}
@@ -193,7 +193,7 @@ describe("shared form foundation", () => {
     const combobox = screen.getByRole("combobox")
     await user.click(combobox)
     await user.keyboard("{ArrowDown}")
-    expect(combobox).toHaveAttribute("aria-activedescendant", "company-tab-order-option-0")
+    expect(combobox).toHaveAttribute("aria-activedescendant", "entity-tab-order-option-0")
     for (const option of screen.getAllByRole("option"))
       expect(option).toHaveAttribute("tabindex", "-1")
 
@@ -206,12 +206,12 @@ describe("shared form foundation", () => {
   it("keeps compact combobox and textarea sizing explicit without shrinking defaults", () => {
     render(
       <>
-        <label htmlFor="compact-combobox">Colaborador</label>
+        <label htmlFor="compact-combobox">Responsável</label>
         <CompactComboboxInput
           id="compact-combobox"
           value=""
           options={[]}
-          placeholder="Selecione um colaborador"
+          placeholder="Selecione um responsável"
           onOptionSelect={vi.fn()}
           onValueChange={vi.fn()}
         />
@@ -220,7 +220,7 @@ describe("shared form foundation", () => {
       </>,
     )
 
-    expect(screen.getByRole("combobox", { name: "Colaborador" })).toHaveClass("h-8")
+    expect(screen.getByRole("combobox", { name: "Responsável" })).toHaveClass("h-8")
     expect(screen.getByRole("textbox", { name: "Observações" })).toHaveClass("h-20", "min-h-20")
   })
 
@@ -266,7 +266,7 @@ describe("shared form foundation", () => {
     const onRetry = vi.fn()
     render(
       <ComboboxInput
-        id="warehouse"
+        id="remote-options"
         value=""
         options={[]}
         status="error"
@@ -286,13 +286,13 @@ describe("shared form foundation", () => {
     const user = userEvent.setup()
     render(
       <ComboboxInput
-        id="bounded-company"
+        id="bounded-options"
         maxVisibleOptions={2}
         value=""
         options={[
-          { label: "Empresa Alfa", value: "alpha" },
-          { label: "Empresa Beta", value: "beta" },
-          { label: "Empresa Gama", value: "gamma" },
+          { label: "Opção Alfa", value: "alpha" },
+          { label: "Opção Beta", value: "beta" },
+          { label: "Opção Gama", value: "gamma" },
         ]}
         onOptionSelect={vi.fn()}
         onValueChange={vi.fn()}
@@ -301,7 +301,7 @@ describe("shared form foundation", () => {
 
     await user.click(screen.getByRole("combobox"))
     expect(screen.getAllByRole("option")).toHaveLength(2)
-    expect(screen.queryByRole("option", { name: "Empresa Gama" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("option", { name: "Opção Gama" })).not.toBeInTheDocument()
   })
 
   it("keeps canonical masked values separate from formatted display", async () => {
@@ -447,13 +447,13 @@ describe("shared form foundation", () => {
         amountValue="1"
         id="stock"
         placeholder="0000,00"
-        unitAriaLabel="Estoque: unidade"
+        unitAriaLabel="Quantidade: unidade"
         unitValue="t"
         onAmountChange={vi.fn()}
         onUnitChange={vi.fn()}
       />,
     )
-    await user.click(screen.getByRole("combobox", { name: "Estoque: unidade" }))
+    await user.click(screen.getByRole("combobox", { name: "Quantidade: unidade" }))
     expect(
       screen.getAllByRole("option", { hidden: true }).map((option) => option.textContent),
     ).toEqual(quantityUnitOptions.map((option) => option.label))
@@ -573,7 +573,7 @@ describe("shared form foundation", () => {
     const onAllChange = vi.fn()
     render(
       <PermissionGroup
-        label="Empresas"
+        label="Módulo"
         items={[
           { checked: true, label: "Visualizar", onCheckedChange: vi.fn() },
           { checked: false, label: "Editar", onCheckedChange: vi.fn() },
@@ -582,7 +582,7 @@ describe("shared form foundation", () => {
       />,
     )
 
-    const parent = screen.getByRole("checkbox", { name: "Empresas" })
+    const parent = screen.getByRole("checkbox", { name: "Módulo" })
     expect(parent).toHaveAttribute("aria-checked", "mixed")
     expect(parent.querySelector('[data-slot="tri-state-marker"]')).toHaveClass(
       "group-data-indeterminate:h-1",
@@ -592,7 +592,7 @@ describe("shared form foundation", () => {
     await user.click(parent)
     expect(onAllChange).toHaveBeenCalledWith(true)
 
-    const disclosure = screen.getByRole("button", { name: "Alternar permissões de Empresas" })
+    const disclosure = screen.getByRole("button", { name: "Alternar permissões de Módulo" })
     disclosure.focus()
     await user.keyboard(" ")
     expect(disclosure).toHaveAttribute("aria-expanded", "false")

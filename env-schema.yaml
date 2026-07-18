@@ -5,6 +5,49 @@ source:
     - dev
     - hml
     - prd
+platform:
+  cicd:
+    owner: .github
+    env:
+      - source: CICD__DEPLOY_ENABLED
+        github: variable
+        scope: environment
+        required: true
+      - source: CICD__RELEASE_ENABLED
+        github: variable
+        scope: repository
+        required: true
+      - source: CICD__RELEASE_TOKEN
+        github: secret
+        scope: repository
+        required: false
+  infra:
+    owner: .github
+    env:
+      - source: INFRA__FLY_API_TOKEN
+        github: secret
+        scope: environment
+        required: false
+      - source: INFRA__CLOUDFLARE_API_TOKEN
+        github: secret
+        scope: environment
+        required: false
+      - source: INFRA__CLOUDFLARE_ACCOUNT_ID
+        github: variable
+        scope: environment
+        required: false
+      - source: INFRA__CLOUDFLARE_SITE_PROJECT_NAME
+        github: variable
+        scope: environment
+        required: false
+      - source: INFRA__CLOUDFLARE_WEB_PROJECT_NAME
+        github: variable
+        scope: environment
+        required: false
+      - source: INFRA__WEB_URL
+        github: variable
+        scope: environment
+        required: false
 apps:
   api:
     owner: apps/api

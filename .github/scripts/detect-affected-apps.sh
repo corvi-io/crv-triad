@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-base_sha="${BASE_SHA:-}"
-head_sha="${HEAD_SHA:-HEAD}"
+base_sha="${CICD__BASE_SHA:-}"
+head_sha="${CICD__HEAD_SHA:-HEAD}"
 
 if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]]; then
   base_sha="HEAD~1"

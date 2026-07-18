@@ -18,23 +18,23 @@ jobs:
   sync-staging-with-main:
     name: Sync Staging With Main
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ vars.CICD__RELEASE_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') }}
     steps:
       - name: Verify release token secret
         env:
-          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          CICD__RELEASE_TOKEN: ${{ secrets.CICD__RELEASE_TOKEN }}
         run: |
-          if [ -z "$RELEASE_PLEASE_TOKEN" ]; then
-            echo "::error::RELEASE_PLEASE_TOKEN repository secret is required for staging sync."
+          if [ -z "$CICD__RELEASE_TOKEN" ]; then
+            echo "::error::CICD__RELEASE_TOKEN repository secret is required for staging sync."
             exit 1
           fi
 
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          token: ${{ secrets.CICD__RELEASE_TOKEN }}
 
       - name: Fast-forward staging to main
         run: |

@@ -11,7 +11,7 @@ import {
   UserRoundX,
   X,
 } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { UsersLayout } from "@/modules/admin/components/admin-layout"
@@ -443,6 +443,7 @@ export function UserListScreen({ onSearchStateChange, searchState }: UserListScr
         }}
       />
       <UserDrawer
+        key={selectedUser ? `${selectedUser.id}:${selectedUser.updatedAt}` : "closed"}
         mode={userDrawerMode}
         user={selectedUser}
         isSaving={userUpdateMutation.isPending}
@@ -890,12 +891,6 @@ function InviteDrawer({
     onError: () => toast.error("Não foi possível enviar o convite."),
   })
 
-  useEffect(() => {
-    if (isOpen) {
-      requestAnimationFrame(() => emailRef.current?.focus())
-    }
-  }, [isOpen])
-
   function submit() {
     const nextErrors = validateInviteForm(form)
     setErrors(nextErrors)
@@ -937,6 +932,7 @@ function InviteDrawer({
             </FieldLabel>
             <Input
               ref={emailRef}
+              autoFocus
               id="invite-email"
               value={form.email}
               aria-invalid={Boolean(errors.email)}
@@ -974,18 +970,11 @@ function UserDrawer({
   onSave: (payload: Partial<Pick<IdpUser, "role" | "status">>) => void
   user: IdpUser | null
 }) {
-  const [form, setForm] = useState<{ role: IdpRole; status: IdpUserStatus }>({
-    role: "member",
-    status: "active",
-  })
+  const [form, setForm] = useState<{ role: IdpRole; status: IdpUserStatus }>(() => ({
+    role: user?.role ?? "member",
+    status: user?.status ?? "active",
+  }))
   const [tab, setTab] = useState("summary")
-
-  useEffect(() => {
-    if (user) {
-      setForm({ role: user.role, status: user.status })
-      setTab("summary")
-    }
-  }, [user])
 
   return (
     <ActionDrawer

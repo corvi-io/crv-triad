@@ -78,7 +78,7 @@ describe("authenticated workspace shell", () => {
     ).toHaveAttribute("data-state", "collapsed")
   }, 10_000) // This persistence assertion intentionally mounts the complete routed shell twice.
 
-  it("exposes current, planned, and session-backed navigation semantics", async () => {
+  it("exposes neutral identity and session-backed navigation semantics", async () => {
     const user = userEvent.setup()
     renderWorkspace()
     await screen.findByRole("heading", { name: "Dashboard" })
@@ -88,13 +88,10 @@ describe("authenticated workspace shell", () => {
       "aria-current",
       "page",
     )
-    expect(within(primaryNavigation).getByRole("link", { name: "Clientes" })).toHaveAttribute(
+    expect(within(primaryNavigation).getByRole("link", { name: "Usuários" })).toHaveAttribute(
       "href",
-      "/customers",
+      "/users",
     )
-    expect(
-      screen.getByRole("button", { name: "Central de alertas — disponível em breve" }),
-    ).toHaveAttribute("aria-disabled", "true")
     expect(screen.queryByRole("button", { name: "Abrir notificações" })).not.toBeInTheDocument()
     expect(screen.getByRole("link", { name: "Configurações" })).toHaveAttribute(
       "href",
@@ -126,11 +123,7 @@ describe("authenticated workspace shell", () => {
     const dialog = await screen.findByRole("dialog", { name: "Navegação do workspace" })
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByRole("link", { name: "Dashboard" })).toBeVisible()
-    expect(
-      within(dialog).getByRole("button", {
-        name: "Central de Operações — disponível em breve",
-      }),
-    ).toBeVisible()
+    expect(within(dialog).getByRole("link", { name: "Usuários" })).toBeVisible()
 
     await user.keyboard("{Escape}")
     await waitFor(() => expect(dialog).not.toBeInTheDocument())
