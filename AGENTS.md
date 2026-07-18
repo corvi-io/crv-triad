@@ -61,6 +61,10 @@
 - Update README, app README, durable docs, AGENTS, and skills when workflow, architecture, runtime behavior, or conventions change.
 - Initiative PRDs live in `docs/initiatives/prds` and execution plans live in `docs/initiatives/tasks`.
 - Use `triad-initiative-workflow` when creating or updating initiative PRDs/tasks.
+- Use `triad-release-workflow` for first-release bootstrap, release readiness,
+  production promotion, release environment checks, tags, and GitHub Releases.
+- Treat publishing a release and deploying applications as separate decisions.
+  Do not enable deployment as a side effect of release work.
 - Initiative planning must include brainstorm, gaps, counterpoints, performance/scalability, accessibility, security/privacy, API/IDP/web boundaries, logging/observability, and verification thinking.
 - If documentation does not need updates, be prepared to state why during review or handoff.
 
