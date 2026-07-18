@@ -1,0 +1,110 @@
+schema_version: 1
+source:
+  provider: github-environments
+  environments:
+    - dev
+    - hml
+    - prd
+apps:
+  api:
+    owner: apps/api
+    runtime: fly
+    targets:
+      dev:
+        github_environment: dev
+        fly_app: crv-triad-api-dev
+        fly_config: apps/api/fly.dev.toml
+      hml:
+        github_environment: hml
+        fly_app: crv-triad-api-hml
+        fly_config: apps/api/fly.hml.toml
+      prd:
+        github_environment: prd
+        fly_app: crv-triad-api-prd
+        fly_config: apps/api/fly.prd.toml
+    env:
+      - source: API__DATABASE_URL
+        runtime: DATABASE_URL
+        github: secret
+        required: true
+      - source: API__IDP_BASE_URL
+        runtime: IDP_BASE_URL
+        github: variable
+        required: true
+  idp:
+    owner: apps/idp
+    runtime: fly
+    targets:
+      dev:
+        github_environment: dev
+        fly_app: crv-triad-idp-dev
+        fly_config: apps/idp/fly.dev.toml
+      hml:
+        github_environment: hml
+        fly_app: crv-triad-idp-hml
+        fly_config: apps/idp/fly.hml.toml
+      prd:
+        github_environment: prd
+        fly_app: crv-triad-idp-prd
+        fly_config: apps/idp/fly.prd.toml
+    env:
+      - source: IDP__DATABASE_URL
+        runtime: DATABASE_URL
+        github: secret
+        required: true
+      - source: IDP__BETTER_AUTH_SECRET
+        runtime: BETTER_AUTH_SECRET
+        github: secret
+        required: true
+      - source: IDP__APP_ENV
+        runtime: APP_ENV
+        github: variable
+        required: true
+      - source: IDP__BETTER_AUTH_URL
+        runtime: BETTER_AUTH_URL
+        github: variable
+        required: true
+      - source: IDP__AUTH_TRUSTED_ORIGINS
+        runtime: AUTH_TRUSTED_ORIGINS
+        github: variable
+        required: true
+  site:
+    owner: apps/site
+    runtime: cloudflare-pages-static
+    targets:
+      dev:
+        github_environment: dev
+        cloudflare_pages_branch: dev
+      hml:
+        github_environment: hml
+        cloudflare_pages_branch: hml
+      prd:
+        github_environment: prd
+        cloudflare_pages_branch: main
+    env:
+      - source: SITE__PUBLIC_SITE_URL
+        runtime: PUBLIC_SITE_URL
+        github: variable
+        required: true
+  web:
+    owner: apps/web
+    runtime: cloudflare-pages-static
+    targets:
+      dev:
+        github_environment: dev
+        cloudflare_pages_branch: dev
+      hml:
+        github_environment: hml
+        cloudflare_pages_branch: hml
+      prd:
+        github_environment: prd
+        cloudflare_pages_branch: main
+    env:
+      - source: WEB__VITE_AUTH_BASE_URL
+        runtime: VITE_AUTH_BASE_URL
+        github: variable
+        required: true
+      - source: WEB__VITE_API_BASE_URL
+        runtime: VITE_API_BASE_URL
+        github: variable
+        required: true

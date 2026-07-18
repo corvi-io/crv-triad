@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Build output
+dist/
+.astro/
+.turbo/
+.maestri/
+coverage/
+.coverage
+
+# Environment files
+.env
+.env.*
+!.env.example
+!**/.env.example
+.dev.vars
+
+# Logs
+*.log
+npm-debug.log*
+bun-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
+*.swp

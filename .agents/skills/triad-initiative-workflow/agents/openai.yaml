@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triad Initiative Workflow"
+  short_description: "Plan initiatives with brainstorms and verification"
+  default_prompt: "Use $triad-initiative-workflow to create or review this initiative."

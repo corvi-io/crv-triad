@@ -1,0 +1,80 @@
+name: Promotion Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+concurrency:
+  group: promotion-pipeline-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  promotion-pipeline:
+    name: Promotion Pipeline
+    runs-on: ubuntu-latest
+    environment:
+      name: prd
+      deployment: false
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sync API dependencies
+        working-directory: apps/api
+        run: uv sync --frozen
+
+      - name: Detect affected apps
+        id: affected
+        run: bash .github/scripts/detect-affected-apps.sh
+
+      - name: API Quality Gate
+        if: ${{ steps.affected.outputs.api == 'true' }}
+        run: bash .github/scripts/run-quality-gate.sh api
+
+      - name: IDP Quality Gate
+        if: ${{ steps.affected.outputs.idp == 'true' }}
+        run: bash .github/scripts/run-quality-gate.sh idp
+
+      - name: Export Site Build Env
+        if: ${{ steps.affected.outputs.site == 'true' }}
+        env:
+          SITE__PUBLIC_SITE_URL: ${{ vars.SITE__PUBLIC_SITE_URL }}
+        run: bun .github/scripts/env-management.ts export --app site --target prd --github-env "$GITHUB_ENV"
+
+      - name: Site Quality Gate
+        if: ${{ steps.affected.outputs.site == 'true' }}
+        run: bash .github/scripts/run-quality-gate.sh site
+
+      - name: Export Web Build Env
+        if: ${{ steps.affected.outputs.web == 'true' }}
+        env:
+          WEB__VITE_AUTH_BASE_URL: ${{ vars.WEB__VITE_AUTH_BASE_URL }}
+          WEB__VITE_API_BASE_URL: ${{ vars.WEB__VITE_API_BASE_URL }}
+        run: bun .github/scripts/env-management.ts export --app web --target prd --github-env "$GITHUB_ENV"
+
+      - name: Web Quality Gate
+        if: ${{ steps.affected.outputs.web == 'true' }}
+        run: bash .github/scripts/run-quality-gate.sh web
+
+      - name: Security Gate
+        run: bash .github/scripts/run-security-gate.sh

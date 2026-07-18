@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triad Architecture"
+  short_description: "Place changes in the right Triad boundary"
+  default_prompt: "Use $triad-architecture to decide where this change belongs."

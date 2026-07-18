@@ -1,0 +1,165 @@
+name: Prepare Production Release
+
+on:
+  workflow_run:
+    workflows: [Homolog Pipeline]
+    branches: [staging]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: prepare-production-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  prepare-production-release:
+    name: Prepare Production Release
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    env:
+      SOURCE_BRANCH: staging
+    steps:
+      - name: Verify release token secret
+        env:
+          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_PLEASE_TOKEN" ]; then
+            echo "::error::RELEASE_PLEASE_TOKEN repository secret is required for release preparation."
+            exit 1
+          fi
+
+      - name: Checkout staging
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Inspect staging release readiness
+        id: release-readiness
+        run: |
+          git fetch origin main staging --tags
+
+          if git diff --quiet origin/main..origin/staging; then
+            echo "No staging content diff to prepare."
+            echo "prepare_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          release_artifacts_prepared=false
+          if ! git diff --quiet origin/main..origin/staging -- CHANGELOG.md .release-please-manifest.json; then
+            release_artifacts_prepared=true
+          fi
+
+          release_artifacts_required=false
+          mapfile -t unreleased_commits < <(git cherry origin/main origin/staging | awk '$1 == "+" { print $2 }')
+          for commit in "${unreleased_commits[@]}"; do
+            subject="$(git log -1 --format=%s "$commit")"
+            if [[ "$subject" =~ ^(feat|fix|perf)(\([^)]+\))?!?: ]] || [[ "$subject" =~ ^[[:alpha:]][[:alnum:]_-]*(\([^)]+\))?!: ]]; then
+              release_artifacts_required=true
+              break
+            fi
+
+            if git log -1 --format=%B "$commit" | grep -Eq '^(BREAKING CHANGE|BREAKING-CHANGE):'; then
+              release_artifacts_required=true
+              break
+            fi
+          done
+
+          echo "prepare_needed=true" >> "$GITHUB_OUTPUT"
+          echo "required=$release_artifacts_required" >> "$GITHUB_OUTPUT"
+          echo "prepared=$release_artifacts_prepared" >> "$GITHUB_OUTPUT"
+          echo "Release artifacts required: $release_artifacts_required"
+          echo "Release artifacts already prepared: $release_artifacts_prepared"
+
+      - name: Generate release artifact pull request
+        id: release-please
+        if: ${{ steps.release-readiness.outputs.prepare_needed == 'true' && steps.release-readiness.outputs.required == 'true' && steps.release-readiness.outputs.prepared != 'true' }}
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          target-branch: staging
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-release: true
+
+      - name: Merge release artifacts into staging
+        if: ${{ steps.release-readiness.outputs.prepare_needed == 'true' && steps.release-readiness.outputs.required == 'true' && steps.release-readiness.outputs.prepared != 'true' && (steps.release-please.outputs.prs_created == 'true' || steps.release-please.outputs.pr != '') }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          release_pr="$(gh pr list --base "$SOURCE_BRANCH" --head "release-please--branches--$SOURCE_BRANCH" --state open --json number --jq '.[0].number')"
+          if [ -z "$release_pr" ]; then
+            echo "No release artifact PR found for $SOURCE_BRANCH."
+            exit 0
+          fi
+
+          for attempt in $(seq 1 12); do
+            state="$(gh pr view "$release_pr" --json mergeStateStatus --jq '.mergeStateStatus')"
+            if [ "$state" = "CLEAN" ] || [ "$state" = "UNSTABLE" ] || [ "$state" = "HAS_HOOKS" ]; then
+              break
+            fi
+            sleep 5
+          done
+
+          gh pr merge "$release_pr" --squash --delete-branch --admin
+          git fetch origin main staging --tags
+
+      - name: Verify release artifacts were prepared
+        if: ${{ steps.release-readiness.outputs.prepare_needed == 'true' && steps.release-readiness.outputs.required == 'true' }}
+        run: |
+          git fetch origin main staging
+
+          if git diff --quiet origin/main..origin/staging -- CHANGELOG.md; then
+            echo "::error::CHANGELOG.md was not updated for release-worthy commits. Check Release Please state before opening a production PR."
+            exit 1
+          fi
+
+          if git diff --quiet origin/main..origin/staging -- .release-please-manifest.json; then
+            echo "::error::.release-please-manifest.json was not updated for release-worthy commits. Check Release Please state before opening a production PR."
+            exit 1
+          fi
+
+      - name: Open or update production promotion PR
+        if: ${{ steps.release-readiness.outputs.prepare_needed == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          git fetch origin main staging
+
+          if git diff --quiet origin/main..origin/staging; then
+            echo "No production release diff to promote."
+            exit 0
+          fi
+
+          body_file="$(mktemp)"
+          cat > "$body_file" <<'EOF'
+          ## Summary
+
+          - Promote homologated `staging` changes to production.
+          - Includes generated release artifacts when release-worthy commits are present.
+          - Production deploy happens once after this PR is merged into `main`.
+
+          ## Validation
+
+          - Homolog Pipeline passed before this production PR was prepared.
+          - Promotion Pipeline validates this PR before production merge.
+
+          ## Notes
+
+          - No Codex review for production promotion PRs.
+          - Merge with a merge commit so `main` contains the exact `staging` history; `Sync Staging With Main` then fast-forwards `staging` to `main`.
+          EOF
+
+          existing_pr="$(gh pr list --base main --head "$SOURCE_BRANCH" --state open --json number --jq '.[0].number')"
+          if [ -n "$existing_pr" ]; then
+            gh pr edit "$existing_pr" --title "chore(release): promote staging to production" --body-file "$body_file"
+            echo "Updated production promotion PR #$existing_pr."
+          else
+            gh pr create --base main --head "$SOURCE_BRANCH" --title "chore(release): promote staging to production" --body-file "$body_file"
+          fi

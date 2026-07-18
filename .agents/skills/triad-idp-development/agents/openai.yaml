@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triad IDP Development"
+  short_description: "Build IDP auth flows with Triad rules"
+  default_prompt: "Use $triad-idp-development to implement this IDP change with Triad conventions."

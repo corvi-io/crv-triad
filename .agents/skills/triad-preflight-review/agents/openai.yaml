@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triad Preflight Review"
+  short_description: "Review local changes before PR handoff"
+  default_prompt: "Use $triad-preflight-review to review the current branch before I open a PR."

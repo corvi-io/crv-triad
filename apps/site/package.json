@@ -1,0 +1,38 @@
+{
+  "name": "site",
+  "type": "module",
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=26.0.0"
+  },
+  "scripts": {
+    "dev": "astro dev --port 3001",
+    "build": "astro build",
+    "preview": "astro preview",
+    "start": "astro preview",
+    "check": "biome check . && astro check",
+    "format": "biome format --write .",
+    "lighthouse:install": "puppeteer browsers install chrome",
+    "lighthouse:report": "bun run build && bun run lighthouse:install && node ./scripts/generate-lighthouse-report.mjs",
+    "lint": "biome lint .",
+    "typecheck": "astro check",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.2",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@lucide/astro": "^1.16.0",
+    "@tailwindcss/vite": "^4.3.0",
+    "astro": "^6.3.3",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^4.3.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "chrome-launcher": "^1.2.1",
+    "lighthouse": "^13.3.0",
+    "puppeteer": "^25.0.4",
+    "typescript": "^6.0.3",
+    "vite": "^7.3.3"
+  }
+}

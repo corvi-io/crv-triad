@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triad PR Review Triage"
+  short_description: "Triage and address PR review feedback"
+  default_prompt: "Use $triad-pr-review-triage to inspect and triage the current pull request review comments."

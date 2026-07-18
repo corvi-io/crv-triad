@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triad Site Development"
+  short_description: "Build the Triad Astro site safely"
+  default_prompt: "Use $triad-site-development to implement this site change with Triad conventions."

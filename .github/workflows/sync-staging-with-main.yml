@@ -1,0 +1,56 @@
+name: Sync Staging With Main
+
+on:
+  workflow_run:
+    workflows: [Production Pipeline]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: sync-staging-with-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync-staging-with-main:
+    name: Sync Staging With Main
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Verify release token secret
+        env:
+          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_PLEASE_TOKEN" ]; then
+            echo "::error::RELEASE_PLEASE_TOKEN repository secret is required for staging sync."
+            exit 1
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Fast-forward staging to main
+        run: |
+          git fetch origin main staging
+
+          main_sha="$(git rev-parse origin/main)"
+          staging_sha="$(git rev-parse origin/staging)"
+
+          if [ "$main_sha" = "$staging_sha" ]; then
+            echo "staging already matches main."
+            exit 0
+          fi
+
+          if ! git merge-base --is-ancestor origin/staging origin/main; then
+            echo "::error::staging cannot be fast-forwarded to main because it contains commits not present on main. Promote or resolve staging before syncing."
+            exit 1
+          fi
+
+          git push origin "$main_sha:refs/heads/staging"
