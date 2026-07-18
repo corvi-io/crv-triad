@@ -34,7 +34,7 @@ jobs:
           fi
 
       - name: Checkout staging
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: staging
           fetch-depth: 0
@@ -80,7 +80,7 @@ jobs:
       - name: Generate release artifact pull request
         id: release-please
         if: ${{ steps.release-readiness.outputs.prepare_needed == 'true' && steps.release-readiness.outputs.required == 'true' && steps.release-readiness.outputs.prepared != 'true' }}
-        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ secrets.CICD__RELEASE_TOKEN }}
           target-branch: staging
