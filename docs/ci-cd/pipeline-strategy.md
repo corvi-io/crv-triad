@@ -7,6 +7,9 @@ The workspace keeps four visible delivery pipelines:
 - `Promotion Pipeline` for pull requests into `main`.
 - `Production Pipeline` for pushes to `main`.
 
+See [Release Process](release-process.md) for release-only provisioning, first-release bootstrap,
+production promotion, publication, and post-release synchronization.
+
 Each pipeline detects affected apps and runs app-specific quality and security gates. API and IDP
 deploy to Fly.io. Site and web deploy to Cloudflare Pages. Third-party actions are pinned to full
 commit SHAs, dependency updates are managed by Dependabot, and repository CI scripts have their own

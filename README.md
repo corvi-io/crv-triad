@@ -54,6 +54,8 @@ Initiative PRDs and execution plans live under `docs/initiatives`. Start from
 the templates in `docs/initiatives/templates` and use
 `triad-initiative-workflow` when planning new work.
 
+## Delivery And Releases
+
 Deployment environment metadata lives in `env-schema.yaml`; actual values belong in GitHub Environments. App source names use uppercase prefixes such as `API__DATABASE_URL`, while app-local runtime names remain unchanged.
 
 Custom GitHub configuration is categorized by ownership:
@@ -66,3 +68,8 @@ The Fly.io and Cloudflare identifiers in this repository define the intended Tri
 new Triad-owned resources and GitHub Environment values before setting
 `CICD__DEPLOY_ENABLED=true`; quality and security gates remain active while deployment is disabled.
 No resource or credential from the source project is reused.
+
+Release preparation, required GitHub configuration, the first-release bootstrap,
+and the release-versus-deploy boundary are documented in
+[`docs/ci-cd/release-process.md`](docs/ci-cd/release-process.md). Use
+`triad-release-workflow` when preparing or publishing a release.
