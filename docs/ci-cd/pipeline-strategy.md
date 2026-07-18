@@ -15,6 +15,10 @@ deploy to Fly.io. Site and web deploy to Cloudflare Pages. Third-party actions a
 commit SHAs, dependency updates are managed by Dependabot, and repository CI scripts have their own
 test suite.
 
+Dependabot version-update pull requests target `staging`. Minor and patch updates are grouped per
+package ecosystem, while major updates remain separate so compatibility migrations and validation
+can be reviewed independently before homologation.
+
 ## Environment Categories
 
 `env-schema.yaml` is the metadata-only source of truth. Actual values live in the GitHub Environments

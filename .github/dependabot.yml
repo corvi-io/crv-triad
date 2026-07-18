@@ -2,27 +2,39 @@ version: 2
 updates:
   - package-ecosystem: bun
     directory: /
+    target-branch: staging
     schedule:
       interval: weekly
     groups:
       workspace-dependencies:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: uv
     directory: /apps/api
+    target-branch: staging
     schedule:
       interval: weekly
     groups:
       api-dependencies:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: github-actions
     directory: /
+    target-branch: staging
     schedule:
       interval: weekly
     groups:
       workflow-actions:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch

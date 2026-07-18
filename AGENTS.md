@@ -55,6 +55,8 @@
 - Use `bun add` and `bun add -d` to add dependencies.
 - Use `bunx` for one-off CLIs.
 - Do not manually edit `package.json` to add dependencies when Bun can do it.
+- Keep Dependabot version-update pull requests targeting `staging`.
+- Group only minor and patch dependency updates; review major updates in separate pull requests.
 
 ## Documentation
 
