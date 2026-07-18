@@ -42,11 +42,12 @@
 - Use GitHub Environments `dev`, `hml`, and `prd` for deployment env values.
 - Name app runtime sources in GitHub Environments as `APP__RUNTIME_ENV_NAME`
   with an uppercase app prefix (`API__*`, `IDP__*`, `SITE__*`, `WEB__*`).
-- Name app-specific Cloudflare Pages controls with the same `APP__*` prefix:
-  `SITE__CLOUDFLARE_PAGES_PROJECT_NAME`, `WEB__CLOUDFLARE_PAGES_PROJECT_NAME`,
-  and `WEB__CLOUDFLARE_PAGES_URL`.
-  Declare only secrets and values that differ by target in `env-schema.yaml`;
-  keep safe constants in app defaults and preserve runtime names in app-local env files.
+- Name pipeline and release controls with `CICD__*` and provider credentials,
+  provider identifiers, and deployed-resource locations with `INFRA__*`.
+- Do not add uncategorized custom GitHub variables or secrets. GitHub-provided
+  variables such as `GITHUB_SHA` remain unchanged.
+- Declare deployment inputs in `env-schema.yaml`; keep safe constants in app
+  defaults and preserve runtime names in app-local env files.
 
 ## Package Management
 
@@ -60,6 +61,10 @@
 - Update README, app README, durable docs, AGENTS, and skills when workflow, architecture, runtime behavior, or conventions change.
 - Initiative PRDs live in `docs/initiatives/prds` and execution plans live in `docs/initiatives/tasks`.
 - Use `triad-initiative-workflow` when creating or updating initiative PRDs/tasks.
+- Use `triad-release-workflow` for first-release bootstrap, release readiness,
+  production promotion, release environment checks, tags, and GitHub Releases.
+- Treat publishing a release and deploying applications as separate decisions.
+  Do not enable deployment as a side effect of release work.
 - Initiative planning must include brainstorm, gaps, counterpoints, performance/scalability, accessibility, security/privacy, API/IDP/web boundaries, logging/observability, and verification thinking.
 - If documentation does not need updates, be prepared to state why during review or handoff.
 

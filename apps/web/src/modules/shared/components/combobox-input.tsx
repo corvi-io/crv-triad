@@ -8,7 +8,7 @@ import type {
   KeyboardEvent,
   Ref,
 } from "react"
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useLayoutEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 
 import { Button } from "@/modules/shared/components/ui/button"
@@ -76,9 +76,7 @@ export function ComboboxInput({
     [maxVisibleOptions, options],
   )
 
-  useEffect(() => {
-    setActiveIndex((current) => Math.min(current, visibleOptions.length - 1))
-  }, [visibleOptions.length])
+  const boundedActiveIndex = Math.min(activeIndex, visibleOptions.length - 1)
 
   useLayoutEffect(() => {
     if (!isOpen) return
@@ -165,9 +163,9 @@ export function ComboboxInput({
       return
     }
 
-    if (event.key === "Enter" && isOpen && activeIndex >= 0) {
+    if (event.key === "Enter" && isOpen && boundedActiveIndex >= 0) {
       event.preventDefault()
-      const option = visibleOptions[activeIndex]
+      const option = visibleOptions[boundedActiveIndex]
       if (option) {
         onOptionSelect(option)
         setIsOpen(false)
@@ -207,7 +205,7 @@ export function ComboboxInput({
             ) : visibleOptions.length > 0 ? (
               visibleOptions.map((option, index) => {
                 const isSelected = option.label === value || option.value === value
-                const isActive = index === activeIndex
+                const isActive = index === boundedActiveIndex
 
                 return (
                   <button
@@ -267,7 +265,7 @@ export function ComboboxInput({
         aria-autocomplete="list"
         aria-controls={listboxId}
         aria-activedescendant={
-          isOpen && activeIndex >= 0 ? `${id}-option-${activeIndex}` : undefined
+          isOpen && boundedActiveIndex >= 0 ? `${id}-option-${boundedActiveIndex}` : undefined
         }
         aria-describedby={[ariaDescribedBy, statusId].filter(Boolean).join(" ") || undefined}
         aria-expanded={isOpen}

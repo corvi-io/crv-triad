@@ -18,4 +18,7 @@ GitHub Environment sources mapped to required runtime values:
 
 Do not store API runtime values in `fly.*.toml`; GitHub Actions syncs them to Fly secrets before deploy.
 
+The GitHub Environment secret `INFRA__FLY_API_TOKEN` authenticates Fly.io. Deployment runs only
+when the environment variable `CICD__DEPLOY_ENABLED` is `true`.
+
 `IDP_AUTH_TIMEOUT_SECONDS` keeps its safe application default and is not a deployment source. Local `.env.example` names remain runtime-shaped.

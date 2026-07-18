@@ -1,11 +1,7 @@
 import { Link } from "@tanstack/react-router"
 import { ArrowRightIcon } from "lucide-react"
 
-import { cn } from "@/modules/shared/lib/utils"
-import type {
-  WorkspaceModule,
-  WorkspacePlannedNavigationItem,
-} from "@/modules/shared/workspace/module-registry"
+import type { WorkspaceModule } from "@/modules/shared/workspace/module-registry"
 
 type ModuleCardProps = {
   module: WorkspaceModule
@@ -35,39 +31,5 @@ export function ModuleCard({ module }: ModuleCardProps) {
         />
       </div>
     </Link>
-  )
-}
-
-type PlannedModuleCardProps = {
-  module: WorkspacePlannedNavigationItem
-  className?: string
-}
-
-export function PlannedModuleCard({ className, module }: PlannedModuleCardProps) {
-  const ModuleIcon = module.icon
-
-  return (
-    <article
-      aria-labelledby={`planned-module-${module.id}`}
-      className={cn(
-        "min-w-0 rounded-lg border bg-muted/35 px-3 py-2.5 text-muted-foreground",
-        className,
-      )}
-    >
-      <div className="flex items-center gap-3">
-        <span className="grid size-7 shrink-0 place-items-center rounded-md bg-background text-muted-foreground">
-          <ModuleIcon className="size-4" aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-          <h3
-            className="truncate text-sm font-semibold text-foreground"
-            id={`planned-module-${module.id}`}
-          >
-            {module.label}
-          </h3>
-          <p className="truncate text-xs">Disponível em breve</p>
-        </div>
-      </div>
-    </article>
   )
 }

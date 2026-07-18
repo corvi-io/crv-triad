@@ -2,7 +2,6 @@ import { createRootRoute, Outlet, useLocation } from "@tanstack/react-router"
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools"
 import { Toaster } from "@/modules/shared/components/ui/sonner"
 import { env } from "@/modules/shared/config/env"
-import { workspaceReferenceRoutes } from "@/modules/shared/workspace/module-registry"
 
 export const Route = createRootRoute({
   component: RootRoute,
@@ -10,11 +9,7 @@ export const Route = createRootRoute({
 
 function RootRoute() {
   const pathname = useLocation({ select: (location) => location.pathname })
-  const isReferenceFormSurface =
-    pathname.startsWith("/workspace-preview/forms") ||
-    workspaceReferenceRoutes.some(
-      (route) => pathname === route.path || pathname.startsWith(`${route.path}/`),
-    )
+  const isPreviewSurface = pathname.startsWith("/workspace-preview")
 
   return (
     <>
@@ -26,7 +21,7 @@ function RootRoute() {
       </a>
       <Outlet />
       <Toaster />
-      {env.isDevServer && !isReferenceFormSurface ? (
+      {env.isDevServer && !isPreviewSurface ? (
         <TanStackRouterDevtools position="bottom-left" />
       ) : null}
     </>

@@ -1,31 +1,23 @@
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
+
+function getTouchPrimarySnapshot() {
+  if (typeof window === "undefined") return false
+
+  const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0
+  return hasTouch && window.matchMedia("(pointer: coarse)").matches
+}
+
+function subscribeToTouchPrimary(onStoreChange: () => void) {
+  const mediaQuery = window.matchMedia("(pointer: coarse)")
+  mediaQuery.addEventListener("change", onStoreChange)
+  window.addEventListener("pointerdown", onStoreChange)
+
+  return () => {
+    mediaQuery.removeEventListener("change", onStoreChange)
+    window.removeEventListener("pointerdown", onStoreChange)
+  }
+}
 
 export function useTouchPrimary() {
-  const [isTouchPrimary, setIsTouchPrimary] = useState(false)
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return
-    }
-
-    const controller = new AbortController()
-    const { signal } = controller
-
-    const handleTouch = () => {
-      const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0
-      const prefersTouch = window.matchMedia("(pointer: coarse)").matches
-
-      setIsTouchPrimary(hasTouch && prefersTouch)
-    }
-
-    const mediaQuery = window.matchMedia("(pointer: coarse)")
-    mediaQuery.addEventListener("change", handleTouch, { signal })
-    window.addEventListener("pointerdown", handleTouch, { signal })
-
-    handleTouch()
-
-    return () => controller.abort()
-  }, [])
-
-  return isTouchPrimary
+  return useSyncExternalStore(subscribeToTouchPrimary, getTouchPrimarySnapshot, () => false)
 }

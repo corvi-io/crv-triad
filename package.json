@@ -1,6 +1,6 @@
 {
   "name": "crv-triad",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "packageManager": "bun@1.3.11",
   "workspaces": [
@@ -15,6 +15,7 @@
     "build": "turbo run build",
     "start": "turbo run start",
     "check": "turbo run check",
+    "test:ci": "bun test ./.github/scripts",
     "format": "turbo run format",
     "lint": "turbo run lint",
     "test": "turbo run test",

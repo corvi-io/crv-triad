@@ -12,7 +12,7 @@ case "$target" in
     idp_health_url="https://crv-triad-idp-dev.fly.dev/health"
     pages_branch="dev"
     site_health_url="${PUBLIC_SITE_URL:-}"
-    web_health_url="${WEB__CLOUDFLARE_PAGES_URL:-}"
+    web_health_url="${INFRA__WEB_URL:-}"
     ;;
   hml)
     api_config="apps/api/fly.hml.toml"
@@ -21,7 +21,7 @@ case "$target" in
     idp_health_url="https://crv-triad-idp-hml.fly.dev/health"
     pages_branch="hml"
     site_health_url="${PUBLIC_SITE_URL:-}"
-    web_health_url="${WEB__CLOUDFLARE_PAGES_URL:-}"
+    web_health_url="${INFRA__WEB_URL:-}"
     ;;
   prd)
     api_config="apps/api/fly.prd.toml"
@@ -30,7 +30,7 @@ case "$target" in
     idp_health_url="https://crv-triad-idp-prd.fly.dev/health"
     pages_branch="main"
     site_health_url="${PUBLIC_SITE_URL:-}"
-    web_health_url="${WEB__CLOUDFLARE_PAGES_URL:-}"
+    web_health_url="${INFRA__WEB_URL:-}"
     ;;
   *)
     echo "Unknown deploy target: $target"
@@ -65,32 +65,32 @@ should_skip_dev_cloudflare_pages_deploy() {
 
   [[ "$target" == "dev" ]] &&
     {
-      [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]] ||
-        [[ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]] ||
+      [[ -z "${INFRA__CLOUDFLARE_API_TOKEN:-}" ]] ||
+        [[ -z "${INFRA__CLOUDFLARE_ACCOUNT_ID:-}" ]] ||
         [[ -z "$project_name" ]]
     }
 }
 
 if [[ "$app" == "api" ]]; then
-  if [[ -z "${FLY_API_TOKEN:-}" ]]; then
-    echo "FLY_API_TOKEN is required to deploy API to Fly.io."
+  if [[ -z "${INFRA__FLY_API_TOKEN:-}" ]]; then
+    echo "INFRA__FLY_API_TOKEN is required to deploy API to Fly.io."
     exit 1
   fi
 
-  bun .github/scripts/env-management.ts sync-fly --app api --target "$target"
-  flyctl deploy . --config "$api_config" --dockerfile apps/api/Dockerfile --remote-only
+  FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" bun .github/scripts/env-management.ts sync-fly --app api --target "$target"
+  FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" flyctl deploy . --config "$api_config" --dockerfile apps/api/Dockerfile --remote-only
   wait_for_health "$api_health_url"
   exit 0
 fi
 
 if [[ "$app" == "idp" ]]; then
-  if [[ -z "${FLY_API_TOKEN:-}" ]]; then
-    echo "FLY_API_TOKEN is required to deploy IDP to Fly.io."
+  if [[ -z "${INFRA__FLY_API_TOKEN:-}" ]]; then
+    echo "INFRA__FLY_API_TOKEN is required to deploy IDP to Fly.io."
     exit 1
   fi
 
-  bun .github/scripts/env-management.ts sync-fly --app idp --target "$target"
-  flyctl deploy . --config "$idp_config" --dockerfile apps/idp/Dockerfile --remote-only
+  FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" bun .github/scripts/env-management.ts sync-fly --app idp --target "$target"
+  FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" flyctl deploy . --config "$idp_config" --dockerfile apps/idp/Dockerfile --remote-only
   wait_for_health "$idp_health_url"
   exit 0
 fi
@@ -98,29 +98,31 @@ fi
 if [[ "$app" == "site" ]]; then
   bun .github/scripts/env-management.ts validate --app site --target "$target"
 
-  if should_skip_dev_cloudflare_pages_deploy "${SITE__CLOUDFLARE_PAGES_PROJECT_NAME:-}"; then
+  if should_skip_dev_cloudflare_pages_deploy "${INFRA__CLOUDFLARE_SITE_PROJECT_NAME:-}"; then
     echo "Cloudflare Pages deploy is not fully configured for dev. Skipping site deploy."
     exit 0
   fi
 
-  if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
-    echo "CLOUDFLARE_API_TOKEN is required to deploy site to Cloudflare Pages."
+  if [[ -z "${INFRA__CLOUDFLARE_API_TOKEN:-}" ]]; then
+    echo "INFRA__CLOUDFLARE_API_TOKEN is required to deploy site to Cloudflare Pages."
     exit 1
   fi
 
-  if [[ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
-    echo "CLOUDFLARE_ACCOUNT_ID is required to deploy site to Cloudflare Pages."
+  if [[ -z "${INFRA__CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
+    echo "INFRA__CLOUDFLARE_ACCOUNT_ID is required to deploy site to Cloudflare Pages."
     exit 1
   fi
 
-  if [[ -z "${SITE__CLOUDFLARE_PAGES_PROJECT_NAME:-}" ]]; then
-    echo "SITE__CLOUDFLARE_PAGES_PROJECT_NAME is required to deploy site to Cloudflare Pages."
+  if [[ -z "${INFRA__CLOUDFLARE_SITE_PROJECT_NAME:-}" ]]; then
+    echo "INFRA__CLOUDFLARE_SITE_PROJECT_NAME is required to deploy site to Cloudflare Pages."
     exit 1
   fi
 
   bun --filter site build
-  bunx wrangler pages deploy apps/site/dist \
-    --project-name "$SITE__CLOUDFLARE_PAGES_PROJECT_NAME" \
+  CLOUDFLARE_API_TOKEN="$INFRA__CLOUDFLARE_API_TOKEN" \
+    CLOUDFLARE_ACCOUNT_ID="$INFRA__CLOUDFLARE_ACCOUNT_ID" \
+    bunx wrangler pages deploy apps/site/dist \
+    --project-name "$INFRA__CLOUDFLARE_SITE_PROJECT_NAME" \
     --branch "$pages_branch" \
     --commit-dirty=true
 
@@ -131,29 +133,31 @@ fi
 if [[ "$app" == "web" ]]; then
   bun .github/scripts/env-management.ts validate --app web --target "$target"
 
-  if should_skip_dev_cloudflare_pages_deploy "${WEB__CLOUDFLARE_PAGES_PROJECT_NAME:-}"; then
+  if should_skip_dev_cloudflare_pages_deploy "${INFRA__CLOUDFLARE_WEB_PROJECT_NAME:-}"; then
     echo "Cloudflare Pages deploy is not fully configured for dev. Skipping web deploy."
     exit 0
   fi
 
-  if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
-    echo "CLOUDFLARE_API_TOKEN is required to deploy web to Cloudflare Pages."
+  if [[ -z "${INFRA__CLOUDFLARE_API_TOKEN:-}" ]]; then
+    echo "INFRA__CLOUDFLARE_API_TOKEN is required to deploy web to Cloudflare Pages."
     exit 1
   fi
 
-  if [[ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
-    echo "CLOUDFLARE_ACCOUNT_ID is required to deploy web to Cloudflare Pages."
+  if [[ -z "${INFRA__CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
+    echo "INFRA__CLOUDFLARE_ACCOUNT_ID is required to deploy web to Cloudflare Pages."
     exit 1
   fi
 
-  if [[ -z "${WEB__CLOUDFLARE_PAGES_PROJECT_NAME:-}" ]]; then
-    echo "WEB__CLOUDFLARE_PAGES_PROJECT_NAME is required to deploy web to Cloudflare Pages."
+  if [[ -z "${INFRA__CLOUDFLARE_WEB_PROJECT_NAME:-}" ]]; then
+    echo "INFRA__CLOUDFLARE_WEB_PROJECT_NAME is required to deploy web to Cloudflare Pages."
     exit 1
   fi
 
   bun --filter web build
-  bunx wrangler pages deploy apps/web/dist \
-    --project-name "$WEB__CLOUDFLARE_PAGES_PROJECT_NAME" \
+  CLOUDFLARE_API_TOKEN="$INFRA__CLOUDFLARE_API_TOKEN" \
+    CLOUDFLARE_ACCOUNT_ID="$INFRA__CLOUDFLARE_ACCOUNT_ID" \
+    bunx wrangler pages deploy apps/web/dist \
+    --project-name "$INFRA__CLOUDFLARE_WEB_PROJECT_NAME" \
     --branch "$pages_branch" \
     --commit-dirty=true
 

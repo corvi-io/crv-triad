@@ -40,10 +40,6 @@ export function CollapsibleDrawerSection({
   const sectionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (status === "invalid") setOpen(true)
-  }, [status])
-
-  useEffect(() => {
     const sectionElement = sectionRef.current
     if (!sectionElement) return
 
@@ -75,7 +71,7 @@ export function CollapsibleDrawerSection({
       ref={sectionRef}
       className="relative rounded-sm p-3 before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:border before:border-border before:content-[''] data-invalid:before:border-destructive"
       data-invalid={status === "invalid" ? true : undefined}
-      open={open}
+      open={status === "invalid" || open}
       onOpenChange={setOpen}
     >
       <CollapsibleTrigger className="group flex min-h-6 w-full cursor-pointer items-center justify-between gap-3 rounded-sm text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">

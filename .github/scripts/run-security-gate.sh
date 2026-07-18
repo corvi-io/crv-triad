@@ -25,6 +25,34 @@ if [[ -n "$workflow_files" ]]; then
   fi
 fi
 
-bun audit --prod --audit-level critical
+unpinned_actions="$(while IFS= read -r workflow_file; do
+  [[ -z "$workflow_file" ]] && continue
+  grep -E '^[[:space:]]+uses: [^./][^@]+@' "$workflow_file" | grep -Ev '@[0-9a-f]{40}([[:space:]]+#.*)?$' | sed "s|^|$workflow_file: |" || true
+done <<< "$workflow_files")"
+
+if [[ -n "$unpinned_actions" ]]; then
+  echo "Third-party actions must be pinned to a full commit SHA:"
+  echo "$unpinned_actions"
+  exit 1
+fi
+
+credential_patterns='(gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|sk_live_[A-Za-z0-9]+)'
+tracked_credentials="$(git grep -n -I -E "$credential_patterns" -- . || true)"
+if [[ -n "$tracked_credentials" ]]; then
+  echo "Potential tracked credentials detected:"
+  echo "$tracked_credentials"
+  exit 1
+fi
+
+bun audit --prod --audit-level high
+
+requirements_file="$(mktemp)"
+trap 'rm -f "$requirements_file"' EXIT
+uv export --directory apps/api --frozen --no-dev --format requirements-txt --no-hashes --output-file "$requirements_file"
+uvx --from pip-audit pip-audit \
+  --disable-pip \
+  --no-deps \
+  --skip-editable \
+  --requirement "$requirements_file"
 
 echo "::endgroup::"

@@ -1,5 +1,5 @@
 import type * as React from "react"
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 
 import { Input } from "@/modules/shared/components/ui/input"
 import {
@@ -36,12 +36,14 @@ function BrazilianRegistrationInput({
   ...props
 }: MaskedInputProps) {
   const [displayValue, setDisplayValue] = useState(() => formatBrazilianRegistration(value))
+  const [previousValue, setPreviousValue] = useState(value)
 
-  useEffect(() => {
+  if (value !== previousValue) {
+    setPreviousValue(value)
     if (normalizeInputMask("brRegistration", displayValue) !== value) {
       setDisplayValue(formatBrazilianRegistration(value))
     }
-  }, [displayValue, value])
+  }
 
   return (
     <Input

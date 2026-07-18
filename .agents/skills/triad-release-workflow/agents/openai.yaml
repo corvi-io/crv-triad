@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triad Release Workflow"
+  short_description: "Prepare and publish safe Triad releases"
+  default_prompt: "Use $triad-release-workflow to prepare and validate a CRV Triad release."
