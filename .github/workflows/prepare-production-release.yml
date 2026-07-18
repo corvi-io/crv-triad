@@ -20,25 +20,25 @@ jobs:
   prepare-production-release:
     name: Prepare Production Release
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ vars.CICD__RELEASE_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') }}
     env:
-      SOURCE_BRANCH: staging
+      CICD__SOURCE_BRANCH: staging
     steps:
       - name: Verify release token secret
         env:
-          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          CICD__RELEASE_TOKEN: ${{ secrets.CICD__RELEASE_TOKEN }}
         run: |
-          if [ -z "$RELEASE_PLEASE_TOKEN" ]; then
-            echo "::error::RELEASE_PLEASE_TOKEN repository secret is required for release preparation."
+          if [ -z "$CICD__RELEASE_TOKEN" ]; then
+            echo "::error::CICD__RELEASE_TOKEN repository secret is required for release preparation."
             exit 1
           fi
 
       - name: Checkout staging
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: staging
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          token: ${{ secrets.CICD__RELEASE_TOKEN }}
 
       - name: Inspect staging release readiness
         id: release-readiness
@@ -80,9 +80,9 @@ jobs:
       - name: Generate release artifact pull request
         id: release-please
         if: ${{ steps.release-readiness.outputs.prepare_needed == 'true' && steps.release-readiness.outputs.required == 'true' && steps.release-readiness.outputs.prepared != 'true' }}
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          token: ${{ secrets.CICD__RELEASE_TOKEN }}
           target-branch: staging
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
@@ -91,9 +91,9 @@ jobs:
       - name: Merge release artifacts into staging
         if: ${{ steps.release-readiness.outputs.prepare_needed == 'true' && steps.release-readiness.outputs.required == 'true' && steps.release-readiness.outputs.prepared != 'true' && (steps.release-please.outputs.prs_created == 'true' || steps.release-please.outputs.pr != '') }}
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.CICD__RELEASE_TOKEN }}
         run: |
-          release_pr="$(gh pr list --base "$SOURCE_BRANCH" --head "release-please--branches--$SOURCE_BRANCH" --state open --json number --jq '.[0].number')"
+          release_pr="$(gh pr list --base "$CICD__SOURCE_BRANCH" --head "release-please--branches--$CICD__SOURCE_BRANCH" --state open --json number --jq '.[0].number')"
           if [ -z "$release_pr" ]; then
             echo "No release artifact PR found for $SOURCE_BRANCH."
             exit 0
@@ -128,7 +128,7 @@ jobs:
       - name: Open or update production promotion PR
         if: ${{ steps.release-readiness.outputs.prepare_needed == 'true' }}
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.CICD__RELEASE_TOKEN }}
         run: |
           git fetch origin main staging
 
@@ -156,10 +156,10 @@ jobs:
           - Merge with a merge commit so `main` contains the exact `staging` history; `Sync Staging With Main` then fast-forwards `staging` to `main`.
           EOF
 
-          existing_pr="$(gh pr list --base main --head "$SOURCE_BRANCH" --state open --json number --jq '.[0].number')"
+          existing_pr="$(gh pr list --base main --head "$CICD__SOURCE_BRANCH" --state open --json number --jq '.[0].number')"
           if [ -n "$existing_pr" ]; then
             gh pr edit "$existing_pr" --title "chore(release): promote staging to production" --body-file "$body_file"
             echo "Updated production promotion PR #$existing_pr."
           else
-            gh pr create --base main --head "$SOURCE_BRANCH" --title "chore(release): promote staging to production" --body-file "$body_file"
+            gh pr create --base main --head "$CICD__SOURCE_BRANCH" --title "chore(release): promote staging to production" --body-file "$body_file"
           fi

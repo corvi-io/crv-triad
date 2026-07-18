@@ -24,25 +24,6 @@ export function SidebarSecondaryNavigation({
         {items.map((item) => {
           const ItemIcon = item.icon
 
-          if (item.status === "planned") {
-            const unavailableLabel = `${item.label} — disponível em breve`
-
-            return (
-              <SidebarMenuItem data-status="planned" key={item.id}>
-                <SidebarMenuButton
-                  aria-disabled="true"
-                  aria-label={unavailableLabel}
-                  className="cursor-default aria-disabled:pointer-events-auto aria-disabled:opacity-100 group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:w-full! group-data-[collapsible=icon]:px-3!"
-                  tooltip={unavailableLabel}
-                  type="button"
-                >
-                  <ItemIcon aria-hidden="true" />
-                  <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )
-          }
-
           const isActive = isWorkspaceNavigationItemActive(item, pathname)
 
           return (

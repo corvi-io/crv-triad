@@ -25,6 +25,12 @@
       "skillPath": "better-auth/best-practices/SKILL.md",
       "computedHash": "a4c830509e85557b59339d8d93a4e243e9e59c686e7678854d39230e12c2a6dc"
     },
+    "elysia": {
+      "source": "local",
+      "sourceType": "local",
+      "skillPath": ".agents/skills/elysia/SKILL.md",
+      "computedHash": ""
+    },
     "fastapi": {
       "source": "fastapi/fastapi",
       "sourceType": "github",
@@ -37,11 +43,11 @@
       "skillPath": "skills/github-actions-docs/SKILL.md",
       "computedHash": "e9ac24e79715ef3060bd4ae376052f8d863b830604e69cb513b39764bf47ee53"
     },
-    "elysia": {
-      "source": "local",
-      "sourceType": "local",
-      "skillPath": ".agents/skills/elysia/SKILL.md",
-      "computedHash": ""
+    "react-useeffect": {
+      "source": "fluid-tools/claude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-useeffect/SKILL.md",
+      "computedHash": "55f71a7e90bb0ad57d849845a685ec0fde3d1881a7bc387340bcb3e7e9b30179"
     },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",

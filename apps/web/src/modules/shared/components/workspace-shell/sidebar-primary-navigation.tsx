@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router"
-import { ChevronRightIcon } from "lucide-react"
 
 import {
   SidebarGroup,
@@ -38,31 +37,6 @@ function SidebarPrimaryNavigationItem({
   pathname: string
 }) {
   const ItemIcon = item.icon
-
-  if (item.status === "planned") {
-    const unavailableLabel = `${item.label} — disponível em breve`
-
-    return (
-      <SidebarMenuItem className="flex justify-center py-1" data-status="planned">
-        <SidebarMenuButton
-          aria-disabled="true"
-          aria-label={unavailableLabel}
-          className="cursor-default aria-disabled:pointer-events-auto aria-disabled:opacity-100"
-          tooltip={unavailableLabel}
-          type="button"
-        >
-          <ItemIcon aria-hidden="true" />
-          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-          {item.showDisclosure ? (
-            <ChevronRightIcon
-              aria-hidden="true"
-              className="ml-auto size-4 group-data-[collapsible=icon]:hidden"
-            />
-          ) : null}
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    )
-  }
 
   const isActive = isWorkspaceNavigationItemActive(item, pathname)
 

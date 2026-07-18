@@ -56,6 +56,13 @@ the templates in `docs/initiatives/templates` and use
 
 Deployment environment metadata lives in `env-schema.yaml`; actual values belong in GitHub Environments. App source names use uppercase prefixes such as `API__DATABASE_URL`, while app-local runtime names remain unchanged.
 
+Custom GitHub configuration is categorized by ownership:
+
+- `API__*`, `IDP__*`, `SITE__*`, and `WEB__*` are app runtime inputs.
+- `CICD__*` controls pipelines and releases.
+- `INFRA__*` identifies or authenticates infrastructure providers and deployed resources.
+
 The Fly.io and Cloudflare identifiers in this repository define the intended Triad topology. Provision
-new Triad-owned resources and GitHub Environment values before enabling deployment workflows; no
-resource or credential from the source project is reused.
+new Triad-owned resources and GitHub Environment values before setting
+`CICD__DEPLOY_ENABLED=true`; quality and security gates remain active while deployment is disabled.
+No resource or credential from the source project is reused.

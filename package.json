@@ -15,6 +15,7 @@
     "build": "turbo run build",
     "start": "turbo run start",
     "check": "turbo run check",
+    "test:ci": "bun test ./.github/scripts",
     "format": "turbo run format",
     "lint": "turbo run lint",
     "test": "turbo run test",

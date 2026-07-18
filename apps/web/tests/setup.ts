@@ -27,7 +27,7 @@ window.matchMedia = (query) => ({
   addEventListener: () => undefined,
   addListener: () => undefined,
   dispatchEvent: () => false,
-  matches: false,
+  matches: query === "(max-width: 767px)" ? window.innerWidth < 768 : false,
   media: query,
   onchange: null,
   removeEventListener: () => undefined,

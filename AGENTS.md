@@ -42,11 +42,12 @@
 - Use GitHub Environments `dev`, `hml`, and `prd` for deployment env values.
 - Name app runtime sources in GitHub Environments as `APP__RUNTIME_ENV_NAME`
   with an uppercase app prefix (`API__*`, `IDP__*`, `SITE__*`, `WEB__*`).
-- Name app-specific Cloudflare Pages controls with the same `APP__*` prefix:
-  `SITE__CLOUDFLARE_PAGES_PROJECT_NAME`, `WEB__CLOUDFLARE_PAGES_PROJECT_NAME`,
-  and `WEB__CLOUDFLARE_PAGES_URL`.
-  Declare only secrets and values that differ by target in `env-schema.yaml`;
-  keep safe constants in app defaults and preserve runtime names in app-local env files.
+- Name pipeline and release controls with `CICD__*` and provider credentials,
+  provider identifiers, and deployed-resource locations with `INFRA__*`.
+- Do not add uncategorized custom GitHub variables or secrets. GitHub-provided
+  variables such as `GITHUB_SHA` remain unchanged.
+- Declare deployment inputs in `env-schema.yaml`; keep safe constants in app
+  defaults and preserve runtime names in app-local env files.
 
 ## Package Management
 

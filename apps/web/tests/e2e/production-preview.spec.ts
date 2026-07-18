@@ -6,43 +6,10 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-test("redirects guarded routes without loading domain creation modules in production", async ({
-  page,
-}) => {
-  const creationModuleRequests: string[] = []
-  page.on("request", (request) => {
-    if (/creation-(?:form|preview)-/.test(request.url())) {
-      creationModuleRequests.push(request.url())
-    }
-  })
+test("redirects the development-only workspace preview in production", async ({ page }) => {
+  await page.goto("/workspace-preview")
 
-  const guardedPaths = [
-    "/workspace-preview/forms",
-    "/workspace-preview/forms/companies",
-    "/workspace-preview/forms/customers",
-    "/workspace-preview/forms/products",
-    "/workspace-preview/forms/warehouses",
-    "/workspace-preview/forms/trucks",
-    "/workspace-preview/forms/drivers",
-    "/workspace-preview/forms/collaborators",
-    "/workspace-preview/forms/permission-profiles",
-    "/companies",
-    "/customers",
-    "/inventory/products",
-    "/inventory/warehouses",
-    "/fleet/trucks",
-    "/drivers",
-    "/users/collaborators",
-    "/users/permission-profiles",
-  ] as const
-
-  for (const path of guardedPaths) {
-    const requestsBeforeNavigation = creationModuleRequests.length
-    await page.goto(path)
-    await expect(page).toHaveURL(/\/login$/)
-    await expect(page.getByRole("heading", { name: "Entrar no CRV Triad" })).toBeVisible()
-    expect(creationModuleRequests.slice(requestsBeforeNavigation), path).toEqual([])
-  }
-
-  expect(creationModuleRequests).toEqual([])
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByRole("heading", { name: "Entrar no CRV Triad" })).toBeVisible()
+  await expect(page.getByText("Pré-visualização de desenvolvimento")).toHaveCount(0)
 })

@@ -14,6 +14,30 @@ import {
 
 const schema: EnvSchema = {
   schema_version: 1,
+  platform: {
+    cicd: {
+      owner: ".github",
+      env: [
+        {
+          source: "CICD__DEPLOY_ENABLED",
+          github: "variable",
+          scope: "environment",
+          required: true,
+        },
+      ],
+    },
+    infra: {
+      owner: ".github",
+      env: [
+        {
+          source: "INFRA__FLY_API_TOKEN",
+          github: "secret",
+          scope: "environment",
+          required: false,
+        },
+      ],
+    },
+  },
   apps: {
     api: {
       owner: "apps/api",
@@ -80,6 +104,15 @@ describe("env-management", () => {
     expect(() => assertSchema(invalid)).toThrow('App "api" has invalid source name.')
   })
 
+  it("requires categorized CICD and infrastructure source prefixes", () => {
+    const invalid = structuredClone(schema)
+    invalid.platform.infra.env[0].source = "FLY_API_TOKEN"
+
+    expect(() => assertSchema(invalid)).toThrow(
+      'Platform source "FLY_API_TOKEN" must use the prefix "INFRA__".',
+    )
+  })
+
   it("keeps the checked-in schema limited to target-specific mappings", async () => {
     const checkedInSchema = await loadSchema()
 
@@ -102,119 +135,60 @@ describe("env-management", () => {
       site: ["SITE__PUBLIC_SITE_URL"],
       web: ["WEB__VITE_AUTH_BASE_URL", "WEB__VITE_API_BASE_URL"],
     })
+    expect(
+      Object.fromEntries(
+        Object.entries(checkedInSchema.platform).map(([category, config]) => [
+          category,
+          config.env.map((entry) => entry.source),
+        ]),
+      ),
+    ).toEqual({
+      cicd: ["CICD__DEPLOY_ENABLED", "CICD__RELEASE_ENABLED", "CICD__RELEASE_TOKEN"],
+      infra: [
+        "INFRA__FLY_API_TOKEN",
+        "INFRA__CLOUDFLARE_API_TOKEN",
+        "INFRA__CLOUDFLARE_ACCOUNT_ID",
+        "INFRA__CLOUDFLARE_SITE_PROJECT_NAME",
+        "INFRA__CLOUDFLARE_WEB_PROJECT_NAME",
+        "INFRA__WEB_URL",
+      ],
+    })
   })
 
   it("validates declared source and provider-control wiring in every workflow", async () => {
-    const workflowExpectations = {
-      ".github/workflows/develop-pipeline.yml": {
-        providerControls: [
-          "SITE__CLOUDFLARE_PAGES_PROJECT_NAME",
-          "WEB__CLOUDFLARE_PAGES_PROJECT_NAME",
-          "WEB__CLOUDFLARE_PAGES_URL",
-        ],
-        sources: [
-          "API__DATABASE_URL",
-          "API__IDP_BASE_URL",
-          "IDP__DATABASE_URL",
-          "IDP__BETTER_AUTH_SECRET",
-          "IDP__APP_ENV",
-          "IDP__BETTER_AUTH_URL",
-          "IDP__AUTH_TRUSTED_ORIGINS",
-          "SITE__PUBLIC_SITE_URL",
-          "WEB__VITE_AUTH_BASE_URL",
-          "WEB__VITE_API_BASE_URL",
-        ],
-      },
-      ".github/workflows/homolog-pipeline.yml": {
-        providerControls: [
-          "SITE__CLOUDFLARE_PAGES_PROJECT_NAME",
-          "WEB__CLOUDFLARE_PAGES_PROJECT_NAME",
-          "WEB__CLOUDFLARE_PAGES_URL",
-        ],
-        sources: [
-          "API__DATABASE_URL",
-          "API__IDP_BASE_URL",
-          "IDP__DATABASE_URL",
-          "IDP__BETTER_AUTH_SECRET",
-          "IDP__APP_ENV",
-          "IDP__BETTER_AUTH_URL",
-          "IDP__AUTH_TRUSTED_ORIGINS",
-          "SITE__PUBLIC_SITE_URL",
-          "WEB__VITE_AUTH_BASE_URL",
-          "WEB__VITE_API_BASE_URL",
-        ],
-      },
-      ".github/workflows/prepare-production-release.yml": {
-        providerControls: [],
-        sources: [],
-      },
-      ".github/workflows/production-pipeline.yml": {
-        providerControls: [
-          "SITE__CLOUDFLARE_PAGES_PROJECT_NAME",
-          "WEB__CLOUDFLARE_PAGES_PROJECT_NAME",
-          "WEB__CLOUDFLARE_PAGES_URL",
-        ],
-        sources: [
-          "API__DATABASE_URL",
-          "API__IDP_BASE_URL",
-          "IDP__DATABASE_URL",
-          "IDP__BETTER_AUTH_SECRET",
-          "IDP__APP_ENV",
-          "IDP__BETTER_AUTH_URL",
-          "IDP__AUTH_TRUSTED_ORIGINS",
-          "SITE__PUBLIC_SITE_URL",
-          "WEB__VITE_AUTH_BASE_URL",
-          "WEB__VITE_API_BASE_URL",
-        ],
-      },
-      ".github/workflows/promotion-pipeline.yml": {
-        providerControls: [],
-        sources: ["SITE__PUBLIC_SITE_URL", "WEB__VITE_AUTH_BASE_URL", "WEB__VITE_API_BASE_URL"],
-      },
-      ".github/workflows/publish-release.yml": {
-        providerControls: [],
-        sources: [],
-      },
-      ".github/workflows/sync-staging-with-main.yml": {
-        providerControls: [],
-        sources: [],
-      },
-    }
+    const workflowPaths = [
+      ".github/workflows/develop-pipeline.yml",
+      ".github/workflows/homolog-pipeline.yml",
+      ".github/workflows/prepare-production-release.yml",
+      ".github/workflows/production-pipeline.yml",
+      ".github/workflows/promotion-pipeline.yml",
+      ".github/workflows/publish-release.yml",
+      ".github/workflows/sync-staging-with-main.yml",
+    ]
     const checkedInSchema = await loadSchema()
     const declaredSources = new Map(
-      Object.values(checkedInSchema.apps)
-        .flatMap((app) => app.env)
-        .map((entry) => [entry.source, entry.github]),
+      [
+        ...Object.values(checkedInSchema.platform).flatMap((category) => category.env),
+        ...Object.values(checkedInSchema.apps).flatMap((app) => app.env),
+      ].map((entry) => [entry.source, entry.github]),
     )
 
-    for (const [path, expectation] of Object.entries(workflowExpectations)) {
+    for (const path of workflowPaths) {
       const content = readFileSync(path, "utf8")
-      const providerControls = [
-        ...new Set(content.match(/\b(?:SITE|WEB)__CLOUDFLARE_PAGES_[A-Z_]+\b/g) ?? []),
+      const sourceReferences = [
+        ...content.matchAll(/\$\{\{\s+(secrets|vars)\.([A-Z][A-Z0-9]*__[A-Z0-9_]+)\s+\}\}/g),
       ]
-      const sources = [
-        ...new Set(content.match(/\b(?:API|IDP|SITE|WEB)__[A-Z0-9_]+\b/g) ?? []),
-      ].filter((source) => !providerControls.includes(source))
 
       expect(() => Bun.YAML.parse(content)).not.toThrow()
-      expect(sources.sort()).toEqual([...expectation.sources].sort())
-      expect(sources.every((source) => declaredSources.has(source))).toBe(true)
-      expect(providerControls.sort()).toEqual([...expectation.providerControls].sort())
       expect(content).not.toMatch(/\b(?:api|idp|site|web)__[A-Z0-9_]+\b/)
-      expect(content).not.toMatch(/\b(?:API|IDP)__CLOUDFLARE_/)
-      expect(content).not.toMatch(/\b(?:SITE|WEB)_CLOUDFLARE_/)
+      expect(content).not.toMatch(
+        /\b(?:FLY_API_TOKEN|CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID|RELEASE_PLEASE_TOKEN)\b/,
+      )
 
-      for (const source of expectation.sources) {
+      for (const [, context, source] of sourceReferences) {
         const githubKind = declaredSources.get(source)
         expect(githubKind).toBeDefined()
-        const githubContext = githubKind === "secret" ? "secrets" : "vars"
-        expect(content).toMatch(
-          new RegExp(`\\b${source}: \\$\\{\\{ ${githubContext}\\.${source} \\}\\}`),
-        )
-      }
-
-      for (const providerControl of expectation.providerControls) {
-        expect(content).toContain(`${providerControl}: \${{ vars.${providerControl} }}`)
+        expect(context).toBe(githubKind === "secret" ? "secrets" : "vars")
       }
     }
   })

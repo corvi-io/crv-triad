@@ -22,3 +22,6 @@ GitHub Environment sources mapped to required runtime values:
 Session/password policy and invitation-email settings keep their safe runtime defaults. They are not GitHub Environment sources unless a future feature needs a target-specific override. In particular, email delivery values remain out of the schema while invitation emails are disabled.
 
 App-local `.env.example` names remain runtime-shaped.
+
+The GitHub Environment secret `INFRA__FLY_API_TOKEN` authenticates Fly.io. Deployment runs only
+when the environment variable `CICD__DEPLOY_ENABLED` is `true`.
