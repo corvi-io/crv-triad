@@ -19,6 +19,7 @@
 - Durable site documentation lives in `docs/site`.
 - Durable API documentation lives in `docs/api`.
 - Durable IDP documentation lives in `docs/idp`.
+- Durable Studio documentation lives in `docs/studio`.
 - Cross-project backlog items live in root `TODO.md`.
 - Candidate agent skills live in `docs/skills-candidates.md` until installed or rejected.
 
@@ -44,8 +45,11 @@
 - Use `docs/site` for site documentation that should outlive a single PRD.
 - Use `docs/api` for API architecture, routing, dependency injection, testing, security, and backend conventions that should outlive a single PRD.
 - Use `docs/idp` for identity provider architecture, authentication, access policy, operations, and integration conventions.
+- Use `docs/studio` for Studio architecture, routing, testing, accessibility,
+  deployment, and frontend conventions.
 - Keep operational app setup in the app-level README after `apps/site` exists.
-- Keep long-form architecture, deployment, analytics, SEO, testing, security, and conventions docs in `docs/site`.
+- Keep long-form app-specific architecture, deployment, testing, security, and
+  conventions docs in the owning durable app folder.
 - Do not duplicate large sections between initiative PRDs, task plans, and durable docs; link instead.
 
 ## Agent Instructions

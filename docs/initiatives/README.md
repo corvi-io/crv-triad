@@ -30,7 +30,7 @@ docs/initiatives/
    - `triad-architecture`;
    - `triad-api-development`;
    - `triad-idp-development`;
-   - `triad-web-development`;
+   - `triad-studio-development`;
    - `triad-site-development`.
 5. Keep acceptance criteria and verification evidence explicit.
 

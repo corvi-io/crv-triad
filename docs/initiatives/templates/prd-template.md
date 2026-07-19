@@ -59,7 +59,7 @@ State the recommended path and why it fits the near-term scope.
 - Site impact:
 - API impact:
 - IDP impact:
-- Web impact:
+- Studio impact:
 - Data/persistence impact:
 - External provider impact:
 

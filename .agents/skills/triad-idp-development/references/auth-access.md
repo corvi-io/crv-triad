@@ -14,7 +14,7 @@
 
 - Keep Better Auth email/password as the active login method.
 - Keep account creation invite-gated; invited users choose their password
-  through the web login flow.
+  through the studio login flow.
 - Do not expose public self-registration or add other login methods without
   explicit product approval.
 - Do not weaken the invitation gate as a shortcut for local testing.

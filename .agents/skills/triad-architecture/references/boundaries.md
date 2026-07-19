@@ -24,6 +24,15 @@
 - Server-to-server session context for internal apps.
 - Broad identity roles and access contracts.
 
+`apps/studio` owns:
+
+- The authenticated barbershop-management browser interface.
+- Login, session gating, invite-gated account creation, password reset, and
+  sign-out through the IDP browser contract.
+- Account-local preferences and future business routes accepted through
+  dedicated initiatives.
+- Browser-safe Vite environment variables using public prefixes.
+
 `packages/*` should appear only when:
 
 - Two or more apps already duplicate the same stable code.
@@ -35,6 +44,8 @@
 - Put authentication and session ownership in `apps/idp`, not `apps/api`.
 - Put business-domain APIs in `apps/api`, not `apps/idp`.
 - Put public marketing UI in `apps/site`, not internal apps.
+- Put barbershop-management UI in `apps/studio`, not `apps/site` or `apps/idp`.
+- Keep identity administration out of Studio production routes.
 - Do not put product workflows, business lifecycles, quotes, or proposal logic
   in the IDP.
 - Do not create generic utility endpoints when a named module or app boundary is

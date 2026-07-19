@@ -2,7 +2,7 @@
 set -euo pipefail
 
 target="${1:?target environment is required}"
-app="${2:?app is required: api, idp, site, or web}"
+app="${2:?app is required: api, idp, site, or studio}"
 
 case "$target" in
   dev)
@@ -12,7 +12,7 @@ case "$target" in
     idp_health_url="https://crv-triad-idp-dev.fly.dev/health"
     pages_branch="dev"
     site_health_url="${PUBLIC_SITE_URL:-}"
-    web_health_url="${INFRA__WEB_URL:-}"
+    studio_health_url="${INFRA__STUDIO_URL:-}"
     ;;
   hml)
     api_config="apps/api/fly.hml.toml"
@@ -21,7 +21,7 @@ case "$target" in
     idp_health_url="https://crv-triad-idp-hml.fly.dev/health"
     pages_branch="hml"
     site_health_url="${PUBLIC_SITE_URL:-}"
-    web_health_url="${INFRA__WEB_URL:-}"
+    studio_health_url="${INFRA__STUDIO_URL:-}"
     ;;
   prd)
     api_config="apps/api/fly.prd.toml"
@@ -30,7 +30,7 @@ case "$target" in
     idp_health_url="https://crv-triad-idp-prd.fly.dev/health"
     pages_branch="main"
     site_health_url="${PUBLIC_SITE_URL:-}"
-    web_health_url="${INFRA__WEB_URL:-}"
+    studio_health_url="${INFRA__STUDIO_URL:-}"
     ;;
   *)
     echo "Unknown deploy target: $target"
@@ -130,38 +130,38 @@ if [[ "$app" == "site" ]]; then
   exit 0
 fi
 
-if [[ "$app" == "web" ]]; then
-  bun .github/scripts/env-management.ts validate --app web --target "$target"
+if [[ "$app" == "studio" ]]; then
+  bun .github/scripts/env-management.ts validate --app studio --target "$target"
 
-  if should_skip_dev_cloudflare_pages_deploy "${INFRA__CLOUDFLARE_WEB_PROJECT_NAME:-}"; then
-    echo "Cloudflare Pages deploy is not fully configured for dev. Skipping web deploy."
+  if should_skip_dev_cloudflare_pages_deploy "${INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME:-}"; then
+    echo "Cloudflare Pages deploy is not fully configured for dev. Skipping studio deploy."
     exit 0
   fi
 
   if [[ -z "${INFRA__CLOUDFLARE_API_TOKEN:-}" ]]; then
-    echo "INFRA__CLOUDFLARE_API_TOKEN is required to deploy web to Cloudflare Pages."
+    echo "INFRA__CLOUDFLARE_API_TOKEN is required to deploy studio to Cloudflare Pages."
     exit 1
   fi
 
   if [[ -z "${INFRA__CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
-    echo "INFRA__CLOUDFLARE_ACCOUNT_ID is required to deploy web to Cloudflare Pages."
+    echo "INFRA__CLOUDFLARE_ACCOUNT_ID is required to deploy studio to Cloudflare Pages."
     exit 1
   fi
 
-  if [[ -z "${INFRA__CLOUDFLARE_WEB_PROJECT_NAME:-}" ]]; then
-    echo "INFRA__CLOUDFLARE_WEB_PROJECT_NAME is required to deploy web to Cloudflare Pages."
+  if [[ -z "${INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME:-}" ]]; then
+    echo "INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME is required to deploy studio to Cloudflare Pages."
     exit 1
   fi
 
-  bun --filter web build
+  bun --filter studio build
   CLOUDFLARE_API_TOKEN="$INFRA__CLOUDFLARE_API_TOKEN" \
     CLOUDFLARE_ACCOUNT_ID="$INFRA__CLOUDFLARE_ACCOUNT_ID" \
-    bunx wrangler pages deploy apps/web/dist \
-    --project-name "$INFRA__CLOUDFLARE_WEB_PROJECT_NAME" \
+    bunx wrangler pages deploy apps/studio/dist \
+    --project-name "$INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME" \
     --branch "$pages_branch" \
     --commit-dirty=true
 
-  wait_for_health "$web_health_url"
+  wait_for_health "$studio_health_url"
   exit 0
 fi
 

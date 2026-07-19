@@ -59,9 +59,9 @@ jobs:
         if: ${{ steps.affected.outputs.site == 'true' }}
         run: bash .github/scripts/run-quality-gate.sh site
 
-      - name: Web Quality Gate
-        if: ${{ steps.affected.outputs.web == 'true' }}
-        run: bash .github/scripts/run-quality-gate.sh web
+      - name: Studio Quality Gate
+        if: ${{ steps.affected.outputs.studio == 'true' }}
+        run: bash .github/scripts/run-quality-gate.sh studio
 
       - name: Security Gate
         run: bash .github/scripts/run-security-gate.sh

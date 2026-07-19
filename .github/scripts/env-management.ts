@@ -73,8 +73,8 @@ const SOURCE_NAME_PATTERN = /^[A-Z][A-Z0-9]*__[A-Z][A-Z0-9_]*$/
 const RUNTIME_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/
 
 const USAGE = `Usage:
-  bun .github/scripts/env-management.ts validate --app <api|idp|site|web> --target <dev|hml|prd> [--schema env-schema.yaml]
-  bun .github/scripts/env-management.ts export --app <site|web> --target <dev|hml|prd> --github-env <path> [--schema env-schema.yaml]
+  bun .github/scripts/env-management.ts validate --app <api|idp|site|studio> --target <dev|hml|prd> [--schema env-schema.yaml]
+  bun .github/scripts/env-management.ts export --app <site|studio> --target <dev|hml|prd> --github-env <path> [--schema env-schema.yaml]
   bun .github/scripts/env-management.ts sync-fly --app <api|idp> --target <dev|hml|prd> [--schema env-schema.yaml]
 
 Commands:

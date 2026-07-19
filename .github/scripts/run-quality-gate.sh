@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-app="${1:?app is required: api, idp, site, or web}"
+app="${1:?app is required: api, idp, site, or studio}"
 
 case "$app" in
   api)
@@ -19,9 +19,9 @@ case "$app" in
   bun --filter site check
   bun --filter site build
     ;;
-  web)
-  bun --filter web check
-  bun --filter web build
+  studio)
+  bun --filter studio check
+  bun --filter studio build
     ;;
   *)
     echo "Unknown quality gate app: $app"

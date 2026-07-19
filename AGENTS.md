@@ -12,7 +12,7 @@
 - `apps/site` owns the static public placeholder.
 - `apps/api` owns FastAPI business APIs. It currently exposes only `/health` and `/ready`.
 - `apps/idp` owns authentication, sessions, invitations, users, and identity contracts.
-- `apps/web` owns the authenticated product interface.
+- `apps/studio` owns the authenticated barbershop-management product interface.
 - Do not put business-domain rules inside `apps/idp`.
 
 ## IDP Architecture
@@ -37,11 +37,11 @@
 
 - Keep app-local `.env` and `.env.example` files runtime-shaped inside each app.
 - Do not introduce a single root `.env`.
-- Preserve local ports: API `8000`, IDP `8001`, web `3000`, site `3001`.
+- Preserve local ports: API `8000`, IDP `8001`, studio `3000`, site `3001`.
 - Use root `env-schema.yaml` as the metadata-only deployment env manifest; never store actual values there.
 - Use GitHub Environments `dev`, `hml`, and `prd` for deployment env values.
 - Name app runtime sources in GitHub Environments as `APP__RUNTIME_ENV_NAME`
-  with an uppercase app prefix (`API__*`, `IDP__*`, `SITE__*`, `WEB__*`).
+  with an uppercase app prefix (`API__*`, `IDP__*`, `SITE__*`, `STUDIO__*`).
 - Name pipeline and release controls with `CICD__*` and provider credentials,
   provider identifiers, and deployed-resource locations with `INFRA__*`.
 - Do not add uncategorized custom GitHub variables or secrets. GitHub-provided
@@ -65,7 +65,7 @@
   production promotion, release environment checks, tags, and GitHub Releases.
 - Treat publishing a release and deploying applications as separate decisions.
   Do not enable deployment as a side effect of release work.
-- Initiative planning must include brainstorm, gaps, counterpoints, performance/scalability, accessibility, security/privacy, API/IDP/web boundaries, logging/observability, and verification thinking.
+- Initiative planning must include brainstorm, gaps, counterpoints, performance/scalability, accessibility, security/privacy, API/IDP/studio boundaries, logging/observability, and verification thinking.
 - If documentation does not need updates, be prepared to state why during review or handoff.
 
 ## Safety

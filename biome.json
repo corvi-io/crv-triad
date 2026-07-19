@@ -15,7 +15,7 @@
       "!**/.turbo",
       "!**/coverage",
       "!**/*.astro",
-      "!apps/web/src/routeTree.gen.ts",
+      "!apps/studio/src/routeTree.gen.ts",
       "!bun.lock"
     ]
   },

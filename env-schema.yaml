@@ -40,11 +40,11 @@ platform:
         github: variable
         scope: environment
         required: false
-      - source: INFRA__CLOUDFLARE_WEB_PROJECT_NAME
+      - source: INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME
         github: variable
         scope: environment
         required: false
-      - source: INFRA__WEB_URL
+      - source: INFRA__STUDIO_URL
         github: variable
         scope: environment
         required: false
@@ -129,8 +129,8 @@ apps:
         runtime: PUBLIC_SITE_URL
         github: variable
         required: true
-  web:
-    owner: apps/web
+  studio:
+    owner: apps/studio
     runtime: cloudflare-pages-static
     targets:
       dev:
@@ -143,11 +143,7 @@ apps:
         github_environment: prd
         cloudflare_pages_branch: main
     env:
-      - source: WEB__VITE_AUTH_BASE_URL
+      - source: STUDIO__VITE_AUTH_BASE_URL
         runtime: VITE_AUTH_BASE_URL
-        github: variable
-        required: true
-      - source: WEB__VITE_API_BASE_URL
-        runtime: VITE_API_BASE_URL
         github: variable
         required: true
