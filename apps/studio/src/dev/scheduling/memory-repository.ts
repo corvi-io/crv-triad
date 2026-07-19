@@ -20,13 +20,14 @@ const extraProfessionals: readonly Professional[] = Array.from({ length: 7 }, (_
   id: `professional-extra-${index + 1}`,
   name: `Profissional Sintético ${index + 1}`,
 }))
+const allProfessionals = [...baseProfessionals, ...extraProfessionals]
 const services: readonly Service[] = [
   {
     id: "service-cut",
     name: "Corte clássico",
     durationMinutes: 45,
     priceCents: 5500,
-    eligibleProfessionalIds: baseProfessionals.map(({ id }) => id),
+    eligibleProfessionalIds: allProfessionals.map(({ id }) => id),
   },
   {
     id: "service-beard",
@@ -59,20 +60,28 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
     return this.#engine.execute("list", () => {
       const scenarioId = this.#engine.snapshot.scenarioId
       const professionals =
-        scenarioId === "many-professionals"
-          ? [...baseProfessionals, ...extraProfessionals]
-          : baseProfessionals
+        scenarioId === "many-professionals" ? allProfessionals : baseProfessionals
+      const dayAppointments = this.#engine
+        .values()
+        .filter(
+          (item) =>
+            item.date === query.date &&
+            (!query.professionalId || item.professionalId === query.professionalId),
+        )
       return {
-        appointments: this.#engine
-          .values()
-          .filter(
-            (item) =>
-              item.date === query.date &&
-              (!query.professionalId || item.professionalId === query.professionalId) &&
-              (!query.status || item.status === query.status),
-          ),
+        appointments: dayAppointments.filter(
+          (item) => !query.status || item.status === query.status,
+        ),
         date: query.date,
         endTime: "18:00",
+        occupancies: dayAppointments
+          .filter((item) => item.status !== "canceled")
+          .map(({ durationMinutes, id, professionalId, start }) => ({
+            durationMinutes,
+            id,
+            professionalId,
+            start,
+          })),
         periods: periodsFor(scenarioId),
         professionals: query.professionalId
           ? professionals.filter(({ id }) => id === query.professionalId)
@@ -118,7 +127,7 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   }
 
   #assertValid(input: AppointmentInput, ignoredId?: string) {
-    const professional = baseProfessionals.find(({ id }) => id === input.professionalId)
+    const professional = allProfessionals.find(({ id }) => id === input.professionalId)
     const service = services.find(({ id }) => id === input.serviceId)
     if (!professional || !service?.eligibleProfessionalIds.includes(input.professionalId)) {
       throw new ScheduleConflictError("O profissional não está disponível para este serviço.")

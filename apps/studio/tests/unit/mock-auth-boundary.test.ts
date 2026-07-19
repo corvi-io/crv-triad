@@ -3,6 +3,22 @@ import path from "node:path"
 import { describe, expect, it } from "vitest"
 
 describe("development mock boundary", () => {
+  it("isolates production-boundary builds from inherited preview env", async () => {
+    const packageJson = JSON.parse(
+      await readFile(path.resolve(process.cwd(), "package.json"), "utf8"),
+    ) as { scripts: Record<string, string> }
+
+    expect(packageJson.scripts["test:production-boundary"]).toMatch(
+      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled /,
+    )
+    expect(packageJson.scripts["test:e2e:production"]).toMatch(
+      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled /,
+    )
+    expect(packageJson.scripts.dev).toContain(
+      "VITE_DEPLOY_TARGET=local VITE_SCHEDULING_SOURCE=memory",
+    )
+  })
+
   it("contains no auth interception or network mocking", async () => {
     const files = [
       "src/dev/mock-engine/memory-scenario-engine.ts",

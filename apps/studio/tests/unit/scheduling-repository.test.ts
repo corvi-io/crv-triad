@@ -22,6 +22,51 @@ describe("scheduling memory repository", () => {
     ).toBe(true)
   })
 
+  it("separates filtered appointments from privacy-safe slot occupancy", async () => {
+    const repository = new SchedulingMemoryRepository()
+    const day = await repository.getDay({
+      date: "2026-07-19",
+      professionalId: "professional-ana",
+      scenarioId: "normal",
+      status: "scheduled",
+    })
+
+    expect(day.appointments).toEqual([])
+    expect(day.occupancies).toEqual([
+      {
+        durationMinutes: 45,
+        id: "appointment-001",
+        professionalId: "professional-ana",
+        start: "09:00",
+      },
+    ])
+    expect(day.occupancies[0]).not.toHaveProperty("customerName")
+    expect(day.occupancies[0]).not.toHaveProperty("status")
+  })
+
+  it("allows the default service to save an extra-professional slot", async () => {
+    const repository = new SchedulingMemoryRepository()
+    const day = await repository.getDay({ date: "2026-07-19", scenarioId: "many-professionals" })
+    const service = day.services.find(({ id }) => id === "service-cut")
+
+    expect(service?.eligibleProfessionalIds).toContain("professional-extra-7")
+    await expect(
+      repository.create({
+        customerName: "Cliente Extra",
+        customerPhone: "81900000000",
+        date: "2026-07-19",
+        durationMinutes: 45,
+        notes: "",
+        origin: "reception",
+        priceCents: 5500,
+        professionalId: "professional-extra-7",
+        serviceId: "service-cut",
+        start: "17:00",
+        status: "scheduled",
+      }),
+    ).resolves.toMatchObject({ professionalId: "professional-extra-7", start: "17:00" })
+  })
+
   it("keeps scenarios deterministic and resettable", async () => {
     const repository = new SchedulingMemoryRepository()
     const before = await repository.getDay({ date: "2026-07-19", scenarioId: "normal" })

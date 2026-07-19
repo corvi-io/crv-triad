@@ -46,6 +46,11 @@ export type Appointment = {
 
 export type AppointmentInput = Omit<Appointment, "id">
 
+export type ScheduleOccupancy = Pick<
+  Appointment,
+  "durationMinutes" | "id" | "professionalId" | "start"
+>
+
 export type ScheduleDayQuery = {
   date: string
   professionalId?: string
@@ -57,6 +62,7 @@ export type ScheduleDay = {
   appointments: readonly Appointment[]
   date: string
   endTime: string
+  occupancies: readonly ScheduleOccupancy[]
   periods: readonly SchedulePeriod[]
   professionals: readonly Professional[]
   services: readonly Service[]

@@ -20,7 +20,13 @@ import { PageHeader } from "@/modules/shared/components/layout/page-header"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import { AppointmentDrawer, type DrawerMode } from "./appointment-drawer"
-import type { Appointment, AppointmentStatus, ScheduleDay, ScheduleDayQuery } from "./contracts"
+import type {
+  Appointment,
+  AppointmentStatus,
+  Professional,
+  ScheduleDay,
+  ScheduleDayQuery,
+} from "./contracts"
 import { appointmentStatuses } from "./contracts"
 import { useScenarioActions, useScheduleDay } from "./queries"
 import { appointmentStatusPresentation } from "./status"
@@ -261,7 +267,7 @@ function Schedule({
   onSlot: (slot: { professionalId: string; start: string }) => void
 }) {
   const slots = makeSlots(day.startTime, day.endTime)
-  if (day.appointments.length === 0 && day.periods.length === 0)
+  if (day.appointments.length === 0 && day.occupancies.length === 0 && day.periods.length === 0)
     return (
       <EmptyState
         icon={CalendarDaysIcon}
@@ -304,7 +310,7 @@ function Schedule({
                   <ScheduleCell
                     day={day}
                     key={professional.id}
-                    professionalId={professional.id}
+                    professional={professional}
                     slot={slot}
                     onAppointment={onAppointment}
                     onSlot={onSlot}
@@ -317,44 +323,74 @@ function Schedule({
       </section>
       <div className="grid gap-4 p-3 lg:hidden">
         {day.professionals.map((professional) => (
-          <section key={professional.id} aria-labelledby={`professional-${professional.id}`}>
-            <h2
-              id={`professional-${professional.id}`}
-              className="sticky top-0 mb-2 rounded-md bg-card py-2 font-semibold"
-            >
-              {professional.name}
-            </h2>
-            <ol className="grid gap-2">
-              {entriesFor(day, professional.id).map((entry) => (
-                <li key={`${entry.kind}-${entry.id}`}>
-                  <button
-                    className="flex min-h-11 w-full items-start gap-3 rounded-lg border bg-background p-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                    type="button"
-                    disabled={entry.kind !== "appointment"}
-                    onClick={() => entry.kind === "appointment" && onAppointment(entry.appointment)}
-                  >
-                    <span className="shrink-0 font-medium">{entry.start}</span>
-                    <span className="min-w-0">
-                      <span className="block font-medium">{entry.label}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {entry.description}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ol>
-            <Button
-              className="mt-2 w-full"
-              type="button"
-              variant="outline"
-              onClick={() => onSlot({ professionalId: professional.id, start: "09:00" })}
-            >
-              Novo horário com {professional.name}
-            </Button>
-          </section>
+          <ProfessionalSchedule
+            day={day}
+            key={professional.id}
+            professional={professional}
+            slots={slots}
+            onAppointment={onAppointment}
+            onSlot={onSlot}
+          />
         ))}
       </div>
+    </section>
+  )
+}
+
+function ProfessionalSchedule({
+  day,
+  onAppointment,
+  onSlot,
+  professional,
+  slots,
+}: {
+  day: ScheduleDay
+  onAppointment: (appointment: Appointment) => void
+  onSlot: (slot: { professionalId: string; start: string }) => void
+  professional: Professional
+  slots: readonly string[]
+}) {
+  const availableSlot = slots.find((slot) => !isSlotOccupied(day, professional.id, slot))
+  return (
+    <section aria-labelledby={`professional-${professional.id}`}>
+      <h2
+        id={`professional-${professional.id}`}
+        className="sticky top-0 mb-2 rounded-md bg-card py-2 font-semibold"
+      >
+        {professional.name}
+      </h2>
+      <ol className="grid gap-2">
+        {entriesFor(day, professional.id).map((entry) => (
+          <li key={`${entry.kind}-${entry.id}`}>
+            <button
+              className="flex min-h-11 w-full items-start gap-3 rounded-lg border bg-background p-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              type="button"
+              disabled={entry.kind !== "appointment"}
+              onClick={() => entry.kind === "appointment" && onAppointment(entry.appointment)}
+            >
+              <span className="shrink-0 font-medium">{entry.start}</span>
+              <span className="min-w-0">
+                <span className="block font-medium">{entry.label}</span>
+                <span className="block text-xs text-muted-foreground">{entry.description}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
+      {availableSlot ? (
+        <Button
+          className="mt-2 w-full"
+          type="button"
+          variant="outline"
+          onClick={() => onSlot({ professionalId: professional.id, start: availableSlot })}
+        >
+          Novo horário às {availableSlot} com {professional.name}
+        </Button>
+      ) : (
+        <p className="mt-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+          Sem horários disponíveis para {professional.name}.
+        </p>
+      )}
     </section>
   )
 }
@@ -363,35 +399,44 @@ function ScheduleCell({
   day,
   onAppointment,
   onSlot,
-  professionalId,
+  professional,
   slot,
 }: {
   day: ScheduleDay
   onAppointment: (appointment: Appointment) => void
   onSlot: (slot: { professionalId: string; start: string }) => void
-  professionalId: string
+  professional: Professional
   slot: string
 }) {
   const appointment = day.appointments.find(
-    (item) => item.professionalId === professionalId && item.start === slot,
+    (item) => item.professionalId === professional.id && item.start === slot,
+  )
+  const occupancy = day.occupancies.find(
+    (item) => item.professionalId === professional.id && item.start === slot,
   )
   const period = day.periods.find(
-    (item) => item.professionalId === professionalId && item.start === slot,
+    (item) => item.professionalId === professional.id && item.start === slot,
   )
   const slotMinutes = toMinutes(slot)
   const coveredByAppointment = day.appointments.some(
     (item) =>
-      item.professionalId === professionalId &&
+      item.professionalId === professional.id &&
+      slotMinutes > toMinutes(item.start) &&
+      slotMinutes < toMinutes(item.start) + item.durationMinutes,
+  )
+  const coveredByOccupancy = day.occupancies.some(
+    (item) =>
+      item.professionalId === professional.id &&
       slotMinutes > toMinutes(item.start) &&
       slotMinutes < toMinutes(item.start) + item.durationMinutes,
   )
   const coveredByPeriod = day.periods.some(
     (item) =>
-      item.professionalId === professionalId &&
+      item.professionalId === professional.id &&
       slotMinutes > toMinutes(item.start) &&
       slotMinutes < toMinutes(item.end),
   )
-  if (coveredByAppointment || coveredByPeriod) return null
+  if (coveredByAppointment || coveredByOccupancy || coveredByPeriod) return null
   if (appointment) {
     const presentation = appointmentStatusPresentation[appointment.status]
     return (
@@ -413,6 +458,22 @@ function ScheduleCell({
       </td>
     )
   }
+  if (occupancy)
+    return (
+      <td
+        className="h-14 border-r border-b p-1 align-top"
+        rowSpan={Math.ceil(occupancy.durationMinutes / 15)}
+      >
+        <div className="flex min-h-12 flex-col justify-center rounded-md border border-dashed bg-muted p-2 text-xs">
+          <span className="font-medium">Ocupado</span>
+          <span className="text-muted-foreground">
+            Agendamento fora do filtro · {occupancy.start}–
+            {fromMinutes(toMinutes(occupancy.start) + occupancy.durationMinutes)} ·{" "}
+            {occupancy.durationMinutes} min
+          </span>
+        </div>
+      </td>
+    )
   if (period)
     return (
       <td
@@ -434,15 +495,17 @@ function ScheduleCell({
       <button
         type="button"
         className="min-h-12 w-full rounded-md border border-dashed text-xs text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
-        onClick={() => onSlot({ professionalId, start: slot })}
+        aria-label={`Disponível às ${slot} para ${professional.name}`}
+        onClick={() => onSlot({ professionalId: professional.id, start: slot })}
       >
-        Disponível <span className="sr-only">às {slot}</span>
+        Disponível
       </button>
     </td>
   )
 }
 
 function entriesFor(day: ScheduleDay, professionalId: string) {
+  const visibleIds = new Set(day.appointments.map(({ id }) => id))
   return [
     ...day.appointments
       .filter((item) => item.professionalId === professionalId)
@@ -453,6 +516,15 @@ function entriesFor(day: ScheduleDay, professionalId: string) {
         kind: "appointment" as const,
         label: appointment.customerName,
         start: appointment.start,
+      })),
+    ...day.occupancies
+      .filter((item) => item.professionalId === professionalId && !visibleIds.has(item.id))
+      .map((occupancy) => ({
+        description: `Agendamento fora do filtro · ${occupancy.start}–${fromMinutes(toMinutes(occupancy.start) + occupancy.durationMinutes)} · ${occupancy.durationMinutes} min`,
+        id: occupancy.id,
+        kind: "occupied" as const,
+        label: "Ocupado",
+        start: occupancy.start,
       })),
     ...day.periods
       .filter((item) => item.professionalId === professionalId)
@@ -466,6 +538,31 @@ function entriesFor(day: ScheduleDay, professionalId: string) {
   ].sort((left, right) => left.start.localeCompare(right.start))
 }
 
+function isSlotOccupied(day: ScheduleDay, professionalId: string, slot: string) {
+  const start = toMinutes(slot)
+  return (
+    day.appointments.some(
+      (item) =>
+        item.professionalId === professionalId &&
+        start >= toMinutes(item.start) &&
+        start < toMinutes(item.start) + item.durationMinutes,
+    ) ||
+    day.occupancies.some(
+      (item) =>
+        item.professionalId === professionalId &&
+        start >= toMinutes(item.start) &&
+        start < toMinutes(item.start) + item.durationMinutes,
+    ) ||
+    day.periods.some(
+      (item) =>
+        item.kind !== "walk-in" &&
+        item.professionalId === professionalId &&
+        start >= toMinutes(item.start) &&
+        start < toMinutes(item.end),
+    )
+  )
+}
+
 function makeSlots(start: string, end: string) {
   const values = []
   for (let value = toMinutes(start); value < toMinutes(end); value += 15)
@@ -477,6 +574,9 @@ function makeSlots(start: string, end: string) {
 function toMinutes(value: string) {
   const [hour, minute] = value.split(":").map(Number)
   return hour * 60 + minute
+}
+function fromMinutes(value: number) {
+  return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`
 }
 function ScheduleLoading() {
   return (

@@ -29,12 +29,17 @@ test("completes the schedule view, reschedule, cancel, URL scenario, and axe jou
   await expect(page).toHaveURL(/scenario=many-professionals/)
   await expect(page.getByRole("columnheader", { name: "Profissional Sintético 7" })).toBeVisible()
 
-  await page.getByRole("button", { name: "Novo agendamento" }).click()
+  await page
+    .getByRole("button", { name: "Disponível às 17:00 para Profissional Sintético 7" })
+    .click()
   await page.getByRole("textbox", { name: /^Nome/ }).fill("Cliente Criado no Teste")
   await page.getByRole("textbox", { name: /^Telefone/ }).fill("81999990000")
   await page.getByRole("textbox", { name: /^Horário/ }).fill("17:00")
   await page.getByRole("button", { name: "Criar agendamento" }).click()
   await expect(page.getByText("Agendamento criado.")).toBeVisible()
+  await expect(
+    page.locator("table button").filter({ hasText: "Cliente Criado no Teste" }),
+  ).toBeVisible()
 
   const results = await new AxeBuilder({ page })
     .include("#main-content")
@@ -65,6 +70,19 @@ test("shows a recoverable conflict and preserves filter state in the URL", async
   await page.getByRole("option", { name: "Agendado" }).click()
   await expect(page).toHaveURL(/professional=professional-ana/)
   await expect(page).toHaveURL(/status=scheduled/)
+})
+
+test("keeps hidden-status appointment spans occupied and non-interactive", async ({ page }) => {
+  await page.goto(
+    "/workspace-preview/agenda?date=2026-07-19&scenario=normal&professional=professional-ana&status=scheduled",
+  )
+
+  const occupancy = page.getByText(/Agendamento fora do filtro · 09:00–09:45 · 45 min/).first()
+  await expect(occupancy).toBeVisible()
+  await expect(occupancy.locator("xpath=ancestor::td[1]")).toHaveAttribute("rowspan", "3")
+  await expect(page.getByRole("button", { name: "Disponível às 09:00 para Ana Lima" })).toHaveCount(
+    0,
+  )
 })
 
 test("rejects blocked and off-grid starts with visible focused feedback", async ({ page }) => {

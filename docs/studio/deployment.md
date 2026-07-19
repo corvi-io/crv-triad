@@ -25,6 +25,10 @@ Studio build export and deploy gate while keeping the scheduling source environm
 Missing values are disabled; `hml` and `prd` fail closed even if memory is requested. This is a
 frontend prototype switch, not an authorization, API, or persistence contract.
 
+Production-boundary and production-preview scripts explicitly build with target `prd` and source
+`disabled`, so inherited preview environment values cannot contaminate their artifact scan. The
+Studio deploy gate still uses the exported target/source and can build the `dev` memory prototype.
+
 Deployment runs only when the environment variable `CICD__DEPLOY_ENABLED` is `true`.
 
 ## Studio Cutover

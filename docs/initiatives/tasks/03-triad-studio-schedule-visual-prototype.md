@@ -129,7 +129,7 @@
         and axe.
   - [x] Prove Better Auth is not intercepted and production boundaries remain
         fail-closed.
-- [ ] Complete documentation and handoff:
+- [x] Complete documentation and handoff:
   - [x] Update the Studio component inventory for every accepted shared change or
         document why scheduling compositions remain module-owned.
   - [x] Record shadcn/registry discovery decisions and custom-component rationale.
@@ -137,22 +137,29 @@
         by the controlled `dev` prototype.
   - [x] Record manual keyboard, focus, VoiceOver, zoom, narrow viewport,
         reduced-motion, target-size, and contrast results with residual risk.
-  - [ ] Run preflight before opening a PR against `staging` and update Linear only
-        with evidence-based state transitions.
+  - [x] Run preflight before opening and updating the PR against `staging`.
+- [ ] Update Linear only with evidence-based state transitions. This delivery did not mutate Linear
+      because that side effect was not authorized.
 
 ## Verification Evidence
 
 Record evidence as tasks are completed:
 
 - Command: `bun --filter studio check`
-- Result: pass; 20 Vitest files, 90 tests, production build, and 30-file boundary scan.
+- Result: pass; 20 Vitest files, 94 tests, production build, and 30-file boundary scan.
 - Command: `bun --filter studio test:e2e`
-- Result: pass; 9 Chromium tests including 4 schedule journeys and focused axe.
+- Result: pass; 10 Chromium tests including 5 schedule journeys and focused axe.
 - Command: `bun --filter studio test:e2e:production`
 - Result: pass; 3 production redirect/exclusion tests.
 - Command: `bun test ./.github/scripts`
 - Result: pass; 16 tests including fixed target and scheduling-source propagation through `dev`,
   `hml`, and `prd` Studio build/deploy steps.
+- Command: `VITE_DEPLOY_TARGET=dev VITE_SCHEDULING_SOURCE=memory bun --filter studio
+  test:production-boundary`
+- Result: pass; inherited preview inputs were overridden by the deterministic `prd`/`disabled`
+  boundary build.
+- External config: GitHub Environment `dev` in `corvi-io/crv-triad` has the public variable
+  `STUDIO__VITE_SCHEDULING_SOURCE=memory`; `hml`, `prd`, secrets, and deploy controls were untouched.
 - Notes: manual 1440 × 900 light and 320 × 720 dark screenshot inspection completed; narrow date
   overflow was corrected. VoiceOver, Windows High Contrast, and deployed real-IDP login were
   unavailable and remain residual checks.

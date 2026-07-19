@@ -71,4 +71,25 @@ describe("schedule page", () => {
     expect(screen.getAllByRole("heading", { name: "Ana Lima" }).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/Encaixe aguardando/).length).toBeGreaterThan(0)
   })
+
+  it("renders hidden-status occupancy as a non-interactive duration span", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <SchedulingRepositoryProvider repository={new SchedulingMemoryRepository()}>
+          <SchedulePage
+            search={{ date: "2026-07-19", scenario: "normal", status: "scheduled" }}
+            onSearchChange={vi.fn()}
+          />
+        </SchedulingRepositoryProvider>
+      </QueryClientProvider>,
+    )
+
+    const descriptions = await screen.findAllByText(/Agendamento fora do filtro · 09:00–09:45/)
+    const desktopCell = descriptions.map((node) => node.closest("td")).find(Boolean)
+    expect(desktopCell).toHaveAttribute("rowspan", "3")
+    expect(
+      screen.queryByRole("button", { name: "Disponível às 09:00 para Ana Lima" }),
+    ).not.toBeInTheDocument()
+  })
 })

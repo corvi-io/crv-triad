@@ -37,7 +37,9 @@ memory adapter, which reuses the domain-neutral `MemoryScenarioEngine`.
 Vite aliases `virtual:studio-scheduling-prototype` to memory only when
 `VITE_SCHEDULING_SOURCE=memory` and `VITE_DEPLOY_TARGET` is `local` or `dev`; otherwise it resolves
 to a null shim. Production builds exclude the adapter, scenarios, synthetic records, and mock-engine
-markers. No fetch handler, API route/client, durable browser storage, or auth interception was added.
+markers. Production-boundary scripts force `prd` plus `disabled` even when the parent process asks
+for `dev` plus `memory`; development and deploy builds retain their explicit environment. No fetch
+handler, API route/client, durable browser storage, or auth interception was added.
 
 ## Scenarios And Feedback
 
@@ -49,19 +51,31 @@ professionals, and insufficient space are rejected at the repository boundary. R
 failures keep the drawer open, focus the time field, and provide field plus toast feedback. Walk-in
 markers remain visual-only and do not block appointments.
 
+Status filtering changes the visible appointment list without changing occupancy. A privacy-safe
+occupancy projection carries only ID, professional, start, and duration, so hidden appointments
+render as non-interactive “Ocupado” spans without exposing filtered details or offering false create
+actions. The default synthetic service includes the extra professionals used by
+`many-professionals`, making those stress-test slots honestly actionable.
+
 ## Verification Evidence
 
 - `bun --filter studio format`, `lint`, and `typecheck`: pass during focused verification.
-- `bun --filter studio check`: 20 files and 90 tests passed; production build and the 30-file
+- `bun --filter studio check`: 20 files and 94 tests passed; production build and the 30-file
   synthetic-marker scan passed.
-- `bun --filter studio test:e2e`: 9 Chromium tests passed, including 4 schedule journeys and axe.
+- `bun --filter studio test:e2e`: 10 Chromium tests passed, including 5 schedule journeys and axe.
 - `bun --filter studio test:e2e:production`: 3 Chromium production-preview tests passed.
 - `bun test ./.github/scripts`: 16 tests passed, including fixed target and scheduling-source
   propagation through the three deployment workflows.
+- `VITE_DEPLOY_TARGET=dev VITE_SCHEDULING_SOURCE=memory bun --filter studio
+  test:production-boundary`: passed because the boundary build deterministically used
+  `prd`/`disabled`.
+- Explicit `dev`/`memory` build plus marker inspection and Playwright preview journeys proved that
+  development composition still includes and serves the prototype.
 
 Automated browser evidence covers desktop, 320 CSS pixels, dark mode, reduced motion, keyboard
-Escape/focus return, long content, horizontal density, conflicts, and axe. VoiceOver and Windows
-High Contrast remain manual-only and must not be claimed unless performed.
+Escape/focus return, long content, horizontal density, hidden-status occupancy, extra-professional
+creation, conflicts, and axe. VoiceOver and Windows High Contrast remain manual-only and must not
+be claimed unless performed.
 
 Manual screenshot inspection covered 1440 × 900 light mode with ten professional columns and a
 320 × 720 dark narrow layout. It found and corrected overflow in the narrow date-control row.
