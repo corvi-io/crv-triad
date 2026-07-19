@@ -13,6 +13,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as WorkspacePreviewIndexRouteImport } from './routes/workspace-preview/index'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as WorkspacePreviewSandboxIndexRouteImport } from './routes/workspace-preview/sandbox/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
 import { Route as AuthenticatedPreferencesIndexRouteImport } from './routes/_authenticated/preferences/index'
 import { Route as AuthenticatedOverviewIndexRouteImport } from './routes/_authenticated/overview/index'
@@ -36,6 +37,12 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const WorkspacePreviewSandboxIndexRoute =
+  WorkspacePreviewSandboxIndexRouteImport.update({
+    id: '/workspace-preview/sandbox/',
+    path: '/workspace-preview/sandbox/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedProfileIndexRoute =
   AuthenticatedProfileIndexRouteImport.update({
     id: '/profile/',
@@ -62,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/overview/': typeof AuthenticatedOverviewIndexRoute
   '/preferences/': typeof AuthenticatedPreferencesIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
+  '/workspace-preview/sandbox/': typeof WorkspacePreviewSandboxIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
@@ -70,6 +78,7 @@ export interface FileRoutesByTo {
   '/overview': typeof AuthenticatedOverviewIndexRoute
   '/preferences': typeof AuthenticatedPreferencesIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
+  '/workspace-preview/sandbox': typeof WorkspacePreviewSandboxIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +89,7 @@ export interface FileRoutesById {
   '/_authenticated/overview/': typeof AuthenticatedOverviewIndexRoute
   '/_authenticated/preferences/': typeof AuthenticatedPreferencesIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
+  '/workspace-preview/sandbox/': typeof WorkspacePreviewSandboxIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -90,6 +100,7 @@ export interface FileRouteTypes {
     | '/overview/'
     | '/preferences/'
     | '/profile/'
+    | '/workspace-preview/sandbox/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -98,6 +109,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/preferences'
     | '/profile'
+    | '/workspace-preview/sandbox'
   id:
     | '__root__'
     | '/_authenticated'
@@ -107,12 +119,14 @@ export interface FileRouteTypes {
     | '/_authenticated/overview/'
     | '/_authenticated/preferences/'
     | '/_authenticated/profile/'
+    | '/workspace-preview/sandbox/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   LoginIndexRoute: typeof LoginIndexRoute
   WorkspacePreviewIndexRoute: typeof WorkspacePreviewIndexRoute
+  WorkspacePreviewSandboxIndexRoute: typeof WorkspacePreviewSandboxIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -144,6 +158,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/workspace-preview/sandbox/': {
+      id: '/workspace-preview/sandbox/'
+      path: '/workspace-preview/sandbox'
+      fullPath: '/workspace-preview/sandbox/'
+      preLoaderRoute: typeof WorkspacePreviewSandboxIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/profile/': {
       id: '/_authenticated/profile/'
@@ -190,6 +211,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   LoginIndexRoute: LoginIndexRoute,
   WorkspacePreviewIndexRoute: WorkspacePreviewIndexRoute,
+  WorkspacePreviewSandboxIndexRoute: WorkspacePreviewSandboxIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

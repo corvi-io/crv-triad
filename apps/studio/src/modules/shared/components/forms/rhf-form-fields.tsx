@@ -6,8 +6,8 @@ import {
   ComboboxInput,
   type ComboboxInputOption,
   CompactComboboxInput,
-} from "@/modules/shared/components/combobox-input"
-import { DatePicker } from "@/modules/shared/components/date-picker"
+} from "@/modules/shared/components/forms/combobox-input"
+import { DatePicker } from "@/modules/shared/components/forms/date-picker"
 import {
   CompactInputWithSuffix,
   CompactSelectInput,
@@ -16,16 +16,16 @@ import {
   SelectInput,
   type SelectInputOption,
   SwitchControl,
-} from "@/modules/shared/components/form-controls"
+} from "@/modules/shared/components/forms/form-controls"
 import {
   CompactFormField,
   CompactFormSwitchItem,
   FormField,
   FormSwitchItem,
   getFieldDescriptionIds,
-} from "@/modules/shared/components/form-layout"
-import { MaskedInput } from "@/modules/shared/components/masked-input"
-import { CompactQuantityUnitControl } from "@/modules/shared/components/quantity-unit-control"
+} from "@/modules/shared/components/forms/form-layout"
+import { MaskedInput } from "@/modules/shared/components/forms/masked-input"
+import { CompactQuantityUnitControl } from "@/modules/shared/components/forms/quantity-unit-control"
 import { Input } from "@/modules/shared/components/ui/input"
 import {
   CompactDescriptionTextarea,

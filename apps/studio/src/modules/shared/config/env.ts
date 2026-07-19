@@ -6,11 +6,12 @@ const publicEnvSchema = z.object({
 })
 
 const parsedEnv = publicEnvSchema.parse(import.meta.env)
+const isDevelopmentBuild = import.meta.env.DEV
 
 export const env = {
   appName: parsedEnv.VITE_APP_NAME,
   authBaseUrl: parsedEnv.VITE_AUTH_BASE_URL,
-  isDevServer: import.meta.env.DEV,
+  isDevServer: isDevelopmentBuild,
 } as const
 
 export type PublicEnv = typeof env

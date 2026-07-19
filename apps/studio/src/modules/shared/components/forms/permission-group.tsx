@@ -1,7 +1,7 @@
 import { ChevronDownIcon } from "lucide-react"
 import { useId } from "react"
 
-import { CompactSwitchControl } from "@/modules/shared/components/form-controls"
+import { CompactSwitchControl } from "@/modules/shared/components/forms/form-controls"
 import {
   Collapsible,
   CollapsibleContent,

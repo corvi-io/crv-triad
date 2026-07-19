@@ -2,7 +2,7 @@ import { Navigate } from "@tanstack/react-router"
 import type { ReactNode } from "react"
 
 import { useAuth } from "@/modules/auth/services/auth-provider"
-import { PageStatus } from "@/modules/shared/components/page-status"
+import { PageStatus } from "@/modules/shared/components/feedback/page-status"
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { error, isPending, session } = useAuth()

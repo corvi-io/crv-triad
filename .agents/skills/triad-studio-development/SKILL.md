@@ -49,6 +49,10 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
 - Preserve local development ports: studio `3000`, site `3001`, API `8000`, and
   IDP `8001`.
 - Put shadcn/Base UI primitives under `src/modules/shared/components/ui`.
+- Group shared composites under `data-display`, `feedback`, `forms`, `layout`, or `overlays`, import
+  directly from the owning file/folder, and do not create a shared mega-barrel.
+- Read `references/component-system.md` when adding shared components, component documentation, development mock
+  scenarios, sandbox behavior, or module repository adapters.
 - Import icon components with the `Icon` suffix. Prefer the library's suffixed
   export and use an explicit `as ...Icon` alias only when a suffixed export is
   unavailable.
@@ -176,6 +180,10 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
 - Keep button labels stable while loading. Do not change labels to gerund copy
   such as `Enviando...`, `Salvando...`, or `Abrindo...`; use the shared
   `Button` `isLoading` state for spinner and `aria-busy`.
+- Keep an exhaustive English Markdown inventory of active shared components. Each entry must
+  document its public contract or an internal-only rationale, and tests must detect omissions.
+- Keep the neutral memory/scenario engine development-only and domain-free. Module-owned repository
+  ports and TanStack Query hooks must not depend on its implementation or intercept Better Auth.
 
 ## Performance And Scalability
 
@@ -196,6 +204,7 @@ bun --filter studio format
 bun --filter studio lint
 bun --filter studio typecheck
 bun --filter studio test
+bun --filter studio test:production-boundary
 bun --filter studio build
 bun --filter studio check
 ```

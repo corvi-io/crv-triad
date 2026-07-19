@@ -21,7 +21,8 @@ case "$app" in
     ;;
   studio)
   bun --filter studio check
-  bun --filter studio build
+  bun --filter studio test:e2e:sandbox
+  bun --filter studio test:e2e:production
     ;;
   *)
     echo "Unknown quality gate app: $app"

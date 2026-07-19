@@ -1,7 +1,7 @@
 import type { FocusEventHandler, Ref } from "react"
 
-import { CompactSelectInput } from "@/modules/shared/components/form-controls"
-import { MaskedInput } from "@/modules/shared/components/masked-input"
+import { CompactSelectInput } from "@/modules/shared/components/forms/form-controls"
+import { MaskedInput } from "@/modules/shared/components/forms/masked-input"
 
 export const quantityUnitOptions = [
   { label: "t", value: "t" },

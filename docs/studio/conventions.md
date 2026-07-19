@@ -1,5 +1,8 @@
 # Studio Conventions
 
+See `component-system.md` for the responsibility folders, exhaustive component inventory,
+textual component contract, token layers, and removable development runtime.
+
 `apps/studio` is the authenticated product frontend.
 
 - Use TanStack Router file routes.

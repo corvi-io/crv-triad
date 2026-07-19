@@ -2,8 +2,8 @@ import { PlusIcon } from "lucide-react"
 import type { ReactNode } from "react"
 import { useState } from "react"
 
-import { ModuleLayout } from "@/modules/shared/components/module-layout"
-import { PageHeader } from "@/modules/shared/components/page-header"
+import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
+import { PageHeader } from "@/modules/shared/components/layout/page-header"
 import { Button } from "@/modules/shared/components/ui/button"
 
 type ReferenceCreationPageProps = {

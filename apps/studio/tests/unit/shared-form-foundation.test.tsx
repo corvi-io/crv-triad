@@ -4,16 +4,23 @@ import { AtSignIcon } from "lucide-react"
 import { useState } from "react"
 import { describe, expect, it, vi } from "vitest"
 
-import { ComboboxInput, CompactComboboxInput } from "@/modules/shared/components/combobox-input"
-import { DatePicker, formatDateOnly, parseDateOnly } from "@/modules/shared/components/date-picker"
-import { CollapsibleDrawerSection } from "@/modules/shared/components/drawer-section"
-import { SelectInput, SwitchControl } from "@/modules/shared/components/form-controls"
-import { MaskedInput } from "@/modules/shared/components/masked-input"
-import { PermissionGroup } from "@/modules/shared/components/permission-group"
+import {
+  ComboboxInput,
+  CompactComboboxInput,
+} from "@/modules/shared/components/forms/combobox-input"
+import {
+  DatePicker,
+  formatDateOnly,
+  parseDateOnly,
+} from "@/modules/shared/components/forms/date-picker"
+import { SelectInput, SwitchControl } from "@/modules/shared/components/forms/form-controls"
+import { MaskedInput } from "@/modules/shared/components/forms/masked-input"
+import { PermissionGroup } from "@/modules/shared/components/forms/permission-group"
 import {
   CompactQuantityUnitControl,
   quantityUnitOptions,
-} from "@/modules/shared/components/quantity-unit-control"
+} from "@/modules/shared/components/forms/quantity-unit-control"
+import { CollapsibleDrawerSection } from "@/modules/shared/components/overlays/drawer-section"
 import { CompactTextarea } from "@/modules/shared/components/ui/textarea"
 
 function selectBaseUiOption(name: string) {

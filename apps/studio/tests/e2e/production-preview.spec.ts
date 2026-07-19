@@ -13,3 +13,11 @@ test("redirects the development-only workspace preview in production", async ({ 
   await expect(page.getByRole("heading", { name: "Entrar no TRIAD Studio" })).toBeVisible()
   await expect(page.getByText("Pré-visualização de desenvolvimento")).toHaveCount(0)
 })
+
+test("keeps the sandbox route and controls unreachable in production", async ({ page }) => {
+  await page.goto("/workspace-preview/sandbox")
+
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByText("Sandbox de componentes")).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Falhar próxima operação" })).toHaveCount(0)
+})

@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react"
 import type { ReactNode } from "react"
 
-import { CollapsibleDrawerSection } from "@/modules/shared/components/drawer-section"
+import { CollapsibleDrawerSection } from "@/modules/shared/components/overlays/drawer-section"
 import {
   Field,
   FieldDescription,
