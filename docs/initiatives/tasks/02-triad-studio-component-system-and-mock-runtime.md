@@ -124,7 +124,7 @@
 Recorded evidence:
 
 - `bun --filter studio routes:generate`, `format`, `lint`, and `typecheck`: passed.
-- `bun --filter studio test`: 18 files and 70 tests passed, including memory-engine,
+- `bun --filter studio test`: 18 files and 77 tests passed, including memory-engine,
   repository, component-contract, architecture, auth-boundary, and exhaustive inventory coverage.
 - `bun --filter studio build` and `test:production-boundary`: passed; 25 production files totaling
   889,921 bytes contained no development engine, Faker, seeds, controls, or obsolete catalog source
