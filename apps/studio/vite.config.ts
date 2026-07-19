@@ -6,7 +6,12 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vitest/config"
 
 // https://vite.dev/config/
-export default defineConfig(() => {
+export default defineConfig(({ command }) => {
+  const developmentSandboxEntry =
+    command === "serve"
+      ? "./src/dev/sandbox/entry.ts"
+      : "./src/modules/shared/config/development-sandbox-disabled.ts"
+
   return {
     plugins: [
       tanstackRouter({
@@ -19,6 +24,7 @@ export default defineConfig(() => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        "virtual:studio-development-sandbox": path.resolve(__dirname, developmentSandboxEntry),
       },
     },
     server: {

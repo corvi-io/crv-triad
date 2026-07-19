@@ -80,7 +80,7 @@ building block of a documented composition.
 
 | File | Classification | Catalog decision and rationale |
 | --- | --- | --- |
-| `data-display/data-table/index.tsx` | Data display | Documented public contract: semantic table with controlled sort, scroll, and pagination; covered by sandbox and table tests. |
+| `data-display/data-table/index.tsx` | Data display | Documented public contract: semantic table with controlled sort, scroll, pagination, and contextual row actions available by right-click or `Shift+F10`; covered by sandbox and table tests. |
 | `data-display/metric-card.tsx` | Data display | Internal: inherited specialized composition; promote to catalog when an accepted module supplies a real metric contract. |
 | `deferred-route-screen.tsx` | Routing helper | Internal: lazy-route implementation detail, not a visual assembly API. |
 | `feedback/empty-state.tsx` | Feedback | Documented public contract: default, optional action, long-content, and compact viewport states; heading and description remain semantic. |
@@ -152,11 +152,12 @@ A future module must define its own port and may compose an Orval/HTTP adapter t
 Queries and presentation remain unchanged while network vocabulary, authorization, and validation
 stay with that accepted module. The local larger scenario validates UX only, not production capacity.
 
-The sandbox is `/workspace-preview/sandbox` in a development server. The route uses the centralized
-compile-time development constant for its dynamic import and redirects to `/login` otherwise.
-Production-boundary checks scan output for mock engine, seed, Faker, obsolete catalog source, and
-control markers. The runtime contains no fetch, MSW, Better Auth, or `/api/auth` interception and
-stores nothing across refreshes.
+The sandbox is `/workspace-preview/sandbox` in a development server. A Vite build-time alias resolves
+to the sandbox loader only while serving development; production resolves the same virtual module to
+a null shim. The route graph therefore has no direct `src/dev` import and redirects to `/login` when
+the loader is unavailable. Production-boundary checks scan output for mock engine, seed, Faker,
+obsolete catalog source, and control markers. The runtime contains no fetch, MSW, Better Auth, or
+`/api/auth` interception and stores nothing across refreshes.
 
 ## Primary Vendor References
 

@@ -1,10 +1,9 @@
+import { loadDevelopmentSandbox } from "virtual:studio-development-sandbox"
 import { createFileRoute, Navigate } from "@tanstack/react-router"
 import { lazy, Suspense } from "react"
-import { env, isDevelopmentBuild } from "@/modules/shared/config/env"
+import { env } from "@/modules/shared/config/env"
 
-const DevelopmentSandboxPage = isDevelopmentBuild
-  ? lazy(() => import("@/dev/sandbox/sandbox-page"))
-  : null
+const DevelopmentSandboxPage = loadDevelopmentSandbox ? lazy(loadDevelopmentSandbox) : null
 
 export const Route = createFileRoute("/workspace-preview/sandbox/")({
   component: DevelopmentSandboxRoute,

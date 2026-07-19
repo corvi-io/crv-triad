@@ -6,7 +6,7 @@ const publicEnvSchema = z.object({
 })
 
 const parsedEnv = publicEnvSchema.parse(import.meta.env)
-export const isDevelopmentBuild = import.meta.env.DEV
+const isDevelopmentBuild = import.meta.env.DEV
 
 export const env = {
   appName: parsedEnv.VITE_APP_NAME,

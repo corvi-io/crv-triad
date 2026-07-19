@@ -130,14 +130,20 @@ Recorded evidence:
   889,921 bytes contained no development engine, Faker, seeds, controls, or obsolete catalog source
   markers. The verified `staging` baseline was 865,269 bytes; the 24,652-byte increase is attributable
   to the accepted TanStack Query runtime and is not a capacity claim.
-- `bun --filter studio test:e2e:sandbox`: 2 Chromium tests passed for WCAG A/AA axe checks and the
-  deterministic CRUD/search/filter/sort/pagination/failure/reset flow.
+- `bun --filter studio test:e2e:sandbox`: 3 Chromium tests passed for WCAG A/AA axe checks,
+  keyboard-only contextual actions with drawer focus return, and the deterministic
+  CRUD/search/filter/sort/pagination/failure/reset flow.
 - `bun --filter studio test:e2e:production`: 2 Chromium tests passed for preview/sandbox redirects
   and control absence.
 - `bun --filter studio check`, `bun run test:ci`, and `bun run check --filter=studio`: passed.
+- `bash .github/scripts/run-quality-gate.sh studio`: passed with Studio check plus both focused
+  Playwright suites; the develop workflow installs Chromium headless shell and Linux dependencies.
+- `bun pm ls --all`: no Storybook, Chromatic, Histoire, or Ladle dependency was present; the
+  architecture gate also checks manifests, Studio scripts, CI text, source names, and common paths.
 - Studio skill validation through the skill-creator validator: passed.
-- Manual-only checks not performed in this implementation cycle: VoiceOver, 200% zoom, 320 CSS-pixel
-  reflow, reduced-motion visual review, target-size measurement, and manual light/dark contrast review.
+- Manual-only checks not performed in this implementation cycle: keyboard-only operation, focus
+  return, VoiceOver, 200% zoom, 320 CSS-pixel reflow, reduced-motion visual review, target-size
+  measurement, and manual light/dark contrast review.
   Residual risk remains for WCAG issues that axe and keyboard-focused automated tests cannot detect.
 
 ## Risks And Follow-Ups

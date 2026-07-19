@@ -13,6 +13,7 @@ import { type FormEvent, useRef, useState } from "react"
 import { toast } from "sonner"
 import { MemoryScenarioEngine } from "@/dev/mock-engine"
 import {
+  createDataTablePointAnchor,
   DataTable,
   DataTableBody,
   DataTableCell,
@@ -20,6 +21,7 @@ import {
   DataTableHeaderCell,
   DataTablePagination,
   DataTableRow,
+  DataTableRowActionsMenu,
   DataTableSortableHeaderCell,
   type DataTableSortState,
 } from "@/modules/shared/components/data-display/data-table"
@@ -60,6 +62,12 @@ type DrawerState =
   | { kind: "create" }
   | { kind: "delete" | "edit" | "view"; record: SandboxRecord }
   | null
+
+type RowMenuState = {
+  anchor: ReturnType<typeof createDataTablePointAnchor>
+  record: SandboxRecord
+  trigger: HTMLTableRowElement
+} | null
 
 export default function SandboxPage() {
   const queryClient = useQueryClient()
@@ -153,6 +161,7 @@ function SandboxRecords({ scenarioId }: { scenarioId: string }) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<10 | 20 | 50>(10)
   const [drawer, setDrawer] = useState<DrawerState>(null)
+  const [rowMenu, setRowMenu] = useState<RowMenuState>(null)
 
   const query: SandboxListQuery = { page, pageSize, search, sort, state: stateFilter }
   const records = useSandboxRecords(query)
@@ -184,6 +193,25 @@ function SandboxRecords({ scenarioId }: { scenarioId: string }) {
     await deleteRecord.mutateAsync(record.id)
     setDrawer(null)
     toast.success("Registro excluído.")
+  }
+
+  function openRowMenu(
+    record: SandboxRecord,
+    trigger: HTMLTableRowElement,
+    point: { x: number; y: number },
+  ) {
+    setRowMenu({ anchor: createDataTablePointAnchor(point.x, point.y), record, trigger })
+  }
+
+  function closeRowMenu() {
+    const trigger = rowMenu?.trigger
+    setRowMenu(null)
+    trigger?.focus()
+  }
+
+  function openDrawerFromRowMenu(state: Exclude<DrawerState, null>) {
+    setDrawer(state)
+    closeRowMenu()
   }
 
   const activeScenario = sandboxScenarios.find((scenario) => scenario.id === scenarioId)
@@ -321,14 +349,34 @@ function SandboxRecords({ scenarioId }: { scenarioId: string }) {
               >
                 Atualização
               </DataTableSortableHeaderCell>
-              <DataTableHeaderCell>
-                <span className="sr-only">Ações</span>
-              </DataTableHeaderCell>
             </DataTableRow>
           </DataTableHead>
           <DataTableBody>
             {records.data.items.map((record) => (
-              <DataTableRow key={record.id}>
+              <DataTableRow
+                key={record.id}
+                aria-haspopup="menu"
+                data-interactive="true"
+                tabIndex={0}
+                onContextMenu={(event) => {
+                  event.preventDefault()
+                  openRowMenu(record, event.currentTarget, {
+                    x: event.clientX,
+                    y: event.clientY,
+                  })
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) {
+                    return
+                  }
+                  event.preventDefault()
+                  const bounds = event.currentTarget.getBoundingClientRect()
+                  openRowMenu(record, event.currentTarget, {
+                    x: bounds.right - 8,
+                    y: bounds.top + bounds.height / 2,
+                  })
+                }}
+              >
                 <DataTableCell>{record.title}</DataTableCell>
                 <DataTableCell className="max-w-96">
                   <span className="line-clamp-2">{record.summary}</span>
@@ -341,39 +389,41 @@ function SandboxRecords({ scenarioId }: { scenarioId: string }) {
                 <DataTableCell>
                   {new Intl.DateTimeFormat("pt-BR").format(new Date(record.updatedAt))}
                 </DataTableCell>
-                <DataTableCell>
-                  <div className="flex justify-end gap-1">
-                    <Button
-                      aria-label={`Visualizar ${record.title}`}
-                      size="icon-sm"
-                      variant="ghost"
-                      onClick={() => setDrawer({ kind: "view", record })}
-                    >
-                      <EyeIcon aria-hidden="true" />
-                    </Button>
-                    <Button
-                      aria-label={`Editar ${record.title}`}
-                      size="icon-sm"
-                      variant="ghost"
-                      onClick={() => setDrawer({ kind: "edit", record })}
-                    >
-                      <PencilIcon aria-hidden="true" />
-                    </Button>
-                    <Button
-                      aria-label={`Excluir ${record.title}`}
-                      size="icon-sm"
-                      variant="ghost"
-                      onClick={() => setDrawer({ kind: "delete", record })}
-                    >
-                      <Trash2Icon aria-hidden="true" />
-                    </Button>
-                  </div>
-                </DataTableCell>
               </DataTableRow>
             ))}
           </DataTableBody>
         </DataTable>
       )}
+
+      <DataTableRowActionsMenu
+        actions={
+          rowMenu
+            ? [
+                {
+                  icon: EyeIcon,
+                  label: "Visualizar",
+                  onSelect: () => openDrawerFromRowMenu({ kind: "view", record: rowMenu.record }),
+                },
+                {
+                  icon: PencilIcon,
+                  label: "Editar",
+                  onSelect: () => openDrawerFromRowMenu({ kind: "edit", record: rowMenu.record }),
+                },
+                {
+                  icon: Trash2Icon,
+                  label: "Excluir",
+                  onSelect: () => openDrawerFromRowMenu({ kind: "delete", record: rowMenu.record }),
+                  variant: "destructive",
+                },
+              ]
+            : []
+        }
+        anchor={rowMenu?.anchor}
+        isOpen={rowMenu !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) closeRowMenu()
+        }}
+      />
 
       <RecordDrawer
         key={drawer?.kind === "create" ? "create" : (drawer?.record.id ?? "closed")}

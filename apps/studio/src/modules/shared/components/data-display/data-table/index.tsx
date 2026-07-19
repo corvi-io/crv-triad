@@ -32,7 +32,7 @@ export type DataTableSortState<TSortKey extends string = string> = {
 
 export type DataTableRowAction = {
   disabled?: boolean
-  icon?: ComponentType<{ className?: string }>
+  icon?: ComponentType<{ "aria-hidden"?: boolean | "false" | "true"; className?: string }>
   label: string
   onSelect: () => void
   variant?: "default" | "destructive"
@@ -230,7 +230,7 @@ export function DataTableRowActionsMenu({
               variant={action.variant}
               onClick={action.onSelect}
             >
-              {Icon ? <Icon className="size-4 text-muted-foreground" /> : null}
+              {Icon ? <Icon aria-hidden="true" className="size-4 text-muted-foreground" /> : null}
               {action.label}
             </DropdownMenuItem>
           )
