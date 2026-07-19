@@ -6,7 +6,7 @@
 - Depends on: [ENG-33](https://linear.app/corvi-io/issue/ENG-33/build-the-triad-studio-component-system-and-mock-runtime)
 - Linear initiative: [TRIAD Studio Schedule Visual Prototype](https://linear.app/corvi-io/initiative/triad-studio-schedule-visual-prototype-b4722b97cc20)
 - Related issue: [ENG-34](https://linear.app/corvi-io/issue/ENG-34/build-the-triad-studio-schedule-visual-prototype)
-- Related PR: not created.
+- Related PR: [#10](https://github.com/corvi-io/crv-triad/pull/10)
 
 ## Implementation Principles
 
