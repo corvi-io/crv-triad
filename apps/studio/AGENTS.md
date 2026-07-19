@@ -9,7 +9,17 @@
   invite-gated account creation, password reset, and sign-out. Do not add
   identity-administration routes or service clients.
 - Read `import.meta.env` only in `src/modules/shared/config/env.ts`.
-- Keep shared UI primitives under `src/modules/shared/components`.
+- Keep shadcn/Base UI primitives under `src/modules/shared/components/ui`; group shared composites
+  by responsibility under `data-display`, `feedback`, `forms`, `layout`, or `overlays`.
+- Import shared components from their owning file/folder. Do not add a shared mega-barrel.
+- Document every active shared component in the exhaustive textual inventory at
+  `docs/studio/component-system.md`, including its public contract or an internal-only rationale.
+- Keep component documentation in English Markdown and verify behavior with focused Vitest
+  component tests and Playwright flows. Do not add a separate component-catalog runtime.
+- Keep generic development memory/scenario mechanics under `src/dev/mock-engine` and sandbox-owned
+  contracts/adapters under `src/dev/sandbox`. Production code must not import `src/dev` directly.
+- Module presentation consumes a module-owned repository port through TanStack Query; compose memory
+  or HTTP adapters at the boundary and invalidate only related query keys.
 - Keep the product foundation domain-neutral. Do not restore inherited business
   routes, catalogs, fixtures, placeholder mutations, or navigation entries.
 - Add a business domain only from an accepted initiative with explicit API,
@@ -24,6 +34,8 @@
 - Do not expose a creation or edit form until its mutation and authorization
   contract exists. Demonstrations belong in initiative-specific prototypes,
   not authenticated production routes.
+- Treat the neutral development sandbox as UX/test tooling, never as a product domain or capacity
+  claim. It must not intercept Better Auth and must redirect or be eliminated in production.
 - Use the shared `DatePicker` for real date fields. Keep the form value as a canonical
   `YYYY-MM-DD` date-only string assembled and parsed in local time; do not use native date inputs or
   masked date text fields.

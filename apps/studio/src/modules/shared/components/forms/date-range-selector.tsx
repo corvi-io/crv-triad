@@ -3,8 +3,8 @@ import { useMemo, useState } from "react"
 
 import { cn } from "@/modules/shared/lib/utils"
 
-import { Button } from "./ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "./ui/dropdown-menu"
+import { Button } from "../ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu"
 
 export type DateRangeValue = {
   from: string

@@ -1,4 +1,7 @@
-import { isModuleTabActive, type ModuleTabItem } from "@/modules/shared/components/module-tabs"
+import {
+  isModuleTabActive,
+  type ModuleTabItem,
+} from "@/modules/shared/components/layout/module-tabs"
 
 describe("ModuleTabs", () => {
   it("matches exact items only on the configured route", () => {

@@ -1,6 +1,6 @@
 import { type ComponentType, lazy, Suspense } from "react"
 
-import { PageStatus } from "@/modules/shared/components/page-status"
+import { PageStatus } from "@/modules/shared/components/feedback/page-status"
 
 type RouteScreenModule = { default: ComponentType }
 
