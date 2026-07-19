@@ -2,6 +2,36 @@ import { readdir, readFile, stat } from "node:fs/promises"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 
+type DeliverySurfaceEntry = {
+  content?: string
+  relativePath: string
+}
+
+const ignoredDeliveryDirectories = new Set([
+  ".git",
+  ".turbo",
+  "__pycache__",
+  "build",
+  "coverage",
+  "dist",
+  "node_modules",
+  "playwright-report",
+  "test-results",
+])
+
+const catalogPathPattern =
+  /(?:^|\/)(?:\.storybook|\.chromatic|\.histoire|\.ladle|storybook-static|histoire-dist|ladle-dist|chromatic-diagnostics)(?:\/|$)|(?:^|\/)(?:storybook|chromatic|histoire|ladle)(?:\.config)?\.(?:[cm]?[jt]s|json|ya?ml)$|\.(?:stories|story)\.(?:[cm]?[jt]sx?|mdx)$/i
+
+const catalogContentPatterns = [
+  /@storybook\/[a-z0-9._/-]+|@ladle\/[a-z0-9._/-]+/i,
+  /["'](?:storybook|chromatic|histoire|ladle)["']\s*:/i,
+  /(?:from\s*|import\s*\(\s*|require\s*\(\s*)["'](?:chromatic|histoire|ladle)(?:\/[^"']*)?["']/i,
+  /(?:^|\brun:\s*|[;&|]\s*|["']\s*:\s*["']|\b(?:bunx|npx|pnpm(?:\s+dlx)?|yarn(?:\s+dlx)?)\s+)(?:storybook(?:\s+(?:dev|build|test))?|start-storybook|build-storybook|test-storybook|chromatic|histoire(?:\s+(?:dev|build|preview))?|ladle(?:\s+(?:serve|build))?)(?=\s|["']|$)/im,
+  /\buses:\s*(?:chromaui\/action|[^@\s]*(?:storybook|chromatic|histoire|ladle)[^@\s]*)@/i,
+  /(?:^|[\s"'])(?:\.storybook|\.chromatic|\.histoire|\.ladle|storybook-static|histoire-dist|ladle-dist|chromatic-diagnostics)(?:[/\s"']|$)/i,
+  /(?:^|[/"'])[^/"']+\.(?:stories|story)\.(?:[cm]?[jt]sx?|mdx)(?:["']|$)/i,
+]
+
 describe("Studio component dependency model", () => {
   it("keeps shared code independent from modules and development tooling", async () => {
     const sharedRoot = path.resolve(process.cwd(), "src/modules/shared")
@@ -34,51 +64,40 @@ describe("Studio component dependency model", () => {
   it("uses durable text instead of a separate component catalog runtime", async () => {
     const appRoot = path.resolve(process.cwd())
     const workspaceRoot = path.resolve(appRoot, "../..")
-    const qualityGatePath = path.join(workspaceRoot, ".github/scripts/run-quality-gate.sh")
-    const developWorkflowPath = path.join(workspaceRoot, ".github/workflows/develop-pipeline.yml")
-    const machineFiles = [
-      path.join(workspaceRoot, "package.json"),
-      path.join(workspaceRoot, "bun.lock"),
-      path.join(appRoot, "package.json"),
-      qualityGatePath,
-      developWorkflowPath,
-      ...(await sourceFiles(path.join(appRoot, "scripts"))),
-    ]
-    const machineText = (
-      await Promise.all(machineFiles.map((file) => readFile(file, "utf8")))
-    ).join("\n")
-    const catalogPackageNames = /@storybook\/|@ladle\/|\b(?:storybook|chromatic|histoire|ladle)\b/i
-    const appFiles = await filesWithoutDependencies(appRoot)
-    const catalogSourceNames = /(?:^|\/)[^/]+\.(?:stories|story)\.(?:[cm]?[jt]sx?|mdx)$/i
-    const forbiddenPaths = [
-      ".storybook",
-      ".chromatic",
-      ".histoire",
-      ".ladle",
-      "storybook-static",
-      "chromatic.config.json",
-      "histoire-dist",
-      "histoire.config.ts",
-      "ladle.config.ts",
-      "node_modules/@ladle",
-      "node_modules/@storybook",
-      "node_modules/.cache/histoire",
-      "node_modules/.cache/ladle",
-      "node_modules/.cache/storybook",
-      "node_modules/chromatic",
-      "node_modules/histoire",
-    ]
-    const qualityGate = await readFile(qualityGatePath, "utf8")
-    const developWorkflow = await readFile(developWorkflowPath, "utf8")
+    const deliverySurface = await collectDeliverySurface(workspaceRoot, appRoot)
 
-    expect(machineText).not.toMatch(catalogPackageNames)
-    expect(appFiles.filter((file) => catalogSourceNames.test(file))).toEqual([])
-    expect(qualityGate).toContain("bun --filter studio test:e2e:sandbox")
-    expect(qualityGate).toContain("bun --filter studio test:e2e:production")
-    expect(developWorkflow).toContain("bunx playwright install --with-deps --only-shell chromium")
-    for (const candidate of forbiddenPaths) {
-      await expect(stat(path.join(appRoot, candidate))).rejects.toThrow()
-    }
+    expect(findCatalogViolations(deliverySurface)).toEqual([])
+  })
+
+  it.each([
+    [
+      "dependency",
+      "apps/studio/package.json",
+      '{"devDependencies":{"@storybook/react-vite":"latest"}}',
+    ],
+    ["script", "apps/studio/package.json", '{"scripts":{"catalog":"histoire dev"}}'],
+    ["configuration", "apps/studio/.ladle/config.mjs", "export default {}"],
+    ["workflow", ".github/workflows/catalog.yml", "steps:\n  - uses: chromaui/action@v1"],
+    ["story", "apps/studio/src/button.stories.tsx", "export default {}"],
+    ["artifact", "apps/studio/storybook-static/index.html", "<html></html>"],
+  ])("rejects a visual-catalog %s", (_kind, relativePath, content) => {
+    expect(findCatalogViolations([{ relativePath, content }])).toEqual([relativePath])
+  })
+
+  it("allows policy prose that names a prohibited catalog", () => {
+    const policyProse = [
+      {
+        relativePath: ".github/scripts/check-policy.sh",
+        content:
+          '# The Studio uses English Markdown and has no Storybook runtime.\necho "policy checked"',
+      },
+      {
+        relativePath: "apps/studio/src/catalog-policy.ts",
+        content: 'export const policy = "No Chromatic, Histoire, or Ladle runtime is allowed."',
+      },
+    ]
+
+    expect(findCatalogViolations(policyProse)).toEqual([])
   })
 })
 
@@ -94,17 +113,79 @@ async function sourceFiles(directory: string): Promise<string[]> {
   return files.flat()
 }
 
-async function filesWithoutDependencies(directory: string): Promise<string[]> {
-  const ignoredDirectories = new Set(["dist", "node_modules", "playwright-report", "test-results"])
+async function collectDeliverySurface(
+  workspaceRoot: string,
+  appRoot: string,
+): Promise<DeliverySurfaceEntry[]> {
+  const rootFiles = [path.join(workspaceRoot, "package.json"), path.join(workspaceRoot, "bun.lock")]
+  const recursiveRoots = [
+    path.join(workspaceRoot, ".github/workflows"),
+    path.join(workspaceRoot, ".github/scripts"),
+    path.join(appRoot, "scripts"),
+    path.join(appRoot, "src"),
+    path.join(appRoot, "config"),
+    path.join(appRoot, "configs"),
+  ]
+  const appRootEntries = await readdir(appRoot, { withFileTypes: true })
+  const appMachineFiles = appRootEntries
+    .filter(
+      (entry) =>
+        entry.isFile() && /(?:\.config\.[cm]?[jt]s|\.json|\.html|\.ya?ml|\.toml)$/.test(entry.name),
+    )
+    .map((entry) => path.join(appRoot, entry.name))
+  const appRootPaths = appRootEntries.map((entry) => ({
+    relativePath: toRelativePath(workspaceRoot, path.join(appRoot, entry.name)),
+  }))
+  const files = [
+    ...rootFiles,
+    ...appMachineFiles,
+    ...(await Promise.all(recursiveRoots.map((root) => deliveryFilesIfPresent(root)))).flat(),
+  ]
+  const fileEntries = await Promise.all(
+    [...new Set(files)].map(async (file) => ({
+      content: await readFile(file, "utf8"),
+      relativePath: toRelativePath(workspaceRoot, file),
+    })),
+  )
+
+  return [...appRootPaths, ...fileEntries]
+}
+
+async function deliveryFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true })
   const files = await Promise.all(
     entries.map((entry) => {
       const target = path.join(directory, entry.name)
       if (entry.isDirectory()) {
-        return ignoredDirectories.has(entry.name) ? [] : filesWithoutDependencies(target)
+        return ignoredDeliveryDirectories.has(entry.name) ? [] : deliveryFiles(target)
       }
       return [target]
     }),
   )
   return files.flat()
+}
+
+async function deliveryFilesIfPresent(directory: string): Promise<string[]> {
+  try {
+    await stat(directory)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return []
+    throw error
+  }
+
+  return deliveryFiles(directory)
+}
+
+function findCatalogViolations(entries: DeliverySurfaceEntry[]): string[] {
+  return entries
+    .filter(
+      ({ content = "", relativePath }) =>
+        catalogPathPattern.test(relativePath) ||
+        catalogContentPatterns.some((pattern) => pattern.test(content)),
+    )
+    .map(({ relativePath }) => relativePath)
+}
+
+function toRelativePath(root: string, target: string): string {
+  return path.relative(root, target).split(path.sep).join("/")
 }

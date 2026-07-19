@@ -139,7 +139,8 @@ Recorded evidence:
 - `bash .github/scripts/run-quality-gate.sh studio`: passed with Studio check plus both focused
   Playwright suites; the develop workflow installs Chromium headless shell and Linux dependencies.
 - `bun pm ls --all`: no Storybook, Chromatic, Histoire, or Ladle dependency was present; the
-  architecture gate also checks manifests, Studio scripts, CI text, source names, and common paths.
+  architecture gate also checks every workflow and root CI script plus Studio manifests, scripts,
+  configuration, source names/content, and common artifact paths.
 - Studio skill validation through the skill-creator validator: passed.
 - Manual-only checks not performed in this implementation cycle: keyboard-only operation, focus
   return, VoiceOver, 200% zoom, 320 CSS-pixel reflow, reduced-motion visual review, target-size
