@@ -5,7 +5,7 @@
 - PRD: `docs/initiatives/prds/02-triad-studio-component-system-and-mock-runtime.md`
 - Depends on: [ENG-32](https://linear.app/corvi-io/issue/ENG-32/establish-the-triad-studio-frontend-foundation)
 - Related issue: [ENG-33](https://linear.app/corvi-io/issue/ENG-33/build-the-triad-studio-component-system-and-mock-runtime)
-- Related PR: not created
+- Related PR: [#9](https://github.com/corvi-io/crv-triad/pull/9)
 
 ## Implementation Principles
 
