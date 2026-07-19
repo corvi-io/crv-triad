@@ -9,6 +9,10 @@ const forbiddenMarkers = [
   "Falhar próxima operação",
   "Cenário restaurado",
   "Intentional development failure",
+  "SchedulingMemoryRepository",
+  "Unidade sintética Centro",
+  "Cliente Sintético Com Nome",
+  "appointment-dense-",
   ".stories.",
 ]
 

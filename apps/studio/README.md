@@ -15,6 +15,8 @@ Routes:
 - `/login`
 - `/workspace-preview` (development-only visual shell preview; no login required)
 - `/workspace-preview/sandbox` (development-only neutral component/data sandbox)
+- `/workspace-preview/agenda` (development-only schedule interaction/QA surface)
+- `/agenda` (authenticated daily schedule visual prototype when enabled)
 - `/overview`
 - `/profile`
 - `/preferences`
@@ -37,3 +39,9 @@ Runtime env:
 
 - `VITE_APP_NAME`
 - `VITE_AUTH_BASE_URL`
+- `VITE_DEPLOY_TARGET` (`local`, `dev`, `hml`, or `prd`; defaults to `local`)
+- `VITE_SCHEDULING_SOURCE` (`disabled` or `memory`; defaults to `disabled`)
+
+`bun --filter studio dev` explicitly composes memory scheduling for local UX work. Remote `dev`
+builds require `VITE_DEPLOY_TARGET=dev` and `VITE_SCHEDULING_SOURCE=memory`. The composition
+boundary ignores memory for `hml` and `prd`, and production checks reject synthetic markers.

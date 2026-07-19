@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 3000",
+    "dev": "VITE_DEPLOY_TARGET=local VITE_SCHEDULING_SOURCE=memory vite --port 3000",
     "build": "bun run routes:generate && tsc -b && vite build",
     "preview": "vite preview",
     "start": "vite preview",
@@ -14,10 +14,10 @@
     "lint": "biome lint .",
     "typecheck": "bun run routes:generate && tsc -b",
     "test": "bun run routes:generate && vitest run",
-    "test:production-boundary": "bun run build && bun ./scripts/assert-production-boundary.ts",
+    "test:production-boundary": "VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled bun run build && bun ./scripts/assert-production-boundary.ts",
     "test:e2e": "playwright test",
     "test:e2e:sandbox": "playwright test tests/e2e/sandbox.spec.ts",
-    "test:e2e:production": "bun run build && playwright test --config playwright.production.config.ts"
+    "test:e2e:production": "VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled bun run build && playwright test --config playwright.production.config.ts"
   },
   "dependencies": {
     "@base-ui-components/react": "^1.0.0-rc.0",

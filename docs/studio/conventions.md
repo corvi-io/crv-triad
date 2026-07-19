@@ -11,3 +11,7 @@ textual component contract, token layers, and removable development runtime.
 - Read `import.meta.env` only in `src/modules/shared/config/env.ts`.
 - Keep shared UI primitives under `src/modules/shared/components`.
 - Keep UI copy in Brazilian Portuguese.
+
+The schedule prototype owns its UI-facing port, query keys, validation, and presentation under
+`src/modules/scheduling`. Synthetic catalogs, scenarios, and the memory adapter remain under
+`src/dev/scheduling`; the generic mock engine remains domain-free.

@@ -1,7 +1,13 @@
 import type { LucideIcon as LucideIconType } from "lucide-react"
-import { HomeIcon, Settings2Icon, SettingsIcon, UserRoundIcon } from "lucide-react"
+import {
+  CalendarDaysIcon,
+  HomeIcon,
+  Settings2Icon,
+  SettingsIcon,
+  UserRoundIcon,
+} from "lucide-react"
 
-export type WorkspaceModulePath = "/overview"
+export type WorkspaceModulePath = "/agenda" | "/overview"
 export type WorkspaceRoutePath = WorkspaceModulePath | "/profile" | "/preferences"
 
 type WorkspaceRoute = {
@@ -29,6 +35,14 @@ export type WorkspaceNavigationItem = {
 
 export const workspacePrimaryNavigation = [
   {
+    id: "schedule",
+    label: "Agenda",
+    description: "Agenda diária da unidade.",
+    icon: CalendarDaysIcon,
+    path: "/agenda",
+    status: "active",
+  },
+  {
     id: "dashboard",
     label: "Dashboard",
     description: "Entrada principal do TRIAD Studio.",
@@ -50,6 +64,15 @@ export const workspaceSecondaryNavigation = [
 ] as const satisfies readonly WorkspaceNavigationItem[]
 
 export const workspaceModules = [
+  {
+    id: "schedule",
+    label: "Agenda",
+    path: "/agenda",
+    icon: CalendarDaysIcon,
+    breadcrumbLabel: "Agenda",
+    description: "Agenda diária da unidade.",
+    commandKeywords: ["agenda", "agendamento", "horário", "profissional"],
+  },
   {
     id: "overview",
     label: "Dashboard",

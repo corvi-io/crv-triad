@@ -14,8 +14,20 @@ These inputs configure infrastructure rather than browser runtime.
 GitHub Environment sources mapped to required public runtime values:
 
 - `STUDIO__VITE_AUTH_BASE_URL` -> `VITE_AUTH_BASE_URL`
+- `STUDIO__VITE_DEPLOY_TARGET` -> `VITE_DEPLOY_TARGET` (optional target guard)
+- `STUDIO__VITE_SCHEDULING_SOURCE` -> `VITE_SCHEDULING_SOURCE` (optional prototype source)
 
 `VITE_APP_NAME` keeps its application default and is not a deployment source. All Vite values are browser-visible; do not place secrets in them. Local `.env.example` names remain runtime-shaped.
+
+The memory schedule is composed only when the source is `memory` and the target is `local` or
+`dev`. Each deployment workflow passes its fixed `dev`, `hml`, or `prd` target through both the
+Studio build export and deploy gate while keeping the scheduling source environment-configurable.
+Missing values are disabled; `hml` and `prd` fail closed even if memory is requested. This is a
+frontend prototype switch, not an authorization, API, or persistence contract.
+
+Production-boundary and production-preview scripts explicitly build with target `prd` and source
+`disabled`, so inherited preview environment values cannot contaminate their artifact scan. The
+Studio deploy gate still uses the exported target/source and can build the `dev` memory prototype.
 
 Deployment runs only when the environment variable `CICD__DEPLOY_ENABLED` is `true`.
 

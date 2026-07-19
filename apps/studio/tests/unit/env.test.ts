@@ -6,5 +6,7 @@ describe("public env", () => {
     expect(env.authBaseUrl).toBe(
       import.meta.env.VITE_AUTH_BASE_URL ?? "http://localhost:8001/api/auth",
     )
+    expect(env.deployTarget).toBe(import.meta.env.VITE_DEPLOY_TARGET ?? "local")
+    expect(env.schedulingSource).toBe(import.meta.env.VITE_SCHEDULING_SOURCE ?? "disabled")
   })
 })
