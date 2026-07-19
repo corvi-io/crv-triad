@@ -114,7 +114,7 @@
   - [x] Populate duration, default price, and eligible professionals from service
         selection.
   - [x] Validate required fields and conflict, unavailable-professional,
-        closed-hours, and insufficient-space conditions.
+        closed-hours, break/blocked overlap, 15-minute grid, and insufficient-space conditions.
   - [x] Prevent duplicate submissions, keep button labels stable, show concise
         Brazilian Portuguese toasts, and return focus to the trigger.
 - [x] Add focused verification:
@@ -145,14 +145,14 @@
 Record evidence as tasks are completed:
 
 - Command: `bun --filter studio check`
-- Result: pass; 20 Vitest files, 83 tests, production build, and 30-file boundary scan.
+- Result: pass; 20 Vitest files, 90 tests, production build, and 30-file boundary scan.
 - Command: `bun --filter studio test:e2e`
-- Result: pass; 8 Chromium tests including 3 schedule journeys and focused axe.
+- Result: pass; 9 Chromium tests including 4 schedule journeys and focused axe.
 - Command: `bun --filter studio test:e2e:production`
 - Result: pass; 3 production redirect/exclusion tests.
 - Command: `bun test ./.github/scripts`
-- Result: pass; 15 tests including the checked-in Studio env-source inventory for the two accepted
-  `STUDIO__` inputs.
+- Result: pass; 16 tests including fixed target and scheduling-source propagation through `dev`,
+  `hml`, and `prd` Studio build/deploy steps.
 - Notes: manual 1440 × 900 light and 320 × 720 dark screenshot inspection completed; narrow date
   overflow was corrected. VoiceOver, Windows High Contrast, and deployed real-IDP login were
   unavailable and remain residual checks.

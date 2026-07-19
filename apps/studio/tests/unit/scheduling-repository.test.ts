@@ -65,6 +65,74 @@ describe("scheduling memory repository", () => {
     ).rejects.toBeInstanceOf(ScheduleConflictError)
   })
 
+  it.each([
+    ["break", "normal", "professional-bruno", "12:00"],
+    ["blocked", "normal", "professional-carla", "16:15"],
+    ["scenario block", "blocked", "professional-ana", "09:15"],
+  ])("rejects %s period overlaps", async (_label, scenarioId, professionalId, start) => {
+    const repository = new SchedulingMemoryRepository()
+    await repository.getDay({ date: "2026-07-19", scenarioId })
+
+    await expect(
+      repository.create({
+        customerName: "Cliente Teste",
+        customerPhone: "81900000000",
+        date: "2026-07-19",
+        durationMinutes: 45,
+        notes: "",
+        origin: "reception",
+        priceCents: 5500,
+        professionalId,
+        serviceId: "service-cut",
+        start,
+        status: "scheduled",
+      }),
+    ).rejects.toThrow("coincide com uma pausa ou bloqueio")
+  })
+
+  it("rejects off-grid starts for direct create and update calls", async () => {
+    const repository = new SchedulingMemoryRepository()
+    const day = await repository.getDay({ date: "2026-07-19", scenarioId: "normal" })
+    const offGrid = { ...day.appointments[0], start: "11:10" }
+
+    await expect(repository.create(offGrid)).rejects.toThrow("15 em 15 minutos")
+    await expect(repository.update(day.appointments[0].id, offGrid)).rejects.toThrow(
+      "15 em 15 minutos",
+    )
+  })
+
+  it("keeps the blocked scenario seed outside unavailable periods", async () => {
+    const repository = new SchedulingMemoryRepository()
+    const day = await repository.getDay({ date: "2026-07-19", scenarioId: "blocked" })
+
+    expect(day.appointments).toEqual([
+      expect.objectContaining({ professionalId: "professional-ana", start: "13:00" }),
+    ])
+  })
+
+  it("rejects unavailable-period updates while keeping walk-in markers non-blocking", async () => {
+    const repository = new SchedulingMemoryRepository()
+    const normalDay = await repository.getDay({ date: "2026-07-19", scenarioId: "normal" })
+    const existing = normalDay.appointments[0]
+    const { id, ...input } = existing
+
+    await expect(
+      repository.update(id, {
+        ...input,
+        professionalId: "professional-bruno",
+        start: "12:00",
+      }),
+    ).rejects.toThrow("coincide com uma pausa ou bloqueio")
+
+    await repository.getDay({ date: "2026-07-19", scenarioId: "walk-in" })
+    await expect(
+      repository.create({
+        ...input,
+        start: "11:30",
+      }),
+    ).resolves.toMatchObject({ professionalId: "professional-ana", start: "11:30" })
+  })
+
   it("fails once and then recovers in the next-failure scenario", async () => {
     const repository = new SchedulingMemoryRepository()
     await expect(

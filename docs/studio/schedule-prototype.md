@@ -43,19 +43,21 @@ markers. No fetch handler, API route/client, durable browser storage, or auth in
 
 The URL reproduces `normal`, `empty`, `all-statuses`, `dense`, `many-professionals`, `long-content`,
 `blocked`, `walk-in`, `conflict`, `slow`, `next-failure`, and `persistent-error`. Reset restores the
-active scenario. Create/update/cancel invalidate only scheduling keys. Conflict, closed-hours,
-ineligible-professional, and insufficient-space failures keep the drawer open, focus the time field,
-and provide field plus toast feedback.
+active scenario. Create/update/cancel invalidate only scheduling keys. Starts must align to the
+15-minute grid. Appointment conflicts, breaks, blocked periods, closed hours, ineligible
+professionals, and insufficient space are rejected at the repository boundary. Recoverable domain
+failures keep the drawer open, focus the time field, and provide field plus toast feedback. Walk-in
+markers remain visual-only and do not block appointments.
 
 ## Verification Evidence
 
 - `bun --filter studio format`, `lint`, and `typecheck`: pass during focused verification.
-- `bun --filter studio check`: 20 files and 83 tests passed; production build and the 30-file
+- `bun --filter studio check`: 20 files and 90 tests passed; production build and the 30-file
   synthetic-marker scan passed.
-- `bun --filter studio test:e2e`: 8 Chromium tests passed, including 3 schedule journeys and axe.
+- `bun --filter studio test:e2e`: 9 Chromium tests passed, including 4 schedule journeys and axe.
 - `bun --filter studio test:e2e:production`: 3 Chromium production-preview tests passed.
-- `bun test ./.github/scripts`: 15 tests passed, including the checked-in Studio env-source
-  inventory for the two prototype controls.
+- `bun test ./.github/scripts`: 16 tests passed, including fixed target and scheduling-source
+  propagation through the three deployment workflows.
 
 Automated browser evidence covers desktop, 320 CSS pixels, dark mode, reduced motion, keyboard
 Escape/focus return, long content, horizontal density, conflicts, and axe. VoiceOver and Windows

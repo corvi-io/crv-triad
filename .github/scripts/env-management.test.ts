@@ -197,6 +197,25 @@ describe("env-management", () => {
     }
   })
 
+  it("propagates fail-closed Studio scheduling inputs through every deployment target", () => {
+    for (const [path, target] of [
+      [".github/workflows/develop-pipeline.yml", "dev"],
+      [".github/workflows/homolog-pipeline.yml", "hml"],
+      [".github/workflows/production-pipeline.yml", "prd"],
+    ] as const) {
+      const content = readFileSync(path, "utf8")
+
+      expect(content.match(new RegExp(`STUDIO__VITE_DEPLOY_TARGET: ${target}`, "g"))).toHaveLength(
+        2,
+      )
+      expect(
+        content.match(
+          /STUDIO__VITE_SCHEDULING_SOURCE: \$\{\{ vars\.STUDIO__VITE_SCHEDULING_SOURCE \}\}/g,
+        ),
+      ).toHaveLength(2)
+    }
+  })
+
   it("keeps the promotion pull-request check independent from the production environment", () => {
     const content = readFileSync(".github/workflows/promotion-pipeline.yml", "utf8")
 

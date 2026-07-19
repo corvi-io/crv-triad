@@ -125,9 +125,24 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
     }
     const start = minutes(input.start)
     const end = start + input.durationMinutes
+    if (start % 15 !== 0) {
+      throw new ScheduleConflictError("Use horários de 15 em 15 minutos (00, 15, 30 ou 45).")
+    }
     if (start < minutes("08:00") || end > minutes("18:00")) {
       throw new ScheduleConflictError(
         "Escolha um horário dentro do funcionamento, das 08:00 às 18:00.",
+      )
+    }
+    const overlapsUnavailablePeriod = periodsFor(this.#engine.snapshot.scenarioId).some(
+      (period) =>
+        period.kind !== "walk-in" &&
+        period.professionalId === input.professionalId &&
+        start < minutes(period.end) &&
+        end > minutes(period.start),
+    )
+    if (overlapsUnavailablePeriod) {
+      throw new ScheduleConflictError(
+        "Este horário coincide com uma pausa ou bloqueio do profissional. Escolha outro horário.",
       )
     }
     const overlaps = this.#engine

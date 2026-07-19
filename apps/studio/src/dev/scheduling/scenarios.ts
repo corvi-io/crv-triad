@@ -105,7 +105,7 @@ export const schedulingScenarios: readonly ScenarioDefinition<Appointment>[] = [
     id: "blocked",
     label: "Bloqueios",
     description: "Pausas e períodos indisponíveis.",
-    records: normal.slice(0, 1),
+    records: [appointment("appointment-blocked", "13:00")],
   },
   {
     id: "walk-in",

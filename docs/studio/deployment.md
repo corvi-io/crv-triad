@@ -20,8 +20,10 @@ GitHub Environment sources mapped to required public runtime values:
 `VITE_APP_NAME` keeps its application default and is not a deployment source. All Vite values are browser-visible; do not place secrets in them. Local `.env.example` names remain runtime-shaped.
 
 The memory schedule is composed only when the source is `memory` and the target is `local` or
-`dev`. Missing values are disabled; `hml` and `prd` fail closed even if memory is requested. This is
-a frontend prototype switch, not an authorization, API, or persistence contract.
+`dev`. Each deployment workflow passes its fixed `dev`, `hml`, or `prd` target through both the
+Studio build export and deploy gate while keeping the scheduling source environment-configurable.
+Missing values are disabled; `hml` and `prd` fail closed even if memory is requested. This is a
+frontend prototype switch, not an authorization, API, or persistence contract.
 
 Deployment runs only when the environment variable `CICD__DEPLOY_ENABLED` is `true`.
 

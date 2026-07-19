@@ -28,7 +28,7 @@ import { appointmentStatusPresentation } from "./status"
 
 export type DrawerMode = "cancel" | "create" | "edit" | "reschedule" | "view"
 
-const appointmentFormSchema = z.object({
+export const appointmentFormSchema = z.object({
   customerName: z.string().trim().min(2, "Informe o nome do cliente."),
   customerPhone: z.string().regex(/^\d{10,11}$/, "Informe um telefone válido."),
   date: z.iso.date("Informe uma data válida."),
@@ -36,7 +36,12 @@ const appointmentFormSchema = z.object({
   origin: z.enum(["phone", "reception", "whatsapp"]),
   professionalId: z.string().min(1, "Selecione um profissional."),
   serviceId: z.string().min(1, "Selecione um serviço."),
-  start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Informe um horário válido."),
+  start: z
+    .string()
+    .regex(
+      /^([01]\d|2[0-3]):(?:00|15|30|45)$/,
+      "Use horários de 15 em 15 minutos (00, 15, 30 ou 45).",
+    ),
 })
 
 type AppointmentFormValues = z.infer<typeof appointmentFormSchema>

@@ -3,10 +3,29 @@ import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
+import { appointmentFormSchema } from "@/modules/scheduling/appointment-drawer"
 import { SchedulingRepositoryProvider } from "@/modules/scheduling/repository-context"
 import { SchedulePage } from "@/modules/scheduling/schedule-page"
 
 describe("schedule page", () => {
+  it("rejects off-grid minutes in the appointment form schema", () => {
+    const result = appointmentFormSchema.safeParse({
+      customerName: "Cliente Teste",
+      customerPhone: "81900000000",
+      date: "2026-07-19",
+      notes: "",
+      origin: "reception",
+      professionalId: "professional-ana",
+      serviceId: "service-cut",
+      start: "09:10",
+    })
+
+    expect(result.error?.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining("15 em 15") }),
+      ]),
+    )
+  })
   it("renders textual status cues and opens the view/edit drawer journey", async () => {
     const user = userEvent.setup()
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })

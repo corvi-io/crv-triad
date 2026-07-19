@@ -67,6 +67,30 @@ test("shows a recoverable conflict and preserves filter state in the URL", async
   await expect(page).toHaveURL(/status=scheduled/)
 })
 
+test("rejects blocked and off-grid starts with visible focused feedback", async ({ page }) => {
+  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=blocked")
+  await expect(
+    page.locator("table button").filter({ hasText: "Cliente sintético appointment-blocked" }),
+  ).toBeVisible()
+  await page.getByRole("button", { name: "Novo agendamento" }).click()
+  await page.getByRole("textbox", { name: /^Nome/ }).fill("Cliente de Bloqueio")
+  await page.getByRole("textbox", { name: /^Telefone/ }).fill("81999990000")
+
+  const timeField = page.getByRole("textbox", { name: /^Horário/ })
+  await timeField.fill("09:15")
+  await page.getByRole("button", { name: "Criar agendamento" }).click()
+  await expect(page.locator("#appointment-time-error")).toContainText(
+    /coincide com uma pausa ou bloqueio/i,
+  )
+  await expect(page.getByText(/coincide com uma pausa ou bloqueio/i).last()).toBeVisible()
+  await expect(timeField).toBeFocused()
+
+  await timeField.fill("09:10")
+  await page.getByRole("button", { name: "Criar agendamento" }).click()
+  await expect(page.locator("#appointment-time-error")).toContainText(/15 em 15 minutos/i)
+  await expect(timeField).toBeFocused()
+})
+
 test("keeps the grouped journey usable at 320 CSS pixels in dark reduced-motion mode", async ({
   page,
 }) => {
