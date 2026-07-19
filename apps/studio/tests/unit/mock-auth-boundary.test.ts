@@ -8,6 +8,8 @@ describe("development mock boundary", () => {
       "src/dev/mock-engine/memory-scenario-engine.ts",
       "src/dev/sandbox/module/memory-repository.ts",
       "src/dev/sandbox/sandbox-page.tsx",
+      "src/dev/scheduling/memory-repository.ts",
+      "src/dev/scheduling/scenarios.ts",
     ]
     const source = (
       await Promise.all(files.map((file) => readFile(path.resolve(process.cwd(), file), "utf8")))

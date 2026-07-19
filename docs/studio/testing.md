@@ -22,6 +22,12 @@ bun --filter studio test:e2e:sandbox
 bun --filter studio test:e2e:production
 ```
 
+`tests/e2e/schedule.spec.ts` exercises the module through the development-only schedule preview
+without intercepting Better Auth. It covers view, create, reschedule, cancel, URL scenarios and
+filters, conflict recovery, 320 CSS-pixel grouping, dark mode, reduced motion, focus return, long
+content, horizontal density, and a focused axe scan. The authenticated `/agenda` route continues to
+use the real IDP boundary; the preview is local QA tooling and redirects in production.
+
 The sandbox e2e test uses the real Studio shell and local repository adapter without intercepting
 authentication. Its focused axe scan fails on automatically detectable WCAG 2.0, 2.1, and 2.2
 Level A/AA violations. Keyboard coverage opens row actions with `Shift+F10`, operates the menu and

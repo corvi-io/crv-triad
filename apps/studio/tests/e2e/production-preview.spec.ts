@@ -21,3 +21,11 @@ test("keeps the sandbox route and controls unreachable in production", async ({ 
   await expect(page.getByText("Sandbox de componentes")).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Falhar próxima operação" })).toHaveCount(0)
 })
+
+test("redirects the schedule preview and excludes synthetic scheduling in production", async ({
+  page,
+}) => {
+  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=normal")
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByText("Unidade sintética Centro")).toHaveCount(0)
+})

@@ -14,9 +14,11 @@ import { Route as WorkspacePreviewIndexRouteImport } from './routes/workspace-pr
 import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as WorkspacePreviewSandboxIndexRouteImport } from './routes/workspace-preview/sandbox/index'
+import { Route as WorkspacePreviewAgendaIndexRouteImport } from './routes/workspace-preview/agenda/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
 import { Route as AuthenticatedPreferencesIndexRouteImport } from './routes/_authenticated/preferences/index'
 import { Route as AuthenticatedOverviewIndexRouteImport } from './routes/_authenticated/overview/index'
+import { Route as AuthenticatedAgendaIndexRouteImport } from './routes/_authenticated/agenda/index'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -43,6 +45,12 @@ const WorkspacePreviewSandboxIndexRoute =
     path: '/workspace-preview/sandbox/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const WorkspacePreviewAgendaIndexRoute =
+  WorkspacePreviewAgendaIndexRouteImport.update({
+    id: '/workspace-preview/agenda/',
+    path: '/workspace-preview/agenda/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedProfileIndexRoute =
   AuthenticatedProfileIndexRouteImport.update({
     id: '/profile/',
@@ -61,23 +69,33 @@ const AuthenticatedOverviewIndexRoute =
     path: '/overview/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAgendaIndexRoute =
+  AuthenticatedAgendaIndexRouteImport.update({
+    id: '/agenda/',
+    path: '/agenda/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login/': typeof LoginIndexRoute
   '/workspace-preview/': typeof WorkspacePreviewIndexRoute
+  '/agenda/': typeof AuthenticatedAgendaIndexRoute
   '/overview/': typeof AuthenticatedOverviewIndexRoute
   '/preferences/': typeof AuthenticatedPreferencesIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
+  '/workspace-preview/agenda/': typeof WorkspacePreviewAgendaIndexRoute
   '/workspace-preview/sandbox/': typeof WorkspacePreviewSandboxIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginIndexRoute
   '/workspace-preview': typeof WorkspacePreviewIndexRoute
+  '/agenda': typeof AuthenticatedAgendaIndexRoute
   '/overview': typeof AuthenticatedOverviewIndexRoute
   '/preferences': typeof AuthenticatedPreferencesIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
+  '/workspace-preview/agenda': typeof WorkspacePreviewAgendaIndexRoute
   '/workspace-preview/sandbox': typeof WorkspacePreviewSandboxIndexRoute
 }
 export interface FileRoutesById {
@@ -86,9 +104,11 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/login/': typeof LoginIndexRoute
   '/workspace-preview/': typeof WorkspacePreviewIndexRoute
+  '/_authenticated/agenda/': typeof AuthenticatedAgendaIndexRoute
   '/_authenticated/overview/': typeof AuthenticatedOverviewIndexRoute
   '/_authenticated/preferences/': typeof AuthenticatedPreferencesIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
+  '/workspace-preview/agenda/': typeof WorkspacePreviewAgendaIndexRoute
   '/workspace-preview/sandbox/': typeof WorkspacePreviewSandboxIndexRoute
 }
 export interface FileRouteTypes {
@@ -97,18 +117,22 @@ export interface FileRouteTypes {
     | '/'
     | '/login/'
     | '/workspace-preview/'
+    | '/agenda/'
     | '/overview/'
     | '/preferences/'
     | '/profile/'
+    | '/workspace-preview/agenda/'
     | '/workspace-preview/sandbox/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/workspace-preview'
+    | '/agenda'
     | '/overview'
     | '/preferences'
     | '/profile'
+    | '/workspace-preview/agenda'
     | '/workspace-preview/sandbox'
   id:
     | '__root__'
@@ -116,9 +140,11 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/login/'
     | '/workspace-preview/'
+    | '/_authenticated/agenda/'
     | '/_authenticated/overview/'
     | '/_authenticated/preferences/'
     | '/_authenticated/profile/'
+    | '/workspace-preview/agenda/'
     | '/workspace-preview/sandbox/'
   fileRoutesById: FileRoutesById
 }
@@ -126,6 +152,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   LoginIndexRoute: typeof LoginIndexRoute
   WorkspacePreviewIndexRoute: typeof WorkspacePreviewIndexRoute
+  WorkspacePreviewAgendaIndexRoute: typeof WorkspacePreviewAgendaIndexRoute
   WorkspacePreviewSandboxIndexRoute: typeof WorkspacePreviewSandboxIndexRoute
 }
 
@@ -166,6 +193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspacePreviewSandboxIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/workspace-preview/agenda/': {
+      id: '/workspace-preview/agenda/'
+      path: '/workspace-preview/agenda'
+      fullPath: '/workspace-preview/agenda/'
+      preLoaderRoute: typeof WorkspacePreviewAgendaIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/profile/': {
       id: '/_authenticated/profile/'
       path: '/profile'
@@ -187,11 +221,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOverviewIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/agenda/': {
+      id: '/_authenticated/agenda/'
+      path: '/agenda'
+      fullPath: '/agenda/'
+      preLoaderRoute: typeof AuthenticatedAgendaIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAgendaIndexRoute: typeof AuthenticatedAgendaIndexRoute
   AuthenticatedOverviewIndexRoute: typeof AuthenticatedOverviewIndexRoute
   AuthenticatedPreferencesIndexRoute: typeof AuthenticatedPreferencesIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
@@ -199,6 +241,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAgendaIndexRoute: AuthenticatedAgendaIndexRoute,
   AuthenticatedOverviewIndexRoute: AuthenticatedOverviewIndexRoute,
   AuthenticatedPreferencesIndexRoute: AuthenticatedPreferencesIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
@@ -211,6 +254,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   LoginIndexRoute: LoginIndexRoute,
   WorkspacePreviewIndexRoute: WorkspacePreviewIndexRoute,
+  WorkspacePreviewAgendaIndexRoute: WorkspacePreviewAgendaIndexRoute,
   WorkspacePreviewSandboxIndexRoute: WorkspacePreviewSandboxIndexRoute,
 }
 export const routeTree = rootRouteImport

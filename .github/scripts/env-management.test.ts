@@ -133,7 +133,11 @@ describe("env-management", () => {
         "IDP__AUTH_TRUSTED_ORIGINS",
       ],
       site: ["SITE__PUBLIC_SITE_URL"],
-      studio: ["STUDIO__VITE_AUTH_BASE_URL"],
+      studio: [
+        "STUDIO__VITE_AUTH_BASE_URL",
+        "STUDIO__VITE_DEPLOY_TARGET",
+        "STUDIO__VITE_SCHEDULING_SOURCE",
+      ],
     })
     expect(
       Object.fromEntries(

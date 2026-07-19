@@ -147,3 +147,11 @@ apps:
         runtime: VITE_AUTH_BASE_URL
         github: variable
         required: true
+      - source: STUDIO__VITE_DEPLOY_TARGET
+        runtime: VITE_DEPLOY_TARGET
+        github: variable
+        required: false
+      - source: STUDIO__VITE_SCHEDULING_SOURCE
+        runtime: VITE_SCHEDULING_SOURCE
+        github: variable
+        required: false
