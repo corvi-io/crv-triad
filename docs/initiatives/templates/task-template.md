@@ -18,7 +18,7 @@
 - [ ] Update or create data model/persistence work if needed.
 - [ ] Implement API behavior if needed.
 - [ ] Implement IDP/auth behavior if needed.
-- [ ] Implement web/site UI if needed.
+- [ ] Implement studio/site UI if needed.
 - [ ] Add focused tests.
 - [ ] Update docs, AGENTS, or skills if workflow/conventions change.
 - [ ] Run verification.

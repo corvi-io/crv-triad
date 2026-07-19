@@ -12,4 +12,4 @@ Run migrations:
 bun --filter idp db:migrate
 ```
 
-Invited users create access from the web login screen with their invited e-mail and password.
+Invited users create access from the studio login screen with their invited e-mail and password.

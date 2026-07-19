@@ -15,7 +15,7 @@ fi
 site_changed=false
 api_changed=false
 idp_changed=false
-web_changed=false
+studio_changed=false
 
 while IFS= read -r file_path; do
   [[ -z "$file_path" ]] && continue
@@ -30,20 +30,20 @@ while IFS= read -r file_path; do
     apps/idp/*)
       idp_changed=true
       ;;
-    apps/web/*)
-      web_changed=true
+    apps/studio/*)
+      studio_changed=true
       ;;
     package.json|bun.lock|turbo.json|env-schema.yaml|.dockerignore|.github/workflows/*|.github/scripts/*)
       site_changed=true
       api_changed=true
       idp_changed=true
-      web_changed=true
+      studio_changed=true
       ;;
     packages/*)
       site_changed=true
       api_changed=true
       idp_changed=true
-      web_changed=true
+      studio_changed=true
       ;;
   esac
 done <<< "$changed_files"
@@ -52,7 +52,7 @@ done <<< "$changed_files"
   echo "site=$site_changed"
   echo "api=$api_changed"
   echo "idp=$idp_changed"
-  echo "web=$web_changed"
+  echo "studio=$studio_changed"
 } >> "$GITHUB_OUTPUT"
 
-echo "Affected apps: site=$site_changed api=$api_changed idp=$idp_changed web=$web_changed"
+echo "Affected apps: site=$site_changed api=$api_changed idp=$idp_changed studio=$studio_changed"

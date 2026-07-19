@@ -24,8 +24,8 @@ jobs:
       INFRA__CLOUDFLARE_API_TOKEN: ${{ secrets.INFRA__CLOUDFLARE_API_TOKEN }}
       INFRA__CLOUDFLARE_ACCOUNT_ID: ${{ vars.INFRA__CLOUDFLARE_ACCOUNT_ID }}
       INFRA__CLOUDFLARE_SITE_PROJECT_NAME: ${{ vars.INFRA__CLOUDFLARE_SITE_PROJECT_NAME }}
-      INFRA__CLOUDFLARE_WEB_PROJECT_NAME: ${{ vars.INFRA__CLOUDFLARE_WEB_PROJECT_NAME }}
-      INFRA__WEB_URL: ${{ vars.INFRA__WEB_URL }}
+      INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME: ${{ vars.INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME }}
+      INFRA__STUDIO_URL: ${{ vars.INFRA__STUDIO_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -72,16 +72,15 @@ jobs:
         if: ${{ steps.affected.outputs.site == 'true' }}
         run: bash .github/scripts/run-quality-gate.sh site
 
-      - name: Export Web Build Env
-        if: ${{ steps.affected.outputs.web == 'true' && env.CICD__DEPLOY_ENABLED == 'true' }}
+      - name: Export Studio Build Env
+        if: ${{ steps.affected.outputs.studio == 'true' && env.CICD__DEPLOY_ENABLED == 'true' }}
         env:
-          WEB__VITE_AUTH_BASE_URL: ${{ vars.WEB__VITE_AUTH_BASE_URL }}
-          WEB__VITE_API_BASE_URL: ${{ vars.WEB__VITE_API_BASE_URL }}
-        run: bun .github/scripts/env-management.ts export --app web --target prd --github-env "$GITHUB_ENV"
+          STUDIO__VITE_AUTH_BASE_URL: ${{ vars.STUDIO__VITE_AUTH_BASE_URL }}
+        run: bun .github/scripts/env-management.ts export --app studio --target prd --github-env "$GITHUB_ENV"
 
-      - name: Web Quality Gate
-        if: ${{ steps.affected.outputs.web == 'true' }}
-        run: bash .github/scripts/run-quality-gate.sh web
+      - name: Studio Quality Gate
+        if: ${{ steps.affected.outputs.studio == 'true' }}
+        run: bash .github/scripts/run-quality-gate.sh studio
 
       - name: Security Gate
         run: bash .github/scripts/run-security-gate.sh
@@ -113,9 +112,8 @@ jobs:
           SITE__PUBLIC_SITE_URL: ${{ vars.SITE__PUBLIC_SITE_URL }}
         run: bash .github/scripts/run-deploy-gate.sh prd site
 
-      - name: Web Deploy Gate
-        if: ${{ steps.affected.outputs.web == 'true' && env.CICD__DEPLOY_ENABLED == 'true' }}
+      - name: Studio Deploy Gate
+        if: ${{ steps.affected.outputs.studio == 'true' && env.CICD__DEPLOY_ENABLED == 'true' }}
         env:
-          WEB__VITE_AUTH_BASE_URL: ${{ vars.WEB__VITE_AUTH_BASE_URL }}
-          WEB__VITE_API_BASE_URL: ${{ vars.WEB__VITE_API_BASE_URL }}
-        run: bash .github/scripts/run-deploy-gate.sh prd web
+          STUDIO__VITE_AUTH_BASE_URL: ${{ vars.STUDIO__VITE_AUTH_BASE_URL }}
+        run: bash .github/scripts/run-deploy-gate.sh prd studio
