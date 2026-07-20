@@ -18,19 +18,33 @@ type BetterAuthUserCreateInput = {
   [key: string]: unknown
 }
 
-export function getDefaultCookieAttributes(env: Pick<IdpEnv, "APP_ENV" | "BETTER_AUTH_URL">) {
+type CookieEnv = Pick<IdpEnv, "APP_ENV" | "BETTER_AUTH_URL">
+
+const partitionedDevelopmentCookiePrefix = "triad-dev-partitioned"
+
+function usesPartitionedDevelopmentCookies(env: CookieEnv) {
+  const baseUrl = new URL(env.BETTER_AUTH_URL)
+  return env.APP_ENV === "development" && baseUrl.protocol === "https:"
+}
+
+export function getCookiePrefix(env: CookieEnv) {
+  return usesPartitionedDevelopmentCookies(env) ? partitionedDevelopmentCookiePrefix : undefined
+}
+
+export function getDefaultCookieAttributes(env: CookieEnv) {
   const baseUrl = new URL(env.BETTER_AUTH_URL)
 
   if (baseUrl.protocol !== "https:") return undefined
 
   return {
-    ...(env.APP_ENV === "development" ? { partitioned: true } : {}),
+    ...(usesPartitionedDevelopmentCookies(env) ? { partitioned: true } : {}),
     sameSite: "none",
     secure: true,
   } as const
 }
 
 export function createAuth(env: IdpEnv, db: IdpDatabase) {
+  const cookiePrefix = getCookiePrefix(env)
   const defaultCookieAttributes = getDefaultCookieAttributes(env)
 
   return betterAuth({
@@ -81,6 +95,7 @@ export function createAuth(env: IdpEnv, db: IdpDatabase) {
     },
     advanced: {
       useSecureCookies: env.NODE_ENV === "production",
+      ...(cookiePrefix ? { cookiePrefix } : {}),
       ...(defaultCookieAttributes ? { defaultCookieAttributes } : {}),
       database: {
         generateId: createId,

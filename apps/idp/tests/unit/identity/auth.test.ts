@@ -3,10 +3,14 @@ import { memoryAdapter } from "better-auth/adapters/memory"
 import { splitSetCookieHeader } from "better-auth/cookies"
 import { describe, expect, it } from "vitest"
 
-import { getDefaultCookieAttributes } from "../../../src/identity/auth.js"
+import { getCookiePrefix, getDefaultCookieAttributes } from "../../../src/identity/auth.js"
 
 const idpBaseUrl = "https://idp.example.com"
+const localIdpBaseUrl = "http://localhost:8001"
 const studioOrigin = "https://studio.example.com"
+const legacySecureSessionCookieName = "__Secure-better-auth.session_token"
+const localSessionCookieName = "better-auth.session_token"
+const partitionedDevelopmentSessionCookieName = "__Secure-triad-dev-partitioned.session_token"
 
 type CookieMetadata = {
   attributes: string[]
@@ -24,9 +28,15 @@ type TestResponse = {
   status: number
 }
 
-function createStandaloneAuth(appEnv: "development" | "staging" | "production") {
+function createStandaloneAuth(
+  appEnv: "local" | "development" | "staging" | "production",
+  baseURL = idpBaseUrl,
+) {
+  const cookieEnv = { APP_ENV: appEnv, BETTER_AUTH_URL: baseURL } as const
+  const cookiePrefix = getCookiePrefix(cookieEnv)
+
   return betterAuth({
-    baseURL: idpBaseUrl,
+    baseURL,
     database: memoryAdapter({ account: [], session: [], user: [], verification: [] }),
     emailAndPassword: { enabled: true },
     logger: { disabled: true },
@@ -34,16 +44,15 @@ function createStandaloneAuth(appEnv: "development" | "staging" | "production") 
     secret: "test-secret-that-is-at-least-32-characters",
     trustedOrigins: [studioOrigin],
     advanced: {
-      defaultCookieAttributes: getDefaultCookieAttributes({
-        APP_ENV: appEnv,
-        BETTER_AUTH_URL: idpBaseUrl,
-      }),
+      ...(cookiePrefix ? { cookiePrefix } : {}),
+      defaultCookieAttributes: getDefaultCookieAttributes(cookieEnv),
     },
   })
 }
 
 function createSessionTestClient(
   handler: (request: Request) => Promise<Response>,
+  baseUrl = idpBaseUrl,
   initialCookies = new Map<string, string>(),
 ) {
   const cookieJar = new Map(initialCookies)
@@ -59,7 +68,7 @@ function createSessionTestClient(
     }
 
     const response = await handler(
-      new Request(`${idpBaseUrl}/api/auth${path}`, {
+      new Request(`${baseUrl}/api/auth${path}`, {
         ...(options.body ? { body: JSON.stringify(options.body), method: "POST" } : {}),
         headers,
       }),
@@ -94,7 +103,16 @@ function createSessionTestClient(
   }
 
   return {
-    fork: () => createSessionTestClient(handler, cookieJar),
+    fork: () => createSessionTestClient(handler, baseUrl, cookieJar),
+    forkWithRenamedCookie: (sourceName: string, targetName: string) => {
+      const renamedCookies = new Map(cookieJar)
+      const value = renamedCookies.get(sourceName)
+      if (value !== undefined) {
+        renamedCookies.delete(sourceName)
+        renamedCookies.set(targetName, value)
+      }
+      return createSessionTestClient(handler, baseUrl, renamedCookies)
+    },
     request,
   }
 }
@@ -111,9 +129,13 @@ async function summarizeSession(response: Response): Promise<SessionSummary> {
   }
 }
 
-async function createStandaloneUser(auth: ReturnType<typeof createStandaloneAuth>, email: string) {
+async function createStandaloneUser(
+  auth: ReturnType<typeof createStandaloneAuth>,
+  email: string,
+  baseUrl = idpBaseUrl,
+) {
   // This upstream-only fixture does not use or replace the invite-gated createAuth app composition.
-  const setupClient = createSessionTestClient((request) => auth.handler(request))
+  const setupClient = createSessionTestClient((request) => auth.handler(request), baseUrl)
   return setupClient.request("/sign-up/email", {
     body: {
       email,
@@ -125,21 +147,18 @@ async function createStandaloneUser(auth: ReturnType<typeof createStandaloneAuth
 
 describe("getDefaultCookieAttributes", () => {
   it("keeps local HTTP cookies compatible with localhost development", () => {
-    expect(
-      getDefaultCookieAttributes({
-        APP_ENV: "local",
-        BETTER_AUTH_URL: "http://localhost:8001",
-      }),
-    ).toBeUndefined()
+    const cookieEnv = { APP_ENV: "local", BETTER_AUTH_URL: localIdpBaseUrl } as const
+    expect(getCookiePrefix(cookieEnv)).toBeUndefined()
+    expect(getDefaultCookieAttributes(cookieEnv)).toBeUndefined()
   })
 
   it("partitions cross-site cookies only for the deployed HTTPS development environment", () => {
-    expect(
-      getDefaultCookieAttributes({
-        APP_ENV: "development",
-        BETTER_AUTH_URL: "https://triad-idp-dev.fly.dev",
-      }),
-    ).toEqual({
+    const cookieEnv = {
+      APP_ENV: "development",
+      BETTER_AUTH_URL: "https://triad-idp-dev.fly.dev",
+    } as const
+    expect(getCookiePrefix(cookieEnv)).toBe("triad-dev-partitioned")
+    expect(getDefaultCookieAttributes(cookieEnv)).toEqual({
       partitioned: true,
       sameSite: "none",
       secure: true,
@@ -150,15 +169,27 @@ describe("getDefaultCookieAttributes", () => {
     "staging",
     "production",
   ] as const)("preserves the existing HTTPS cookie attributes in %s", (appEnv) => {
-    expect(
-      getDefaultCookieAttributes({
-        APP_ENV: appEnv,
-        BETTER_AUTH_URL: `https://triad-idp-${appEnv}.fly.dev`,
-      }),
-    ).toEqual({
+    const cookieEnv = {
+      APP_ENV: appEnv,
+      BETTER_AUTH_URL: `https://triad-idp-${appEnv}.fly.dev`,
+    } as const
+    expect(getCookiePrefix(cookieEnv)).toBeUndefined()
+    expect(getDefaultCookieAttributes(cookieEnv)).toEqual({
       sameSite: "none",
       secure: true,
     })
+  })
+
+  it("preserves the Better Auth cookie name and attributes for local HTTP", async () => {
+    const auth = createStandaloneAuth("local", localIdpBaseUrl)
+    const response = await createStandaloneUser(auth, "local-cookie@example.com", localIdpBaseUrl)
+    expect(response.status).toBe(200)
+
+    const sessionCookie = response.cookies.find(({ name }) => name === localSessionCookieName)
+    expect(sessionCookie?.name).toBe(localSessionCookieName)
+    expect(sessionCookie?.attributes).toEqual(expect.arrayContaining(["HttpOnly", "SameSite=Lax"]))
+    expect(sessionCookie?.attributes).not.toContain("Secure")
+    expect(sessionCookie?.attributes).not.toContain("Partitioned")
   })
 
   it("retains and invalidates a protected development session across requests", async () => {
@@ -173,7 +204,7 @@ describe("getDefaultCookieAttributes", () => {
     })
     expect(invalidSignIn.status).toBe(401)
     expect(invalidSignIn.cookies.map(({ name }) => name)).not.toContain(
-      "__Secure-better-auth.session_token",
+      partitionedDevelopmentSessionCookieName,
     )
 
     const validSignIn = await client.request("/sign-in/email", {
@@ -182,12 +213,20 @@ describe("getDefaultCookieAttributes", () => {
     expect(validSignIn.status).toBe(200)
 
     const sessionCookie = validSignIn.cookies.find(
-      ({ name }) => name === "__Secure-better-auth.session_token",
+      ({ name }) => name === partitionedDevelopmentSessionCookieName,
     )
-    expect(sessionCookie?.name).toBe("__Secure-better-auth.session_token")
+    expect(sessionCookie?.name).toBe(partitionedDevelopmentSessionCookieName)
     expect(sessionCookie?.attributes).toEqual(
       expect.arrayContaining(["HttpOnly", "Secure", "SameSite=None", "Partitioned"]),
     )
+
+    const legacyCookieClient = client.forkWithRenamedCookie(
+      partitionedDevelopmentSessionCookieName,
+      legacySecureSessionCookieName,
+    )
+    const ignoredLegacySession = await legacyCookieClient.request("/get-session")
+    expect(ignoredLegacySession.status).toBe(200)
+    expect(ignoredLegacySession.session).toEqual({ authenticated: false })
 
     const staleSessionClient = client.fork()
     const authenticatedSession = await client.request("/get-session")
@@ -196,7 +235,9 @@ describe("getDefaultCookieAttributes", () => {
 
     const signOut = await client.request("/sign-out", { body: {} })
     expect(signOut.status).toBe(200)
-    expect(signOut.cookies.map(({ name }) => name)).toContain("__Secure-better-auth.session_token")
+    expect(signOut.cookies.map(({ name }) => name)).toContain(
+      partitionedDevelopmentSessionCookieName,
+    )
 
     const clearedSession = await client.request("/get-session")
     expect(clearedSession.status).toBe(200)
@@ -216,8 +257,9 @@ describe("getDefaultCookieAttributes", () => {
     expect(response.status).toBe(200)
 
     const sessionCookie = response.cookies.find(
-      ({ name }) => name === "__Secure-better-auth.session_token",
+      ({ name }) => name === legacySecureSessionCookieName,
     )
+    expect(sessionCookie?.name).toBe(legacySecureSessionCookieName)
     expect(sessionCookie?.attributes).toEqual(
       expect.arrayContaining(["HttpOnly", "Secure", "SameSite=None"]),
     )
