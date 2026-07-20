@@ -37,7 +37,7 @@
   - [x] Confirm the Portuguese labels and visual hierarchy for scheduled,
         confirmed, arrived, waiting, in-progress, completed, canceled, and
         no-show.
-  - [x] Confirm walk-ins are markers only; keep queue actions for Initiative 05.
+  - [x] Confirm walk-ins are markers only; keep queue actions for Initiative 06.
   - [x] Choose the narrow-viewport representation after comparing bounded grid
         and professional-grouped list concepts.
 - [x] Complete component discovery before implementation:
@@ -178,6 +178,6 @@ Record evidence as tasks are completed:
       design as a separate initiative informed by validated UX.
 - [ ] Dense local scenarios validate rendering and interaction only, not backend
       capacity or production concurrency.
-- [ ] Initiative 04 should validate setup/onboarding; Initiative 05 should
-      validate queue and service fulfillment; Initiative 06 should validate
+- [ ] Initiative 05 should validate setup/onboarding; Initiative 06 should
+      validate queue and service fulfillment; Initiative 07 should validate
       payment, commissions, and daily closing.

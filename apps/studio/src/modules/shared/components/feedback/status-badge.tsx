@@ -3,11 +3,12 @@ import { cn } from "@/modules/shared/lib/utils"
 type StatusBadgeTone = "neutral" | "success" | "warning" | "danger" | "info"
 
 const tones: Record<StatusBadgeTone, string> = {
-  danger: "border-destructive bg-destructive text-destructive-foreground",
-  info: "border-info bg-info text-info-foreground",
+  danger:
+    "border-feedback-destructive-border bg-feedback-destructive text-feedback-destructive-foreground",
+  info: "border-feedback-info-border bg-feedback-info text-feedback-info-foreground",
   neutral: "border-border bg-muted text-foreground",
-  success: "border-success bg-success text-success-foreground",
-  warning: "border-warning bg-warning text-warning-foreground",
+  success: "border-feedback-success-border bg-feedback-success text-feedback-success-foreground",
+  warning: "border-feedback-warning-border bg-feedback-warning text-feedback-warning-foreground",
 }
 
 type StatusBadgeProps = {

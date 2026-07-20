@@ -19,6 +19,7 @@ import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
 import { PageHeader } from "@/modules/shared/components/layout/page-header"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
+import { cn } from "@/modules/shared/lib/utils"
 import { AppointmentDrawer, type DrawerMode } from "./appointment-drawer"
 import type {
   Appointment,
@@ -363,7 +364,14 @@ function ProfessionalSchedule({
         {entriesFor(day, professional.id).map((entry) => (
           <li key={`${entry.kind}-${entry.id}`}>
             <button
-              className="flex min-h-11 w-full items-start gap-3 rounded-lg border bg-background p-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className={cn(
+                "flex min-h-11 w-full items-start gap-3 rounded-lg border-2 bg-background p-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                entry.kind === "appointment" &&
+                  appointmentStatusPresentation[entry.appointment.status].className,
+              )}
+              data-appointment-status={
+                entry.kind === "appointment" ? entry.appointment.status : undefined
+              }
               type="button"
               disabled={entry.kind !== "appointment"}
               onClick={() => entry.kind === "appointment" && onAppointment(entry.appointment)}
@@ -439,6 +447,7 @@ function ScheduleCell({
   if (coveredByAppointment || coveredByOccupancy || coveredByPeriod) return null
   if (appointment) {
     const presentation = appointmentStatusPresentation[appointment.status]
+    const StatusIcon = presentation.icon
     return (
       <td
         className="h-14 border-r border-b p-1 align-top"
@@ -446,12 +455,17 @@ function ScheduleCell({
       >
         <button
           type="button"
-          className="flex min-h-12 w-full flex-col items-start rounded-md border-2 border-primary bg-accent p-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className={cn(
+            "flex min-h-12 w-full flex-col items-start rounded-md border-2 p-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+            presentation.className,
+          )}
+          data-appointment-status={appointment.status}
           onClick={() => onAppointment(appointment)}
         >
           <span className="max-w-48 truncate font-medium">{appointment.customerName}</span>
           <span className="flex items-center gap-1 text-xs">
-            <span aria-hidden="true">{presentation.symbol}</span>
+            <StatusIcon className="size-3.5" aria-hidden="true" />
+            <span className="sr-only">{presentation.symbol}</span>
             {presentation.label} · {appointment.durationMinutes} min
           </span>
         </button>
