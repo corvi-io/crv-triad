@@ -488,11 +488,12 @@
   :focus {
     outline: none;
   }
+}
 
-  :focus-visible {
-    outline: 3px solid var(--ring);
-    outline-offset: 3px;
-  }
+/* Keep the semantic indicator above copied utility-layer outline resets. */
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {

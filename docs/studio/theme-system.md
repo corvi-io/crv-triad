@@ -163,9 +163,13 @@ least 4.5:1; focus and meaningful non-text boundaries target at least 3:1.
 | No-show | 13.88:1 | 4.35:1 | 14.23:1 | 3.78:1 |
 
 The lowest measured schedule text pair is 6.81:1 and the lowest meaningful
-schedule boundary is 3.11:1. Gold focus measures 4.95:1 against the light canvas
-and 9.34:1 against the dark canvas. Active input boundaries measure 5.27:1 in
-light and 4.86:1 in dark.
+schedule boundary is 3.11:1. Browser-focused links, buttons, and inputs retain
+their component box shadow and render a three-pixel opaque gold outline above
+utility-layer outline resets. Browser-native sRGB canvas composition measures
+that rendered outline at 5.11:1 on the light selected sidebar link and 5.36:1 on
+the light page action and drawer input. Dark measurements are 6.71:1 on the
+selected sidebar link, 8.80:1 on the page action, and 8.48:1 on the drawer
+input. Active input boundaries measure 5.27:1 in light and 4.86:1 in dark.
 
 ## Gradient And Elevation Intent
 

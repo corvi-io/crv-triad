@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Locator, type Page, test } from "@playwright/test"
 
 const appUrl = "http://127.0.0.1:3100"
 const feedbackRoles = ["success", "warning", "info", "destructive"] as const
@@ -102,16 +102,6 @@ test("meets computed contrast for global feedback, focus, inputs, and every sche
       ).toBeGreaterThanOrEqual(3)
     }
 
-    const focusColors = await computedTokenColors(page, "--foreground", "--background", "--ring")
-    expect(
-      contrastRatio(focusColors.foreground, focusColors.background),
-      `${theme} body text`,
-    ).toBeGreaterThanOrEqual(4.5)
-    expect(
-      contrastRatio(focusColors.border, focusColors.background),
-      `${theme} focus ring`,
-    ).toBeGreaterThanOrEqual(3)
-
     const inputColors = await computedTokenColors(page, "--foreground", "--background", "--input")
     expect(
       contrastRatio(inputColors.border, inputColors.background),
@@ -139,6 +129,40 @@ test("meets computed contrast for global feedback, focus, inputs, and every sche
         `${theme} ${status} border`,
       ).toBeGreaterThanOrEqual(3)
     }
+  }
+})
+
+test("renders a contrasting focus indicator on representative controls", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=normal")
+
+  for (const theme of ["light", "dark"] as const) {
+    await selectTheme(page, theme)
+
+    const controls = [
+      { label: "sidebar link", locator: page.getByRole("link", { name: "Agenda", exact: true }) },
+      {
+        label: "primary button",
+        locator: page.getByRole("button", { name: "Novo agendamento" }),
+      },
+    ]
+
+    for (const control of controls) {
+      const evidence = await expectRenderedFocusContrast(
+        control.locator,
+        `${theme} ${control.label}`,
+      )
+      testInfo.annotations.push({ type: "focus-contrast", description: evidence })
+    }
+
+    await page.getByRole("button", { name: "Novo agendamento" }).click()
+    const evidence = await expectRenderedFocusContrast(
+      page.getByRole("textbox", { name: /^Nome/ }),
+      `${theme} drawer input`,
+    )
+    testInfo.annotations.push({ type: "focus-contrast", description: evidence })
+    await page.keyboard.press("Escape")
   }
 })
 
@@ -211,6 +235,95 @@ async function computedTokenColors(
   )
 }
 
+async function expectRenderedFocusContrast(locator: Locator, label: string) {
+  await locator.focus()
+  await expect(locator, `${label} receives focus`).toBeFocused()
+  await locator.evaluate(async (element) => {
+    await Promise.all(
+      element.getAnimations().map(async (animation) => {
+        try {
+          await animation.finished
+        } catch {
+          // A canceled transition has also reached a terminal state.
+        }
+      }),
+    )
+  })
+
+  const indicator = await locator.evaluate((element) => {
+    const computed = getComputedStyle(element)
+    const canvas = document.createElement("canvas")
+    canvas.width = 1
+    canvas.height = 1
+    const context = canvas.getContext("2d", { willReadFrequently: true })
+    if (!context) throw new Error("Canvas 2D context unavailable")
+
+    const paintPixel = (colors: string[]) => {
+      context.clearRect(0, 0, 1, 1)
+      for (const color of colors) {
+        context.fillStyle = color
+        context.fillRect(0, 0, 1, 1)
+      }
+      return Array.from(context.getImageData(0, 0, 1, 1).data)
+    }
+
+    let surface = element.parentElement
+    const surfaceLayers: string[] = []
+
+    while (surface) {
+      const color = getComputedStyle(surface).backgroundColor
+      const pixel = paintPixel([color])
+      if (pixel[3] > 0) surfaceLayers.push(color)
+      if (pixel[3] === 255) break
+      surface = surface.parentElement
+    }
+
+    const surfaceStack = [...surfaceLayers].reverse()
+
+    return {
+      background: paintPixel(surfaceStack),
+      boxShadow: computed.boxShadow,
+      isFocusVisible: element.matches(":focus-visible"),
+      outline: paintPixel([computed.outlineColor]),
+      outlineColor: computed.outlineColor,
+      outlineStyle: computed.outlineStyle,
+      outlineWidth: computed.outlineWidth,
+      renderedOutline: paintPixel([...surfaceStack, computed.outlineColor]),
+      surfaceLayers,
+    }
+  })
+
+  expect(indicator.isFocusVisible, `${label} matches :focus-visible`).toBe(true)
+  expect(indicator.outlineStyle, `${label} outline style`).toBe("solid")
+  expect(
+    Number.parseFloat(indicator.outlineWidth),
+    `${label} outline width`,
+  ).toBeGreaterThanOrEqual(3)
+  expect(indicator.boxShadow, `${label} computed component ring`).not.toBe("none")
+  expect(indicator.background[3], `${label} resolved surface is opaque`).toBe(255)
+  expect(indicator.outline[3], `${label} settled outline is opaque`).toBe(255)
+
+  const background = pixelToCss(indicator.background)
+  const renderedOutline = pixelToCss(indicator.renderedOutline)
+  const ratio = contrastRatio(renderedOutline, background)
+  expect(
+    ratio,
+    `${label} rendered outline ${renderedOutline} (${indicator.outlineColor}) over ${background}; component ring ${indicator.boxShadow}`,
+  ).toBeGreaterThanOrEqual(3)
+
+  return `${label}: ${ratio.toFixed(2)}:1; outline ${renderedOutline}; surface ${background}; layers ${indicator.surfaceLayers.join(" over ")}`
+}
+
+function colorChannels(color: string) {
+  const channels = color.match(/[\d.]+/g)?.map(Number)
+  if (!channels || channels.length < 3) throw new Error(`Unsupported computed color: ${color}`)
+  return [channels[0], channels[1], channels[2], channels[3] ?? 1]
+}
+
+function pixelToCss(pixel: number[]) {
+  return `rgba(${pixel[0]}, ${pixel[1]}, ${pixel[2]}, ${pixel[3] / 255})`
+}
+
 function contrastRatio(foreground: string, background: string) {
   const luminances = [relativeLuminance(foreground), relativeLuminance(background)].sort(
     (left, right) => right - left,
@@ -219,11 +332,7 @@ function contrastRatio(foreground: string, background: string) {
 }
 
 function relativeLuminance(color: string) {
-  const channels = color
-    .match(/[\d.]+/g)
-    ?.slice(0, 3)
-    .map(Number)
-  if (channels?.length !== 3) throw new Error(`Unsupported computed color: ${color}`)
+  const channels = colorChannels(color).slice(0, 3)
   const linear = channels.map((channel) => {
     const value = channel / 255
     return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
