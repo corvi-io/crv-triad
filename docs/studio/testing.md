@@ -28,6 +28,11 @@ filters, conflict recovery, 320 CSS-pixel grouping, dark mode, reduced motion, f
 content, horizontal density, and a focused axe scan. The authenticated `/agenda` route continues to
 use the real IDP boundary; the preview is local QA tooling and redirects in production.
 
+`tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
+the resolved class at the first animation frame, measures browser-computed contrast for core
+semantic pairs, all four feedback roles, focus, input boundaries, and all eight schedule roles in
+both themes, and checks schedule labels plus boundaries under forced colors.
+
 The sandbox e2e test uses the real Studio shell and local repository adapter without intercepting
 authentication. Its focused axe scan fails on automatically detectable WCAG 2.0, 2.1, and 2.2
 Level A/AA violations. Keyboard coverage opens row actions with `Shift+F10`, operates the menu and
@@ -38,6 +43,8 @@ When Studio is affected, the develop workflow installs Chromium headless shell a
 dependencies, then the Studio quality gate runs `check`, `test:e2e:sandbox`, and
 `test:e2e:production`. CI does not build or publish a separate component documentation artifact.
 
-Manual WCAG 2.2 AA review remains required for complex components: keyboard-only operation and focus return,
-VoiceOver basics, 200% zoom, 320 CSS-pixel reflow, reduced motion, visible/unobscured focus, target
-size, and light/dark contrast. Record any skipped manual checks and residual risk in the PR.
+Manual WCAG 2.2 AA review remains required for complex components: keyboard-only operation and
+focus return, VoiceOver basics, real browser 200% zoom, 320 CSS-pixel reflow, reduced motion,
+visible/unobscured focus, target size, and visual light/dark review. Record any skipped manual
+checks and residual risk in the PR; headless forced-colors and computed-contrast coverage do not
+replace assistive-technology review.

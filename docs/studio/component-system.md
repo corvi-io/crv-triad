@@ -30,6 +30,35 @@ expose their folder root. Direct folder imports preserve ownership and avoid hid
 Promote a component to shared only after at least two concrete Studio compositions need the same
 domain-neutral behavior. Do not create `packages/ui` until another application proves stable reuse.
 
+## Component Source Selection
+
+Use this order before implementing any new component or primitive:
+
+1. Reuse an existing Studio component when its documented contract fits.
+2. Inspect and add an official shadcn/ui component through the CLI.
+3. Evaluate a shadcn-compatible community registry item when the official catalog does not meet the
+   accepted product need.
+4. Create a custom component only when no suitable candidate exists and record the discovery
+   evidence and rationale in the initiative or PR.
+
+Use Bun-driven shadcn CLI commands and inspect candidates with `--dry-run`, `--view`, or `--diff`
+before accepting source. For third-party registries, review source, dependencies, license,
+maintenance, Base UI/Vite compatibility, bundle impact, keyboard and focus behavior, responsive
+behavior, and token integration. Registry popularity does not replace review. The official shadcn
+directory explicitly treats community registries as third-party source that consumers must inspect.
+
+shadcn installs source into the repository. Accepted source therefore becomes Studio-owned code and
+must follow the responsibility folders, token layers, accessibility requirements, tests, and
+textual inventory in this document. Do not wrap or rename a suitable shadcn/Base UI primitive merely
+to create a parallel local library. Do not publish a Triad registry until repeated cross-app reuse
+creates a real distribution requirement.
+
+Primary references:
+
+- [shadcn CLI](https://ui.shadcn.com/docs/cli)
+- [shadcn Registry Directory](https://ui.shadcn.com/docs/directory)
+- [shadcn Registry documentation](https://ui.shadcn.com/docs/registry)
+
 ## Component Contribution Contract
 
 Each shared component change must define its purpose, responsibility folder, smallest typed public
@@ -59,6 +88,11 @@ Tailwind CSS v4 consumes the semantic and component layers through `@theme inlin
 Tailwind utilities backed by those variables. Add a raw value only when no suitable token exists;
 record the new primitive and map it through meaning before component use.
 
+`docs/studio/theme-system.md` preserves the accepted TRIAD navy/gold brand direction, contrast
+requirements, effect boundaries, and migration rules. Treat visual handoffs as inputs to this token
+architecture, not as drop-in global CSS or permission to apply a shadcn preset. Preserve explicit
+light, dark, and system behavior unless an accepted initiative changes that contract.
+
 ## Documentation And Accessibility
 
 Studio does not maintain a separate visual component catalog. Durable English text in this document
@@ -81,11 +115,11 @@ building block of a documented composition.
 | File | Classification | Catalog decision and rationale |
 | --- | --- | --- |
 | `data-display/data-table/index.tsx` | Data display | Documented public contract: semantic table with controlled sort, scroll, pagination, and contextual row actions available by right-click or `Shift+F10`; covered by sandbox and table tests. |
-| `data-display/metric-card.tsx` | Data display | Internal: inherited specialized composition; promote to catalog when an accepted module supplies a real metric contract. |
+| `data-display/metric-card.tsx` | Data display | Internal: inherited specialized composition using theme-aware feedback signal roles; promote to catalog when an accepted module supplies a real metric contract. |
 | `deferred-route-screen.tsx` | Routing helper | Internal: lazy-route implementation detail, not a visual assembly API. |
 | `feedback/empty-state.tsx` | Feedback | Documented public contract: default, optional action, long-content, and compact viewport states; heading and description remain semantic. |
 | `feedback/page-status.tsx` | Feedback | Internal: full-route auth/loading implementation; exercised by route tests rather than isolated composition. |
-| `feedback/status-badge.tsx` | Feedback | Documented public contract: semantic tones and long content; text carries meaning independently of color. |
+| `feedback/status-badge.tsx` | Feedback | Documented public contract: neutral plus success, warning, info, and destructive semantic tones with explicit theme-aware backgrounds, foregrounds, and borders; text carries meaning independently of color. |
 | `forms/combobox-input.tsx` | Form control | Internal: inherited composite pending a real module option/free-text contract. |
 | `forms/date-picker.tsx` | Form control | Internal: canonical date-only helper covered by form foundation tests; catalog when a real field consumes it. |
 | `forms/date-range-selector.tsx` | Form control | Internal: inherited high-complexity selector without an accepted active module contract. |

@@ -35,6 +35,12 @@ adapter boundaries, and manual accessibility checks are documented in English at
 `docs/studio/component-system.md`. Focused Vitest and Playwright coverage verifies behavior without
 a separate component-catalog runtime.
 
+The shipped Studio theme is dark-first navy/gold with deliberate light, dark, and system
+preferences. `src/index.css` owns the primitive, semantic, and component token layers, while the
+document-head `public/theme-init.js` resolves the saved/system preference before React paint. The
+durable token, contrast, status, gradient, and contribution contract lives in
+`docs/studio/theme-system.md`.
+
 Runtime env:
 
 - `VITE_APP_NAME`

@@ -432,6 +432,6 @@ Primary references:
 - [ ] Choose the narrow-viewport representation after comparing a bounded
       horizontal grid with a professional-grouped list.
 - [ ] Confirm whether walk-ins are visual markers only in Initiative 03; queue
-      creation and lifecycle remain planned for Initiative 05.
+      creation and lifecycle remain planned for Initiative 06.
 - [ ] Confirm the final Portuguese labels and visual hierarchy for all eight
       appointment states before treating them as future backend vocabulary.
