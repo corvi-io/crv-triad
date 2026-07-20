@@ -25,3 +25,26 @@ App-local `.env.example` names remain runtime-shaped.
 
 The GitHub Environment secret `INFRA__FLY_API_TOKEN` authenticates Fly.io. Deployment runs only
 when the environment variable `CICD__DEPLOY_ENABLED` is `true`.
+
+## Browser session cookie topology
+
+Local HTTP development keeps Better Auth's default cookie attributes so localhost remains usable
+without HTTPS. When `APP_ENV=development` and `BETTER_AUTH_URL` uses HTTPS, the IDP emits its
+HttpOnly session cookie with `Secure`, `SameSite=None`, and `Partitioned`. The partition is scoped
+by the browser to the top-level Studio site, allowing supported browsers to retain the cookie while
+Studio and IDP use different sites in the deployed `dev` environment.
+
+The cross-site dev flow also requires the exact Studio origin in `AUTH_TRUSTED_ORIGINS`. That
+allowlist feeds Better Auth origin/CSRF validation and the IDP CORS middleware; credentialed CORS
+remains enabled only for listed origins.
+
+Partitioned cookies depend on browser support and can still be rejected by browser settings or
+enterprise policies that block this storage mode. The durable topology is to give Studio and IDP
+sibling HTTPS hosts under the same registrable custom domain. Keep the IDP cookie host-only unless
+an explicit cross-subdomain sharing contract is required; if sharing is introduced, scope the
+cookie domain as narrowly as possible and treat every included subdomain as trusted. Configure the
+resulting IDP URL and exact Studio origin through `IDP__BETTER_AUTH_URL` and
+`IDP__AUTH_TRUSTED_ORIGINS`.
+
+Staging and production retain their existing HTTPS behavior: HttpOnly, `Secure`, and
+`SameSite=None`, without enabling `Partitioned` implicitly.

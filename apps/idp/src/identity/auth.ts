@@ -18,12 +18,13 @@ type BetterAuthUserCreateInput = {
   [key: string]: unknown
 }
 
-export function getDefaultCookieAttributes(env: Pick<IdpEnv, "BETTER_AUTH_URL">) {
+export function getDefaultCookieAttributes(env: Pick<IdpEnv, "APP_ENV" | "BETTER_AUTH_URL">) {
   const baseUrl = new URL(env.BETTER_AUTH_URL)
 
   if (baseUrl.protocol !== "https:") return undefined
 
   return {
+    ...(env.APP_ENV === "development" ? { partitioned: true } : {}),
     sameSite: "none",
     secure: true,
   } as const
