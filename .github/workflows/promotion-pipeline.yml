@@ -59,6 +59,10 @@ jobs:
         if: ${{ steps.affected.outputs.site == 'true' }}
         run: bash .github/scripts/run-quality-gate.sh site
 
+      - name: Install Studio Playwright browser
+        if: ${{ steps.affected.outputs.studio == 'true' }}
+        run: bunx playwright install --with-deps --only-shell chromium
+
       - name: Studio Quality Gate
         if: ${{ steps.affected.outputs.studio == 'true' }}
         run: bash .github/scripts/run-quality-gate.sh studio

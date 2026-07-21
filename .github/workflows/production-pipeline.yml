@@ -80,6 +80,10 @@ jobs:
           STUDIO__VITE_SCHEDULING_SOURCE: ${{ vars.STUDIO__VITE_SCHEDULING_SOURCE }}
         run: bun .github/scripts/env-management.ts export --app studio --target prd --github-env "$GITHUB_ENV"
 
+      - name: Install Studio Playwright browser
+        if: ${{ steps.affected.outputs.studio == 'true' }}
+        run: bunx playwright install --with-deps --only-shell chromium
+
       - name: Studio Quality Gate
         if: ${{ steps.affected.outputs.studio == 'true' }}
         run: bash .github/scripts/run-quality-gate.sh studio

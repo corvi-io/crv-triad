@@ -1,10 +1,6 @@
 name: Prepare Production Release
 
 on:
-  workflow_run:
-    workflows: [Homolog Pipeline]
-    branches: [staging]
-    types: [completed]
   workflow_dispatch:
 
 concurrency:
@@ -20,7 +16,7 @@ jobs:
   prepare-production-release:
     name: Prepare Production Release
     runs-on: ubuntu-latest
-    if: ${{ vars.CICD__RELEASE_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') }}
+    if: ${{ vars.CICD__RELEASE_ENABLED == 'true' }}
     env:
       CICD__SOURCE_BRANCH: staging
     steps:
