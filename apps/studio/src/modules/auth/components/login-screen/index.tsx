@@ -2,24 +2,32 @@ import { Navigate } from "@tanstack/react-router"
 import { LoaderCircle } from "lucide-react"
 import { useState } from "react"
 
+import { AuthFeedback } from "@/modules/auth/components/auth-feedback"
+import { AuthShell } from "@/modules/auth/components/auth-shell"
 import type { LoginCredentialsFormValues } from "@/modules/auth/schemas/login-schema"
 import {
-  requestPasswordReset,
+  resendVerificationEmail,
   signInWithEmail,
+  signInWithGoogle,
   signUpWithEmail,
 } from "@/modules/auth/services/auth-client"
 import { useAuth } from "@/modules/auth/services/auth-provider"
+import { Button } from "@/modules/shared/components/ui/button"
 
 import { LoginForm } from "./login-form"
 
 type LoginScreenProps = {
-  error?: "auth" | "session"
+  error?: "auth" | "provider" | "session" | "verification_expired" | "verification_invalid"
+  verified?: true
 }
 
-export function LoginScreen({ error }: LoginScreenProps) {
+export function LoginScreen({ error, verified }: LoginScreenProps) {
   const { isPending, session } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isResending, setIsResending] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null)
+  const [resendStatus, setResendStatus] = useState<string | null>(null)
 
   if (isPending) {
     return (
@@ -44,10 +52,19 @@ export function LoginScreen({ error }: LoginScreenProps) {
 
     setIsSubmitting(true)
     setLocalError(null)
-    const result = await signInWithEmail(values)
+    try {
+      const result = await signInWithEmail(values)
 
-    if (result?.error) {
-      setLocalError("Não foi possível entrar com esse e-mail e senha.")
+      if (result?.error) {
+        if (result.error.code === "EMAIL_NOT_VERIFIED") {
+          setVerificationEmail(values.email)
+        } else {
+          setLocalError("Não foi possível entrar com esse e-mail e senha.")
+        }
+      }
+    } catch {
+      setLocalError("Não foi possível entrar agora. Tente novamente.")
+    } finally {
       setIsSubmitting(false)
     }
   }
@@ -57,31 +74,60 @@ export function LoginScreen({ error }: LoginScreenProps) {
 
     setIsSubmitting(true)
     setLocalError(null)
-    const result = await signUpWithEmail({
-      email: values.email,
-      name: values.email.split("@")[0] || values.email,
-      password: values.password,
-    })
+    try {
+      const result = await signUpWithEmail({
+        email: values.email,
+        name: values.email.split("@")[0] || values.email,
+        password: values.password,
+      })
 
-    if (result?.error) {
-      setLocalError("Não foi possível criar o acesso. Confirme se há um convite ativo.")
+      if (result?.error) {
+        setLocalError("Não foi possível criar o acesso. Confirme se há um convite ativo.")
+        return
+      }
+
+      setVerificationEmail(values.email)
+    } catch {
+      setLocalError("Não foi possível criar o acesso agora. Tente novamente.")
+    } finally {
       setIsSubmitting(false)
     }
   }
 
-  async function handlePasswordReset(email: string) {
-    if (!email) {
-      setLocalError("Informe o e-mail para solicitar a redefinição de senha.")
-      return
-    }
+  async function handleGoogleSignIn() {
+    if (isSubmitting) return
 
-    const result = await requestPasswordReset(email)
-    if (result?.error) {
-      setLocalError("Não foi possível solicitar a redefinição de senha.")
-      return
+    setIsSubmitting(true)
+    setLocalError(null)
+    try {
+      const result = await signInWithGoogle()
+      if (result?.error) {
+        setLocalError("Não foi possível continuar com o Google. Tente novamente.")
+      }
+    } catch {
+      setLocalError("Não foi possível continuar com o Google. Tente novamente.")
+    } finally {
+      setIsSubmitting(false)
     }
+  }
 
-    setLocalError("Se o e-mail estiver cadastrado, enviaremos as instruções de redefinição.")
+  async function handleVerificationResend() {
+    if (!verificationEmail || isResending) return
+
+    setIsResending(true)
+    setResendStatus(null)
+    try {
+      const result = await resendVerificationEmail(verificationEmail)
+      setResendStatus(
+        result?.error
+          ? "Não foi possível solicitar uma nova mensagem. Tente novamente."
+          : "Se o endereço estiver elegível, enviaremos uma nova mensagem de verificação.",
+      )
+    } catch {
+      setResendStatus("Não foi possível solicitar uma nova mensagem. Tente novamente.")
+    } finally {
+      setIsResending(false)
+    }
   }
 
   const routeError =
@@ -89,45 +135,51 @@ export function LoginScreen({ error }: LoginScreenProps) {
       ? "O acesso não foi concluído."
       : error === "session"
         ? "Sua sessão não pôde ser validada."
-        : null
+        : error === "verification_invalid"
+          ? "O link de verificação é inválido ou já foi usado. Solicite uma nova verificação."
+          : error === "verification_expired"
+            ? "O link de verificação expirou. Solicite uma nova verificação."
+            : error === "provider"
+              ? "O acesso com o Google não foi concluído. Tente novamente."
+              : null
 
   return (
-    <main
-      id="main-content"
-      className="grid min-h-svh bg-background text-foreground lg:h-svh lg:overflow-hidden lg:grid-cols-2"
+    <AuthShell
+      title="Entrar no TRIAD Studio"
+      description="Use o e-mail convidado para acessar o TRIAD Studio."
     >
-      <section className="flex min-h-svh flex-col p-6 md:p-10 lg:h-svh lg:min-h-0 lg:overflow-hidden">
-        <header>
-          <a className="flex w-fit items-center gap-2 text-sm font-medium" href="/">
-            <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground">
-              T
-            </span>
-            TRIAD Studio
-          </a>
-        </header>
-
-        <div className="flex flex-1 items-center justify-center">
-          <LoginForm
-            className="w-full max-w-sm"
-            error={localError ?? routeError}
-            isSubmitting={isSubmitting}
-            onForgotPassword={handlePasswordReset}
-            onInviteSignUp={handleInviteSignUp}
-            onSignIn={handleEmailSignIn}
-          />
+      {verified && !error ? (
+        <AuthFeedback tone="success">E-mail confirmado. Você já pode entrar.</AuthFeedback>
+      ) : null}
+      {verificationEmail ? (
+        <div className="space-y-3">
+          <AuthFeedback tone="info">
+            Verifique sua caixa de entrada antes de entrar. O acesso só será liberado após a
+            confirmação do e-mail.
+          </AuthFeedback>
+          <Button
+            className="w-full"
+            isLoading={isResending}
+            onClick={handleVerificationResend}
+            type="button"
+            variant="outline"
+          >
+            Reenviar verificação
+          </Button>
+          {resendStatus ? (
+            <p className="text-sm text-muted-foreground" role="status">
+              {resendStatus}
+            </p>
+          ) : null}
         </div>
-      </section>
-
-      <section
-        className="auth-brand-surface relative hidden h-svh overflow-hidden lg:block"
-        aria-label="Prévia do TRIAD Studio"
-      >
-        <img
-          src="/placeholder.svg"
-          alt="Imagem placeholder"
-          className="absolute inset-0 size-full object-cover opacity-15 mix-blend-luminosity"
-        />
-      </section>
-    </main>
+      ) : null}
+      <LoginForm
+        error={localError ?? routeError}
+        isSubmitting={isSubmitting}
+        onGoogleSignIn={handleGoogleSignIn}
+        onInviteSignUp={handleInviteSignUp}
+        onSignIn={handleEmailSignIn}
+      />
+    </AuthShell>
   )
 }

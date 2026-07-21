@@ -1,6 +1,6 @@
 # IDP Deployment
 
-The IDP deploys to Fly.io with `apps/idp/Dockerfile` and Drizzle migrations.
+The IDP deploys to Fly.io with `apps/idp/Dockerfile` and generated Drizzle migrations.
 
 Fly apps:
 
@@ -8,61 +8,53 @@ Fly apps:
 - `crv-triad-idp-hml`
 - `crv-triad-idp-prd`
 
-These names are the desired Triad resources. Provision them before enabling deploy jobs; they must
-not alias or reuse applications, databases, secrets, or credentials from another project.
+These resources must not alias applications, databases, secrets, or credentials from another
+project. Deployment remains separately controlled by `CICD__DEPLOY_ENABLED`; ENG-38 does not
+enable or execute deployment.
 
-GitHub Environment sources mapped to required runtime values:
+## Required deployment mappings
 
-- `IDP__DATABASE_URL` -> `DATABASE_URL` (secret)
-- `IDP__BETTER_AUTH_SECRET` -> `BETTER_AUTH_SECRET` (secret)
-- `IDP__APP_ENV` -> `APP_ENV` (variable)
-- `IDP__BETTER_AUTH_URL` -> `BETTER_AUTH_URL` (variable)
-- `IDP__AUTH_TRUSTED_ORIGINS` -> `AUTH_TRUSTED_ORIGINS` (variable)
+`env-schema.yaml` translates these GitHub Environment sources to IDP runtime names:
 
-Session/password policy and invitation-email settings keep their safe runtime defaults. They are not GitHub Environment sources unless a future feature needs a target-specific override. In particular, email delivery values remain out of the schema while invitation emails are disabled.
+| GitHub Environment source | IDP runtime | Kind |
+| --- | --- | --- |
+| `IDP__DATABASE_URL` | `DATABASE_URL` | secret |
+| `IDP__BETTER_AUTH_SECRET` | `BETTER_AUTH_SECRET` | secret |
+| `IDP__APP_ENV` | `APP_ENV` | variable |
+| `IDP__BETTER_AUTH_URL` | `BETTER_AUTH_URL` | variable |
+| `IDP__AUTH_TRUSTED_ORIGINS` | `AUTH_TRUSTED_ORIGINS` | variable |
+| `INFRA__GOOGLE_OAUTH_CLIENT_ID` | `AUTH_GOOGLE_CLIENT_ID` | variable |
+| `INFRA__GOOGLE_OAUTH_CLIENT_SECRET` | `AUTH_GOOGLE_CLIENT_SECRET` | secret |
+| `IDP__EMAIL_FROM` | `IDP_EMAIL_FROM` | variable |
+| `IDP__STUDIO_URL` | `IDP_STUDIO_URL` | variable |
+| `INFRA__RESEND_API_KEY` | `IDP_RESEND_API_KEY` | secret |
 
-App-local `.env.example` names remain runtime-shaped.
+`IDP_RESEND_API_URL` defaults safely to `https://api.resend.com` and is not target-specific.
+Google and transactional auth email have no runtime feature flags. Missing required values fail
+environment validation or IDP startup. Provider secrets remain server-only and must never be added
+to Studio/Vite variables.
 
-The GitHub Environment secret `INFRA__FLY_API_TOKEN` authenticates Fly.io. Deployment runs only
-when the environment variable `CICD__DEPLOY_ENABLED` is `true`.
+The exact Google callback derives from `BETTER_AUTH_URL` and ends in
+`/api/auth/callback/google`; do not add a separate callback env value. `IDP_STUDIO_URL` must be a
+trusted HTTP(S) origin and is normalized to its origin before links are built. Startup rejects the
+configuration unless that normalized origin is also present in the normalized
+`AUTH_TRUSTED_ORIGINS` allowlist.
 
-## Browser session cookie topology
+The Google clients and exact callbacks exist for `dev`, `hml`, and `prd`. Resend values are still
+absent from GitHub Environments, so deployed auth-email verification remains blocked. Approved
+public privacy/terms content is also absent; production consent publication cannot be completed
+until that separate site/legal prerequisite is delivered.
 
-Local HTTP development keeps Better Auth's default cookie attributes so localhost remains usable
-without HTTPS. When `APP_ENV=development` and `BETTER_AUTH_URL` uses HTTPS, the IDP emits its
-HttpOnly session cookie as `__Secure-triad-dev-partitioned.session_token`, with `Secure`,
-`SameSite=None`, and `Partitioned`. The dedicated `triad-dev-partitioned` namespace ensures the
-server ignores any legacy, non-partitioned `__Secure-better-auth.session_token` that may still be
-stored or sent by the browser. The partition is scoped by the browser to the top-level Studio site,
-allowing supported browsers to retain the cookie while Studio and IDP use different sites in the
-deployed `dev` environment.
+## Cookie topology
 
-After deploying this namespace migration, clear exactly the legacy
-`__Secure-better-auth.session_token` cookie for the deployed dev IDP origin in browser developer
-tools, then sign in again. Do not clear unrelated cookies or broaden server-side expiration to
-unknown cookie names. New sign-out requests expire only the active partitioned namespace; the
-legacy cookie is inert but should be removed explicitly to complete cleanup.
+Local and standard HTTPS topologies use `triad-auth`. Only the accepted cross-site HTTPS
+development topology uses `triad-auth-partitioned` plus the `Partitioned` attribute. See
+`authentication.md` for exact names and attributes.
 
-Rolling back deployed dev to Better Auth's default namespace is not a transparent configuration
-reversal: still-valid legacy server sessions can become recognizable again, while sessions created
-under `__Secure-triad-dev-partitioned.session_token` stop authenticating. Before reverting and
-redeploying dev, revoke or expire the affected dev sessions server-side, clear exactly
-`__Secure-better-auth.session_token` and `__Secure-triad-dev-partitioned.session_token` for the dev
-IDP origin, then require users to sign in again. Do not delete other cookies or apply this rollback
-procedure to staging or production.
+The exact Studio origin must remain in `AUTH_TRUSTED_ORIGINS`. That allowlist feeds Better Auth
+origin/CSRF validation and credentialed IDP CORS. Cookies remain host-only; do not broaden their
+domain without a separate trust review.
 
-The cross-site dev flow also requires the exact Studio origin in `AUTH_TRUSTED_ORIGINS`. That
-allowlist feeds Better Auth origin/CSRF validation and the IDP CORS middleware; credentialed CORS
-remains enabled only for listed origins.
-
-Partitioned cookies depend on browser support and can still be rejected by browser settings or
-enterprise policies that block this storage mode. The durable topology is to give Studio and IDP
-sibling HTTPS hosts under the same registrable custom domain. Keep the IDP cookie host-only unless
-an explicit cross-subdomain sharing contract is required; if sharing is introduced, scope the
-cookie domain as narrowly as possible and treat every included subdomain as trusted. Configure the
-resulting IDP URL and exact Studio origin through `IDP__BETTER_AUTH_URL` and
-`IDP__AUTH_TRUSTED_ORIGINS`.
-
-Staging and production retain their existing HTTPS behavior: HttpOnly, `Secure`, and
-`SameSite=None`, under the default `__Secure-better-auth` namespace and without enabling
-`Partitioned` implicitly. Local HTTP also retains the default `better-auth` namespace.
+Partitioned cookies depend on browser and enterprise-policy support. The durable topology remains
+sibling HTTPS hosts under the same registrable domain. A topology change requires browser
+verification before removing `Partitioned` behavior.

@@ -82,7 +82,7 @@ Commands:
   export     Append runtime NAME=VALUE mappings to a GitHub Actions env file without printing values.
   sync-fly   Stage mapped runtime env in the target Fly app through flyctl secrets import --stage.
 
-GitHub source values must be present in the process environment using the app-prefixed names from env-schema.yaml.
+GitHub source values must be present in the process environment using the categorized names from env-schema.yaml.
 `
 
 export class EnvManagementError extends Error {}
@@ -204,9 +204,9 @@ export function assertSchema(value: unknown): asserts value is EnvSchema {
       }
 
       const sourcePrefix = `${appName.toUpperCase()}__`
-      if (!entry.source.startsWith(sourcePrefix)) {
+      if (!entry.source.startsWith(sourcePrefix) && !entry.source.startsWith("INFRA__")) {
         throw new EnvManagementError(
-          `Source "${entry.source}" must use the app prefix "${sourcePrefix}".`,
+          `Source "${entry.source}" must use the app prefix "${sourcePrefix}" or provider prefix "INFRA__".`,
         )
       }
 

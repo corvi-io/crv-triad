@@ -13,6 +13,8 @@ bun --filter studio build
 Routes:
 
 - `/login`
+- `/forgot-password`
+- `/reset-password` (consumes Better Auth's native query-token contract)
 - `/workspace-preview` (development-only visual shell preview; no login required)
 - `/workspace-preview/sandbox` (development-only neutral component/data sandbox)
 - `/workspace-preview/agenda` (development-only schedule interaction/QA surface)
@@ -25,10 +27,20 @@ TRIAD Studio intentionally exposes only the authenticated shell and account-loca
 Identity administration remains outside the Studio surface. New business domains require an
 accepted initiative and explicit authorization, API, and persistence contracts.
 
+Authentication remains IDP-owned. Studio delegates email/password sign-in, invite-gated first
+access, Google sign-in, verification resend, forgot/reset/change password, account listing,
+Google linking/unlinking, session resolution, and sign-out directly to the Better Auth browser
+client at `VITE_AUTH_BASE_URL`. `/preferences` exposes the bounded `Segurança e acesso` controls;
+it does not expose identity administration. See `docs/studio/authentication.md` for safe redirects,
+UI states, provider-error handling, accessibility, and test boundaries.
+
 The preview and sandbox redirect to `/login` in production. The sandbox is deterministic and
 resettable, persists nothing, and never mocks authentication. Verify it with
 `bun --filter studio test:e2e:sandbox`; verify both production routing and bundle exclusion with
 `bun --filter studio test:production-boundary` and `bun --filter studio test:e2e:production`.
+The focused auth browser flow is available through
+`bun --filter studio test:e2e -- tests/e2e/auth-lifecycle.spec.ts`; it uses local network fakes and
+never calls Google, Resend, or a deployed IDP.
 
 Component placement, exhaustive inventory, public and internal-only decisions, token layers,
 adapter boundaries, and manual accessibility checks are documented in English at

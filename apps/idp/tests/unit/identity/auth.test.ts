@@ -1,16 +1,23 @@
 import { betterAuth } from "better-auth"
 import { memoryAdapter } from "better-auth/adapters/memory"
 import { splitSetCookieHeader } from "better-auth/cookies"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
-import { getCookiePrefix, getDefaultCookieAttributes } from "../../../src/identity/auth.js"
+import {
+  createAuthOptions,
+  getCookiePrefix,
+  getDefaultCookieAttributes,
+  handleBackgroundTask,
+} from "../../../src/identity/auth.js"
 
 const idpBaseUrl = "https://idp.example.com"
 const localIdpBaseUrl = "http://localhost:8001"
 const studioOrigin = "https://studio.example.com"
 const legacySecureSessionCookieName = "__Secure-better-auth.session_token"
-const localSessionCookieName = "better-auth.session_token"
-const partitionedDevelopmentSessionCookieName = "__Secure-triad-dev-partitioned.session_token"
+const transitionalSecureSessionCookieName = "__Secure-triad-dev-partitioned.session_token"
+const standardSecureSessionCookieName = "__Secure-triad-auth.session_token"
+const localSessionCookieName = "triad-auth.session_token"
+const partitionedDevelopmentSessionCookieName = "__Secure-triad-auth-partitioned.session_token"
 
 type CookieMetadata = {
   attributes: string[]
@@ -24,6 +31,7 @@ type SessionSummary = {
 
 type TestResponse = {
   cookies: CookieMetadata[]
+  oauthCallbackUri?: string
   session?: SessionSummary
   status: number
 }
@@ -39,12 +47,20 @@ function createStandaloneAuth(
     baseURL,
     database: memoryAdapter({ account: [], session: [], user: [], verification: [] }),
     emailAndPassword: { enabled: true },
+    socialProviders: {
+      google: {
+        clientId: "google-client-id-placeholder",
+        clientSecret: "google-client-secret-placeholder",
+        disableDefaultScope: true,
+        scope: ["openid", "email", "profile"],
+      },
+    },
     logger: { disabled: true },
     rateLimit: { enabled: false },
     secret: "test-secret-that-is-at-least-32-characters",
     trustedOrigins: [studioOrigin],
     advanced: {
-      ...(cookiePrefix ? { cookiePrefix } : {}),
+      cookiePrefix,
       defaultCookieAttributes: getDefaultCookieAttributes(cookieEnv),
     },
   })
@@ -75,8 +91,10 @@ function createSessionTestClient(
     )
     const cookies = applyResponseCookies(response)
     const session = path === "/get-session" ? await summarizeSession(response) : undefined
+    const oauthCallbackUri =
+      path === "/sign-in/social" ? await extractOAuthCallbackUri(response.clone()) : undefined
 
-    return { cookies, session, status: response.status }
+    return { cookies, oauthCallbackUri, session, status: response.status }
   }
 
   function applyResponseCookies(response: Response) {
@@ -104,17 +122,16 @@ function createSessionTestClient(
 
   return {
     fork: () => createSessionTestClient(handler, baseUrl, cookieJar),
-    forkWithRenamedCookie: (sourceName: string, targetName: string) => {
-      const renamedCookies = new Map(cookieJar)
-      const value = renamedCookies.get(sourceName)
-      if (value !== undefined) {
-        renamedCookies.delete(sourceName)
-        renamedCookies.set(targetName, value)
-      }
-      return createSessionTestClient(handler, baseUrl, renamedCookies)
-    },
     request,
   }
+}
+
+async function extractOAuthCallbackUri(response: Response): Promise<string | undefined> {
+  const payload = (await response.json()) as { url?: unknown }
+  if (typeof payload.url !== "string") return undefined
+
+  const authorizationUrl = new URL(payload.url)
+  return authorizationUrl.searchParams.get("redirect_uri") ?? undefined
 }
 
 async function summarizeSession(response: Response): Promise<SessionSummary> {
@@ -148,7 +165,7 @@ async function createStandaloneUser(
 describe("getDefaultCookieAttributes", () => {
   it("keeps local HTTP cookies compatible with localhost development", () => {
     const cookieEnv = { APP_ENV: "local", BETTER_AUTH_URL: localIdpBaseUrl } as const
-    expect(getCookiePrefix(cookieEnv)).toBeUndefined()
+    expect(getCookiePrefix(cookieEnv)).toBe("triad-auth")
     expect(getDefaultCookieAttributes(cookieEnv)).toBeUndefined()
   })
 
@@ -157,7 +174,7 @@ describe("getDefaultCookieAttributes", () => {
       APP_ENV: "development",
       BETTER_AUTH_URL: "https://triad-idp-dev.fly.dev",
     } as const
-    expect(getCookiePrefix(cookieEnv)).toBe("triad-dev-partitioned")
+    expect(getCookiePrefix(cookieEnv)).toBe("triad-auth-partitioned")
     expect(getDefaultCookieAttributes(cookieEnv)).toEqual({
       partitioned: true,
       sameSite: "none",
@@ -173,7 +190,7 @@ describe("getDefaultCookieAttributes", () => {
       APP_ENV: appEnv,
       BETTER_AUTH_URL: `https://triad-idp-${appEnv}.fly.dev`,
     } as const
-    expect(getCookiePrefix(cookieEnv)).toBeUndefined()
+    expect(getCookiePrefix(cookieEnv)).toBe("triad-auth")
     expect(getDefaultCookieAttributes(cookieEnv)).toEqual({
       sameSite: "none",
       secure: true,
@@ -187,9 +204,14 @@ describe("getDefaultCookieAttributes", () => {
 
     const sessionCookie = response.cookies.find(({ name }) => name === localSessionCookieName)
     expect(sessionCookie?.name).toBe(localSessionCookieName)
-    expect(sessionCookie?.attributes).toEqual(expect.arrayContaining(["HttpOnly", "SameSite=Lax"]))
+    expect(sessionCookie?.attributes).toEqual(
+      expect.arrayContaining(["HttpOnly", "SameSite=Lax", "Path=/"]),
+    )
     expect(sessionCookie?.attributes).not.toContain("Secure")
     expect(sessionCookie?.attributes).not.toContain("Partitioned")
+    expect(sessionCookie?.attributes.some((attribute) => attribute.startsWith("Domain="))).toBe(
+      false,
+    )
   })
 
   it("retains and invalidates a protected development session across requests", async () => {
@@ -217,14 +239,21 @@ describe("getDefaultCookieAttributes", () => {
     )
     expect(sessionCookie?.name).toBe(partitionedDevelopmentSessionCookieName)
     expect(sessionCookie?.attributes).toEqual(
-      expect.arrayContaining(["HttpOnly", "Secure", "SameSite=None", "Partitioned"]),
+      expect.arrayContaining(["HttpOnly", "Secure", "SameSite=None", "Partitioned", "Path=/"]),
+    )
+    expect(sessionCookie?.attributes.some((attribute) => attribute.startsWith("Domain="))).toBe(
+      false,
     )
 
-    const legacyCookieClient = client.forkWithRenamedCookie(
-      partitionedDevelopmentSessionCookieName,
-      legacySecureSessionCookieName,
+    const ignoredOldCookies = createSessionTestClient(
+      (request) => auth.handler(request),
+      idpBaseUrl,
+      new Map([
+        [legacySecureSessionCookieName, "opaque-legacy-value"],
+        [transitionalSecureSessionCookieName, "opaque-transitional-value"],
+      ]),
     )
-    const ignoredLegacySession = await legacyCookieClient.request("/get-session")
+    const ignoredLegacySession = await ignoredOldCookies.request("/get-session")
     expect(ignoredLegacySession.status).toBe(200)
     expect(ignoredLegacySession.session).toEqual({ authenticated: false })
 
@@ -257,12 +286,151 @@ describe("getDefaultCookieAttributes", () => {
     expect(response.status).toBe(200)
 
     const sessionCookie = response.cookies.find(
-      ({ name }) => name === legacySecureSessionCookieName,
+      ({ name }) => name === standardSecureSessionCookieName,
     )
-    expect(sessionCookie?.name).toBe(legacySecureSessionCookieName)
+    expect(sessionCookie?.name).toBe(standardSecureSessionCookieName)
     expect(sessionCookie?.attributes).toEqual(
-      expect.arrayContaining(["HttpOnly", "Secure", "SameSite=None"]),
+      expect.arrayContaining(["HttpOnly", "Secure", "SameSite=None", "Path=/"]),
     )
     expect(sessionCookie?.attributes).not.toContain("Partitioned")
+    expect(sessionCookie?.attributes.some((attribute) => attribute.startsWith("Domain="))).toBe(
+      false,
+    )
+  })
+
+  it("ignores legacy cookie families under the standard HTTPS topology", async () => {
+    const auth = createStandaloneAuth("production")
+    const client = createSessionTestClient(
+      (request) => auth.handler(request),
+      idpBaseUrl,
+      new Map([
+        [legacySecureSessionCookieName, "opaque-legacy-value"],
+        [transitionalSecureSessionCookieName, "opaque-transitional-value"],
+      ]),
+    )
+
+    const response = await client.request("/get-session")
+
+    expect(response.status).toBe(200)
+    expect(response.session).toEqual({ authenticated: false })
+  })
+
+  it("uses the selected TRIAD family for the native OAuth state cookie", async () => {
+    const auth = createStandaloneAuth("development")
+    const client = createSessionTestClient((request) => auth.handler(request))
+
+    const response = await client.request("/sign-in/social", {
+      body: { callbackURL: `${studioOrigin}/login`, provider: "google" },
+    })
+
+    expect(response.status).toBe(200)
+    expect(response.oauthCallbackUri).toBe(`${idpBaseUrl}/api/auth/callback/google`)
+    expect(response.cookies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          attributes: expect.arrayContaining([
+            "HttpOnly",
+            "Secure",
+            "SameSite=None",
+            "Partitioned",
+            "Path=/",
+          ]),
+          name: "__Secure-triad-auth-partitioned.state",
+        }),
+      ]),
+    )
+    expect(
+      response.cookies.every(({ name }) => name.startsWith("__Secure-triad-auth-partitioned.")),
+    ).toBe(true)
+  })
+})
+
+describe("createAuthOptions", () => {
+  const env = {
+    NODE_ENV: "test",
+    APP_ENV: "test",
+    IDP_HOST: "127.0.0.1",
+    IDP_PORT: 8001,
+    DATABASE_URL: "postgresql://idp:idp@127.0.0.1:5432/idp",
+    BETTER_AUTH_SECRET: "test-secret-that-is-at-least-32-characters",
+    BETTER_AUTH_URL: "http://127.0.0.1:8001",
+    AUTH_TRUSTED_ORIGINS: ["http://localhost:3000"],
+    AUTH_SESSION_EXPIRES_IN_SECONDS: 2_592_000,
+    AUTH_PASSWORD_MIN_LENGTH: 12,
+    AUTH_PASSWORD_MAX_LENGTH: 256,
+    AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS: 3_600,
+    AUTH_GOOGLE_CLIENT_ID: "google-client-id-placeholder",
+    AUTH_GOOGLE_CLIENT_SECRET: "google-client-secret-placeholder",
+    IDP_EMAIL_FROM: "auth@example.invalid",
+    IDP_STUDIO_URL: "http://localhost:3000",
+    IDP_RESEND_API_KEY: "resend-api-key-placeholder",
+    IDP_RESEND_API_URL: "https://api.resend.com",
+  } as const
+
+  const emailSender = {
+    sendInvitation: async () => "sent" as const,
+    sendPasswordReset: async () => "sent" as const,
+    sendVerification: async () => "sent" as const,
+  }
+
+  it("observes detached background task failures without logging sensitive context", () => {
+    const catchTaskFailure = vi.fn()
+
+    handleBackgroundTask({ catch: catchTaskFailure } as unknown as Promise<unknown>)
+
+    expect(catchTaskFailure).toHaveBeenCalledOnce()
+    const rejectionHandler = catchTaskFailure.mock.calls[0]?.[0]
+    expect(rejectionHandler).toBeTypeOf("function")
+    expect(rejectionHandler?.(new Error("delivery failed"))).toBeUndefined()
+  })
+
+  it("configures the native verification, Google, linking, token, and rate-limit contract", () => {
+    const options = createAuthOptions(env as never, {} as never, emailSender)
+
+    expect(options.emailAndPassword).toMatchObject({
+      enabled: true,
+      requireEmailVerification: true,
+      revokeSessionsOnPasswordReset: true,
+    })
+    expect(options.emailVerification).toMatchObject({
+      autoSignInAfterVerification: false,
+      sendOnSignIn: true,
+      sendOnSignUp: true,
+    })
+    expect(options.socialProviders?.google).toMatchObject({
+      disableDefaultScope: true,
+      overrideUserInfoOnSignIn: false,
+      scope: ["openid", "email", "profile"],
+    })
+    expect(options.account).toMatchObject({
+      encryptOAuthTokens: true,
+      accountLinking: {
+        allowDifferentEmails: false,
+        allowUnlinkingAll: false,
+        disableImplicitLinking: false,
+        enabled: true,
+        requireLocalEmailVerified: true,
+        updateUserInfoOnLink: false,
+      },
+    })
+    expect(options.rateLimit).toMatchObject({ enabled: true, storage: "memory" })
+    expect(options.advanced?.backgroundTasks?.handler).toBeTypeOf("function")
+    expect(options.databaseHooks?.user?.create?.before).toBeTypeOf("function")
+    expect(options.databaseHooks?.session?.create?.before).toBeTypeOf("function")
+  })
+
+  it("rejects a Google user-create callback without a verified email claim", async () => {
+    const options = createAuthOptions(env as never, {} as never, emailSender)
+
+    await expect(
+      options.databaseHooks?.user?.create?.before?.(
+        {
+          email: "recipient@example.invalid",
+          emailVerified: false,
+          name: "Test identity",
+        } as never,
+        { path: "/callback/google" } as never,
+      ),
+    ).rejects.toMatchObject({ status: "FORBIDDEN" })
   })
 })

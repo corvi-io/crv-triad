@@ -22,6 +22,13 @@ bun --filter studio test:e2e:sandbox
 bun --filter studio test:e2e:production
 ```
 
+`tests/e2e/auth-lifecycle.spec.ts` covers the public auth route shell, route-entry focus, 320
+CSS-pixel reflow, reduced motion, focused axe scans, forgot/reset request composition,
+duplicate-submit protection, and the Google-only last-method guard. It fulfills cross-origin Better
+Auth requests with local synthetic responses and must never call Google, Resend, a deployed IDP, or
+live credentials. Unit coverage remains authoritative for every thin client payload and safe error
+category.
+
 `tests/e2e/schedule.spec.ts` exercises the module through the development-only schedule preview
 without intercepting Better Auth. It covers view, create, reschedule, cancel, URL scenarios and
 filters, conflict recovery, 320 CSS-pixel grouping, dark mode, reduced motion, focus return, long

@@ -93,7 +93,7 @@ describe("env-management", () => {
     invalid.apps.api.env[0].source = "IDP__DATABASE_URL"
 
     expect(() => assertSchema(invalid)).toThrow(
-      'Source "IDP__DATABASE_URL" must use the app prefix "API__".',
+      'Source "IDP__DATABASE_URL" must use the app prefix "API__" or provider prefix "INFRA__".',
     )
   })
 
@@ -131,6 +131,11 @@ describe("env-management", () => {
         "IDP__APP_ENV",
         "IDP__BETTER_AUTH_URL",
         "IDP__AUTH_TRUSTED_ORIGINS",
+        "INFRA__GOOGLE_OAUTH_CLIENT_ID",
+        "INFRA__GOOGLE_OAUTH_CLIENT_SECRET",
+        "IDP__EMAIL_FROM",
+        "IDP__STUDIO_URL",
+        "INFRA__RESEND_API_KEY",
       ],
       site: ["SITE__PUBLIC_SITE_URL"],
       studio: [
@@ -157,6 +162,18 @@ describe("env-management", () => {
         "INFRA__STUDIO_URL",
       ],
     })
+  })
+
+  it("allows categorized provider values to map into an app runtime", () => {
+    const withProviderInput = structuredClone(schema)
+    withProviderInput.apps.api.env.push({
+      source: "INFRA__EXAMPLE_PROVIDER_SECRET",
+      runtime: "EXAMPLE_PROVIDER_SECRET",
+      github: "secret",
+      required: true,
+    })
+
+    expect(() => assertSchema(withProviderInput)).not.toThrow()
   })
 
   it("validates declared source and provider-control wiring in every workflow", async () => {
@@ -239,6 +256,35 @@ describe("env-management", () => {
         source: "API__IDP_BASE_URL",
         runtime: "IDP_BASE_URL",
       },
+    ])
+  })
+
+  it("maps required Google and auth-email provider values into the IDP runtime", async () => {
+    const checkedInSchema = await loadSchema()
+    const selection = selectRuntimeEnv(checkedInSchema, "idp", "dev", {
+      IDP__DATABASE_URL: "postgresql://idp:placeholder@example.test/idp",
+      IDP__BETTER_AUTH_SECRET: "better-auth-secret-placeholder",
+      IDP__APP_ENV: "development",
+      IDP__BETTER_AUTH_URL: "https://idp.example.test",
+      IDP__AUTH_TRUSTED_ORIGINS: "https://studio.example.test",
+      INFRA__GOOGLE_OAUTH_CLIENT_ID: "google-client-id-placeholder",
+      INFRA__GOOGLE_OAUTH_CLIENT_SECRET: "google-client-secret-placeholder",
+      IDP__EMAIL_FROM: "auth@example.invalid",
+      IDP__STUDIO_URL: "https://studio.example.test",
+      INFRA__RESEND_API_KEY: "resend-api-key-placeholder",
+    })
+
+    expect(selection.values.map(({ runtime }) => runtime)).toEqual([
+      "DATABASE_URL",
+      "BETTER_AUTH_SECRET",
+      "APP_ENV",
+      "BETTER_AUTH_URL",
+      "AUTH_TRUSTED_ORIGINS",
+      "AUTH_GOOGLE_CLIENT_ID",
+      "AUTH_GOOGLE_CLIENT_SECRET",
+      "IDP_EMAIL_FROM",
+      "IDP_STUDIO_URL",
+      "IDP_RESEND_API_KEY",
     ])
   })
 
