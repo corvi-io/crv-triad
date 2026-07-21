@@ -13,6 +13,17 @@ type ReleasePleaseConfig = {
 }
 
 describe("release-management", () => {
+  it("starts production release preparation only through manual dispatch", () => {
+    const workflow = readFileSync(".github/workflows/prepare-production-release.yml", "utf8")
+
+    expect(workflow).toContain("workflow_dispatch:")
+    expect(workflow).not.toContain("workflow_run:")
+    expect(workflow).toContain(`if: \${{ vars.CICD__RELEASE_ENABLED == 'true' }}`)
+    expect(workflow).toContain("release_subject_pattern=")
+    expect(workflow).toContain('[[ "$subject" =~ $release_subject_pattern ]]')
+    expect(workflow).not.toContain('[[ "$subject" =~ ^')
+  })
+
   it("keeps the root Node release version and changelog aligned", () => {
     const config = JSON.parse(
       readFileSync("release-please-config.json", "utf8"),
