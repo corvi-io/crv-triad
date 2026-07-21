@@ -41,9 +41,9 @@ Use `triad-preflight-review` before any release mutation.
 5. Confirm the intended SemVer version and that the Release Please `node`
    strategy keeps root `package.json`, `.release-please-manifest.json`, and
    `CHANGELOG.md` aligned.
-6. Detect first-release bootstrap: `workflow_run` loads its workflow from the
-   default branch, so automation added only to `staging` cannot bootstrap
-   itself before the first promotion to `main`.
+6. Confirm `Prepare Production Release` is invoked explicitly through
+   `workflow_dispatch` from the default branch. Successful homologation must
+   never start release preparation automatically.
 
 ## Configuration Gates
 
@@ -85,10 +85,12 @@ bootstrap the categorized `CICD__*` contract instead.
 
 ### Subsequent Releases
 
-1. Let `Prepare Production Release` generate and merge the Release Please
-   artifact PR after a successful homologation.
-2. Inspect the generated version and changelog before promoting.
-3. Require the same promotion, production, publication, and synchronization
+1. After successful homologation is accepted, explicitly run
+   `gh workflow run prepare-production-release.yml --ref main`.
+2. Let `Prepare Production Release` generate and merge the Release Please
+   artifact PR and open or update the production promotion PR.
+3. Inspect the generated version and changelog before promoting.
+4. Require the same promotion, production, publication, and synchronization
    checks as the first release.
 
 ## Safety

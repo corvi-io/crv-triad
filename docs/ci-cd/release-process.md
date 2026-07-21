@@ -12,9 +12,10 @@ disabled.
 
 1. Feature pull requests merge into `staging`.
 2. `Homolog Pipeline` validates `staging` against the `hml` environment.
-3. `Prepare Production Release` generates Release Please artifacts when
-   release-worthy Conventional Commits exist, merges that artifact PR into
-   `staging`, and opens or updates a promotion PR from `staging` to `main`.
+3. An operator explicitly runs `Prepare Production Release`. It generates
+   Release Please artifacts when release-worthy Conventional Commits exist,
+   merges that artifact PR into `staging`, and opens or updates a promotion PR
+   from `staging` to `main`.
 4. `Promotion Pipeline` validates the promotion PR without attaching to `prd`.
 5. The promotion PR is merged with a merge commit.
 6. `Production Pipeline` validates `main` and deploys only when
@@ -26,6 +27,22 @@ disabled.
 
 Production promotion PRs must not contain a Codex review trigger. Feature PRs
 into `staging` keep the normal project review policy.
+
+## Manual Release Initiation
+
+A successful `Homolog Pipeline` never starts a release automatically. After
+homologation is accepted, an operator starts release preparation from the
+default branch with:
+
+```bash
+gh workflow run prepare-production-release.yml --ref main
+```
+
+GitHub requires a manually dispatched workflow to exist on the default branch.
+The workflow itself checks out and evaluates `staging`, so the command does not
+skip homologation or promote an arbitrary ref. Repository variable
+`CICD__RELEASE_ENABLED` must remain `true` for the job to run. Starting release
+preparation does not enable application deployment.
 
 ## Release-Only Configuration
 
@@ -74,12 +91,11 @@ jobs that reference that environment; deployment branch policies restrict
 
 ## First-Release Bootstrap
 
-The first release needs an explicit bootstrap because `workflow_run` uses the
-workflow file and commit context from the default branch. Until the current
-release workflows reach `main`, the improved workflow present only on
-`staging` cannot prepare its own first release. This is documented GitHub
-behavior for the
-[`workflow_run` event](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run).
+The first release needs an explicit bootstrap because GitHub accepts
+`workflow_dispatch` only when the workflow file exists on the default branch.
+Until the release workflows reach `main`, the manual preparation command is not
+available. This is documented GitHub behavior for
+[manually running workflows](https://docs.github.com/en/actions/how-tos/managing-workflow-runs-and-deployments/managing-workflow-runs/manually-running-a-workflow).
 
 Do not provision legacy names such as `RELEASE_PLEASE_TOKEN` to make the old
 workflow pass. Use this bootstrap instead:
@@ -102,8 +118,8 @@ Release Please documents both the initial-version manifest and `bootstrap-sha`
 options in its
 [manifest releaser guide](https://github.com/googleapis/release-please/blob/main/docs/manifest-releaser.md#bootstrapping).
 
-After the first promotion, successful homologation runs can use the automated
-path because the release workflows then exist on `main`.
+After the first promotion, releases use the same explicit manual command because
+the release workflow exists on `main`.
 
 ## Versioning Policy
 
