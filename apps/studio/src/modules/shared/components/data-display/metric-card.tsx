@@ -14,10 +14,10 @@ type MetricCardProps = {
 }
 
 const signalTones: Record<MetricCardTone, string> = {
-  info: "bg-primary/10 text-primary ring-primary/15",
+  info: "bg-feedback-info text-feedback-info-foreground ring-feedback-info-border",
   neutral: "bg-muted text-muted-foreground ring-border",
-  success: "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-300",
-  warning: "bg-amber-500/10 text-amber-700 ring-amber-500/20 dark:text-amber-300",
+  success: "bg-feedback-success text-feedback-success-foreground ring-feedback-success-border",
+  warning: "bg-feedback-warning text-feedback-warning-foreground ring-feedback-warning-border",
 }
 
 export function MetricCard({

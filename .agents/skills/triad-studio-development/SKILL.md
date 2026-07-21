@@ -49,6 +49,22 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
 - Preserve local development ports: studio `3000`, site `3001`, API `8000`, and
   IDP `8001`.
 - Put shadcn/Base UI primitives under `src/modules/shared/components/ui`.
+- Before creating UI, reuse an existing Studio component when its documented contract fits. If no
+  suitable component exists, inspect the official shadcn/ui catalog, then reviewed
+  shadcn-compatible community registries. Create custom UI only after recording why those sources
+  do not meet the accepted need.
+- Use Bun-driven shadcn CLI commands and inspect candidates with dry-run/view/diff behavior before
+  installation. Review third-party source, dependencies, license, maintenance, Base UI/Vite
+  compatibility, bundle impact, keyboard/focus behavior, responsive behavior, and token
+  integration. Popularity is not approval.
+- Treat accepted registry source as Studio-owned code: adapt it to responsibility folders, tokens,
+  Brazilian Portuguese copy, accessibility, tests, and the textual inventory. Do not duplicate a
+  suitable shadcn/Base UI primitive or build a parallel Studio component library.
+- Translate visual handoffs into the existing primitive, semantic, and component layers in
+  `src/index.css`; do not paste handoff CSS over the runtime source or apply a shadcn preset without
+  a separate accepted migration. Preserve light, dark, and system behavior, measure computed
+  contrast, keep status meaning independent from color, and follow `docs/studio/theme-system.md` for
+  the TRIAD navy/gold direction and restrained gradient rules.
 - Group shared composites under `data-display`, `feedback`, `forms`, `layout`, or `overlays`, import
   directly from the owning file/folder, and do not create a shared mega-barrel.
 - Read `references/component-system.md` when adding shared components, component documentation, development mock

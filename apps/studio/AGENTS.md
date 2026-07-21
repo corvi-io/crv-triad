@@ -11,6 +11,21 @@
 - Read `import.meta.env` only in `src/modules/shared/config/env.ts`.
 - Keep shadcn/Base UI primitives under `src/modules/shared/components/ui`; group shared composites
   by responsibility under `data-display`, `feedback`, `forms`, `layout`, or `overlays`.
+- Before creating a component, check existing Studio components first, then the official shadcn/ui
+  catalog, then reviewed shadcn-compatible community registries. Create custom UI only when no
+  suitable candidate exists and record the discovery evidence and rationale.
+- Inspect registry items before installation using shadcn CLI dry-run/view/diff capabilities. Review
+  source, dependencies, license, maintenance, Base UI/Vite compatibility, bundle impact,
+  accessibility, responsive behavior, and token integration; popularity is not approval.
+- Add accepted shadcn components with Bun-driven CLI commands and adapt the copied source to Studio
+  ownership, tokens, folder boundaries, Brazilian Portuguese copy, tests, and textual inventory.
+- Do not duplicate a suitable shadcn/Base UI primitive or create a parallel Studio component library.
+- Translate designer palettes and theme handoffs into the existing primitive, semantic, and
+  component token layers in `src/index.css`; never paste a handoff over the global stylesheet or
+  apply a shadcn preset without a separate accepted migration decision.
+- Preserve light, dark, and system behavior, validate browser-computed contrast, and keep status
+  meaning independent from color. Use brand gradients only through named tokens on explicitly
+  accepted bounded surfaces. Follow `docs/studio/theme-system.md` for the TRIAD navy/gold direction.
 - Import shared components from their owning file/folder. Do not add a shared mega-barrel.
 - Document every active shared component in the exhaustive textual inventory at
   `docs/studio/component-system.md`, including its public contract or an internal-only rationale.

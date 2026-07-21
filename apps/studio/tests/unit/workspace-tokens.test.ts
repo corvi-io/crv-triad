@@ -31,9 +31,9 @@ function contrastRatio(foreground: string, background: string) {
 
 describe("workspace token contract", () => {
   it("maps primitive, semantic, and workspace component layers through Tailwind v4", () => {
-    expect(styles).toContain("--primitive-brand-500: #3b82f6")
-    expect(styles).toContain("--primitive-brand-700: #1d4ed8")
-    expect(styles).toContain("--background: var(--primitive-neutral-50)")
+    expect(styles).toContain("--primitive-navy-900: #0f172a")
+    expect(styles).toContain("--primitive-gold-500: #cdaa5b")
+    expect(styles).toContain("--background: var(--primitive-navy-50)")
     expect(styles).toContain("--workspace-sidebar-selected-background: var(--sidebar-accent)")
     expect(styles).toContain(
       "--workspace-sidebar-selected-foreground: var(--sidebar-selected-foreground)",
@@ -58,13 +58,13 @@ describe("workspace token contract", () => {
     expect(styles).toContain("--workspace-nav-item-height: var(--primitive-space-8)")
     expect(styles).toContain("--workspace-nav-radius: var(--primitive-radius-md)")
     expect(styles).toContain(".dark {")
-    expect(styles).toContain("--sidebar: var(--primitive-neutral-900)")
+    expect(styles).toContain("--sidebar: var(--primitive-navy-950)")
   })
 
-  it("uses the accepted light anchors for the reference design state and contrast-safe body roles", () => {
-    expect(contrastRatio("#3B82F6", "#EFF6FF")).toBeGreaterThanOrEqual(3)
-    expect(contrastRatio("#737373", "#FAFAFA")).toBeGreaterThanOrEqual(4.5)
-    expect(contrastRatio("#3B82F6", "#FAFAFA")).toBeGreaterThanOrEqual(3)
+  it("uses contrast-safe navy and gold anchors for the light reference state", () => {
+    expect(contrastRatio("#86652F", "#F3F6FC")).toBeGreaterThanOrEqual(3)
+    expect(contrastRatio("#3B4E72", "#F3F6FC")).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio("#86652F", "#FFFFFF")).toBeGreaterThanOrEqual(3)
   })
 
   it("keeps the workspace shell contiguous and the header free of invented chrome", () => {

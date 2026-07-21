@@ -73,7 +73,7 @@ export function LoginForm({
 
         {visibleError && (
           <div
-            className="flex gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+            className="flex gap-3 rounded-lg border border-feedback-destructive-border bg-feedback-destructive p-3 text-sm text-feedback-destructive-foreground"
             role="alert"
           >
             <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />

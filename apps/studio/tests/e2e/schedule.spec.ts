@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright"
-import { expect, test } from "@playwright/test"
+import { expect, type Locator, test } from "@playwright/test"
 
 test("completes the schedule view, reschedule, cancel, URL scenario, and axe journey", async ({
   page,
@@ -54,12 +54,18 @@ test("shows a recoverable conflict and preserves filter state in the URL", async
   await page.getByRole("textbox", { name: /^Nome/ }).fill("Cliente de Conflito")
   await page.getByRole("textbox", { name: /^Telefone/ }).fill("81999990000")
   await page.getByRole("textbox", { name: /^Horário/ }).fill("10:15")
-  await page.getByRole("button", { name: "Criar agendamento" }).click()
+  const createButton = page.getByRole("button", { name: "Criar agendamento" })
+  await createButton.click()
   await expect(page.locator("#appointment-time-error")).toContainText(/não tem espaço suficiente/i)
   await expect(page.getByRole("textbox", { name: /^Horário/ })).toBeFocused()
+  const conflictToast = page
+    .locator('[data-sonner-toast][data-type="error"]')
+    .filter({ hasText: /não tem espaço suficiente/i })
+  await expect(conflictToast).toBeVisible()
   await page.getByRole("textbox", { name: /^Horário/ }).fill("11:00")
   await expect(page.getByText(/não tem espaço suficiente neste horário/i)).toBeHidden()
-  await page.getByRole("button", { name: "Criar agendamento" }).click()
+  await expectLocatorsNotToOverlap(conflictToast, createButton)
+  await createButton.click()
   await expect(page.getByText("Agendamento criado.")).toBeVisible()
 
   await page.goto(
@@ -102,9 +108,15 @@ test("rejects blocked and off-grid starts with visible focused feedback", async 
   )
   await expect(page.getByText(/coincide com uma pausa ou bloqueio/i).last()).toBeVisible()
   await expect(timeField).toBeFocused()
+  const blockedToast = page
+    .locator('[data-sonner-toast][data-type="error"]')
+    .filter({ hasText: /coincide com uma pausa ou bloqueio/i })
+  await expect(blockedToast).toBeVisible()
 
   await timeField.fill("09:10")
-  await page.getByRole("button", { name: "Criar agendamento" }).click()
+  const createButton = page.getByRole("button", { name: "Criar agendamento" })
+  await expectLocatorsNotToOverlap(blockedToast, createButton)
+  await createButton.click()
   await expect(page.locator("#appointment-time-error")).toContainText(/15 em 15 minutos/i)
   await expect(timeField).toBeFocused()
 })
@@ -126,3 +138,17 @@ test("keeps the grouped journey usable at 320 CSS pixels in dark reduced-motion 
   await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeHidden()
   await expect(appointment).toBeFocused()
 })
+
+async function expectLocatorsNotToOverlap(first: Locator, second: Locator) {
+  const [firstBox, secondBox] = await Promise.all([first.boundingBox(), second.boundingBox()])
+  expect(firstBox, "first locator has a rendered box").not.toBeNull()
+  expect(secondBox, "second locator has a rendered box").not.toBeNull()
+  if (!firstBox || !secondBox) return
+
+  const overlap =
+    firstBox.x < secondBox.x + secondBox.width &&
+    firstBox.x + firstBox.width > secondBox.x &&
+    firstBox.y < secondBox.y + secondBox.height &&
+    firstBox.y + firstBox.height > secondBox.y
+  expect(overlap, "active feedback does not obscure the retry action").toBe(false)
+}

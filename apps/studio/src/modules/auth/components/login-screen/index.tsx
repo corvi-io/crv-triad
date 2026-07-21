@@ -119,13 +119,13 @@ export function LoginScreen({ error }: LoginScreenProps) {
       </section>
 
       <section
-        className="relative hidden h-svh overflow-hidden bg-muted lg:block"
+        className="auth-brand-surface relative hidden h-svh overflow-hidden lg:block"
         aria-label="Prévia do TRIAD Studio"
       >
         <img
           src="/placeholder.svg"
           alt="Imagem placeholder"
-          className="absolute inset-0 size-full object-cover dark:brightness-[0.82]"
+          className="absolute inset-0 size-full object-cover opacity-15 mix-blend-luminosity"
         />
       </section>
     </main>
