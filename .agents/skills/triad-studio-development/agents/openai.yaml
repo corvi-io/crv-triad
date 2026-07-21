@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triad Studio Development"
+  short_description: "Build and validate the Triad authenticated React frontend"
+  default_prompt: "Use $triad-studio-development to implement this studio app change with Triad conventions."

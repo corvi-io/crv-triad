@@ -133,7 +133,11 @@ describe("env-management", () => {
         "IDP__AUTH_TRUSTED_ORIGINS",
       ],
       site: ["SITE__PUBLIC_SITE_URL"],
-      web: ["WEB__VITE_AUTH_BASE_URL", "WEB__VITE_API_BASE_URL"],
+      studio: [
+        "STUDIO__VITE_AUTH_BASE_URL",
+        "STUDIO__VITE_DEPLOY_TARGET",
+        "STUDIO__VITE_SCHEDULING_SOURCE",
+      ],
     })
     expect(
       Object.fromEntries(
@@ -149,8 +153,8 @@ describe("env-management", () => {
         "INFRA__CLOUDFLARE_API_TOKEN",
         "INFRA__CLOUDFLARE_ACCOUNT_ID",
         "INFRA__CLOUDFLARE_SITE_PROJECT_NAME",
-        "INFRA__CLOUDFLARE_WEB_PROJECT_NAME",
-        "INFRA__WEB_URL",
+        "INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME",
+        "INFRA__STUDIO_URL",
       ],
     })
   })
@@ -180,7 +184,7 @@ describe("env-management", () => {
       ]
 
       expect(() => Bun.YAML.parse(content)).not.toThrow()
-      expect(content).not.toMatch(/\b(?:api|idp|site|web)__[A-Z0-9_]+\b/)
+      expect(content).not.toMatch(/\b(?:api|idp|site|studio)__[A-Z0-9_]+\b/)
       expect(content).not.toMatch(
         /\b(?:FLY_API_TOKEN|CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID|RELEASE_PLEASE_TOKEN)\b/,
       )
@@ -190,6 +194,25 @@ describe("env-management", () => {
         expect(githubKind).toBeDefined()
         expect(context).toBe(githubKind === "secret" ? "secrets" : "vars")
       }
+    }
+  })
+
+  it("propagates fail-closed Studio scheduling inputs through every deployment target", () => {
+    for (const [path, target] of [
+      [".github/workflows/develop-pipeline.yml", "dev"],
+      [".github/workflows/homolog-pipeline.yml", "hml"],
+      [".github/workflows/production-pipeline.yml", "prd"],
+    ] as const) {
+      const content = readFileSync(path, "utf8")
+
+      expect(content.match(new RegExp(`STUDIO__VITE_DEPLOY_TARGET: ${target}`, "g"))).toHaveLength(
+        2,
+      )
+      expect(
+        content.match(
+          /STUDIO__VITE_SCHEDULING_SOURCE: \$\{\{ vars\.STUDIO__VITE_SCHEDULING_SOURCE \}\}/g,
+        ),
+      ).toHaveLength(2)
     }
   })
 

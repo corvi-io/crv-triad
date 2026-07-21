@@ -7,7 +7,7 @@ Internal product workspace for CRV Triad.
 - `apps/site`: neutral static Astro placeholder.
 - `apps/api`: minimal FastAPI backend with `/health` and `/ready`.
 - `apps/idp`: Elysia + Better Auth identity provider with email/password, invitations, sessions, and admin bootstrap.
-- `apps/web`: authenticated React application shell.
+- `apps/studio`: TRIAD Studio authenticated barbershop-management frontend.
 
 ## Requirements
 
@@ -24,7 +24,7 @@ bun --filter api dev
 bun --filter idp db:migrate
 bun --filter idp bootstrap:admin -- --email admin@example.com --name "Admin"
 bun --filter idp dev
-bun --filter web dev
+bun --filter studio dev
 bun --filter site dev
 ```
 
@@ -32,7 +32,7 @@ Local ports:
 
 - API: `http://localhost:8000`
 - IDP: `http://localhost:8001`
-- Web: `http://localhost:3000`
+- Studio: `http://localhost:3000`
 - Site: `http://localhost:3001`
 
 ## Auth Model
@@ -45,7 +45,7 @@ The IDP uses email/password. Public self-registration is not open: account creat
 - `bun run build`
 - `bun --filter api check`
 - `bun --filter idp check`
-- `bun --filter web check`
+- `bun --filter studio check`
 - `bun --filter site check`
 
 ## Initiatives
@@ -60,7 +60,7 @@ Deployment environment metadata lives in `env-schema.yaml`; actual values belong
 
 Custom GitHub configuration is categorized by ownership:
 
-- `API__*`, `IDP__*`, `SITE__*`, and `WEB__*` are app runtime inputs.
+- `API__*`, `IDP__*`, `SITE__*`, and `STUDIO__*` are app runtime inputs.
 - `CICD__*` controls pipelines and releases.
 - `INFRA__*` identifies or authenticates infrastructure providers and deployed resources.
 

@@ -1,6 +1,6 @@
 ---
 name: triad-initiative-workflow
-description: Plan CRV Triad initiatives with PRDs, execution plans, brainstorms, counterproposals, performance/scalability analysis, accessibility, API/IDP/web concerns, observability, and verification before implementation.
+description: Plan CRV Triad initiatives with PRDs, execution plans, brainstorms, counterproposals, performance/scalability analysis, accessibility, API/IDP/studio concerns, observability, and verification before implementation.
 ---
 
 # Triad Initiative Workflow
@@ -47,7 +47,7 @@ Use other project skills as needed:
 - `triad-architecture` for boundaries and durable conventions.
 - `triad-api-development` for API modules, routes, use cases, persistence, and tests.
 - `triad-idp-development` for authentication, sessions, users, invitations, and IDP persistence.
-- `triad-web-development` for authenticated React UI.
+- `triad-studio-development` for authenticated React UI.
 - `triad-site-development` for static site changes.
 
 Use framework/vendor skills when relevant, such as FastAPI, Elysia, Better Auth,
@@ -71,7 +71,7 @@ Every initiative should define the relevant evidence:
 
 - API: unit tests, route behavior, type/check/build commands.
 - IDP: access policy tests, env parsing, migration checks, route contracts.
-- Web/site: component/unit tests, accessibility and responsive checks, build.
+- Studio/site: component/unit tests, accessibility and responsive checks, build.
 - Data-heavy work: pagination/filter/sort behavior and query-bound reasoning.
 - Ops work: env schema, deploy scripts, provider requirements, rollback notes.
 

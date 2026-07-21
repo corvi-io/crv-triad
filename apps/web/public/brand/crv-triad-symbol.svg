@@ -1,7 +1,0 @@
-<!-- biome-ignore lint/a11y/noSvgWithoutTitle: This symbol is intentionally decorative through the owning img element. -->
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
-  <path d="M24 8 40 36H8L24 8Z" stroke="#334155" stroke-width="3" stroke-linejoin="round" />
-  <circle cx="24" cy="8" r="4" fill="#334155" />
-  <circle cx="8" cy="36" r="4" fill="#334155" />
-  <circle cx="40" cy="36" r="4" fill="#334155" />
-</svg>

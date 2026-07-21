@@ -22,6 +22,8 @@ describe("release-management", () => {
     expect(workflow).toContain("release_subject_pattern=")
     expect(workflow).toContain('[[ "$subject" =~ $release_subject_pattern ]]')
     expect(workflow).not.toContain('[[ "$subject" =~ ^')
+    expect(workflow).toContain('--label "autorelease: pending"')
+    expect(workflow).not.toContain('--head "release-please--branches--')
   })
 
   it("keeps the root Node release version and changelog aligned", () => {

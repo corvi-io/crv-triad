@@ -77,11 +77,11 @@ resources first and then populate the following `prd` environment inputs.
 | --- | --- | --- |
 | Pipeline | — | `CICD__DEPLOY_ENABLED=true` |
 | Fly.io | `INFRA__FLY_API_TOKEN` | — |
-| Cloudflare | `INFRA__CLOUDFLARE_API_TOKEN` | `INFRA__CLOUDFLARE_ACCOUNT_ID`, `INFRA__CLOUDFLARE_SITE_PROJECT_NAME`, `INFRA__CLOUDFLARE_WEB_PROJECT_NAME`, `INFRA__WEB_URL` |
+| Cloudflare | `INFRA__CLOUDFLARE_API_TOKEN` | `INFRA__CLOUDFLARE_ACCOUNT_ID`, `INFRA__CLOUDFLARE_SITE_PROJECT_NAME`, `INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME`, `INFRA__STUDIO_URL` |
 | API | `API__DATABASE_URL` | `API__IDP_BASE_URL` |
 | IDP | `IDP__DATABASE_URL`, `IDP__BETTER_AUTH_SECRET` | `IDP__APP_ENV`, `IDP__BETTER_AUTH_URL`, `IDP__AUTH_TRUSTED_ORIGINS` |
 | Site | — | `SITE__PUBLIC_SITE_URL` |
-| Web | — | `WEB__VITE_AUTH_BASE_URL`, `WEB__VITE_API_BASE_URL` |
+| Studio | — | `STUDIO__VITE_AUTH_BASE_URL` |
 
 The exact ownership, runtime mapping, and target metadata remain authoritative
 in `env-schema.yaml`. Environment secrets and variables are available only to

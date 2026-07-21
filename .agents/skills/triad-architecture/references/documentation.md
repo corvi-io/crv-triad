@@ -19,7 +19,7 @@ Update app `README.md` when the change affects:
   workflows.
 - App-owned scope boundaries that contributors must know.
 
-Update durable docs under `docs/{site,api,idp,ci-cd}` when the change affects:
+Update durable docs under `docs/{site,api,idp,studio,ci-cd}` when the change affects:
 
 - Architecture conventions or runtime behavior expected to outlive one PR.
 - Deployment, operations, security, privacy, analytics, SEO, persistence, or

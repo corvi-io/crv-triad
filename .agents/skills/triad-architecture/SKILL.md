@@ -19,6 +19,7 @@ in English.
      internal business capabilities.
    - `apps/idp`: identity provider for authentication, sessions, invitations,
      and internal identity contracts.
+   - `apps/studio`: authenticated barbershop-management product interface.
    - `packages/*`: only after real cross-app reuse exists.
    - docs/backlog only: when the change is planning, convention, or follow-up
      work without runtime behavior.
@@ -31,6 +32,7 @@ in English.
    - `triad-site-development` for `apps/site`.
    - `triad-api-development` for `apps/api`.
    - `triad-idp-development` for `apps/idp`.
+   - `triad-studio-development` for `apps/studio`.
 
 ## Principles
 
@@ -44,7 +46,7 @@ in English.
 - Prefer the simplest architecture that meets near-term scale without creating
   obvious bottlenecks or premature abstractions.
 - Preserve local development ports unless an explicit product decision changes
-  them: API `8000`, IDP `8001`, web `3000`, and site `3001`.
+  them: API `8000`, IDP `8001`, studio `3000`, and site `3001`.
 - Keep business domains out of the IDP.
 - Do not add shared packages until reuse is real, repeated, and stable.
 - Treat documentation as a design surface: update it when a durable contract,

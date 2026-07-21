@@ -71,8 +71,8 @@ def main() -> None:
     idp_health_url = optional_env("CICD__IDP_HEALTH_URL")
     site_deployed = optional_env("CICD__SITE_DEPLOYED")
     site_url = optional_env("CICD__SITE_URL")
-    web_deployed = optional_env("CICD__WEB_DEPLOYED")
-    web_url = optional_env("CICD__WEB_URL")
+    studio_deployed = optional_env("CICD__STUDIO_DEPLOYED")
+    studio_url = optional_env("CICD__STUDIO_URL")
     run_url = env("CICD__RUN_URL")
 
     short_sha = commit_sha[:7]
@@ -91,9 +91,9 @@ def main() -> None:
         table_rows.append(
             f"| 🌐 Site | {status_label(site_deployed)} | [Open preview]({site_url}) | Alias preview |"
         )
-    if web_url:
+    if studio_url:
         table_rows.append(
-            f"| 🖥️ Web | {status_label(web_deployed)} | [Open preview]({web_url}) | Alias preview |"
+            f"| 🖥️ Studio | {status_label(studio_deployed)} | [Open preview]({studio_url}) | Alias preview |"
         )
     table_rows.append(
         f"| 🧾 Logs | Completed | [View workflow run]({run_url}) | Commit `{short_sha}` |"
