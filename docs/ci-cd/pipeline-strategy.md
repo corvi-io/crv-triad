@@ -62,8 +62,10 @@ target's resources and required values are verified, set that environment's
   This pull-request validation does not attach to `prd` or read production deployment values;
   production access begins only after the merge into `main`.
 - A push to `main` runs `Production Pipeline` against `prd`.
-- Release automation remains disabled until `CICD__RELEASE_ENABLED=true` and
-  `CICD__RELEASE_TOKEN` is provisioned.
+- A successful homologation does not start a release. An operator explicitly
+  dispatches `Prepare Production Release` from `main` when staging is accepted.
+- Manual release preparation remains unavailable until
+  `CICD__RELEASE_ENABLED=true` and `CICD__RELEASE_TOKEN` is provisioned.
 
 Protect `staging` and `main` from force pushes and deletion, require pull requests and resolved review
 threads, and require their corresponding pipeline checks. Restrict the `hml` environment to
