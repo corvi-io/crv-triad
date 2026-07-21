@@ -53,10 +53,11 @@ jobs:
           fi
 
           release_artifacts_required=false
+          release_subject_pattern='^[[:alpha:]][[:alnum:]_-]*(\([^)]+\))?!?:'
           mapfile -t unreleased_commits < <(git cherry origin/main origin/staging | awk '$1 == "+" { print $2 }')
           for commit in "${unreleased_commits[@]}"; do
             subject="$(git log -1 --format=%s "$commit")"
-            if [[ "$subject" =~ ^(feat|fix|perf)(\([^)]+\))?!?: ]] || [[ "$subject" =~ ^[[:alpha:]][[:alnum:]_-]*(\([^)]+\))?!: ]]; then
+            if [[ "$subject" =~ $release_subject_pattern ]]; then
               release_artifacts_required=true
               break
             fi

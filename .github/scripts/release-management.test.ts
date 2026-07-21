@@ -19,6 +19,9 @@ describe("release-management", () => {
     expect(workflow).toContain("workflow_dispatch:")
     expect(workflow).not.toContain("workflow_run:")
     expect(workflow).toContain(`if: \${{ vars.CICD__RELEASE_ENABLED == 'true' }}`)
+    expect(workflow).toContain("release_subject_pattern=")
+    expect(workflow).toContain('[[ "$subject" =~ $release_subject_pattern ]]')
+    expect(workflow).not.toContain('[[ "$subject" =~ ^')
   })
 
   it("keeps the root Node release version and changelog aligned", () => {
