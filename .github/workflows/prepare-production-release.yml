@@ -90,9 +90,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CICD__RELEASE_TOKEN }}
         run: |
-          release_pr="$(gh pr list --base "$CICD__SOURCE_BRANCH" --head "release-please--branches--$CICD__SOURCE_BRANCH" --state open --json number --jq '.[0].number')"
+          release_pr="$(gh pr list --base "$CICD__SOURCE_BRANCH" --state open --label "autorelease: pending" --json number --jq '.[0].number')"
           if [ -z "$release_pr" ]; then
-            echo "No release artifact PR found for $SOURCE_BRANCH."
+            echo "No pending release artifact PR found for $CICD__SOURCE_BRANCH."
             exit 0
           fi
 
