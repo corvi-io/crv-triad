@@ -147,7 +147,7 @@ export function createAuthOptions(
       accountLinking: {
         enabled: true,
         disableImplicitLinking: false,
-        requireLocalEmailVerified: true,
+        requireLocalEmailVerified: false,
         allowDifferentEmails: false,
         allowUnlinkingAll: false,
         updateUserInfoOnLink: false,
@@ -265,9 +265,6 @@ export function createAuthOptions(
 
             if (sessionUser?.status !== "active") {
               throw new APIError("FORBIDDEN", { message: "User is not active." })
-            }
-            if (!sessionUser.emailVerified) {
-              throw new APIError("FORBIDDEN", { message: "User email is not verified." })
             }
           },
         },

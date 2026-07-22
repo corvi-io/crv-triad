@@ -1,6 +1,7 @@
 import { type BetterAuthOptions, betterAuth } from "better-auth"
 import { memoryAdapter } from "better-auth/adapters/memory"
 import { splitSetCookieHeader } from "better-auth/cookies"
+import { hashPassword } from "better-auth/crypto"
 import { describe, expect, it, vi } from "vitest"
 
 import {
@@ -380,6 +381,100 @@ describe("createAuthOptions", () => {
     sendVerification: async () => "sent" as const,
   }
 
+  const testPassword = "test-password-123"
+
+  type GoogleIdentity = {
+    id: string
+    email: string
+    emailVerified: boolean
+    name: string
+  }
+
+  type LocalIdentity = {
+    email: string
+    emailVerified: boolean
+    id: string
+    name: string
+    role: "admin" | "member"
+    status: "active" | "disabled"
+  }
+
+  function createSelectOnlyDb(rowsByQuery: unknown[][]) {
+    let queryIndex = 0
+    const takeRows = async () => rowsByQuery[queryIndex++] ?? []
+
+    return {
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: takeRows,
+            orderBy: () => ({ limit: takeRows }),
+          }),
+        }),
+      }),
+    }
+  }
+
+  async function createAuthPolicyHarness({
+    googleIdentity,
+    hookSelectRows,
+    localIdentity,
+  }: {
+    googleIdentity: GoogleIdentity
+    hookSelectRows?: unknown[][]
+    localIdentity?: LocalIdentity
+  }) {
+    const now = new Date()
+    const persistedUser = localIdentity
+      ? { ...localIdentity, createdAt: now, image: null, updatedAt: now }
+      : undefined
+    const memoryDb: Record<string, Array<Record<string, unknown>>> = {
+      account: persistedUser
+        ? [
+            {
+              accountId: persistedUser.id,
+              createdAt: now,
+              id: `credential-${persistedUser.id}`,
+              password: await hashPassword(testPassword),
+              providerId: "credential",
+              updatedAt: now,
+              userId: persistedUser.id,
+            },
+          ]
+        : [],
+      session: [],
+      user: persistedUser ? [persistedUser] : [],
+      verification: [],
+    }
+    const defaultHookRows = persistedUser ? [[persistedUser]] : [[], []]
+    const options = createAuthOptions(
+      env as never,
+      createSelectOnlyDb(hookSelectRows ?? defaultHookRows) as never,
+      emailSender,
+    )
+    const google = options.socialProviders?.google
+    if (!google || typeof google === "function") {
+      throw new Error("Expected the Google provider configuration.")
+    }
+
+    const auth = betterAuth({
+      ...options,
+      database: memoryAdapter(memoryDb),
+      logger: { disabled: true },
+      rateLimit: { enabled: false },
+      socialProviders: {
+        google: {
+          ...google,
+          getUserInfo: async () => ({ data: googleIdentity, user: googleIdentity }),
+          verifyIdToken: async () => true,
+        },
+      },
+    })
+    const client = createSessionTestClient((request) => auth.handler(request), env.BETTER_AUTH_URL)
+
+    return { client, memoryDb }
+  }
+
   it("observes detached background task failures without logging sensitive context", () => {
     const catchTaskFailure = vi.fn()
 
@@ -503,7 +598,7 @@ describe("createAuthOptions", () => {
         allowUnlinkingAll: false,
         disableImplicitLinking: false,
         enabled: true,
-        requireLocalEmailVerified: true,
+        requireLocalEmailVerified: false,
         updateUserInfoOnLink: false,
       },
     })
@@ -526,5 +621,183 @@ describe("createAuthOptions", () => {
         { path: "/callback/google" } as never,
       ),
     ).rejects.toMatchObject({ status: "FORBIDDEN" })
+  })
+
+  it("links a provider-verified normalized same-email Google identity and creates a session", async () => {
+    const localIdentity = {
+      email: "existing-user@example.invalid",
+      emailVerified: false,
+      id: "existing-user-id",
+      name: "Existing user",
+      role: "member",
+      status: "active",
+    } as const
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email: "EXISTING-USER@example.invalid",
+        emailVerified: true,
+        id: "google-existing-user-id",
+        name: "Google user",
+      },
+      localIdentity,
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "verified-google-token" }, provider: "google" },
+    })
+
+    expect(response.status).toBe(200)
+    expect(memoryDb.account).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          accountId: "google-existing-user-id",
+          providerId: "google",
+          userId: localIdentity.id,
+        }),
+      ]),
+    )
+    expect(memoryDb.session).toHaveLength(1)
+    expect(memoryDb.user[0]).toMatchObject({
+      email: localIdentity.email,
+      emailVerified: true,
+      id: localIdentity.id,
+      name: localIdentity.name,
+      role: localIdentity.role,
+      status: localIdentity.status,
+    })
+  })
+
+  it("keeps password sign-in verification-gated for a locally unverified user", async () => {
+    const localIdentity = {
+      email: "password-user@example.invalid",
+      emailVerified: false,
+      id: "password-user-id",
+      name: "Password user",
+      role: "member",
+      status: "active",
+    } as const
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email: localIdentity.email,
+        emailVerified: true,
+        id: "unused-google-id",
+        name: "Unused Google user",
+      },
+      localIdentity,
+    })
+
+    const response = await client.request("/sign-in/email", {
+      body: { email: localIdentity.email, password: testPassword },
+    })
+
+    expect(response.status).toBe(403)
+    expect(memoryDb.session).toHaveLength(0)
+    expect(memoryDb.user[0]).toMatchObject({ emailVerified: false })
+  })
+
+  it("rejects an unverified Google identity for an existing same-email user", async () => {
+    const localIdentity = {
+      email: "unverified-google@example.invalid",
+      emailVerified: false,
+      id: "unverified-google-user-id",
+      name: "Unverified Google user",
+      role: "member",
+      status: "active",
+    } as const
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email: localIdentity.email,
+        emailVerified: false,
+        id: "unverified-google-account-id",
+        name: "Unverified Google user",
+      },
+      localIdentity,
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "unverified-google-token" }, provider: "google" },
+    })
+
+    expect(response.status).toBe(401)
+    expect(memoryDb.account).toHaveLength(1)
+    expect(memoryDb.session).toHaveLength(0)
+    expect(memoryDb.user[0]).toMatchObject({ emailVerified: false })
+  })
+
+  it("rejects a different-email Google identity instead of linking it", async () => {
+    const localIdentity = {
+      email: "local-user@example.invalid",
+      emailVerified: false,
+      id: "local-user-id",
+      name: "Local user",
+      role: "member",
+      status: "active",
+    } as const
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email: "different-user@example.invalid",
+        emailVerified: true,
+        id: "different-google-account-id",
+        name: "Different Google user",
+      },
+      hookSelectRows: [[], []],
+      localIdentity,
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "different-email-google-token" }, provider: "google" },
+    })
+
+    expect(response.status).toBe(401)
+    expect(memoryDb.account).toHaveLength(1)
+    expect(memoryDb.session).toHaveLength(0)
+    expect(memoryDb.user).toHaveLength(1)
+  })
+
+  it("rejects an unknown uninvited Google identity", async () => {
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email: "unknown-user@example.invalid",
+        emailVerified: true,
+        id: "unknown-google-account-id",
+        name: "Unknown Google user",
+      },
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "unknown-google-token" }, provider: "google" },
+    })
+
+    expect(response.status).toBe(401)
+    expect(memoryDb.account).toHaveLength(0)
+    expect(memoryDb.session).toHaveLength(0)
+    expect(memoryDb.user).toHaveLength(0)
+  })
+
+  it("rejects a disabled existing user from creating a Google session", async () => {
+    const localIdentity = {
+      email: "disabled-user@example.invalid",
+      emailVerified: false,
+      id: "disabled-user-id",
+      name: "Disabled user",
+      role: "member",
+      status: "disabled",
+    } as const
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email: localIdentity.email,
+        emailVerified: true,
+        id: "disabled-google-account-id",
+        name: "Disabled Google user",
+      },
+      localIdentity,
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "disabled-user-google-token" }, provider: "google" },
+    })
+
+    expect(response.status).toBe(403)
+    expect(memoryDb.session).toHaveLength(0)
   })
 })
