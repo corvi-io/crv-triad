@@ -42,6 +42,54 @@ test("renders the reference-aligned temporal board and passes axe", async ({ pag
   expect(results.violations).toEqual([])
 })
 
+test("keeps the sticky time axis above cards after horizontal scrolling", async ({ page }) => {
+  await page.setViewportSize({ height: 900, width: 640 })
+  await page.goto(agendaUrl())
+
+  const board = page.getByTestId("agenda-board")
+  const scrollContainer = board.locator(":scope > div")
+  const timeCell = board.getByRole("rowheader", { exact: true, name: "08:00" })
+  const appointment = board.locator('[data-appointment-id="kanban-01"]')
+
+  await expect(timeCell).toBeVisible()
+  await expect(appointment).toBeVisible()
+  await scrollContainer.evaluate((element) => {
+    element.scrollLeft = 120
+  })
+
+  const stacking = await timeCell.evaluate((element) => {
+    const appointment = document.querySelector<HTMLElement>('[data-appointment-id="kanban-01"]')
+    const scrollContainer = element.closest("table")?.parentElement
+    if (!appointment || !scrollContainer) return null
+
+    const timeBounds = element.getBoundingClientRect()
+    const appointmentBounds = appointment.getBoundingClientRect()
+    const point = {
+      x: timeBounds.left + timeBounds.width / 2,
+      y: timeBounds.top + timeBounds.height / 2,
+    }
+    const hit = document.elementFromPoint(point.x, point.y)
+
+    return {
+      appointmentCoversPoint:
+        appointmentBounds.left < point.x &&
+        appointmentBounds.right > point.x &&
+        appointmentBounds.top < point.y &&
+        appointmentBounds.bottom > point.y,
+      appointmentWinsHitTest: hit !== null && appointment.contains(hit),
+      scrollLeft: scrollContainer.scrollLeft,
+      timeAxisWinsHitTest: hit !== null && element.contains(hit),
+    }
+  })
+
+  expect(stacking).toEqual({
+    appointmentCoversPoint: true,
+    appointmentWinsHitTest: false,
+    scrollLeft: 120,
+    timeAxisWinsHitTest: true,
+  })
+})
+
 test("filters from button menus, selects a period, and switches to Lista", async ({ page }) => {
   await page.goto(agendaUrl())
 

@@ -195,7 +195,7 @@ export function AgendaBoard({
                 <col className="w-[12.25rem]" key={professional.id} />
               ))}
             </colgroup>
-            <thead className="sticky top-0 z-20 bg-card">
+            <thead className="sticky top-0 z-50 bg-card">
               <tr>
                 <th className="sticky left-0 z-30 min-w-20 border-r border-b bg-card px-3 py-4 text-left text-xs font-medium text-muted-foreground">
                   Horário
@@ -218,7 +218,7 @@ export function AgendaBoard({
               {slots.map((slot, slotIndex) => (
                 <tr className="h-9" key={slot}>
                   <th
-                    className="sticky left-0 z-10 h-9 border-r border-b bg-card px-3 text-left text-xs font-medium tabular-nums text-muted-foreground"
+                    className="sticky left-0 z-40 h-9 border-r border-b bg-card px-3 text-left text-xs font-medium tabular-nums text-muted-foreground"
                     scope="row"
                   >
                     {slot}
