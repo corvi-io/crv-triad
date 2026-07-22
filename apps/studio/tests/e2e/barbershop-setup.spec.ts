@@ -358,7 +358,7 @@ test("creates a recurring block atomically and blocks archiving a linked service
   await expect(serviceRow).toContainText("Ativo")
 })
 
-test("navigates dated views and removes only one recurring occurrence", async ({ page }) => {
+test("navigates dated views and edits only one recurring occurrence", async ({ page }) => {
   await page.goto(setupUrl("single-unit", "availability"))
   await page.getByRole("button", { name: "Mês" }).click()
   await expect(page).toHaveURL(/availabilityView=month/)
@@ -373,10 +373,19 @@ test("navigates dated views and removes only one recurring occurrence", async ({
   await selectedOccurrence.click()
   const drawer = page.getByRole("dialog", { name: "Disponibilidade / Editar bloco" })
   await expect(drawer.getByText("Somente 20 de julho de 2026")).toBeVisible()
-  await drawer.getByRole("button", { name: "Excluir" }).click()
-  const deleteDialog = page.getByRole("dialog", { name: "Excluir este bloco?" })
-  await deleteDialog.getByRole("button", { name: "Excluir" }).click()
+  await drawer.getByLabel("Início").fill("10:00")
+  await drawer.getByLabel("Fim").fill("17:00")
+  await drawer.getByRole("button", { name: "Salvar bloco" }).click()
   await expect(selectedOccurrence).toHaveCount(0)
+  const editedOccurrence = page.getByRole("button", {
+    name: /Disponível, Segunda-feira, 20 de julho de 2026, das 10:00 às 17:00/,
+  })
+  await expect(editedOccurrence).toBeVisible()
+  await expect(
+    page.getByRole("button", {
+      name: /Pausa ou bloqueio, Segunda-feira, 20 de julho de 2026, das 12:00 às 13:00/,
+    }),
+  ).toBeVisible()
 
   await page.getByRole("button", { name: "Próximo período" }).click()
   await expect(page).toHaveURL(/availabilityDate=2026-07-27/)
@@ -388,6 +397,7 @@ test("navigates dated views and removes only one recurring occurrence", async ({
   await page.getByRole("button", { name: "Período anterior" }).click()
   await expect(page).toHaveURL(/availabilityDate=2026-07-20/)
   await expect(selectedOccurrence).toHaveCount(0)
+  await expect(editedOccurrence).toBeVisible()
 })
 
 test("selects a calendar range by dragging and preserves the keyboard alternative", async ({

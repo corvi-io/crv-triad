@@ -89,6 +89,7 @@ const calendarEndMinutes = 22 * 60
 const calendarDurationMinutes = calendarEndMinutes - calendarStartMinutes
 const slotMinutes = 30
 const calendarHeight = 16 * 56
+const editorErrorId = "availability-block-editor-error"
 
 type CalendarBlock = ProjectedAvailabilityBlock
 
@@ -127,6 +128,7 @@ export function AvailabilityCalendar({
   const [deleteTarget, setDeleteTarget] = useState<BlockEditorDraft | null>(null)
   const [selection, setSelection] = useState<DragSelection | null>(null)
   const dragRef = useRef<DragSelection | null>(null)
+  const startInputRef = useRef<HTMLInputElement>(null)
 
   const relationships = useSetupAvailability({ scenarioId })
   const resolvedProfessional =
@@ -238,6 +240,7 @@ export function AvailabilityCalendar({
     if (!editor) return
     if (editor.start >= editor.end) {
       setEditorError("O término deve ser posterior ao início.")
+      startInputRef.current?.focus()
       return
     }
     const targetDays = editor.repeat ? editor.days : [editor.day]
@@ -260,10 +263,7 @@ export function AvailabilityCalendar({
       let next = record
       if (editor.original) {
         if (isRecurringBlock(editor.original) && editor.scope === "single") {
-          next =
-            editor.original.type === "available"
-              ? excludeAllRecurringBlocksOnDate(next, editor.date)
-              : excludeSeriesDate(next, editor.original.seriesId, editor.date)
+          next = excludeSeriesDate(next, editor.original.seriesId, editor.date)
         } else {
           next =
             editor.scope === "series"
@@ -321,9 +321,7 @@ export function AvailabilityCalendar({
       deleteTarget.scope === "series"
         ? removeSeries(record, original.seriesId)
         : isRecurringBlock(original)
-          ? original.type === "available"
-            ? excludeAllRecurringBlocksOnDate(record, original.date)
-            : excludeSeriesDate(record, original.seriesId, original.date)
+          ? excludeSeriesDate(record, original.seriesId, original.date)
           : removeBlock(record, original),
     )
     try {
@@ -633,7 +631,12 @@ export function AvailabilityCalendar({
               </p>
             </div>
 
-            <TimeRangeEditor editor={editor} onChange={setEditor} hasError={Boolean(editorError)} />
+            <TimeRangeEditor
+              editor={editor}
+              hasError={Boolean(editorError && editor.start >= editor.end)}
+              onChange={setEditor}
+              startInputRef={startInputRef}
+            />
 
             {editor.original && editorIsRecurring ? (
               <fieldset className="grid gap-2 rounded-lg border p-3">
@@ -734,7 +737,11 @@ export function AvailabilityCalendar({
             </div>
 
             {editorError ? (
-              <p role="alert" className="text-sm text-feedback-destructive-foreground">
+              <p
+                id={editorErrorId}
+                role="alert"
+                className="text-sm text-feedback-destructive-foreground"
+              >
                 {editorError}
               </p>
             ) : null}
@@ -769,10 +776,12 @@ function TimeRangeEditor({
   editor,
   hasError,
   onChange,
+  startInputRef,
 }: {
   editor: BlockEditorDraft
   hasError: boolean
   onChange: (editor: BlockEditorDraft) => void
+  startInputRef: React.RefObject<HTMLInputElement | null>
 }) {
   return (
     <div className="grid gap-1">
@@ -782,10 +791,12 @@ function TimeRangeEditor({
         <label className="grid gap-0.5 px-3 py-1.5" htmlFor="availability-block-start">
           <span className="text-xs text-muted-foreground">Início</span>
           <input
+            ref={startInputRef}
             id="availability-block-start"
             type="time"
             step={900}
             value={editor.start}
+            aria-describedby={hasError ? editorErrorId : undefined}
             aria-invalid={hasError}
             className="min-w-0 bg-transparent text-sm outline-none"
             onChange={(event) => onChange({ ...editor, start: event.currentTarget.value })}
@@ -801,6 +812,7 @@ function TimeRangeEditor({
             type="time"
             step={900}
             value={editor.end}
+            aria-describedby={hasError ? editorErrorId : undefined}
             aria-invalid={hasError}
             className="min-w-0 bg-transparent text-sm outline-none"
             onChange={(event) => onChange({ ...editor, end: event.currentTarget.value })}
@@ -1095,19 +1107,6 @@ function removeSeries(record: SetupAvailability, seriesId: string): SetupAvailab
 function excludeSeriesDate(record: SetupAvailability, seriesId: string, date: string) {
   const exclude = (block: AvailabilityTimeBlock) =>
     block.seriesId === seriesId && isRecurringBlock(block)
-      ? { ...block, excludedDates: [...new Set([...block.excludedDates, date])].sort() }
-      : block
-  return {
-    ...record,
-    periods: record.periods.map(exclude),
-    breaks: record.breaks.map(exclude),
-    absences: record.absences.map(exclude),
-  }
-}
-
-function excludeAllRecurringBlocksOnDate(record: SetupAvailability, date: string) {
-  const exclude = (block: AvailabilityTimeBlock) =>
-    isRecurringBlock(block)
       ? { ...block, excludedDates: [...new Set([...block.excludedDates, date])].sort() }
       : block
   return {

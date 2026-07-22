@@ -168,7 +168,10 @@ export function blockDateSetIsSubset(
   if (!blockAppliesOnDate(container, firstChildDate)) return false
   if (!endCovers(container.recurrenceUntil, child.recurrenceUntil)) return false
   return container.excludedDates.every(
-    (date) => !blockAppliesOnDate(child, date) || child.excludedDates.includes(date),
+    (date) =>
+      weekdayForDate(date) !== day ||
+      !blockAppliesOnDate(child, date) ||
+      child.excludedDates.includes(date),
   )
 }
 

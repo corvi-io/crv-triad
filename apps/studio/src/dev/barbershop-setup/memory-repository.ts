@@ -600,13 +600,7 @@ function findConflicts(records: readonly SetupAvailability[]) {
       conflicts.push(`${weekday}: períodos de trabalho sobrepostos.`)
     if (hasOverlaps(record.breaks, record.day)) conflicts.push(`${weekday}: pausas sobrepostas.`)
     if (
-      record.breaks.some(
-        (pause) =>
-          !record.periods.some(
-            (period) =>
-              containsRange(period, pause) && blockDateSetIsSubset(pause, period, record.day),
-          ),
-      )
+      record.breaks.some((pause) => !isBlockCoveredByPeriods(pause, record.periods, record.day))
     ) {
       conflicts.push(`${weekday}: pausa fora do período de trabalho.`)
     }
@@ -614,12 +608,7 @@ function findConflicts(records: readonly SetupAvailability[]) {
     if (hasOverlaps(record.absences, record.day))
       conflicts.push(`${weekday}: ausências sobrepostas.`)
     for (const absence of record.absences) {
-      if (
-        !record.periods.some(
-          (period) =>
-            containsRange(period, absence) && blockDateSetIsSubset(absence, period, record.day),
-        )
-      ) {
+      if (!isBlockCoveredByPeriods(absence, record.periods, record.day)) {
         conflicts.push(`${weekday}: ausência fora do período de trabalho.`)
       } else if (
         record.breaks.some(
@@ -636,6 +625,18 @@ function findConflicts(records: readonly SetupAvailability[]) {
 
 function containsRange(container: TimeRange, range: TimeRange) {
   return range.start >= container.start && range.end <= container.end
+}
+
+function isBlockCoveredByPeriods(
+  block: AvailabilityTimeBlock,
+  periods: readonly AvailabilityTimeBlock[],
+  day: Weekday,
+) {
+  return periods.some(
+    (period) =>
+      containsRange(period, block) &&
+      blockDateSetIsSubset(block, { ...period, excludedDates: [] }, day),
+  )
 }
 
 function hasOverlaps(ranges: readonly AvailabilityTimeBlock[], day: Weekday) {

@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useState } from "react"
 import { describe, expect, it } from "vitest"
 import { resolveBarbershopSetupScenario } from "@/dev/barbershop-setup/entry"
 import { BarbershopSetupMemoryRepository } from "@/dev/barbershop-setup/memory-repository"
+import { projectAvailability } from "@/modules/barbershop-setup/availability-dates"
 import type { SetupScenarioId, SetupSection } from "@/modules/barbershop-setup/contracts"
 import { serviceFormSchema, unitFormSchema } from "@/modules/barbershop-setup/entity-drawer"
 import { barbershopSetupQueryKeys } from "@/modules/barbershop-setup/queries"
@@ -128,6 +129,132 @@ describe("barbershop setup module", () => {
     expect(screen.getByLabelText("Fim")).toHaveValue("10:00")
   })
 
+  it("describes an inverted time range and focuses its first invalid field", async () => {
+    const user = userEvent.setup()
+    renderSetup("single-unit", "availability")
+    await user.click(await screen.findByRole("button", { name: "Adicionar bloco" }))
+    const drawer = await screen.findByRole("dialog", { name: "Disponibilidade / Novo bloco" })
+    const start = within(drawer).getByLabelText("Início")
+    const end = within(drawer).getByLabelText("Fim")
+    await user.clear(start)
+    await user.type(start, "11:00")
+    await user.clear(end)
+    await user.type(end, "10:00")
+    await user.click(within(drawer).getByRole("button", { name: "Salvar bloco" }))
+
+    const alert = await within(drawer).findByRole("alert")
+    expect(alert).toHaveTextContent("O término deve ser posterior ao início.")
+    expect(alert).toHaveAttribute("id", "availability-block-editor-error")
+    expect(start).toHaveAttribute("aria-invalid", "true")
+    expect(end).toHaveAttribute("aria-invalid", "true")
+    expect(start).toHaveAttribute("aria-describedby", alert.id)
+    expect(end).toHaveAttribute("aria-describedby", alert.id)
+    expect(start).toHaveFocus()
+  })
+
+  it("deletes only the selected availability occurrence and preserves independent blocks", async () => {
+    const repository = await repositoryWithIndependentMondayBlocks()
+    const user = userEvent.setup()
+    renderSetup("single-unit", "availability", repository)
+    const selectedOccurrence = await screen.findByRole("button", {
+      name: /Disponível, Segunda-feira, 20 de julho de 2026, das 09:00 às 18:00/,
+    })
+    await user.click(selectedOccurrence)
+    const drawer = await screen.findByRole("dialog", { name: "Disponibilidade / Editar bloco" })
+    await user.click(within(drawer).getByRole("button", { name: "Excluir" }))
+    const dialog = await screen.findByRole("dialog", { name: "Excluir este bloco?" })
+    await user.click(within(dialog).getByRole("button", { name: "Excluir" }))
+
+    await waitFor(() => expect(selectedOccurrence).not.toBeInTheDocument())
+    expect(
+      screen.getByRole("button", {
+        name: /Disponível, Segunda-feira, 20 de julho de 2026, das 18:00 às 19:00/,
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole("button", {
+        name: /Pausa ou bloqueio, Segunda-feira, 20 de julho de 2026, das 12:00 às 13:00/,
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole("button", {
+        name: /Ausência, Segunda-feira, 20 de julho de 2026, das 14:00 às 15:00/,
+      }),
+    ).toBeVisible()
+
+    const after = await repository.getAvailability(availabilityQuery)
+    const monday = after.records.find(({ day }) => day === "monday")
+    expect(
+      monday?.periods.find(({ seriesId }) => seriesId === morningSeriesId)?.excludedDates,
+    ).toContain("2026-07-20")
+    expect(
+      monday?.periods.find(({ seriesId }) => seriesId === eveningSeriesId)?.excludedDates,
+    ).toEqual([])
+    expect(monday?.breaks[0]?.excludedDates).toEqual([])
+    expect(monday?.absences[0]?.excludedDates).toEqual([])
+    expect(projectAvailability(after.records, { start: "2026-07-27", end: "2026-07-27" })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ seriesId: morningSeriesId, start: "09:00", end: "18:00" }),
+      ]),
+    )
+  })
+
+  it("edits only the selected occurrence and preserves unrelated blocks and later dates", async () => {
+    const repository = await repositoryWithIndependentMondayBlocks()
+    const user = userEvent.setup()
+    renderSetup("single-unit", "availability", repository)
+    await user.click(
+      await screen.findByRole("button", {
+        name: /Disponível, Segunda-feira, 20 de julho de 2026, das 09:00 às 18:00/,
+      }),
+    )
+    const drawer = await screen.findByRole("dialog", { name: "Disponibilidade / Editar bloco" })
+    const start = within(drawer).getByLabelText("Início")
+    const end = within(drawer).getByLabelText("Fim")
+    await user.clear(start)
+    await user.type(start, "10:00")
+    await user.clear(end)
+    await user.type(end, "11:00")
+    await user.click(within(drawer).getByRole("button", { name: "Salvar bloco" }))
+
+    expect(
+      await screen.findByRole("button", {
+        name: /Disponível, Segunda-feira, 20 de julho de 2026, das 10:00 às 11:00/,
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole("button", {
+        name: /Pausa ou bloqueio, Segunda-feira, 20 de julho de 2026, das 12:00 às 13:00/,
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole("button", {
+        name: /Ausência, Segunda-feira, 20 de julho de 2026, das 14:00 às 15:00/,
+      }),
+    ).toBeVisible()
+
+    const after = await repository.getAvailability(availabilityQuery)
+    const monday = after.records.find(({ day }) => day === "monday")
+    expect(
+      monday?.periods.find(({ seriesId }) => seriesId === morningSeriesId)?.excludedDates,
+    ).toContain("2026-07-20")
+    expect(monday?.periods).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ occurrenceDate: "2026-07-20", start: "10:00", end: "11:00" }),
+      ]),
+    )
+    expect(
+      monday?.periods.find(({ seriesId }) => seriesId === eveningSeriesId)?.excludedDates,
+    ).toEqual([])
+    expect(monday?.breaks[0]?.excludedDates).toEqual([])
+    expect(monday?.absences[0]?.excludedDates).toEqual([])
+    expect(projectAvailability(after.records, { start: "2026-07-27", end: "2026-07-27" })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ seriesId: morningSeriesId, start: "09:00", end: "18:00" }),
+      ]),
+    )
+  })
+
   it("creates the first availability block after a professional gains a unit", async () => {
     const repository = new BarbershopSetupMemoryRepository()
     await repository.selectScenario("incomplete-setup")
@@ -204,6 +331,52 @@ describe("barbershop setup module", () => {
     )
   })
 })
+
+const availabilityQuery = {
+  professionalId: "professional-alpha",
+  scenarioId: "single-unit" as const,
+  unitId: "unit-center",
+}
+const morningSeriesId = "series-professional-alpha-unit-center-available-default"
+const eveningSeriesId = "series-professional-alpha-unit-center-available-evening"
+
+async function repositoryWithIndependentMondayBlocks() {
+  const repository = new BarbershopSetupMemoryRepository()
+  const availability = await repository.getAvailability(availabilityQuery)
+  await repository.updateAvailabilityBatch({
+    records: availability.records.map((record) => {
+      const morning = record.periods[0]
+      if (!morning) return record
+      return {
+        ...record,
+        absences:
+          record.day === "monday"
+            ? [
+                {
+                  end: "15:00",
+                  excludedDates: [],
+                  id: "monday-independent-absence",
+                  occurrenceDate: "2026-07-20",
+                  seriesId: "monday-independent-absence",
+                  start: "14:00",
+                },
+              ]
+            : record.absences,
+        periods: [
+          morning,
+          {
+            ...morning,
+            end: "19:00",
+            id: `${record.id}-evening`,
+            seriesId: eveningSeriesId,
+            start: "18:00",
+          },
+        ],
+      }
+    }),
+  })
+  return repository
+}
 
 function renderSetup(
   scenario: SetupScenarioId,

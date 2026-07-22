@@ -412,25 +412,54 @@ describe("barbershop setup memory repository", () => {
 
   it("stores one dated override without changing later series occurrences", async () => {
     const repository = new BarbershopSetupMemoryRepository()
-    const before = await repository.getAvailability({
+    const initial = await repository.getAvailability({
       professionalId: "professional-alpha",
       scenarioId: "single-unit",
       unitId: "unit-center",
     })
     const exceptionDate = "2026-07-20"
+    const initialMonday = initial.records.find(({ day }) => day === "monday")
+    expect(initialMonday).toBeDefined()
+    if (!initialMonday) return
+    await repository.updateAvailabilityBatch({
+      records: initial.records.map((record) =>
+        record.day === "monday"
+          ? {
+              ...record,
+              absences: [
+                ...record.absences,
+                {
+                  end: "16:00",
+                  excludedDates: [],
+                  id: "monday-independent-absence",
+                  recurrenceStart: "2025-01-01",
+                  seriesId: "monday-independent-absence",
+                  start: "14:00",
+                },
+              ],
+            }
+          : record,
+      ),
+    })
+    const before = await repository.getAvailability({
+      professionalId: "professional-alpha",
+      scenarioId: "single-unit",
+      unitId: "unit-center",
+    })
     const monday = before.records.find(({ day }) => day === "monday")
     expect(monday).toBeDefined()
     if (!monday) return
 
-    const excludeDate = (block: (typeof monday.periods)[number]) => ({
-      ...block,
-      excludedDates: [...block.excludedDates, exceptionDate],
-    })
+    const selectedSeriesId = monday.periods[0]?.seriesId
+    expect(selectedSeriesId).toBeDefined()
+    if (!selectedSeriesId) return
     const updates = before.records.map((record) => ({
       ...record,
-      absences: record.absences.map(excludeDate),
-      breaks: record.breaks.map(excludeDate),
-      periods: record.periods.map(excludeDate),
+      periods: record.periods.map((block) =>
+        block.seriesId === selectedSeriesId
+          ? { ...block, excludedDates: [...block.excludedDates, exceptionDate] }
+          : block,
+      ),
     }))
     const mondayUpdate = updates.find(({ day }) => day === "monday")
     if (!mondayUpdate) return
@@ -455,12 +484,39 @@ describe("barbershop setup memory repository", () => {
     const occurrences = projectAvailability(after.records, {
       start: exceptionDate,
       end: "2026-07-27",
-    }).filter(({ day, type }) => day === "monday" && type === "available")
+    }).filter(({ day }) => day === "monday")
 
-    expect(occurrences).toEqual([
-      expect.objectContaining({ date: exceptionDate, start: "10:00", end: "17:00" }),
-      expect.objectContaining({ date: "2026-07-27", start: "09:00", end: "18:00" }),
-    ])
+    expect(occurrences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          date: exceptionDate,
+          end: "17:00",
+          start: "10:00",
+          type: "available",
+        }),
+        expect.objectContaining({
+          date: exceptionDate,
+          end: "13:00",
+          start: "12:00",
+          type: "break",
+        }),
+        expect.objectContaining({
+          date: exceptionDate,
+          end: "16:00",
+          start: "14:00",
+          type: "absence",
+        }),
+        expect.objectContaining({
+          date: "2026-07-27",
+          end: "18:00",
+          start: "09:00",
+          type: "available",
+        }),
+      ]),
+    )
+    const mondayAfter = after.records.find(({ day }) => day === "monday")
+    expect(mondayAfter?.breaks[0]?.excludedDates).not.toContain(exceptionDate)
+    expect(mondayAfter?.absences[0]?.excludedDates).not.toContain(exceptionDate)
   })
 
   it("creates a complete week for a newly linked professional and unit", async () => {
