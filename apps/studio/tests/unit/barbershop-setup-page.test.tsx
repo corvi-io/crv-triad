@@ -5,6 +5,8 @@ import { useState } from "react"
 import { describe, expect, it } from "vitest"
 import { BarbershopSetupMemoryRepository } from "@/dev/barbershop-setup/memory-repository"
 import type { SetupScenarioId, SetupSection } from "@/modules/barbershop-setup/contracts"
+import { serviceFormSchema } from "@/modules/barbershop-setup/entity-drawer"
+import { barbershopSetupQueryKeys } from "@/modules/barbershop-setup/queries"
 import { BarbershopSetupRepositoryProvider } from "@/modules/barbershop-setup/repository-context"
 import type { BarbershopSetupSearch } from "@/modules/barbershop-setup/search"
 import { validateBarbershopSetupSearch } from "@/modules/barbershop-setup/search"
@@ -47,6 +49,41 @@ describe("barbershop setup presentation", () => {
     expect(await screen.findByText("Informe um nome com pelo menos 2 caracteres.")).toBeVisible()
     expect(name).toHaveAttribute("aria-invalid", "true")
     expect(name).toHaveFocus()
+  })
+
+  it("uses filtered availability keys and hides conflicts outside the visible relationship", async () => {
+    expect(
+      barbershopSetupQueryKeys.availability({
+        professionalId: "professional-bravo",
+        scenarioId: "availability-conflicts",
+        unitId: "unit-center",
+      }),
+    ).not.toEqual(barbershopSetupQueryKeys.availability({ scenarioId: "availability-conflicts" }))
+
+    const user = userEvent.setup()
+    renderSetup("availability-conflicts", "availability")
+    expect(await screen.findByRole("alert")).toHaveTextContent("períodos de trabalho sobrepostos")
+    await user.click(screen.getByLabelText("Profissional"))
+    await user.click(await screen.findByRole("option", { name: "Profissional Bravo" }))
+    expect(await screen.findByRole("group", { name: "Segunda-feira" })).toBeVisible()
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("returns explicit Portuguese errors for empty numeric service fields", () => {
+    const result = serviceFormSchema.safeParse({
+      category: "Cabelo",
+      description: "Descrição sintética válida",
+      durationMinutes: Number.NaN,
+      kind: "service",
+      name: "Serviço válido",
+      price: Number.NaN,
+      professionalIds: ["professional-alpha"],
+      unitIds: ["unit-center"],
+    })
+    expect(result.error?.issues.map(({ message }) => message)).toEqual([
+      "Informe a duração em minutos.",
+      "Informe o preço do serviço.",
+    ])
   })
 })
 

@@ -330,11 +330,47 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
       if (service.priceCents < 0) throw new SetupValidationError("Informe um preço válido.")
       this.#assertActiveRelations("unit", service.unitIds)
       this.#assertActiveRelations("professional", service.professionalIds)
+      this.#assertProfessionalsServeUnits(service.professionalIds, service.unitIds)
     }
     if (kind === "professional") {
       const professional = input as SetupProfessional
       this.#assertActiveRelations("unit", professional.unitIds)
       this.#assertActiveRelations("service", professional.serviceIds)
+      this.#assertServicesServeUnits(professional.serviceIds, professional.unitIds)
+    }
+  }
+
+  #assertProfessionalsServeUnits(professionalIds: readonly string[], unitIds: readonly string[]) {
+    const selectedUnits = new Set(unitIds)
+    const professionals = this.#engine
+      .values()
+      .filter(
+        (record): record is SetupProfessional =>
+          record.kind === "professional" && professionalIds.includes(record.id),
+      )
+    if (
+      professionals.some(
+        (professional) => !professional.unitIds.some((id) => selectedUnits.has(id)),
+      )
+    ) {
+      throw new SetupValidationError(
+        "Selecione apenas profissionais que atendam a pelo menos uma unidade do serviço.",
+      )
+    }
+  }
+
+  #assertServicesServeUnits(serviceIds: readonly string[], unitIds: readonly string[]) {
+    const selectedUnits = new Set(unitIds)
+    const services = this.#engine
+      .values()
+      .filter(
+        (record): record is SetupService =>
+          record.kind === "service" && serviceIds.includes(record.id),
+      )
+    if (services.some((service) => !service.unitIds.some((id) => selectedUnits.has(id)))) {
+      throw new SetupValidationError(
+        "Selecione apenas serviços disponíveis em pelo menos uma unidade do profissional.",
+      )
     }
   }
 

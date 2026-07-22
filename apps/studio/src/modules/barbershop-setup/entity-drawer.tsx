@@ -59,8 +59,11 @@ export const serviceFormSchema = z.object({
   ...baseSchema,
   category: z.string().trim().min(2, "Informe uma categoria."),
   description: z.string().trim().min(5, "Informe uma descrição."),
-  durationMinutes: z.coerce.number().int().min(15, "Use duração mínima de 15 minutos."),
-  price: z.coerce.number().min(0, "Informe um preço válido."),
+  durationMinutes: z
+    .number({ error: "Informe a duração em minutos." })
+    .int("Informe a duração em minutos inteiros.")
+    .min(15, "Use duração mínima de 15 minutos."),
+  price: z.number({ error: "Informe o preço do serviço." }).min(0, "Informe um preço válido."),
   unitIds: z.array(z.string()).min(1, "Selecione pelo menos uma unidade."),
   professionalIds: z.array(z.string()).min(1, "Selecione pelo menos um profissional."),
 })
@@ -182,6 +185,31 @@ function EntityForm({
     resolver: zodResolver(setupEntityFormSchema),
     defaultValues: getDefaultValues(entityKind, entity),
   })
+  const watchedUnitIds = form.watch("unitIds")
+  const selectedUnitIds = Array.isArray(watchedUnitIds) ? watchedUnitIds : []
+  const eligibleProfessionals = professionals.filter((professional) =>
+    professional.unitIds.some((unitId) => selectedUnitIds.includes(unitId)),
+  )
+
+  function handleServiceUnitsChange(nextUnitIds: readonly string[]) {
+    if (entityKind !== "service") return
+    const eligibleIds = new Set(
+      professionals
+        .filter((professional) =>
+          professional.unitIds.some((unitId) => nextUnitIds.includes(unitId)),
+        )
+        .map(({ id }) => id),
+    )
+    const selectedProfessionalIds = form.getValues("professionalIds")
+    if (!Array.isArray(selectedProfessionalIds)) return
+    const compatibleProfessionalIds = selectedProfessionalIds.filter((id) => eligibleIds.has(id))
+    if (compatibleProfessionalIds.length === selectedProfessionalIds.length) return
+    form.setValue("professionalIds", compatibleProfessionalIds, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: form.formState.isSubmitted,
+    })
+  }
 
   async function submit(values: SetupEntityFormValues) {
     const parsed = setupEntityFormSchema.parse(values)
@@ -286,13 +314,15 @@ function EntityForm({
               name="unitIds"
               label="Unidades"
               options={units}
+              onValuesChange={handleServiceUnitsChange}
             />
             <RelationField
               control={form.control}
               formId={formId}
               name="professionalIds"
               label="Profissionais elegíveis"
-              options={professionals}
+              description="Mostramos somente profissionais que atendem a pelo menos uma unidade selecionada."
+              options={eligibleProfessionals}
             />
           </FormSection>
         ) : null}
@@ -499,12 +529,16 @@ function RelationField({
   formId,
   label,
   name,
+  description,
+  onValuesChange,
   options,
 }: {
   control: ReturnType<typeof useForm<SetupEntityFormValues>>["control"]
+  description?: string
   formId: string
   label: string
   name: RelationName
+  onValuesChange?: (values: readonly string[]) => void
   options: readonly SetupEntity[]
 }) {
   return (
@@ -513,14 +547,21 @@ function RelationField({
       name={name}
       render={({ field, fieldState }) => {
         const errorId = `${formId}-${name}-error`
+        const descriptionId = `${formId}-${name}-description`
         const groupId = `${formId}-${name}`
         const isRequired = name !== "serviceIds"
+        const describedBy = [
+          description ? descriptionId : undefined,
+          fieldState.invalid ? errorId : undefined,
+        ]
+          .filter(Boolean)
+          .join(" ")
         return (
           <FieldSet
             ref={options.length === 0 ? field.ref : undefined}
             tabIndex={options.length === 0 ? -1 : undefined}
             data-invalid={fieldState.invalid}
-            aria-describedby={fieldState.invalid ? errorId : undefined}
+            aria-describedby={describedBy || undefined}
             aria-invalid={fieldState.invalid}
             aria-required={isRequired}
           >
@@ -528,6 +569,11 @@ function RelationField({
               {label}
               {isRequired ? " *" : ""}
             </FieldLegend>
+            {description ? (
+              <p id={descriptionId} className="text-sm text-muted-foreground">
+                {description}
+              </p>
+            ) : null}
             <div className="grid gap-2 sm:grid-cols-2">
               {options.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhuma opção ativa neste cenário.</p>
@@ -544,16 +590,16 @@ function RelationField({
                         type="checkbox"
                         className="size-5 accent-primary"
                         checked={values.includes(option.id)}
-                        aria-describedby={fieldState.invalid ? errorId : undefined}
+                        aria-describedby={describedBy || undefined}
                         aria-invalid={fieldState.invalid}
                         onBlur={field.onBlur}
-                        onChange={(event) =>
-                          field.onChange(
-                            event.currentTarget.checked
-                              ? [...values, option.id]
-                              : values.filter((value) => value !== option.id),
-                          )
-                        }
+                        onChange={(event) => {
+                          const nextValues = event.currentTarget.checked
+                            ? [...values, option.id]
+                            : values.filter((value) => value !== option.id)
+                          field.onChange(nextValues)
+                          onValuesChange?.(nextValues)
+                        }}
                       />
                       <FieldLabel htmlFor={id}>{option.name}</FieldLabel>
                     </Field>

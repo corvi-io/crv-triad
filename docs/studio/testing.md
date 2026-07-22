@@ -39,10 +39,11 @@ use the real IDP boundary; the preview is local QA tooling and redirects in prod
 URLs, overview, catalogs, in-memory create/reset, observable drawer entry/exit with reduced-motion
 suppression and focus restoration, scalar and relationship first-invalid focus, slow-result
 isolation, one-shot mutation recovery, atomic weekday-copy failure/success with active-draft
-preservation, linked-service archive blocking, persistent load failure, availability conflicts,
-axe, 320 CSS-pixel reflow, keyboard focus, and dark mode. Production preview coverage proves the
-route redirects, and the production-boundary scan rejects adapter, fixture, scenario-control, and
-dense-record markers.
+preservation, destination-specific absences, linked-service archive blocking, service-unit
+eligibility, Portuguese numeric errors, persistent load failure, availability conflicts filtered to
+the visible relationship, axe, 320 CSS-pixel reflow, keyboard focus, and dark mode. Production
+preview coverage proves the route redirects, and the production-boundary scan rejects adapter,
+fixture, scenario-control, and dense-record markers.
 
 `tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
 the resolved class at the first animation frame, measures browser-computed contrast for core

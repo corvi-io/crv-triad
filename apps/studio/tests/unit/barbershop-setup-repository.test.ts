@@ -120,6 +120,56 @@ describe("barbershop setup memory repository", () => {
     )
   })
 
+  it("requires every selected service professional to serve a selected unit", async () => {
+    const repository = new BarbershopSetupMemoryRepository()
+    await repository.selectScenario("multi-unit")
+    const input = {
+      category: "Apresentação",
+      description: "Serviço sintético para testar elegibilidade por unidade.",
+      durationMinutes: 30,
+      name: "Serviço por unidade",
+      priceCents: 4200,
+      unitIds: ["unit-center"],
+    }
+
+    await expect(
+      repository.create("service", {
+        ...input,
+        professionalIds: ["professional-bravo"],
+      }),
+    ).rejects.toThrow(
+      "Selecione apenas profissionais que atendam a pelo menos uma unidade do serviço.",
+    )
+
+    const created = await repository.create("service", {
+      ...input,
+      professionalIds: ["professional-alpha"],
+    })
+    expect(created).toMatchObject({ professionalIds: ["professional-alpha"] })
+
+    const bravo = (
+      await repository.list({
+        ...listQuery,
+        kind: "professional",
+        pageSize: 20,
+        scenarioId: "multi-unit",
+      })
+    ).items.find(({ id }) => id === "professional-bravo")
+    expect(bravo?.kind).toBe("professional")
+    if (bravo?.kind !== "professional") return
+    await expect(
+      repository.update("professional", bravo.id, {
+        accountAccess: bravo.accountAccess,
+        name: bravo.name,
+        role: bravo.role,
+        serviceIds: [...bravo.serviceIds, created.id],
+        unitIds: bravo.unitIds,
+      }),
+    ).rejects.toThrow(
+      "Selecione apenas serviços disponíveis em pelo menos uma unidade do profissional.",
+    )
+  })
+
   it("keeps relationship rollback and reset coherent", async () => {
     const repository = new BarbershopSetupMemoryRepository()
     await repository.selectScenario("next-failure")
@@ -219,6 +269,19 @@ describe("barbershop setup memory repository", () => {
     expect(result.conflicts).toContain("Quarta-feira: pausas sobrepostas.")
     expect(result.conflicts).toContain("Sexta-feira: ausência fora do período de trabalho.")
     expect(result.conflicts).toContain("Sábado: dia fechado contém horários.")
+    const nonConflictingSelection = await repository.getAvailability({
+      professionalId: "professional-bravo",
+      scenarioId: "availability-conflicts",
+      unitId: "unit-center",
+    })
+    expect(nonConflictingSelection.records).toHaveLength(7)
+    expect(
+      nonConflictingSelection.records.every(
+        ({ professionalId, unitId }) =>
+          professionalId === "professional-bravo" && unitId === "unit-center",
+      ),
+    ).toBe(true)
+    expect(nonConflictingSelection.conflicts).toEqual([])
     const monday = result.records.find(
       ({ day, professionalId }) => day === "monday" && professionalId === "professional-alpha",
     )
@@ -280,6 +343,36 @@ describe("barbershop setup memory repository", () => {
         .filter(({ id }) => targetIds.includes(id))
         .every(({ periods }) => periods[0]?.start === "10:00"),
     ).toBe(true)
+  })
+
+  it("keeps destination-specific absences when copying recurring weekday hours", async () => {
+    const repository = new BarbershopSetupMemoryRepository()
+    const availability = await repository.getAvailability({
+      professionalId: "professional-alpha",
+      scenarioId: "single-unit",
+      unitId: "unit-center",
+    })
+    const source = availability.records.find(({ day }) => day === "monday")
+    const target = availability.records.find(({ day }) => day === "thursday")
+    expect(source).toBeDefined()
+    expect(target).toBeDefined()
+    if (!source || !target) return
+    await repository.updateAvailability({
+      ...target,
+      timeOff: "Ausência sintética: 14:00–15:00",
+    })
+    await repository.copyAvailabilityToWeekdays({
+      source: { ...source, timeOff: "Ausência sintética: 15:00–16:00" },
+      targetIds: [target.id],
+    })
+    const copiedTarget = (
+      await repository.getAvailability({
+        professionalId: "professional-alpha",
+        scenarioId: "single-unit",
+        unitId: "unit-center",
+      })
+    ).records.find(({ id }) => id === target.id)
+    expect(copiedTarget?.timeOff).toBe("Ausência sintética: 14:00–15:00")
   })
 
   it("uses distinct scenario query inputs so a slow result cannot replace the active result", async () => {

@@ -16,10 +16,13 @@ support bounded search, status filtering, three-state sorting, pagination, inspe
 archive, and restore. Archive commands block active dependencies instead of silently orphaning
 records. Service `professionalIds` are the canonical professional/service relationship in the
 presentation adapter; professional `serviceIds` are derived after create, update, archive, restore,
-scenario selection, and reset so both visible directions stay coherent. Availability uses explicit
-day/time fields, closed-day switches, breaks, time-off feedback, conflict descriptions, and one
-atomic Monday-to-Friday copy command; dragging is not required. Clean destination cards refresh
-from committed copy results while an actively edited destination draft is preserved.
+scenario selection, and reset so both visible directions stay coherent. A selected professional
+must serve at least one active unit selected for the service. Availability uses explicit day/time
+fields, closed-day switches, breaks, time-off feedback, conflict descriptions filtered to the
+visible professional/unit week, and one atomic Monday-to-Friday copy command; dragging is not
+required. Copy replicates recurring work periods, breaks, and closed state. Day-specific absences
+remain attached to their destination day and are not copied. Clean destination cards refresh from
+committed copy results while an actively edited destination draft is preserved.
 
 All UI and validation copy is Brazilian Portuguese. Tables own bounded horizontal overflow, forms
 reflow to one column, statuses include text, and Base UI/shadcn overlays retain keyboard focus
@@ -96,12 +99,13 @@ compositions remain module-owned because their vocabulary and relationships are 
 
 Focused Vitest covers URL validation, scenario isolation, deterministic reset/IDs, dependency
 blocking, one-shot and persistent failure, availability validation, stale scenario isolation,
-relationship synchronization, delayed mutation invalidation, atomic copy rollback, forms,
-navigation, reset, and optimistic rollback. Playwright covers stable navigation, axe, in-memory
-create/reset, drawer entry/exit and reduced motion, scalar/relationship error focus, one-shot
+relationship synchronization and unit intersection, delayed mutation invalidation, atomic copy
+rollback with destination-specific absences, filtered availability conflicts, forms, navigation,
+reset, and optimistic rollback. Playwright covers stable navigation, axe, in-memory create/reset,
+drawer entry/exit and reduced motion, Portuguese numeric and relationship error focus, one-shot
 recovery, persistent failure, copy refresh and active-draft preservation, dependency blocking,
-conflict feedback, 320 CSS-pixel reflow, keyboard focus, and dark mode. Production checks cover
-redirect and bundle exclusion.
+visible-week conflict feedback, 320 CSS-pixel reflow, keyboard focus, and dark mode. Production
+checks cover redirect and bundle exclusion.
 
 VoiceOver/NVDA, a physical coarse-pointer device, OS-level forced-colors visual inspection, and a
 deployed authenticated `dev` review remain manual follow-ups unless recorded as completed in the

@@ -649,20 +649,36 @@ function EntitySection({
 }
 
 function AvailabilitySection({ scenarioId }: { scenarioId: SetupScenarioId }) {
-  const availability = useSetupAvailability({ scenarioId })
-  const copyAvailability = useCopySetupAvailabilityToWeekdays()
-  const updateAvailability = useUpdateSetupAvailability()
   const [professionalId, setProfessionalId] = useState<string>()
   const [unitId, setUnitId] = useState<string>()
-  if (availability.isPending) return <LoadingCards label="Carregando disponibilidade…" />
-  if (availability.isError)
+  const relationships = useSetupAvailability({ scenarioId })
+  const resolvedProfessional =
+    relationships.data?.professionals.find(({ id }) => id === professionalId) ??
+    relationships.data?.professionals[0]
+  const resolvedUnitId =
+    unitId && resolvedProfessional?.unitIds.includes(unitId)
+      ? unitId
+      : (resolvedProfessional?.unitIds[0] ?? relationships.data?.units[0]?.id)
+  const availability = useSetupAvailability({
+    scenarioId,
+    professionalId: resolvedProfessional?.id,
+    unitId: resolvedUnitId,
+  })
+  const copyAvailability = useCopySetupAvailabilityToWeekdays()
+  const updateAvailability = useUpdateSetupAvailability()
+  if (relationships.isPending || availability.isPending)
+    return <LoadingCards label="Carregando disponibilidade…" />
+  if (relationships.isError || availability.isError)
     return (
       <ErrorState
         title="Não foi possível carregar a disponibilidade"
-        onRetry={() => availability.refetch()}
+        onRetry={() => {
+          relationships.refetch()
+          availability.refetch()
+        }}
       />
     )
-  if (availability.data.professionals.length === 0 || availability.data.units.length === 0)
+  if (relationships.data.professionals.length === 0 || relationships.data.units.length === 0)
     return (
       <EmptyState
         icon={CalendarClockIcon}
@@ -670,17 +686,9 @@ function AvailabilitySection({ scenarioId }: { scenarioId: SetupScenarioId }) {
         description="Adicione uma unidade e um profissional antes de definir horários."
       />
     )
-  const selectedProfessional =
-    availability.data.professionals.find(({ id }) => id === professionalId) ??
-    availability.data.professionals[0]
-  const selectedUnitId =
-    unitId && selectedProfessional.unitIds.includes(unitId)
-      ? unitId
-      : (selectedProfessional.unitIds[0] ?? availability.data.units[0].id)
-  const records = availability.data.records.filter(
-    (record) =>
-      record.professionalId === selectedProfessional.id && record.unitId === selectedUnitId,
-  )
+  const selectedProfessional = resolvedProfessional ?? relationships.data.professionals[0]
+  const selectedUnitId = resolvedUnitId ?? relationships.data.units[0].id
+  const records = availability.data.records
 
   async function save(record: SetupAvailability) {
     try {
@@ -730,7 +738,7 @@ function AvailabilitySection({ scenarioId }: { scenarioId: SetupScenarioId }) {
               <SelectValue>{selectedProfessional.name}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {availability.data.professionals.map((professional) => (
+              {relationships.data.professionals.map((professional) => (
                 <SelectItem key={professional.id} value={professional.id}>
                   {professional.name}
                 </SelectItem>
@@ -743,11 +751,11 @@ function AvailabilitySection({ scenarioId }: { scenarioId: SetupScenarioId }) {
           <Select value={selectedUnitId} onValueChange={(value) => setUnitId(value ?? undefined)}>
             <SelectTrigger id="availability-unit">
               <SelectValue>
-                {availability.data.units.find(({ id }) => id === selectedUnitId)?.name}
+                {relationships.data.units.find(({ id }) => id === selectedUnitId)?.name}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {availability.data.units
+              {relationships.data.units
                 .filter(({ id }) => selectedProfessional.unitIds.includes(id))
                 .map((unit) => (
                   <SelectItem key={unit.id} value={unit.id}>

@@ -113,6 +113,29 @@ test("exposes stable relationship errors and focuses each first invalid group", 
   await page.getByRole("textbox", { name: "Nome *" }).fill("Serviço novo")
   await page.getByLabel("Categoria").fill("Cabelo")
   await page.getByLabel("Descrição").fill("Descrição sintética válida")
+  await page.getByLabel("Duração (min)").fill("")
+  await page.getByLabel("Preço (R$)").fill("")
+  await page.getByRole("button", { name: "Salvar" }).click()
+
+  const duration = page.getByLabel("Duração (min)")
+  await expect(page.getByText("Informe a duração em minutos.")).toHaveAttribute(
+    "id",
+    "setup-service-form-duration-error",
+  )
+  await expect(duration).toHaveAttribute("aria-invalid", "true")
+  await expect(duration).toHaveAttribute("aria-describedby", "setup-service-form-duration-error")
+  await expect(duration).toBeFocused()
+  await duration.fill("30")
+  await page.getByRole("button", { name: "Salvar" }).click()
+  const price = page.getByLabel("Preço (R$)")
+  await expect(page.getByText("Informe o preço do serviço.")).toHaveAttribute(
+    "id",
+    "setup-service-form-price-error",
+  )
+  await expect(price).toHaveAttribute("aria-invalid", "true")
+  await expect(price).toHaveAttribute("aria-describedby", "setup-service-form-price-error")
+  await expect(price).toBeFocused()
+  await price.fill("40")
   await page.getByRole("button", { name: "Salvar" }).click()
 
   const unit = page.getByLabel("Unidade Centro")
@@ -134,9 +157,39 @@ test("exposes stable relationship errors and focuses each first invalid group", 
   await expect(professional).toHaveAttribute("aria-invalid", "true")
   await expect(professional).toHaveAttribute(
     "aria-describedby",
-    "setup-service-form-professionalIds-error",
+    "setup-service-form-professionalIds-description setup-service-form-professionalIds-error",
   )
   await expect(professional).toBeFocused()
+})
+
+test("filters incompatible service professionals and focuses the cleared relationship", async ({
+  page,
+}) => {
+  await page.goto(setupUrl("multi-unit", "services"))
+  await page.getByRole("button", { name: "Novo serviço" }).click()
+  await page.getByRole("textbox", { name: "Nome *" }).fill("Serviço por unidade")
+  await page.getByLabel("Categoria").fill("Cabelo")
+  await page.getByLabel("Descrição").fill("Descrição sintética válida")
+  const center = page.getByLabel("Unidade Centro")
+  const riverside = page.getByLabel("Unidade Beira-Rio")
+  await riverside.check()
+  const bravo = page.getByLabel("Profissional Bravo")
+  await bravo.check()
+  await center.check()
+  await riverside.uncheck()
+  await expect(bravo).toHaveCount(0)
+  await page.getByRole("button", { name: "Salvar" }).click()
+  const alpha = page.getByLabel("Profissional Alfa")
+  await expect(page.getByText("Selecione pelo menos um profissional.")).toHaveAttribute(
+    "id",
+    "setup-service-form-professionalIds-error",
+  )
+  await expect(alpha).toHaveAttribute("aria-invalid", "true")
+  await expect(alpha).toHaveAttribute(
+    "aria-describedby",
+    "setup-service-form-professionalIds-description setup-service-form-professionalIds-error",
+  )
+  await expect(alpha).toBeFocused()
 })
 
 test("copies weekday drafts atomically and blocks archiving a linked service", async ({ page }) => {
@@ -191,6 +244,10 @@ test("shows persistent load recovery and explicit availability conflicts", async
   await page.getByRole("button", { name: "Disponibilidade" }).click()
   await expect(page.getByRole("alert")).toContainText("pausa fora do período de trabalho")
   await expect(page.getByRole("button", { name: "Copiar para dias úteis" }).first()).toBeVisible()
+  await page.getByLabel("Profissional").click()
+  await page.getByRole("option", { name: "Profissional Bravo" }).click()
+  await expect(page.getByRole("group", { name: "Segunda-feira" })).toBeVisible()
+  await expect(page.getByRole("alert")).toHaveCount(0)
 })
 
 test("supports 320px reflow, keyboard focus, dark theme, and reduced motion", async ({ page }) => {

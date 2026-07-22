@@ -207,26 +207,28 @@ real business data.
 
 ### Review-Fix Evidence
 
-- Targeted Vitest: mock engine plus ENG-41 repository/page coverage passed 17 tests. Repository
-  regressions cover invocation-snapshot reads, reset/switch generation invalidation, canonical
-  professional/service synchronization, dependency blocking, atomic copy rollback, reset, and
-  complete represented availability conflicts.
-- Targeted Chromium: all nine ENG-41 journeys passed. Normal-motion drawer entry emitted a browser
-  transition with a computed 200 ms duration; reduced motion computed at no more than 1 ms. Exit
-  content remained mounted through `data-ending-style`, then focus returned to the opener.
-- Chromium also verified scalar and relationship-only first-invalid focus/error descriptions,
-  copy failure rollback followed by visible success, preservation of an actively edited destination
-  draft, linked-service archive blocking, slow-result isolation, and scenario reset behavior.
-- Final package gates: route generation, clean formatting, lint, typecheck, 27-file/145-test Vitest,
-  35-test Chromium, 38-file production-boundary scan, build, and standalone `studio check` passed.
-- Root `bun run check` did not pass in this batch: two bounded exact attempts and one changed-approach
-  isolated Turbo Studio attempt each timed out in the same two pre-existing Agenda jsdom journeys
+- Final targeted Vitest: ENG-41 repository/page coverage passed 18 tests. Regressions cover
+  invocation-snapshot reads, reset/switch generation invalidation, canonical professional/service
+  synchronization with unit intersection, filtered availability conflicts, destination-specific
+  absences, dependency blocking, atomic copy rollback, reset, and Portuguese numeric validation.
+- The full Chromium run passed all ten ENG-41 journeys. Normal-motion drawer entry still emitted a
+  browser transition with a computed 200 ms duration; reduced motion still computed at no more than
+  1 ms. Exit content remained mounted through `data-ending-style`, then focus returned to the opener.
+- Chromium also verified numeric and relationship-only first-invalid focus/error descriptions,
+  incompatible-professional clearing, visible-week conflict filtering, copy failure rollback
+  followed by visible success, preservation of an actively edited destination draft,
+  linked-service archive blocking, slow-result isolation, and scenario reset behavior. The initial
+  focused browser run exposed only accessible-label/description expectation drift in the new test;
+  the bounded test correction was validated by the final full run.
+- Final package gates: route generation, clean formatting, lint, typecheck, 27-file/149-test Vitest,
+  36-test Chromium, 38-file production-boundary scan, build, and standalone `studio check` passed.
+- Root `bun run check` was intentionally not rerun in this final batch. It remains not passed locally
+  from the earlier review batch, when two bounded exact attempts and one changed-approach isolated
+  Turbo Studio attempt each timed out in the same two pre-existing Agenda jsdom journeys
   (`announces keyboard drag instructions and cancellation in Portuguese` and `opens details from a
-  board card and preserves the edit journey`). The same 145-test Studio suite passed through both
-  direct `studio test` and standalone `studio check`; no unrelated Agenda source or timeout was
-  changed. The orchestrator classified the repeated aggregate-only timeouts as a local non-branch
-  flake and authorized delivery so remote CI can validate the pushed head; the local root gate
-  remains explicitly not passed.
+  board card and preserves the edit journey`). The final 149-test Studio suite passed through both
+  direct `studio test` and standalone `studio check`; no unrelated Agenda source or timeout changed.
+  The local root gate remains explicitly not passed.
 - Physical VoiceOver/NVDA, coarse-pointer hardware, OS-native forced-colors visual inspection, and
   authenticated deployed-dev validation were not performed in this review-fix batch and remain
   residual. The availability discard-confirmation and exhaustive every-section/every-state
