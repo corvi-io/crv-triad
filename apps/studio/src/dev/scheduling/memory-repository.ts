@@ -1,6 +1,7 @@
 import { MemoryScenarioEngine } from "@/dev/mock-engine/memory-scenario-engine"
 import type {
   AppointmentInput,
+  AppointmentTransitionInput,
   Professional,
   ScheduleDay,
   ScheduleDayQuery,
@@ -12,9 +13,9 @@ import { ScheduleConflictError } from "@/modules/scheduling/contracts"
 import { schedulingScenarios } from "./scenarios"
 
 const baseProfessionals: readonly Professional[] = [
-  { id: "professional-ana", name: "Ana Lima" },
+  { id: "professional-carlos", name: "Carlos Lima" },
   { id: "professional-bruno", name: "Bruno Rocha" },
-  { id: "professional-carla", name: "Carla Nascimento" },
+  { id: "professional-ana", name: "Ana Clara" },
 ]
 const extraProfessionals: readonly Professional[] = Array.from({ length: 7 }, (_, index) => ({
   id: `professional-extra-${index + 1}`,
@@ -23,30 +24,38 @@ const extraProfessionals: readonly Professional[] = Array.from({ length: 7 }, (_
 const allProfessionals = [...baseProfessionals, ...extraProfessionals]
 const services: readonly Service[] = [
   {
-    id: "service-cut",
-    name: "Corte clássico",
+    id: "service-hair-beard",
+    name: "Cabelo & Barba",
     durationMinutes: 45,
-    priceCents: 5500,
+    priceCents: 6500,
     eligibleProfessionalIds: allProfessionals.map(({ id }) => id),
   },
   {
-    id: "service-beard",
-    name: "Barba e acabamento",
-    durationMinutes: 30,
-    priceCents: 4000,
-    eligibleProfessionalIds: ["professional-bruno", "professional-carla"],
+    id: "service-fade",
+    name: "Corte degradê",
+    durationMinutes: 35,
+    priceCents: 4500,
+    eligibleProfessionalIds: allProfessionals.map(({ id }) => id),
   },
   {
-    id: "service-combo",
-    name: "Corte, barba e cuidado completo",
-    durationMinutes: 75,
-    priceCents: 9000,
-    eligibleProfessionalIds: ["professional-ana", "professional-carla"],
+    id: "service-cut-beard",
+    name: "Corte & Barba",
+    durationMinutes: 45,
+    priceCents: 6500,
+    eligibleProfessionalIds: allProfessionals.map(({ id }) => id),
+  },
+  {
+    id: "service-simple-cut",
+    name: "Corte simples",
+    durationMinutes: 30,
+    priceCents: 3500,
+    eligibleProfessionalIds: allProfessionals.map(({ id }) => id),
   },
 ]
 
 export class SchedulingMemoryRepository implements SchedulingRepository {
   readonly #engine = new MemoryScenarioEngine(schedulingScenarios, "normal")
+  #transitionFailureArmed = false
 
   scenarios() {
     return schedulingScenarios.map(({ description, id, label }) => ({ description, id, label }))
@@ -56,39 +65,36 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
     if (query.scenarioId && query.scenarioId !== this.#engine.snapshot.scenarioId) {
       this.#engine.selectScenario(query.scenarioId)
       if (query.scenarioId === "next-failure") this.#engine.failNext()
+      this.#transitionFailureArmed = query.scenarioId === "transition-rollback"
     }
+    const scenarioId = this.#engine.snapshot.scenarioId
+    const scenarioAppointments = this.#engine.values()
+    const professionals = scenarioId === "many-professionals" ? allProfessionals : baseProfessionals
     return this.#engine.execute("list", () => {
-      const scenarioId = this.#engine.snapshot.scenarioId
-      const professionals =
-        scenarioId === "many-professionals" ? allProfessionals : baseProfessionals
-      const dayAppointments = this.#engine
-        .values()
-        .filter(
-          (item) =>
-            item.date === query.date &&
-            (!query.professionalId || item.professionalId === query.professionalId),
-        )
+      const dayAppointments = scenarioAppointments.filter(
+        (item) =>
+          item.date >= query.startDate &&
+          item.date <= query.endDate &&
+          item.unitId === query.unitId,
+      )
       return {
-        appointments: dayAppointments.filter(
-          (item) => !query.status || item.status === query.status,
-        ),
-        date: query.date,
+        appointments: dayAppointments,
+        date: query.startDate,
         endTime: "18:00",
         occupancies: dayAppointments
-          .filter((item) => item.status !== "canceled")
-          .map(({ durationMinutes, id, professionalId, start }) => ({
+          .filter((item) => item.status !== "canceled" && item.status !== "no-show")
+          .map(({ date, durationMinutes, id, professionalId, start }) => ({
+            date,
             durationMinutes,
             id,
             professionalId,
             start,
           })),
         periods: periodsFor(scenarioId),
-        professionals: query.professionalId
-          ? professionals.filter(({ id }) => id === query.professionalId)
-          : professionals,
+        professionals,
         services,
         startTime: "08:00",
-        unitName: "Unidade sintética Centro",
+        unitName: query.unitId === "centro" ? "Centro" : "Artesão",
       }
     })
   }
@@ -109,9 +115,34 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
     })
   }
 
-  async cancel(id: string) {
+  async cancel(id: string, reason: "client" | "barbershop") {
+    return this.transition({ cancellationReason: reason, id, status: "canceled" })
+  }
+
+  async transition(input: AppointmentTransitionInput) {
+    if (this.#transitionFailureArmed) {
+      this.#transitionFailureArmed = false
+      this.#engine.failNext()
+    }
     return this.#engine.execute("update", () => {
-      const updated = this.#engine.update(id, { status: "canceled" })
+      const current = this.#engine.get(input.id)
+      if (!current) throw new Error("Agendamento não encontrado.")
+      if ((input.status === "canceled" || input.status === "no-show") && !input.cancellationReason)
+        throw new Error("Informe o motivo do cancelamento ou no-show.")
+      if (
+        input.status === "completed" &&
+        current.paymentStatus === "pending" &&
+        !input.paymentStatus
+      )
+        throw new Error("Informe a decisão de pagamento antes de finalizar.")
+      const updated = this.#engine.update(input.id, {
+        cancellationReason:
+          input.status === "canceled" || input.status === "no-show"
+            ? input.cancellationReason
+            : undefined,
+        paymentStatus: input.paymentStatus ?? current.paymentStatus,
+        status: input.status,
+      })
       if (!updated) throw new Error("Agendamento não encontrado.")
       return updated
     })
@@ -120,10 +151,12 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   async selectScenario(id: string) {
     this.#engine.selectScenario(id)
     if (id === "next-failure") this.#engine.failNext()
+    this.#transitionFailureArmed = id === "transition-rollback"
   }
 
   async reset() {
     this.#engine.reset()
+    this.#transitionFailureArmed = this.#engine.snapshot.scenarioId === "transition-rollback"
   }
 
   #assertValid(input: AppointmentInput, ignoredId?: string) {
@@ -160,7 +193,9 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
         (item) =>
           item.id !== ignoredId &&
           item.status !== "canceled" &&
+          item.status !== "no-show" &&
           item.date === input.date &&
+          item.unitId === input.unitId &&
           item.professionalId === input.professionalId &&
           start < minutes(item.start) + item.durationMinutes &&
           end > minutes(item.start),
@@ -186,7 +221,7 @@ function periodsFor(scenarioId: string): readonly SchedulePeriod[] {
       id: "blocked-carla",
       kind: "blocked",
       label: "Bloqueado",
-      professionalId: "professional-carla",
+      professionalId: "professional-ana",
       start: "16:00",
       end: "17:00",
     },
@@ -196,7 +231,7 @@ function periodsFor(scenarioId: string): readonly SchedulePeriod[] {
       id: "walk-in-ana",
       kind: "walk-in",
       label: "Encaixe aguardando",
-      professionalId: "professional-ana",
+      professionalId: "professional-carlos",
       start: "11:30",
       end: "11:45",
     })

@@ -1,43 +1,35 @@
-import {
-  CalendarDaysIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CircleAlertIcon,
-  PlusIcon,
-  RotateCcwIcon,
-} from "lucide-react"
-import { useState } from "react"
+import { CalendarDaysIcon, CircleAlertIcon, PlusIcon } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { EmptyState } from "@/modules/shared/components/feedback/empty-state"
-import {
-  DatePicker,
-  formatDateOnly,
-  parseDateOnly,
-} from "@/modules/shared/components/forms/date-picker"
-import { SelectInput } from "@/modules/shared/components/forms/form-controls"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
 import { PageHeader } from "@/modules/shared/components/layout/page-header"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import { cn } from "@/modules/shared/lib/utils"
+import {
+  type AgendaColumnId,
+  deriveAgendaResult,
+  parseIdList,
+  periodBounds,
+  primaryStatusForColumn,
+  type ScheduleSearch,
+} from "./agenda"
+import { AgendaControls } from "./agenda-controls"
+import { AgendaKanban } from "./agenda-kanban"
 import { AppointmentDrawer, type DrawerMode } from "./appointment-drawer"
 import type {
   Appointment,
-  AppointmentStatus,
+  AppointmentTransitionInput,
   Professional,
   ScheduleDay,
   ScheduleDayQuery,
 } from "./contracts"
-import { appointmentStatuses } from "./contracts"
-import { useScenarioActions, useScheduleDay } from "./queries"
+import { useScenarioActions, useScheduleDay, useTransitionAppointment } from "./queries"
 import { appointmentStatusPresentation } from "./status"
+import { TransitionDialog } from "./transition-dialog"
 
-export type ScheduleSearch = {
-  date: string
-  professional?: string
-  scenario: string
-  status?: AppointmentStatus
-}
+export type { ScheduleSearch } from "./agenda"
 
 export function SchedulePage({
   onSearchChange,
@@ -46,19 +38,69 @@ export function SchedulePage({
   onSearchChange: (next: Partial<ScheduleSearch>) => void
   search: ScheduleSearch
 }) {
+  const bounds = periodBounds(search.date, search.period, search.customStart, search.customEnd)
   const query: ScheduleDayQuery = {
-    date: search.date,
-    professionalId: search.professional,
+    endDate: bounds.endDate,
     scenarioId: search.scenario,
-    status: search.status,
+    startDate: bounds.startDate,
+    unitId: search.unit,
   }
   const dayQuery = useScheduleDay(query)
   const scenarios = useScenarioActions()
+  const transitionMutation = useTransitionAppointment()
+  const [searchText, setSearchText] = useState("")
+  const debouncedSearchText = useDebouncedValue(searchText, 250)
+  const [announcement, setAnnouncement] = useState("")
+  const [transitionRequest, setTransitionRequest] = useState<{
+    appointment: Appointment
+    initialColumn?: AgendaColumnId
+  } | null>(null)
   const [drawer, setDrawer] = useState<{
     appointment?: Appointment
     mode: DrawerMode
     slot?: { professionalId: string; start: string }
   } | null>(null)
+  const result = useMemo(
+    () =>
+      deriveAgendaResult(
+        dayQuery.data?.appointments ?? [],
+        dayQuery.data?.professionals ?? [],
+        dayQuery.data?.services ?? [],
+        {
+          clientIds: parseIdList(search.client),
+          endDate: bounds.endDate,
+          professionalIds: parseIdList(search.professional),
+          searchText: debouncedSearchText,
+          serviceIds: parseIdList(search.service),
+          startDate: bounds.startDate,
+          unitId: search.unit,
+        },
+      ),
+    [
+      bounds.endDate,
+      bounds.startDate,
+      dayQuery.data,
+      debouncedSearchText,
+      search.client,
+      search.professional,
+      search.service,
+      search.unit,
+    ],
+  )
+  const gridDay = useMemo(() => {
+    if (!dayQuery.data) return undefined
+    const selectedProfessionalIds = parseIdList(search.professional)
+    return {
+      ...dayQuery.data,
+      appointments: result.appointments.filter(({ date }) => date === search.date),
+      date: search.date,
+      occupancies: dayQuery.data.occupancies.filter(({ date }) => date === search.date),
+      professionals:
+        selectedProfessionalIds.length > 0
+          ? dayQuery.data.professionals.filter(({ id }) => selectedProfessionalIds.includes(id))
+          : dayQuery.data.professionals,
+    }
+  }, [dayQuery.data, result.appointments, search.date, search.professional])
 
   async function selectScenario(id: string) {
     onSearchChange({ scenario: id })
@@ -71,13 +113,52 @@ export function SchedulePage({
     toast.success("Cenário restaurado.")
   }
 
+  async function transitionAppointment(input: AppointmentTransitionInput) {
+    if (transitionMutation.isPending) return
+    const destination = appointmentStatusPresentation[input.status].label
+    setAnnouncement(`Atualizando status para ${destination}.`)
+    try {
+      await transitionMutation.mutateAsync(input)
+      toast.success(`Status atualizado para “${destination}”.`)
+      setAnnouncement(`Status atualizado para ${destination}.`)
+      setTransitionRequest(null)
+      requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLElement>(
+            `[data-appointment-id="${input.id}"] [data-kanban-drag-handle]`,
+          )
+          ?.focus()
+      })
+    } catch {
+      toast.error("Não foi possível alterar o status. O agendamento foi restaurado.")
+      setAnnouncement("Falha ao alterar o status. Cartão, contagens e resumo foram restaurados.")
+      setTransitionRequest(null)
+    }
+  }
+
+  function requestTransition(appointment: Appointment, column?: AgendaColumnId) {
+    if (transitionMutation.isPending) return
+    if (
+      !column ||
+      column === "canceled-no-show" ||
+      (column === "completed" && appointment.paymentStatus === "pending")
+    ) {
+      setTransitionRequest({ appointment, initialColumn: column })
+      return
+    }
+    void transitionAppointment({
+      id: appointment.id,
+      status: primaryStatusForColumn(column),
+    })
+  }
+
   return (
     <ModuleLayout
       head={
         <>
           <PageHeader
             title="Agenda"
-            description="Protótipo visual diário com dados sintéticos e sem persistência."
+            description="Fluxo operacional sintético, limitado à sessão e sem persistência."
             actions={
               <Button type="button" onClick={() => setDrawer({ mode: "create" })}>
                 <PlusIcon data-icon="inline-start" />
@@ -85,28 +166,51 @@ export function SchedulePage({
               </Button>
             }
           />
-          <ScheduleControls
-            day={dayQuery.data}
+          <AgendaControls
+            appointments={dayQuery.data?.appointments ?? []}
             search={search}
             scenarios={scenarios.scenarios}
+            professionals={dayQuery.data?.professionals ?? []}
+            services={dayQuery.data?.services ?? []}
+            searchText={searchText}
             onSearchChange={onSearchChange}
+            onSearchTextChange={setSearchText}
             onScenarioChange={selectScenario}
             onReset={resetScenario}
           />
         </>
       }
-      bodyViewportClassName="h-full space-y-3 pb-2"
+      bodyViewportClassName="flex h-full flex-col gap-3 pb-2"
     >
       {dayQuery.isPending ? (
         <ScheduleLoading />
       ) : dayQuery.isError ? (
         <ScheduleError onRetry={() => dayQuery.refetch()} />
-      ) : dayQuery.data ? (
-        <Schedule
-          day={dayQuery.data}
-          onAppointment={(appointment) => setDrawer({ appointment, mode: "view" })}
-          onSlot={(slot) => setDrawer({ mode: "create", slot })}
-        />
+      ) : dayQuery.data && gridDay ? (
+        search.view === "kanban" ? (
+          <AgendaKanban
+            announcement={announcement}
+            dateLabel={
+              bounds.startDate === bounds.endDate
+                ? formatDisplayDate(bounds.startDate)
+                : `${formatDisplayDate(bounds.startDate)} a ${formatDisplayDate(bounds.endDate)}`
+            }
+            onAdd={() => setDrawer({ mode: "create" })}
+            onEdit={(appointment) => setDrawer({ appointment, mode: "edit" })}
+            onOpen={(appointment) => setDrawer({ appointment, mode: "view" })}
+            onTransitionRequest={requestTransition}
+            pendingAppointmentId={transitionMutation.variables?.id}
+            professionals={dayQuery.data.professionals}
+            result={result}
+            services={dayQuery.data.services}
+          />
+        ) : (
+          <Schedule
+            day={gridDay}
+            onAppointment={(appointment) => setDrawer({ appointment, mode: "view" })}
+            onSlot={(slot) => setDrawer({ mode: "create", slot })}
+          />
+        )
       ) : null}
       {dayQuery.data && drawer ? (
         <AppointmentDrawer
@@ -118,143 +222,23 @@ export function SchedulePage({
           onOpenChange={(open) => !open && setDrawer(null)}
           professionals={dayQuery.data.professionals}
           selectedDate={search.date}
+          selectedUnit={search.unit}
           services={dayQuery.data.services}
         />
       ) : null}
+      {transitionRequest ? (
+        <TransitionDialog
+          appointment={transitionRequest.appointment}
+          initialColumn={transitionRequest.initialColumn}
+          isPending={transitionMutation.isPending}
+          onCancel={() => {
+            setTransitionRequest(null)
+            setAnnouncement("Alteração de status cancelada.")
+          }}
+          onConfirm={transitionAppointment}
+        />
+      ) : null}
     </ModuleLayout>
-  )
-}
-
-function ScheduleControls({
-  day,
-  onReset,
-  onScenarioChange,
-  onSearchChange,
-  scenarios,
-  search,
-}: {
-  day?: ScheduleDay
-  onReset: () => void
-  onScenarioChange: (id: string) => void
-  onSearchChange: (next: Partial<ScheduleSearch>) => void
-  scenarios: readonly { id: string; label: string }[]
-  search: ScheduleSearch
-}) {
-  const date = parseDateOnly(search.date) ?? new Date()
-  const moveDate = (amount: number) => {
-    const next = new Date(date)
-    next.setDate(next.getDate() + amount)
-    onSearchChange({ date: formatDateOnly(next) })
-  }
-  return (
-    <fieldset className="grid gap-2 rounded-lg border bg-card p-3 lg:grid-cols-[auto_minmax(11rem,1fr)_minmax(11rem,1fr)_minmax(11rem,1fr)_auto] lg:items-end">
-      <legend className="sr-only">Controles da agenda</legend>
-      <div className="flex min-w-0 flex-wrap items-end gap-1">
-        <Button
-          aria-label="Dia anterior"
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={() => moveDate(-1)}
-        >
-          <ChevronLeftIcon />
-        </Button>
-        <div className="min-w-36 flex-1">
-          <label className="mb-1 block text-xs font-medium" htmlFor="schedule-date">
-            Data
-          </label>
-          <DatePicker
-            id="schedule-date"
-            value={search.date}
-            placeholder="Selecione"
-            onValueChange={(date) => onSearchChange({ date })}
-          />
-        </div>
-        <Button
-          aria-label="Próximo dia"
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={() => moveDate(1)}
-        >
-          <ChevronRightIcon />
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => onSearchChange({ date: formatDateOnly(new Date()) })}
-        >
-          Hoje
-        </Button>
-      </div>
-      <Filter htmlFor="professional-filter" label="Profissional">
-        <SelectInput
-          id="professional-filter"
-          value={search.professional ?? ""}
-          placeholder="Todos os profissionais"
-          options={[
-            { label: "Todos os profissionais", value: "" },
-            ...(day?.professionals ?? []).map(({ id, name }) => ({ label: name, value: id })),
-          ]}
-          onValueChange={(professional) =>
-            onSearchChange({ professional: professional || undefined })
-          }
-        />
-      </Filter>
-      <Filter htmlFor="status-filter" label="Status">
-        <SelectInput
-          id="status-filter"
-          value={search.status ?? ""}
-          placeholder="Todos os status"
-          options={[
-            { label: "Todos os status", value: "" },
-            ...appointmentStatuses.map((status) => ({
-              label: appointmentStatusPresentation[status].label,
-              value: status,
-            })),
-          ]}
-          onValueChange={(status) =>
-            onSearchChange({ status: (status || undefined) as AppointmentStatus | undefined })
-          }
-        />
-      </Filter>
-      <Filter htmlFor="scenario-filter" label="Cenário">
-        <SelectInput
-          id="scenario-filter"
-          value={search.scenario}
-          placeholder="Selecione o cenário"
-          options={scenarios.map(({ id, label }) => ({ label, value: id }))}
-          onValueChange={onScenarioChange}
-        />
-      </Filter>
-      <Button type="button" variant="outline" onClick={onReset}>
-        <RotateCcwIcon data-icon="inline-start" />
-        Restaurar
-      </Button>
-      <p className="text-xs text-muted-foreground lg:col-span-5">
-        <CalendarDaysIcon className="mr-1 inline size-3" aria-hidden="true" />
-        Visualização diária · intervalos de 15 minutos · {day?.unitName ?? "uma unidade sintética"}
-      </p>
-    </fieldset>
-  )
-}
-
-function Filter({
-  children,
-  htmlFor,
-  label,
-}: {
-  children: React.ReactNode
-  htmlFor: string
-  label: string
-}) {
-  return (
-    <div>
-      <label className="mb-1 block text-xs font-medium" htmlFor={htmlFor}>
-        {label}
-      </label>
-      {children}
-    </div>
   )
 }
 
@@ -591,6 +575,18 @@ function toMinutes(value: string) {
 }
 function fromMinutes(value: number) {
   return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`
+}
+function formatDisplayDate(value: string) {
+  const [year, month, day] = value.split("-")
+  return `${day}/${month}/${year}`
+}
+function useDebouncedValue<T>(value: T, delay: number) {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebounced(value), delay)
+    return () => window.clearTimeout(timeout)
+  }, [delay, value])
+  return debounced
 }
 function ScheduleLoading() {
   return (

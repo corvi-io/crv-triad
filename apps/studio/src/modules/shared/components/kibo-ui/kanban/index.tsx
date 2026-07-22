@@ -3,6 +3,7 @@
 import type {
   Announcements,
   DndContextProps,
+  DragCancelEvent,
   DragEndEvent,
   DragOverEvent,
   DragStartEvent,
@@ -18,9 +19,21 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core"
-import { arrayMove, SortableContext, useSortable } from "@dnd-kit/sortable"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { createContext, type HTMLAttributes, type ReactNode, useContext, useState } from "react"
+import {
+  createContext,
+  type HTMLAttributes,
+  type ReactNode,
+  useContext,
+  useState,
+  useSyncExternalStore,
+} from "react"
 import { createPortal } from "react-dom"
 import tunnel from "tunnel-rat"
 import { Card } from "@/modules/shared/components/ui/card"
@@ -94,28 +107,41 @@ export type KanbanCardProps<T extends KanbanItemProps = KanbanItemProps> = T &
   Omit<HTMLAttributes<HTMLDivElement>, "id"> & {
     children?: ReactNode
     className?: string
+    dragHandle?: ReactNode
+    dragHandleLabel?: string
   }
 
 export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
   id,
   name,
+  column: _column,
   children,
   className,
+  dragHandle,
+  dragHandleLabel,
   ...props
 }: KanbanCardProps<T>) => {
-  const { attributes, listeners, setNodeRef, transition, transform, isDragging } = useSortable({
-    id,
-  })
+  const {
+    attributes,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transition,
+    transform,
+    isDragging,
+  } = useSortable({ id })
   const { activeCardId } = useContext(KanbanContext) as KanbanContextProps
+  const reduceMotion = useReducedMotion()
 
   const style = {
-    transition,
+    transition: reduceMotion ? "none" : transition,
     transform: CSS.Transform.toString(transform),
   }
+  const rootActivatorProps = dragHandle ? {} : { ...listeners, ...attributes }
 
   return (
     <>
-      <div style={style} {...listeners} {...attributes} {...props} ref={setNodeRef}>
+      <div style={style} {...rootActivatorProps} {...props} ref={setNodeRef}>
         <Card
           className={cn(
             "cursor-grab gap-4 rounded-md p-3 shadow-sm",
@@ -123,6 +149,19 @@ export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
             className,
           )}
         >
+          {dragHandle ? (
+            <button
+              ref={setActivatorNodeRef}
+              aria-label={dragHandleLabel ?? `Mover ${name}`}
+              className="flex min-h-8 w-full cursor-grab items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:cursor-grabbing"
+              data-kanban-drag-handle
+              type="button"
+              {...listeners}
+              {...attributes}
+            >
+              {dragHandle}
+            </button>
+          ) : null}
           {children ?? <p className="m-0 font-medium text-sm">{name}</p>}
         </Card>
       </div>
@@ -187,6 +226,7 @@ export type KanbanProviderProps<
   columns: C[]
   data: T[]
   onDataChange?: (data: T[]) => void
+  onDragCancel?: (event: DragCancelEvent) => void
   onDragStart?: (event: DragStartEvent) => void
   onDragEnd?: (event: DragEndEvent) => void
   onDragOver?: (event: DragOverEvent) => void
@@ -200,6 +240,7 @@ export const KanbanProvider = <
   onDragStart,
   onDragEnd,
   onDragOver,
+  onDragCancel,
   className,
   columns,
   data,
@@ -209,9 +250,9 @@ export const KanbanProvider = <
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
 
   const sensors = useSensors(
-    useSensor(MouseSensor),
-    useSensor(TouchSensor),
-    useSensor(KeyboardSensor),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -268,6 +309,18 @@ export const KanbanProvider = <
     onDragEnd?.(event)
   }
 
+  const handleDragCancel = (event: DragCancelEvent) => {
+    setActiveCardId(null)
+    onDragCancel?.(event)
+  }
+
+  const columnNameFor = (overId: string | number | undefined) => {
+    const columnId =
+      columns.find((column) => column.id === overId)?.id ??
+      data.find((item) => item.id === overId)?.column
+    return columns.find((column) => column.id === columnId)?.name ?? "destino indisponível"
+  }
+
   const announcements: Announcements = {
     onDragStart({ active }) {
       const { name, column } = data.find((item) => item.id === active.id) ?? {}
@@ -276,13 +329,13 @@ export const KanbanProvider = <
     },
     onDragOver({ active, over }) {
       const { name } = data.find((item) => item.id === active.id) ?? {}
-      const newColumn = columns.find((column) => column.id === over?.id)?.name
+      const newColumn = columnNameFor(over?.id)
 
       return `Cartão "${name}" sobre a coluna "${newColumn}"`
     },
     onDragEnd({ active, over }) {
       const { name } = data.find((item) => item.id === active.id) ?? {}
-      const newColumn = columns.find((column) => column.id === over?.id)?.name
+      const newColumn = columnNameFor(over?.id)
 
       return `Cartão "${name}" solto na coluna "${newColumn}"`
     },
@@ -296,8 +349,15 @@ export const KanbanProvider = <
   return (
     <KanbanContext.Provider value={{ columns, data, activeCardId }}>
       <DndContext
-        accessibility={{ announcements }}
+        accessibility={{
+          announcements,
+          screenReaderInstructions: {
+            draggable:
+              "Para mover, pressione espaço. Use as setas para escolher a coluna, espaço para confirmar ou Escape para cancelar.",
+          },
+        }}
         collisionDetection={closestCenter}
+        onDragCancel={handleDragCancel}
         onDragEnd={handleDragEnd}
         onDragOver={handleDragOver}
         onDragStart={handleDragStart}
@@ -316,5 +376,19 @@ export const KanbanProvider = <
           )}
       </DndContext>
     </KanbanContext.Provider>
+  )
+}
+
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
+
+function useReducedMotion() {
+  return useSyncExternalStore(
+    (onStoreChange) => {
+      const query = window.matchMedia(REDUCED_MOTION_QUERY)
+      query.addEventListener("change", onStoreChange)
+      return () => query.removeEventListener("change", onStoreChange)
+    },
+    () => window.matchMedia(REDUCED_MOTION_QUERY).matches,
+    () => false,
   )
 }

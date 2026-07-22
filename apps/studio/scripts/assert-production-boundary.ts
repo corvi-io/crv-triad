@@ -13,6 +13,10 @@ const forbiddenMarkers = [
   "Unidade sintética Centro",
   "Cliente Sintético Com Nome",
   "appointment-dense-",
+  "approvedKanbanFixtures",
+  "kanban-01",
+  "transition-rollback",
+  "João Vitor",
   ".stories.",
 ]
 

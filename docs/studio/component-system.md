@@ -130,7 +130,7 @@ building block of a documented composition.
 | `forms/permission-group.tsx` | Form composition | Internal: no accepted active authorization editor in Studio. |
 | `forms/quantity-unit-control.tsx` | Form composition | Internal: inherited composition without an active module-owned quantity contract. |
 | `forms/rhf-form-fields.tsx` | Form adapters | Internal: React Hook Form adapters; discover through owning module forms, not as standalone UI. |
-| `kibo-ui/kanban/index.tsx` | Vendor-derived composite | Internal: inherited drag/drop primitive with no accepted Studio module and no capacity claim. |
+| `kibo-ui/kanban/index.tsx` | Vendor-derived composite | Documented public contract: controlled columns/data, dedicated pointer/touch/keyboard drag handles, sortable keyboard coordinates, Portuguese destination announcements, drag overlay, cancellation cleanup, reduced-motion behavior, and `onDataChange`; scheduling owns transition decisions and rollback. Dense fixtures are interaction evidence, not a capacity claim. |
 | `layout/module-layout.tsx` | Layout | Internal: structural fixed-head/scroll-body shell exercised through composed pages. |
 | `layout/module-tabs.tsx` | Layout/navigation | Internal: requires router context and module-owned tab metadata. |
 | `layout/page-header.tsx` | Layout | Internal: composed by module pages; actions remain module owned. |

@@ -72,7 +72,7 @@ test("follows system changes while preserving the system preference", async ({ p
 test("meets computed contrast for global feedback, focus, inputs, and every schedule state", async ({
   page,
 }) => {
-  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=all-statuses")
+  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=all-statuses&view=daily-grid")
 
   for (const theme of ["light", "dark"] as const) {
     await selectTheme(page, theme)
@@ -168,7 +168,7 @@ test("renders a contrasting focus indicator on representative controls", async (
 
 test("retains status text and boundaries in forced colors", async ({ page }) => {
   await page.emulateMedia({ forcedColors: "active" })
-  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=all-statuses")
+  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=all-statuses&view=daily-grid")
 
   for (const [status, label] of scheduleStates) {
     const card = page.locator(`[data-appointment-status="${status}"]`).first()
@@ -180,7 +180,7 @@ test("retains status text and boundaries in forced colors", async ({ page }) => 
 
 test("keeps both themes usable at 320 CSS pixels and a 200%-zoom equivalent", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 720 })
-  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=all-statuses")
+  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=all-statuses&view=daily-grid")
 
   for (const theme of ["light", "dark"] as const) {
     await selectTheme(page, theme)
