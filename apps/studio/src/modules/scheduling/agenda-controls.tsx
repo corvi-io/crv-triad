@@ -538,7 +538,7 @@ function DevelopmentMenu({
           <DropdownMenuLabel>Cenário de desenvolvimento</DropdownMenuLabel>
           <DropdownMenuRadioGroup value={selectedScenario} onValueChange={onScenarioChange}>
             {scenarios.map((scenario) => (
-              <DropdownMenuRadioItem key={scenario.id} value={scenario.id}>
+              <DropdownMenuRadioItem closeOnClick key={scenario.id} value={scenario.id}>
                 <span className="flex min-w-0 flex-col">
                   <span>{scenario.label}</span>
                   <span className="truncate text-xs text-muted-foreground">

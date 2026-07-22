@@ -149,19 +149,20 @@ export function useRescheduleAppointment() {
   })
 }
 
-export function useScenarioActions() {
+export function useScenarioActions(query: ScheduleDayQuery) {
   const repository = useSchedulingRepository()
   const queryClient = useQueryClient()
-  const refresh = () => queryClient.invalidateQueries({ queryKey: schedulingQueryKeys.all })
+  const refresh = (target: ScheduleDayQuery) =>
+    queryClient.invalidateQueries({ exact: true, queryKey: schedulingQueryKeys.day(target) })
   return {
     reset: async () => {
       await repository.reset()
-      await refresh()
+      await refresh(query)
     },
     scenarios: repository.scenarios(),
     select: async (id: string) => {
       await repository.selectScenario(id)
-      await refresh()
+      await refresh({ ...query, scenarioId: id })
     },
   }
 }

@@ -175,9 +175,7 @@ test("disables drag for terminal appointments while preserving details", async (
   await expect(page.getByRole("button", { name: "Remarcar" })).toHaveCount(0)
 })
 
-test("keeps the board bounded on narrow screens and exposes development scenarios", async ({
-  page,
-}) => {
+test("keeps the board bounded and applies and resets development scenarios", async ({ page }) => {
   await page.setViewportSize({ height: 720, width: 640 })
   await page.goto(agendaUrl("dense"))
 
@@ -190,13 +188,32 @@ test("keeps the board bounded on narrow screens and exposes development scenario
   expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.clientWidth)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(640)
 
+  await page.setViewportSize({ height: 900, width: 1440 })
   await page.getByRole("button", { name: "Configurações do protótipo" }).click()
   await expect(page.getByText("Cenário de desenvolvimento")).toBeVisible()
   await expect(page.getByRole("menuitemradio", { name: /Denso/ })).toBeChecked()
 
-  await page.goto(agendaUrl("empty"))
+  await page.getByRole("menuitemradio", { name: /Vazio/ }).click()
+  await expect(page).toHaveURL(/scenario=empty/)
   await expect(page.getByRole("heading", { name: "Agenda livre no período" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Adicionar agendamento" })).toBeVisible()
+
+  await page.getByRole("button", { name: "Configurações do protótipo" }).click()
+  await page.getByRole("menuitemradio", { name: /Todos os status/ }).click()
+  await expect(page).toHaveURL(/scenario=all-statuses/)
+  await expect(page.locator("[data-appointment-id]")).toHaveCount(8)
+
+  const confirmed = page.locator('[data-appointment-id="status-confirmed"]')
+  await expect(confirmed).toContainText("Confirmado")
+  await confirmed.getByRole("button", { name: "Ações de Cliente confirmado" }).click()
+  await page.getByRole("menuitem", { name: "Alterar status" }).click()
+  await page.getByRole("radio", { name: "Em espera" }).click()
+  await page.getByRole("button", { name: "Confirmar alteração" }).click()
+  await expect(confirmed).toContainText("Em espera")
+
+  await page.getByRole("button", { name: "Configurações do protótipo" }).click()
+  await page.getByRole("menuitem", { name: "Restaurar cenário" }).click()
+  await expect(confirmed).toContainText("Confirmado")
 })
 
 async function dragAppointment(

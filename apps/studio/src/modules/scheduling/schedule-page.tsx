@@ -53,7 +53,7 @@ export function SchedulePage({
     unitId: search.unit,
   }
   const dayQuery = useScheduleDay(query)
-  const scenarios = useScenarioActions()
+  const scenarios = useScenarioActions(query)
   const transitionMutation = useTransitionAppointment()
   const rescheduleMutation = useRescheduleAppointment()
   const [searchText, setSearchText] = useState("")
@@ -115,8 +115,8 @@ export function SchedulePage({
   }, [bounds.startDate, dayQuery.data, result.appointments, search.professional])
 
   async function selectScenario(id: string) {
-    onSearchChange({ scenario: id })
     await scenarios.select(id)
+    onSearchChange({ scenario: id })
     toast.success("Cenário carregado.")
   }
 
