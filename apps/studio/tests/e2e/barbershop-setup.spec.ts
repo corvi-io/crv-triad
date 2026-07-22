@@ -38,6 +38,131 @@ test("creates a unit in memory and restores the scenario atomically", async ({ p
   await expect(page.getByText("Unidade Temporária")).toHaveCount(0)
 })
 
+test("animates drawer entry and exit while preserving focus until close completes", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await page.goto(setupUrl("new-business", "units"))
+  await page.evaluate(() => {
+    Reflect.set(window, "__setupDrawerTransitionStarted", false)
+    document.addEventListener(
+      "transitionrun",
+      (event) => {
+        if ((event.target as HTMLElement).dataset.slot === "sheet-content")
+          Reflect.set(window, "__setupDrawerTransitionStarted", true)
+      },
+      { capture: true },
+    )
+  })
+  const trigger = page.getByRole("button", { name: "Nova unidade" }).first()
+  await trigger.click()
+  const drawer = page.locator('[data-slot="sheet-content"]')
+  await expect(drawer).toBeVisible()
+  await expect
+    .poll(() => page.evaluate(() => Reflect.get(window, "__setupDrawerTransitionStarted")))
+    .toBe(true)
+  expect(await drawer.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe(
+    "0.2s",
+  )
+
+  await page.getByRole("button", { name: "Cancelar" }).click()
+  await expect(drawer).toHaveAttribute("data-ending-style", "")
+  await expect(drawer).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.reload()
+  await page.evaluate(() => Reflect.set(window, "__setupDrawerTransitionStarted", false))
+  const reducedTrigger = page.getByRole("button", { name: "Nova unidade" }).first()
+  await reducedTrigger.click()
+  const reducedDrawer = page.locator('[data-slot="sheet-content"]')
+  await expect(reducedDrawer).toBeVisible()
+  const reducedDuration = await reducedDrawer.evaluate((element) =>
+    Number.parseFloat(getComputedStyle(element).transitionDuration),
+  )
+  expect(reducedDuration).toBeLessThanOrEqual(0.001)
+})
+
+test("keeps a slow scenario result isolated after switching scenarios", async ({ page }) => {
+  await page.goto(setupUrl("slow", "overview"))
+  await page.getByLabel("Cenário de apresentação").click()
+  await page.getByRole("option", { name: "Múltiplas unidades" }).click()
+  await expect(page).toHaveURL(/scenario=multi-unit/)
+  await expect(page.getByText("2 unidade(s) ativa(s).")).toBeVisible()
+  await expect(page.getByText("1 unidade(s) ativa(s).")).toHaveCount(0)
+})
+
+test("exposes stable relationship errors and focuses each first invalid group", async ({
+  page,
+}) => {
+  await page.goto(setupUrl("new-business", "units"))
+  await page.getByRole("button", { name: "Nova unidade" }).first().click()
+  await page.getByRole("textbox", { name: "Nome *" }).fill("Unidade válida")
+  await page.getByRole("button", { name: "Salvar" }).click()
+  const code = page.getByLabel("Código")
+  await expect(page.getByText("Informe um código curto.")).toHaveAttribute(
+    "id",
+    "setup-unit-form-code-error",
+  )
+  await expect(code).toHaveAttribute("aria-invalid", "true")
+  await expect(code).toHaveAttribute("aria-describedby", "setup-unit-form-code-error")
+  await expect(code).toBeFocused()
+
+  await page.goto(setupUrl("single-unit", "services"))
+  await page.getByRole("button", { name: "Novo serviço" }).click()
+  await page.getByRole("textbox", { name: "Nome *" }).fill("Serviço novo")
+  await page.getByLabel("Categoria").fill("Cabelo")
+  await page.getByLabel("Descrição").fill("Descrição sintética válida")
+  await page.getByRole("button", { name: "Salvar" }).click()
+
+  const unit = page.getByLabel("Unidade Centro")
+  await expect(page.getByText("Selecione pelo menos uma unidade.")).toHaveAttribute(
+    "id",
+    "setup-service-form-unitIds-error",
+  )
+  await expect(unit).toHaveAttribute("aria-invalid", "true")
+  await expect(unit).toHaveAttribute("aria-describedby", "setup-service-form-unitIds-error")
+  await expect(unit).toBeFocused()
+
+  await unit.check()
+  await page.getByRole("button", { name: "Salvar" }).click()
+  const professional = page.getByLabel("Profissional Alfa")
+  await expect(page.getByText("Selecione pelo menos um profissional.")).toHaveAttribute(
+    "id",
+    "setup-service-form-professionalIds-error",
+  )
+  await expect(professional).toHaveAttribute("aria-invalid", "true")
+  await expect(professional).toHaveAttribute(
+    "aria-describedby",
+    "setup-service-form-professionalIds-error",
+  )
+  await expect(professional).toBeFocused()
+})
+
+test("copies weekday drafts atomically and blocks archiving a linked service", async ({ page }) => {
+  await page.goto(setupUrl("next-failure", "availability"))
+  const monday = page.getByRole("group", { name: "Segunda-feira" })
+  const tuesday = page.getByRole("group", { name: "Terça-feira" })
+  const wednesday = page.getByRole("group", { name: "Quarta-feira" })
+  await monday.getByLabel("Início").first().fill("10:00")
+  await wednesday.getByLabel("Início").first().fill("11:00")
+  await monday.getByRole("button", { name: "Copiar para dias úteis" }).click()
+  await expect(tuesday.getByLabel("Início").first()).toHaveValue("09:00")
+  await expect(page.getByText(/Intentional development failure/)).toBeVisible()
+  await monday.getByRole("button", { name: "Copiar para dias úteis" }).click()
+  await expect(tuesday.getByLabel("Início").first()).toHaveValue("10:00")
+  await expect(wednesday.getByLabel("Início").first()).toHaveValue("11:00")
+
+  await page.goto(setupUrl("single-unit", "services"))
+  const serviceRow = page.getByRole("row", { name: /Corte clássico/ })
+  await serviceRow.focus()
+  await page.keyboard.press("Shift+F10")
+  await page.getByRole("menuitem", { name: "Arquivar" }).click()
+  await page.getByRole("button", { name: "Arquivar" }).click()
+  await expect(page.getByText(/ainda possui vínculos ativos/)).toBeVisible()
+  await expect(serviceRow).toContainText("Ativo")
+})
+
 test("recovers from the one-shot mutation failure without losing the form draft", async ({
   page,
 }) => {

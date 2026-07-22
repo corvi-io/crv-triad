@@ -150,6 +150,11 @@ export type AvailabilityResult = {
   units: readonly SetupUnit[]
 }
 
+export type CopyAvailabilityToWeekdaysInput = {
+  source: SetupAvailability
+  targetIds: readonly string[]
+}
+
 export class SetupDependencyError extends Error {
   constructor(message: string) {
     super(message)
@@ -164,7 +169,17 @@ export class SetupValidationError extends Error {
   }
 }
 
+export class SetupOperationInvalidatedError extends Error {
+  constructor() {
+    super("A operação foi descartada porque o cenário foi restaurado ou alterado.")
+    this.name = "SetupOperationInvalidatedError"
+  }
+}
+
 export interface BarbershopSetupRepository {
+  copyAvailabilityToWeekdays(
+    input: CopyAvailabilityToWeekdaysInput,
+  ): Promise<readonly SetupAvailability[]>
   create(kind: SetupEntityKind, input: SetupEntityInput): Promise<SetupEntity>
   getAvailability(query: AvailabilityQuery): Promise<AvailabilityResult>
   getOverview(scenarioId: SetupScenarioId): Promise<SetupOverview>

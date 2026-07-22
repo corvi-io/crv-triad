@@ -1,7 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type {
   AvailabilityQuery,
   AvailabilityResult,
+  CopyAvailabilityToWeekdaysInput,
   SetupAvailability,
   SetupEntity,
   SetupEntityInput,
@@ -12,6 +13,16 @@ import type {
   SetupScenarioId,
 } from "./contracts"
 import { useBarbershopSetupRepository } from "./repository-context"
+
+const queryGenerations = new WeakMap<QueryClient, number>()
+
+function getQueryGeneration(queryClient: QueryClient) {
+  return queryGenerations.get(queryClient) ?? 0
+}
+
+function isCurrentGeneration(queryClient: QueryClient, generation: number) {
+  return getQueryGeneration(queryClient) === generation
+}
 
 export const barbershopSetupQueryKeys = {
   all: ["barbershop-setup-presentation"] as const,
@@ -52,7 +63,11 @@ function useEntityMutation<TVariables>(
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all }),
+    onMutate: () => ({ generation: getQueryGeneration(queryClient) }),
+    onSuccess: (_data, _variables, context) => {
+      if (isCurrentGeneration(queryClient, context.generation))
+        return queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all })
+    },
   })
 }
 
@@ -85,6 +100,7 @@ export function useSetSetupEntityArchived() {
       kind: SetupEntityKind
     }) => repository.setArchived(kind, id, archived),
     onMutate: async ({ archived, id }) => {
+      const generation = getQueryGeneration(queryClient)
       await queryClient.cancelQueries({ queryKey: barbershopSetupQueryKeys.all })
       const snapshots = queryClient.getQueriesData<SetupEntityPage>({
         queryKey: barbershopSetupQueryKeys.all,
@@ -98,12 +114,16 @@ export function useSetSetupEntityArchived() {
           ),
         })
       }
-      return { snapshots }
+      return { generation, snapshots }
     },
     onError: (_error, _variables, context) => {
+      if (!context || !isCurrentGeneration(queryClient, context.generation)) return
       for (const [key, value] of context?.snapshots ?? []) queryClient.setQueryData(key, value)
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all }),
+    onSettled: (_data, _error, _variables, context) => {
+      if (context && isCurrentGeneration(queryClient, context.generation))
+        return queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all })
+    },
   })
 }
 
@@ -113,6 +133,7 @@ export function useUpdateSetupAvailability() {
   return useMutation({
     mutationFn: (input: SetupAvailability) => repository.updateAvailability(input),
     onMutate: async (input) => {
+      const generation = getQueryGeneration(queryClient)
       await queryClient.cancelQueries({ queryKey: barbershopSetupQueryKeys.all })
       const snapshots = queryClient.getQueriesData<AvailabilityResult>({
         queryKey: barbershopSetupQueryKeys.all,
@@ -124,16 +145,47 @@ export function useUpdateSetupAvailability() {
           records: result.records.map((record) => (record.id === input.id ? input : record)),
         })
       }
-      return { snapshots }
+      return { generation, snapshots }
     },
     onError: (_error, _input, context) => {
+      if (!context || !isCurrentGeneration(queryClient, context.generation)) return
       for (const [key, value] of context?.snapshots ?? []) queryClient.setQueryData(key, value)
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all }),
+    onSettled: (_data, _error, _variables, context) => {
+      if (context && isCurrentGeneration(queryClient, context.generation))
+        return queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all })
+    },
   })
 }
 
-export async function resetSetupQueries(queryClient: ReturnType<typeof useQueryClient>) {
+export function useCopySetupAvailabilityToWeekdays() {
+  const repository = useBarbershopSetupRepository()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CopyAvailabilityToWeekdaysInput) =>
+      repository.copyAvailabilityToWeekdays(input),
+    onMutate: () => ({ generation: getQueryGeneration(queryClient) }),
+    onSuccess: (updates, _input, context) => {
+      if (!isCurrentGeneration(queryClient, context.generation)) return
+      const updatesById = new Map(updates.map((record) => [record.id, record]))
+      for (const [key, result] of queryClient.getQueriesData<AvailabilityResult>({
+        queryKey: [...barbershopSetupQueryKeys.all, "availability"],
+      })) {
+        if (!result) continue
+        queryClient.setQueryData<AvailabilityResult>(key, {
+          ...result,
+          records: result.records.map((record) => updatesById.get(record.id) ?? record),
+        })
+      }
+      return queryClient.invalidateQueries({
+        queryKey: [...barbershopSetupQueryKeys.all, "availability"],
+      })
+    },
+  })
+}
+
+export async function resetSetupQueries(queryClient: QueryClient) {
+  queryGenerations.set(queryClient, getQueryGeneration(queryClient) + 1)
   await queryClient.cancelQueries({ queryKey: barbershopSetupQueryKeys.all })
   queryClient.removeQueries({ queryKey: barbershopSetupQueryKeys.all })
 }

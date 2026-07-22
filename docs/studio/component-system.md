@@ -136,7 +136,7 @@ building block of a documented composition.
 | `layout/module-tabs.tsx` | Layout/navigation | Internal: requires router context and module-owned tab metadata. |
 | `layout/page-header.tsx` | Layout | Internal: composed by module pages; actions remain module owned. |
 | `layout/section-header.tsx` | Layout | Internal: small structural helper documented through page compositions. |
-| `overlays/action-drawer.tsx` | Overlay | Documented public contract: focus-managed form composition with explicit primary and secondary action slots. |
+| `overlays/action-drawer.tsx` | Overlay | Documented public contract: focus-managed form composition with explicit primary and secondary action slots plus Base UI open-change completion notification for consumers that retain content through exit transitions. |
 | `overlays/confirmation-dialog.tsx` | Overlay | Documented public contract: Base UI focus-managed confirmation with explicit title/description, configurable Portuguese action labels, and default or destructive confirmation treatment; covered by consuming form and prototype flows. |
 | `overlays/drawer-section.tsx` | Overlay anatomy | Internal: companion anatomy for `ActionDrawer`, not a standalone surface. |
 | `overlays/drawer-tabs.tsx` | Overlay anatomy | Internal: companion tab anatomy requiring a composed drawer. |

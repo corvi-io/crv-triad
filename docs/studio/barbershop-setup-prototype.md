@@ -14,13 +14,22 @@ notes, form values, and other PII-shaped values remain component-local and never
 The overview explains visual completion without claiming production readiness. The catalog sections
 support bounded search, status filtering, three-state sorting, pagination, inspect, create, edit,
 archive, and restore. Archive commands block active dependencies instead of silently orphaning
-records. Availability uses explicit day/time fields, closed-day switches, breaks, time-off feedback,
-conflict descriptions, and copy-to-weekday actions; dragging is not required.
+records. Service `professionalIds` are the canonical professional/service relationship in the
+presentation adapter; professional `serviceIds` are derived after create, update, archive, restore,
+scenario selection, and reset so both visible directions stay coherent. Availability uses explicit
+day/time fields, closed-day switches, breaks, time-off feedback, conflict descriptions, and one
+atomic Monday-to-Friday copy command; dragging is not required. Clean destination cards refresh
+from committed copy results while an actively edited destination draft is preserved.
 
 All UI and validation copy is Brazilian Portuguese. Tables own bounded horizontal overflow, forms
 reflow to one column, statuses include text, and Base UI/shadcn overlays retain keyboard focus
 management. Loading, empty, filtered-empty, conflict, one-shot failure, persistent error, retry, and
 optimistic rollback states are visible and deterministic.
+
+Entity drawers retain their active form/detail content while Base UI observes closed-to-open and
+open-to-closed state changes. Entry and exit transitions therefore run before content unmounts and
+focus returns to the initiating control after close completion. Existing reduced-motion styles
+collapse that transition to the minimum browser duration.
 
 ## Scenarios And Reset
 
@@ -41,6 +50,11 @@ scenarios. `Restaurar cenário` confirms loss of local changes, resets the coord
 collection and deterministic ID sequence, clears pending failure behavior and TanStack Query state,
 closes module overlays through a new composition epoch, and returns focus to the section heading.
 Refresh reconstructs the URL-selected seed; no record is persisted.
+
+Every delayed repository operation captures its scenario and operation generation. Reads use the
+records captured when requested, while scenario selection and reset increment the generation so a
+delayed mutation cannot modify the restored or newly selected seed. Query-cache generations also
+prevent stale optimistic callbacks from restoring removed setup queries after reset or switch.
 
 `dense-catalogs` is bounded UX stress data. Its counts do not describe API, database, browser, or
 concurrency capacity.
@@ -82,10 +96,12 @@ compositions remain module-owned because their vocabulary and relationships are 
 
 Focused Vitest covers URL validation, scenario isolation, deterministic reset/IDs, dependency
 blocking, one-shot and persistent failure, availability validation, stale scenario isolation,
-forms, navigation, reset, and optimistic rollback. Playwright covers stable navigation, axe,
-in-memory create/reset, one-shot recovery, persistent failure, conflict feedback, 320 CSS-pixel
-reflow, keyboard focus, dark mode, and reduced motion. Production checks cover redirect and bundle
-exclusion.
+relationship synchronization, delayed mutation invalidation, atomic copy rollback, forms,
+navigation, reset, and optimistic rollback. Playwright covers stable navigation, axe, in-memory
+create/reset, drawer entry/exit and reduced motion, scalar/relationship error focus, one-shot
+recovery, persistent failure, copy refresh and active-draft preservation, dependency blocking,
+conflict feedback, 320 CSS-pixel reflow, keyboard focus, and dark mode. Production checks cover
+redirect and bundle exclusion.
 
 VoiceOver/NVDA, a physical coarse-pointer device, OS-level forced-colors visual inspection, and a
 deployed authenticated `dev` review remain manual follow-ups unless recorded as completed in the

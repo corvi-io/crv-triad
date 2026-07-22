@@ -77,30 +77,43 @@ function availability(
   unitId: string,
   conflicts = false,
 ): SetupAvailability[] {
-  return weekdays.map((day, index) => ({
-    id: `availability-${professionalId}-${day}`,
-    kind: "availability" as const,
-    professionalId,
-    unitId,
-    day,
-    closed: index === 6,
-    periods:
-      index === 6
-        ? []
-        : conflicts && index === 0
-          ? [
-              { start: "09:00", end: "12:00" },
-              { start: "13:00", end: "18:00" },
-            ]
-          : [{ start: "09:00", end: "18:00" }],
-    breaks:
-      index === 6
-        ? []
-        : conflicts && index === 1
-          ? [{ start: "17:30", end: "18:30" }]
-          : [{ start: "12:00", end: "13:00" }],
-    timeOff: conflicts && index === 3 ? "Ausência sintética: 14:00–16:00" : undefined,
-  }))
+  return weekdays.map((day, index) => {
+    const closed = index === 6 || (conflicts && index === 5)
+    return {
+      id: `availability-${professionalId}-${day}`,
+      kind: "availability" as const,
+      professionalId,
+      unitId,
+      day,
+      closed,
+      periods:
+        closed && index === 6
+          ? []
+          : conflicts && index === 0
+            ? [
+                { start: "09:00", end: "13:00" },
+                { start: "12:00", end: "18:00" },
+              ]
+            : [{ start: "09:00", end: "18:00" }],
+      breaks:
+        closed && index === 6
+          ? []
+          : conflicts && index === 1
+            ? [{ start: "17:30", end: "18:30" }]
+            : conflicts && index === 2
+              ? [
+                  { start: "12:00", end: "13:00" },
+                  { start: "12:30", end: "13:30" },
+                ]
+              : [{ start: "12:00", end: "13:00" }],
+      timeOff:
+        conflicts && index === 3
+          ? "Ausência sintética: 14:00–16:00"
+          : conflicts && index === 4
+            ? "Ausência sintética: 18:30–19:30"
+            : undefined,
+    }
+  })
 }
 
 const center = unit("unit-center", "Unidade Centro")

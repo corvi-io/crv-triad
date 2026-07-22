@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Building2Icon, Clock3Icon, MapPinIcon, ScissorsIcon, UserRoundIcon } from "lucide-react"
-import type { ReactNode } from "react"
+import { type ReactNode, useEffect, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { z } from "zod"
 import {
@@ -81,6 +81,7 @@ type EntityDrawerState =
 export function SetupEntityDrawer({
   isSaving,
   onClose,
+  onCloseComplete,
   onSave,
   professionals,
   services,
@@ -89,20 +90,47 @@ export function SetupEntityDrawer({
 }: {
   isSaving: boolean
   onClose: () => void
+  onCloseComplete: () => void
   onSave: (kind: SetupEntityKind, input: SetupEntityInput) => Promise<void>
   professionals: readonly SetupProfessional[]
   services: readonly SetupService[]
   state: EntityDrawerState
   units: readonly SetupUnit[]
 }) {
-  if (!state) return null
-  const entity = state.kind === "create" ? undefined : state.entity
-  const entityKind = state.kind === "create" ? state.entityKind : state.entity.kind
-  if (state.kind === "view" && entity) {
+  const [renderedState, setRenderedState] = useState<EntityDrawerState>(state)
+  const [isOpen, setIsOpen] = useState(false)
+
+  useEffect(() => {
+    if (!state) {
+      setIsOpen(false)
+      return
+    }
+    setRenderedState(state)
+  }, [state])
+
+  useEffect(() => {
+    if (!state || !renderedState) return
+    const frame = requestAnimationFrame(() => setIsOpen(true))
+    return () => cancelAnimationFrame(frame)
+  }, [renderedState, state])
+
+  function handleOpenChangeComplete(open: boolean) {
+    if (open || state) return
+    setRenderedState(null)
+    onCloseComplete()
+  }
+
+  if (!renderedState) return null
+  const entity = renderedState.kind === "create" ? undefined : renderedState.entity
+  const entityKind =
+    renderedState.kind === "create" ? renderedState.entityKind : renderedState.entity.kind
+  if (renderedState.kind === "view" && entity) {
     return (
       <EntityDetails
         entity={entity}
+        isOpen={isOpen}
         onClose={onClose}
+        onOpenChangeComplete={handleOpenChangeComplete}
         professionals={professionals}
         services={services}
         units={units}
@@ -114,8 +142,10 @@ export function SetupEntityDrawer({
       key={entity?.id ?? `new-${entityKind}`}
       entity={entity}
       entityKind={entityKind}
+      isOpen={isOpen}
       isSaving={isSaving}
       onClose={onClose}
+      onOpenChangeComplete={handleOpenChangeComplete}
       onSave={onSave}
       professionals={professionals}
       services={services}
@@ -127,8 +157,10 @@ export function SetupEntityDrawer({
 function EntityForm({
   entity,
   entityKind,
+  isOpen,
   isSaving,
   onClose,
+  onOpenChangeComplete,
   onSave,
   professionals,
   services,
@@ -136,8 +168,10 @@ function EntityForm({
 }: {
   entity?: SetupEntity
   entityKind: SetupEntityKind
+  isOpen: boolean
   isSaving: boolean
   onClose: () => void
+  onOpenChangeComplete: (isOpen: boolean) => void
   onSave: (kind: SetupEntityKind, input: SetupEntityInput) => Promise<void>
   professionals: readonly SetupProfessional[]
   services: readonly SetupService[]
@@ -168,9 +202,10 @@ function EntityForm({
 
   return (
     <ActionDrawer
-      isOpen
+      isOpen={isOpen}
       size="form"
       onOpenChange={(open) => !open && onClose()}
+      onOpenChangeComplete={onOpenChangeComplete}
       context={entityLabels[entityKind].plural}
       title={
         entity ? `Editar ${entityLabels[entityKind].singular}` : entityLabels[entityKind].newLabel
@@ -227,9 +262,16 @@ function EntityForm({
         </FormSection>
         {entityKind === "professional" ? (
           <FormSection title="Vínculos">
-            <RelationField control={form.control} name="unitIds" label="Unidades" options={units} />
             <RelationField
               control={form.control}
+              formId={formId}
+              name="unitIds"
+              label="Unidades"
+              options={units}
+            />
+            <RelationField
+              control={form.control}
+              formId={formId}
               name="serviceIds"
               label="Serviços oferecidos"
               options={services}
@@ -238,9 +280,16 @@ function EntityForm({
         ) : null}
         {entityKind === "service" ? (
           <FormSection title="Disponibilidade do catálogo">
-            <RelationField control={form.control} name="unitIds" label="Unidades" options={units} />
             <RelationField
               control={form.control}
+              formId={formId}
+              name="unitIds"
+              label="Unidades"
+              options={units}
+            />
+            <RelationField
+              control={form.control}
+              formId={formId}
               name="professionalIds"
               label="Profissionais elegíveis"
               options={professionals}
@@ -264,6 +313,11 @@ function UnitFields({ formId, form }: FormFieldsProps) {
         <Input
           id={`${formId}-code`}
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "code"))}
+          aria-describedby={getFieldDescriptionIds(
+            `${formId}-code`,
+            false,
+            Boolean(fieldMessage(form.formState.errors, "code")),
+          )}
           {...form.register("code")}
         />
       </FormField>
@@ -277,6 +331,11 @@ function UnitFields({ formId, form }: FormFieldsProps) {
         <Input
           id={`${formId}-address`}
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "address"))}
+          aria-describedby={getFieldDescriptionIds(
+            `${formId}-address`,
+            false,
+            Boolean(fieldMessage(form.formState.errors, "address")),
+          )}
           {...form.register("address")}
         />
       </FormField>
@@ -290,6 +349,11 @@ function UnitFields({ formId, form }: FormFieldsProps) {
         <Input
           id={`${formId}-business-hours`}
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "businessHours"))}
+          aria-describedby={getFieldDescriptionIds(
+            `${formId}-business-hours`,
+            false,
+            Boolean(fieldMessage(form.formState.errors, "businessHours")),
+          )}
           {...form.register("businessHours")}
         />
       </FormField>
@@ -309,6 +373,11 @@ function ProfessionalFields({ formId, form }: FormFieldsProps) {
         <Input
           id={`${formId}-role`}
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "role"))}
+          aria-describedby={getFieldDescriptionIds(
+            `${formId}-role`,
+            false,
+            Boolean(fieldMessage(form.formState.errors, "role")),
+          )}
           {...form.register("role")}
         />
       </FormField>
@@ -322,7 +391,11 @@ function ProfessionalFields({ formId, form }: FormFieldsProps) {
           name="accountAccess"
           render={({ field }) => (
             <Select value={field.value as AccountAccessStatus} onValueChange={field.onChange}>
-              <SelectTrigger id={`${formId}-access`}>
+              <SelectTrigger
+                id={`${formId}-access`}
+                ref={field.ref}
+                aria-describedby={getFieldDescriptionIds(`${formId}-access`, true, false)}
+              >
                 <SelectValue>{accessLabels[field.value as AccountAccessStatus]}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -350,6 +423,11 @@ function ServiceFields({ formId, form }: FormFieldsProps) {
         <Input
           id={`${formId}-category`}
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "category"))}
+          aria-describedby={getFieldDescriptionIds(
+            `${formId}-category`,
+            false,
+            Boolean(fieldMessage(form.formState.errors, "category")),
+          )}
           {...form.register("category")}
         />
       </FormField>
@@ -362,6 +440,11 @@ function ServiceFields({ formId, form }: FormFieldsProps) {
         <Textarea
           id={`${formId}-description`}
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "description"))}
+          aria-describedby={getFieldDescriptionIds(
+            `${formId}-description`,
+            false,
+            Boolean(fieldMessage(form.formState.errors, "description")),
+          )}
           {...form.register("description")}
         />
       </FormField>
@@ -377,6 +460,11 @@ function ServiceFields({ formId, form }: FormFieldsProps) {
           min={15}
           step={15}
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "durationMinutes"))}
+          aria-describedby={getFieldDescriptionIds(
+            `${formId}-duration`,
+            false,
+            Boolean(fieldMessage(form.formState.errors, "durationMinutes")),
+          )}
           {...form.register("durationMinutes", { valueAsNumber: true })}
         />
       </FormField>
@@ -392,6 +480,11 @@ function ServiceFields({ formId, form }: FormFieldsProps) {
           min={0}
           step="0.50"
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "price"))}
+          aria-describedby={getFieldDescriptionIds(
+            `${formId}-price`,
+            false,
+            Boolean(fieldMessage(form.formState.errors, "price")),
+          )}
           {...form.register("price", { valueAsNumber: true })}
         />
       </FormField>
@@ -403,11 +496,13 @@ type RelationName = "professionalIds" | "serviceIds" | "unitIds"
 
 function RelationField({
   control,
+  formId,
   label,
   name,
   options,
 }: {
   control: ReturnType<typeof useForm<SetupEntityFormValues>>["control"]
+  formId: string
   label: string
   name: RelationName
   options: readonly SetupEntity[]
@@ -416,57 +511,81 @@ function RelationField({
     <Controller
       control={control}
       name={name}
-      render={({ field, fieldState }) => (
-        <FieldSet data-invalid={fieldState.invalid}>
-          <FieldLegend variant="label">{label}</FieldLegend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {options.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma opção ativa neste cenário.</p>
-            ) : (
-              options.map((option) => {
-                const values = Array.isArray(field.value) ? field.value : []
-                const id = `${name}-${option.id}`
-                return (
-                  <Field key={option.id} orientation="horizontal">
-                    <input
-                      id={id}
-                      type="checkbox"
-                      className="size-5 accent-primary"
-                      checked={values.includes(option.id)}
-                      onChange={(event) =>
-                        field.onChange(
-                          event.currentTarget.checked
-                            ? [...values, option.id]
-                            : values.filter((value) => value !== option.id),
-                        )
-                      }
-                    />
-                    <FieldLabel htmlFor={id}>{option.name}</FieldLabel>
-                  </Field>
-                )
-              })
-            )}
-          </div>
-          {fieldState.error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {fieldState.error.message}
-            </p>
-          ) : null}
-        </FieldSet>
-      )}
+      render={({ field, fieldState }) => {
+        const errorId = `${formId}-${name}-error`
+        const groupId = `${formId}-${name}`
+        const isRequired = name !== "serviceIds"
+        return (
+          <FieldSet
+            ref={options.length === 0 ? field.ref : undefined}
+            tabIndex={options.length === 0 ? -1 : undefined}
+            data-invalid={fieldState.invalid}
+            aria-describedby={fieldState.invalid ? errorId : undefined}
+            aria-invalid={fieldState.invalid}
+            aria-required={isRequired}
+          >
+            <FieldLegend id={`${groupId}-label`} variant="label">
+              {label}
+              {isRequired ? " *" : ""}
+            </FieldLegend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {options.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhuma opção ativa neste cenário.</p>
+              ) : (
+                options.map((option, index) => {
+                  const values = Array.isArray(field.value) ? field.value : []
+                  const id = `${groupId}-${option.id}`
+                  return (
+                    <Field key={option.id} orientation="horizontal">
+                      <input
+                        id={id}
+                        ref={index === 0 ? field.ref : undefined}
+                        name={field.name}
+                        type="checkbox"
+                        className="size-5 accent-primary"
+                        checked={values.includes(option.id)}
+                        aria-describedby={fieldState.invalid ? errorId : undefined}
+                        aria-invalid={fieldState.invalid}
+                        onBlur={field.onBlur}
+                        onChange={(event) =>
+                          field.onChange(
+                            event.currentTarget.checked
+                              ? [...values, option.id]
+                              : values.filter((value) => value !== option.id),
+                          )
+                        }
+                      />
+                      <FieldLabel htmlFor={id}>{option.name}</FieldLabel>
+                    </Field>
+                  )
+                })
+              )}
+            </div>
+            {fieldState.error ? (
+              <p id={errorId} role="alert" className="text-sm text-destructive">
+                {fieldState.error.message}
+              </p>
+            ) : null}
+          </FieldSet>
+        )
+      }}
     />
   )
 }
 
 function EntityDetails({
   entity,
+  isOpen,
   onClose,
+  onOpenChangeComplete,
   professionals,
   services,
   units,
 }: {
   entity: SetupEntity
+  isOpen: boolean
   onClose: () => void
+  onOpenChangeComplete: (isOpen: boolean) => void
   professionals: readonly SetupProfessional[]
   services: readonly SetupService[]
   units: readonly SetupUnit[]
@@ -495,8 +614,9 @@ function EntityDetails({
           ]
   return (
     <ActionDrawer
-      isOpen
+      isOpen={isOpen}
       onOpenChange={(open) => !open && onClose()}
+      onOpenChangeComplete={onOpenChangeComplete}
       context={entityLabels[entity.kind].plural}
       title="Visualizar"
       description="Detalhes sintéticos da apresentação."

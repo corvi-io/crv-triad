@@ -54,7 +54,8 @@ residual manual accessibility checks.
 The barbershop setup prototype presents URL-selectable overview, units, professionals, services,
 and availability sections over deterministic related memory scenarios. It supports local
 create/edit/archive/restore, relationship validation, conflict feedback, bounded failures, retry,
-and full scenario reset without accepting an API, persistence, tenancy, or authorization contract.
+atomic weekday copying, stale-operation invalidation, and full scenario reset without accepting an
+API, persistence, tenancy, or authorization contract.
 It is excluded from production builds through a virtual null-loader boundary; see
 `docs/studio/barbershop-setup-prototype.md`.
 

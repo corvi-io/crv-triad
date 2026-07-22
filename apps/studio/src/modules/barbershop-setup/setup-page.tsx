@@ -14,7 +14,7 @@ import {
   Undo2Icon,
   UserRoundIcon,
 } from "lucide-react"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import {
   createDataTablePointAnchor,
@@ -77,6 +77,7 @@ import {
 } from "./entity-drawer"
 import {
   resetSetupQueries,
+  useCopySetupAvailabilityToWeekdays,
   useCreateSetupEntity,
   useSetSetupEntityArchived,
   useSetupAvailability,
@@ -328,6 +329,9 @@ function EntitySection({
 
   function closeDrawer() {
     setDrawer(null)
+  }
+
+  function restoreDrawerFocus() {
     returnFocusRef.current?.focus()
   }
 
@@ -616,6 +620,7 @@ function EntitySection({
         state={drawer}
         isSaving={createEntity.isPending || updateEntity.isPending}
         onClose={closeDrawer}
+        onCloseComplete={restoreDrawerFocus}
         onSave={save}
         units={relationData.units}
         professionals={relationData.professionals}
@@ -645,6 +650,7 @@ function EntitySection({
 
 function AvailabilitySection({ scenarioId }: { scenarioId: SetupScenarioId }) {
   const availability = useSetupAvailability({ scenarioId })
+  const copyAvailability = useCopySetupAvailabilityToWeekdays()
   const updateAvailability = useUpdateSetupAvailability()
   const [professionalId, setProfessionalId] = useState<string>()
   const [unitId, setUnitId] = useState<string>()
@@ -687,17 +693,13 @@ function AvailabilitySection({ scenarioId }: { scenarioId: SetupScenarioId }) {
 
   async function copyWeekdays(source: SetupAvailability) {
     try {
-      const targets = records.filter(({ day }) => day !== source.day && day !== "sunday")
-      await Promise.all(
-        targets.map((target) =>
-          updateAvailability.mutateAsync({
-            ...target,
-            closed: source.closed,
-            periods: source.periods,
-            breaks: source.breaks,
-          }),
-        ),
+      const targets = records.filter(
+        ({ day }) => day !== source.day && day !== "saturday" && day !== "sunday",
       )
+      await copyAvailability.mutateAsync({
+        source,
+        targetIds: targets.map(({ id }) => id),
+      })
       toast.success("Horários copiados para os dias úteis.")
     } catch (error) {
       toast.error(errorMessage(error))
@@ -784,7 +786,7 @@ function AvailabilitySection({ scenarioId }: { scenarioId: SetupScenarioId }) {
             <AvailabilityDayCard
               key={record.id}
               record={record}
-              isSaving={updateAvailability.isPending}
+              isSaving={updateAvailability.isPending || copyAvailability.isPending}
               onSave={save}
               onCopy={copyWeekdays}
             />
@@ -806,29 +808,43 @@ function AvailabilityDayCard({
   onCopy: (record: SetupAvailability) => Promise<void>
   onSave: (record: SetupAvailability) => Promise<void>
 }) {
-  const [closed, setClosed] = useState(record.closed)
-  const [periods, setPeriods] = useState<readonly TimeRange[]>(record.periods)
-  const [breaks, setBreaks] = useState<readonly TimeRange[]>(record.breaks)
-  const [timeOff, setTimeOff] = useState(record.timeOff ?? "")
+  const [draft, setDraft] = useState(() => availabilityDraft(record))
+  const previousRecordRef = useRef(record)
+
+  useEffect(() => {
+    setDraft((current) => {
+      const previousRecord = previousRecordRef.current
+      previousRecordRef.current = record
+      return availabilityDraftMatches(current, previousRecord) ? availabilityDraft(record) : current
+    })
+  }, [record])
+
   const next = (): SetupAvailability => ({
     ...record,
-    closed,
-    periods: closed ? [] : periods,
-    breaks: closed ? [] : breaks,
-    timeOff: timeOff.trim() || undefined,
+    closed: draft.closed,
+    periods: draft.closed ? [] : draft.periods,
+    breaks: draft.closed ? [] : draft.breaks,
+    timeOff: draft.timeOff.trim() || undefined,
   })
+  const titleId = `${record.id}-title`
   return (
-    <Card>
+    <Card role="group" aria-labelledby={titleId}>
       <CardHeader>
-        <CardTitle>{weekdayLabels[record.day]}</CardTitle>
+        <CardTitle id={titleId}>{weekdayLabels[record.day]}</CardTitle>
         <CardDescription>
-          {timeOff ||
-            (closed ? "Fechado" : `${periods.length} período(s) · ${breaks.length} pausa(s)`)}
+          {draft.timeOff ||
+            (draft.closed
+              ? "Fechado"
+              : `${draft.periods.length} período(s) · ${draft.breaks.length} pausa(s)`)}
         </CardDescription>
         <CardAction>
           <div className="flex items-center gap-2">
             <Label htmlFor={`${record.id}-closed`}>Fechado</Label>
-            <Switch id={`${record.id}-closed`} checked={closed} onCheckedChange={setClosed} />
+            <Switch
+              id={`${record.id}-closed`}
+              checked={draft.closed}
+              onCheckedChange={(closed) => setDraft((current) => ({ ...current, closed }))}
+            />
           </div>
         </CardAction>
       </CardHeader>
@@ -836,27 +852,29 @@ function AvailabilityDayCard({
         <RangeEditor
           id={`${record.id}-period`}
           label="Períodos de trabalho"
-          ranges={periods}
-          disabled={closed}
-          onChange={setPeriods}
+          ranges={draft.periods}
+          disabled={draft.closed}
+          onChange={(periods) => setDraft((current) => ({ ...current, periods }))}
           emptyRange={{ start: "09:00", end: "18:00" }}
         />
         <RangeEditor
           id={`${record.id}-break`}
           label="Pausas"
-          ranges={breaks}
-          disabled={closed}
-          onChange={setBreaks}
+          ranges={draft.breaks}
+          disabled={draft.closed}
+          onChange={(breaks) => setDraft((current) => ({ ...current, breaks }))}
           emptyRange={{ start: "12:00", end: "13:00" }}
         />
         <div className="grid gap-1">
           <Label htmlFor={`${record.id}-time-off`}>Ausência ou observação (opcional)</Label>
           <Input
             id={`${record.id}-time-off`}
-            value={timeOff}
-            disabled={closed}
+            value={draft.timeOff}
+            disabled={draft.closed}
             placeholder="Ex.: ausência sintética das 14:00 às 16:00"
-            onChange={(event) => setTimeOff(event.currentTarget.value)}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, timeOff: event.currentTarget.value }))
+            }
           />
         </div>
       </CardContent>
@@ -874,6 +892,31 @@ function AvailabilityDayCard({
         </Button>
       </CardFooter>
     </Card>
+  )
+}
+
+type AvailabilityDraft = {
+  breaks: readonly TimeRange[]
+  closed: boolean
+  periods: readonly TimeRange[]
+  timeOff: string
+}
+
+function availabilityDraft(record: SetupAvailability): AvailabilityDraft {
+  return {
+    breaks: structuredClone(record.breaks),
+    closed: record.closed,
+    periods: structuredClone(record.periods),
+    timeOff: record.timeOff ?? "",
+  }
+}
+
+function availabilityDraftMatches(draft: AvailabilityDraft, record: SetupAvailability) {
+  return (
+    draft.closed === record.closed &&
+    draft.timeOff === (record.timeOff ?? "") &&
+    JSON.stringify(draft.periods) === JSON.stringify(record.periods) &&
+    JSON.stringify(draft.breaks) === JSON.stringify(record.breaks)
   )
 }
 

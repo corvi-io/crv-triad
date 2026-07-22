@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event"
 import { useState } from "react"
 import { describe, expect, it } from "vitest"
 import { BarbershopSetupMemoryRepository } from "@/dev/barbershop-setup/memory-repository"
+import type { SetupScenarioId, SetupSection } from "@/modules/barbershop-setup/contracts"
 import { BarbershopSetupRepositoryProvider } from "@/modules/barbershop-setup/repository-context"
 import type { BarbershopSetupSearch } from "@/modules/barbershop-setup/search"
 import { validateBarbershopSetupSearch } from "@/modules/barbershop-setup/search"
@@ -49,10 +50,7 @@ describe("barbershop setup presentation", () => {
   })
 })
 
-function renderSetup(
-  scenario: "new-business" | "single-unit",
-  section: "availability" | "overview" | "services" | "units" = "overview",
-) {
+function renderSetup(scenario: SetupScenarioId, section: SetupSection = "overview") {
   const repository = new BarbershopSetupMemoryRepository()
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   function Harness() {

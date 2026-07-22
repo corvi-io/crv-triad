@@ -36,10 +36,13 @@ content, horizontal density, and a focused axe scan. The authenticated `/agenda`
 use the real IDP boundary; the preview is local QA tooling and redirects in production.
 
 `tests/e2e/barbershop-setup.spec.ts` covers the development-only setup presentation: stable section
-URLs, overview, catalogs, in-memory create/reset, one-shot mutation recovery, persistent load
-failure, availability conflicts, axe, 320 CSS-pixel reflow, keyboard focus, dark mode, and reduced
-motion. Production preview coverage proves the route redirects, and the production-boundary scan
-rejects adapter, fixture, scenario-control, and dense-record markers.
+URLs, overview, catalogs, in-memory create/reset, observable drawer entry/exit with reduced-motion
+suppression and focus restoration, scalar and relationship first-invalid focus, slow-result
+isolation, one-shot mutation recovery, atomic weekday-copy failure/success with active-draft
+preservation, linked-service archive blocking, persistent load failure, availability conflicts,
+axe, 320 CSS-pixel reflow, keyboard focus, and dark mode. Production preview coverage proves the
+route redirects, and the production-boundary scan rejects adapter, fixture, scenario-control, and
+dense-record markers.
 
 `tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
 the resolved class at the first animation frame, measures browser-computed contrast for core

@@ -151,11 +151,11 @@
   - [x] Extend production-boundary tests to reject module fixture, scenario,
         reset-control, mock-engine, and presentation-only markers from `hml` and
         `prd` artifacts.
-- [x] Add focused verification:
+- [ ] Add focused verification:
   - [x] Unit-test deterministic scenario isolation, IDs, related reset, latency,
         one-shot/persistent failure, stale-result protection, dependency rules,
         optimistic rollback, and query invalidation.
-  - [x] Unit/component-test every section's normal/loading/empty/error/dense,
+  - [ ] Unit/component-test every section's normal/loading/empty/error/dense,
         form, confirmation, relationship, and reset behavior.
   - [x] Add Playwright journeys for overview-to-section navigation, catalog
         mutations, availability editing, scenario switching, reset, failure,
@@ -179,12 +179,13 @@ auth/session values, private headers, or screenshots that could be mistaken for
 real business data.
 
 - Command: `bun --filter studio routes:generate`, `format`, `lint`, `typecheck`, and `test`
-- Result: passed; 27 Vitest files and 141 tests passed in the final full run.
-- Notes: focused ENG-41 repository and component coverage contributes 10 tests; two browser-level
-  mutation/reset journeys remain in Playwright to avoid redundant high-cost component rendering.
+- Result: passed before review fixes; 27 Vitest files and 141 tests passed. Final review-fix counts
+  are recorded below after the post-format verification run.
+- Notes: browser-authoritative Base UI transition, relationship-focus, and availability-draft
+  journeys remain in Playwright to avoid redundant high-cost jsdom rendering.
 - Command: `bun --filter studio test:e2e`
-- Result: passed; 31 Chromium tests passed, including five ENG-41 journeys and focused axe WCAG
-  2.0/2.1/2.2 A/AA coverage.
+- Result: passed before review fixes; 31 Chromium tests passed, including five ENG-41 journeys and
+  focused axe WCAG 2.0/2.1/2.2 A/AA coverage. Final review-fix counts are recorded below.
 - Notes: the complete browser suite also verified light, dark, system, computed contrast, visible
   focus, reduced motion, forced colors, 320 CSS pixels, and 200%-zoom-equivalent behavior.
 - Command: `bun --filter studio test:production-boundary` and `bun --filter studio build`
@@ -203,6 +204,33 @@ real business data.
   and authenticated deployed `dev` review were not available and remain explicit residual checks.
   Headless forced-colors, keyboard, focus, axe, reduced-motion, and narrow/zoom-equivalent evidence
   passed. No temporary server remained running after review.
+
+### Review-Fix Evidence
+
+- Targeted Vitest: mock engine plus ENG-41 repository/page coverage passed 17 tests. Repository
+  regressions cover invocation-snapshot reads, reset/switch generation invalidation, canonical
+  professional/service synchronization, dependency blocking, atomic copy rollback, reset, and
+  complete represented availability conflicts.
+- Targeted Chromium: all nine ENG-41 journeys passed. Normal-motion drawer entry emitted a browser
+  transition with a computed 200 ms duration; reduced motion computed at no more than 1 ms. Exit
+  content remained mounted through `data-ending-style`, then focus returned to the opener.
+- Chromium also verified scalar and relationship-only first-invalid focus/error descriptions,
+  copy failure rollback followed by visible success, preservation of an actively edited destination
+  draft, linked-service archive blocking, slow-result isolation, and scenario reset behavior.
+- Final package gates: route generation, clean formatting, lint, typecheck, 27-file/145-test Vitest,
+  35-test Chromium, 38-file production-boundary scan, build, and standalone `studio check` passed.
+- Root `bun run check` did not pass in this batch: two bounded exact attempts and one changed-approach
+  isolated Turbo Studio attempt each timed out in the same two pre-existing Agenda jsdom journeys
+  (`announces keyboard drag instructions and cancellation in Portuguese` and `opens details from a
+  board card and preserves the edit journey`). The same 145-test Studio suite passed through both
+  direct `studio test` and standalone `studio check`; no unrelated Agenda source or timeout was
+  changed. The orchestrator classified the repeated aggregate-only timeouts as a local non-branch
+  flake and authorized delivery so remote CI can validate the pushed head; the local root gate
+  remains explicitly not passed.
+- Physical VoiceOver/NVDA, coarse-pointer hardware, OS-native forced-colors visual inspection, and
+  authenticated deployed-dev validation were not performed in this review-fix batch and remain
+  residual. The availability discard-confirmation and exhaustive every-section/every-state
+  component-test tasks remain unchecked; their broader parent tasks remain unchecked as well.
 
 ## Risks And Follow-Ups
 

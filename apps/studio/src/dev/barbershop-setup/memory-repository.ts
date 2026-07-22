@@ -3,6 +3,7 @@ import type {
   AvailabilityQuery,
   AvailabilityResult,
   BarbershopSetupRepository,
+  CopyAvailabilityToWeekdaysInput,
   SetupAvailability,
   SetupEntity,
   SetupEntityInput,
@@ -16,13 +17,23 @@ import type {
   SetupScenarioId,
   SetupService,
   SetupUnit,
+  TimeRange,
 } from "@/modules/barbershop-setup/contracts"
-import { SetupDependencyError, SetupValidationError } from "@/modules/barbershop-setup/contracts"
+import {
+  SetupDependencyError,
+  SetupOperationInvalidatedError,
+  SetupValidationError,
+} from "@/modules/barbershop-setup/contracts"
 import { barbershopSetupScenarios } from "./scenarios"
 
 export class BarbershopSetupMemoryRepository implements BarbershopSetupRepository {
   readonly #engine = new MemoryScenarioEngine<SetupRecord>(barbershopSetupScenarios, "single-unit")
   #failNextMutation = false
+  #operationGeneration = 0
+
+  constructor() {
+    this.#normalizeProfessionalServiceRelations()
+  }
 
   scenarios() {
     return barbershopSetupScenarios.map(({ description, id, label }) => ({
@@ -48,8 +59,8 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
 
   async getOverview(scenarioId: SetupScenarioId): Promise<SetupOverview> {
     this.#ensureScenario(scenarioId)
+    const records = this.#engine.values()
     return this.#engine.execute("list", () => {
-      const records = this.#engine.values()
       const units = records.filter(
         (record): record is SetupUnit => record.kind === "unit" && record.status === "active",
       )
@@ -119,10 +130,10 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
 
   async list(query: SetupListQuery): Promise<SetupEntityPage> {
     this.#ensureScenario(query.scenarioId)
+    const records = this.#engine.values()
     return this.#engine.execute("list", () => {
       const needle = query.search.trim().toLocaleLowerCase("pt-BR")
-      const items = this.#engine
-        .values()
+      const items = records
         .filter((record): record is SetupEntity => record.kind === query.kind)
         .filter((record) => query.status === "all" || record.status === query.status)
         .filter((record) => needle.length === 0 || entitySearchText(record).includes(needle))
@@ -145,8 +156,8 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
 
   async getAvailability(query: AvailabilityQuery): Promise<AvailabilityResult> {
     this.#ensureScenario(query.scenarioId)
+    const records = this.#engine.values()
     return this.#engine.execute("list", () => {
-      const records = this.#engine.values()
       const units = records.filter(
         (record): record is SetupUnit => record.kind === "unit" && record.status === "active",
       )
@@ -174,10 +185,15 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
   async create(kind: SetupEntityKind, input: SetupEntityInput) {
     return this.#mutate("create", () => {
       this.#validateEntityInput(kind, input)
-      return this.#engine.create(
+      const created = this.#engine.create(
         { ...input, kind, status: "active" } as unknown as Omit<SetupRecord, "id">,
         kind,
       ) as SetupEntity
+      if (created.kind === "professional") {
+        this.#applyProfessionalServiceSelection(created.id, created.serviceIds)
+      }
+      this.#normalizeProfessionalServiceRelations()
+      return this.#entity(kind, created.id)
     })
   }
 
@@ -192,7 +208,11 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
       } as Partial<SetupRecord>)
       if (!updated || updated.kind === "availability")
         throw new SetupValidationError("Registro não encontrado.")
-      return updated
+      if (updated.kind === "professional") {
+        this.#applyProfessionalServiceSelection(updated.id, updated.serviceIds)
+      }
+      this.#normalizeProfessionalServiceRelations()
+      return this.#entity(kind, id)
     })
   }
 
@@ -205,7 +225,41 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
       } as Partial<SetupRecord>)
       if (!updated || updated.kind === "availability")
         throw new SetupValidationError("Registro não encontrado.")
-      return updated
+      this.#normalizeProfessionalServiceRelations()
+      return this.#entity(kind, id)
+    })
+  }
+
+  async copyAvailabilityToWeekdays(input: CopyAvailabilityToWeekdaysInput) {
+    return this.#mutate("update", () => {
+      validateAvailability(input.source)
+      const source = this.#engine.get(input.source.id)
+      if (source?.kind !== "availability")
+        throw new SetupValidationError("Disponibilidade de origem não encontrada.")
+      const targetIds = [...new Set(input.targetIds)]
+      const updates = targetIds.map((targetId) => {
+        const target = this.#engine.get(targetId)
+        if (
+          target?.kind !== "availability" ||
+          target.id === source.id ||
+          target.day === "saturday" ||
+          target.day === "sunday" ||
+          target.professionalId !== source.professionalId ||
+          target.unitId !== source.unitId
+        ) {
+          throw new SetupValidationError("Selecione apenas dias úteis do mesmo vínculo.")
+        }
+        const update: SetupAvailability = {
+          ...target,
+          breaks: structuredClone(input.source.breaks),
+          closed: input.source.closed,
+          periods: structuredClone(input.source.periods),
+        }
+        validateAvailability(update)
+        return update
+      })
+      for (const update of updates) this.#engine.update(update.id, update)
+      return updates
     })
   }
 
@@ -220,19 +274,25 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
   }
 
   async selectScenario(id: SetupScenarioId) {
+    this.#operationGeneration += 1
     this.#engine.selectScenario(id)
     this.#failNextMutation = id === "next-failure"
+    this.#normalizeProfessionalServiceRelations()
   }
 
   async reset() {
+    this.#operationGeneration += 1
     this.#engine.reset()
     this.#failNextMutation = this.#engine.snapshot.scenarioId === "next-failure"
+    this.#normalizeProfessionalServiceRelations()
   }
 
   #ensureScenario(id: SetupScenarioId) {
     if (this.#engine.snapshot.scenarioId !== id) {
+      this.#operationGeneration += 1
       this.#engine.selectScenario(id)
       this.#failNextMutation = id === "next-failure"
+      this.#normalizeProfessionalServiceRelations()
     }
   }
 
@@ -241,7 +301,17 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
       this.#failNextMutation = false
       throw new SimulatedMockFailure(operation)
     }
-    return this.#engine.execute(operation, action)
+    const generation = this.#operationGeneration
+    const scenarioId = this.#engine.snapshot.scenarioId
+    return this.#engine.execute(operation, () => {
+      if (
+        generation !== this.#operationGeneration ||
+        scenarioId !== this.#engine.snapshot.scenarioId
+      ) {
+        throw new SetupOperationInvalidatedError()
+      }
+      return action()
+    })
   }
 
   #entity(kind: SetupEntityKind, id: string) {
@@ -258,6 +328,53 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
       if (service.durationMinutes < 15)
         throw new SetupValidationError("Informe duração mínima de 15 minutos.")
       if (service.priceCents < 0) throw new SetupValidationError("Informe um preço válido.")
+      this.#assertActiveRelations("unit", service.unitIds)
+      this.#assertActiveRelations("professional", service.professionalIds)
+    }
+    if (kind === "professional") {
+      const professional = input as SetupProfessional
+      this.#assertActiveRelations("unit", professional.unitIds)
+      this.#assertActiveRelations("service", professional.serviceIds)
+    }
+  }
+
+  #assertActiveRelations(kind: SetupEntityKind, ids: readonly string[]) {
+    const records = this.#engine.values()
+    if (
+      ids.some(
+        (id) =>
+          !records.some(
+            (record) => record.kind === kind && record.id === id && record.status === "active",
+          ),
+      )
+    ) {
+      throw new SetupValidationError("Selecione somente vínculos ativos deste cenário.")
+    }
+  }
+
+  #applyProfessionalServiceSelection(professionalId: string, selectedIds: readonly string[]) {
+    const selected = new Set(selectedIds)
+    for (const record of this.#engine.values()) {
+      if (record.kind !== "service") continue
+      const professionalIds = new Set(record.professionalIds)
+      if (selected.has(record.id)) professionalIds.add(professionalId)
+      else professionalIds.delete(professionalId)
+      this.#engine.update(record.id, {
+        professionalIds: [...professionalIds],
+      } as Partial<SetupRecord>)
+    }
+  }
+
+  #normalizeProfessionalServiceRelations() {
+    const records = this.#engine.values()
+    const services = records.filter((record): record is SetupService => record.kind === "service")
+    for (const record of records) {
+      if (record.kind !== "professional") continue
+      this.#engine.update(record.id, {
+        serviceIds: services
+          .filter(({ professionalIds }) => professionalIds.includes(record.id))
+          .map(({ id }) => id),
+      } as Partial<SetupRecord>)
     }
   }
 
@@ -278,11 +395,13 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
                 record.status === "active" &&
                 record.professionalIds.includes(entity.id),
             )
-          : records.some(
-              (record) =>
-                record.kind === "professional" &&
-                record.status === "active" &&
-                record.serviceIds.includes(entity.id),
+          : entity.professionalIds.some((professionalId) =>
+              records.some(
+                (record) =>
+                  record.kind === "professional" &&
+                  record.id === professionalId &&
+                  record.status === "active",
+              ),
             )
     if (hasDependencies) {
       throw new SetupDependencyError(
@@ -303,8 +422,7 @@ function entitySearchText(entity: SetupEntity) {
 }
 
 function validateAvailability(record: SetupAvailability) {
-  if (record.closed) return
-  if (record.periods.length === 0)
+  if (!record.closed && record.periods.length === 0)
     throw new SetupValidationError("Adicione pelo menos um período ou marque o dia como fechado.")
   for (const range of [...record.periods, ...record.breaks]) {
     if (
@@ -315,23 +433,57 @@ function validateAvailability(record: SetupAvailability) {
       throw new SetupValidationError("Informe um intervalo com início anterior ao fim.")
     }
   }
-  if (findConflicts([record]).length > 0)
-    throw new SetupValidationError(
-      "A pausa deve ficar dentro de um período e não pode ultrapassá-lo.",
-    )
+  const conflict = findConflicts([record])[0]
+  if (conflict) throw new SetupValidationError(conflict)
 }
 
 function findConflicts(records: readonly SetupAvailability[]) {
   return records.flatMap((record) => {
+    const weekday = weekdayLabels[record.day]
     if (record.closed && (record.periods.length > 0 || record.breaks.length > 0))
-      return [`${weekdayLabels[record.day]}: dia fechado contém horários.`]
-    return record.breaks
-      .filter(
-        (pause) =>
-          !record.periods.some((period) => pause.start >= period.start && pause.end <= period.end),
-      )
-      .map(() => `${weekdayLabels[record.day]}: pausa fora do período de trabalho.`)
+      return [`${weekday}: dia fechado contém horários.`]
+    if (record.closed) return []
+
+    const conflicts: string[] = []
+    if (hasOverlaps(record.periods)) conflicts.push(`${weekday}: períodos de trabalho sobrepostos.`)
+    if (hasOverlaps(record.breaks)) conflicts.push(`${weekday}: pausas sobrepostas.`)
+    if (
+      record.breaks.some((pause) => !record.periods.some((period) => containsRange(period, pause)))
+    ) {
+      conflicts.push(`${weekday}: pausa fora do período de trabalho.`)
+    }
+
+    const timeOff = parseTimeOffRange(record.timeOff)
+    if (timeOff) {
+      if (timeOff.start >= timeOff.end) {
+        conflicts.push(`${weekday}: ausência contém intervalo inválido.`)
+      } else if (!record.periods.some((period) => containsRange(period, timeOff))) {
+        conflicts.push(`${weekday}: ausência fora do período de trabalho.`)
+      } else if (record.breaks.some((pause) => rangesOverlap(pause, timeOff))) {
+        conflicts.push(`${weekday}: ausência sobrepõe uma pausa.`)
+      }
+    }
+    return conflicts
   })
+}
+
+function containsRange(container: TimeRange, range: TimeRange) {
+  return range.start >= container.start && range.end <= container.end
+}
+
+function hasOverlaps(ranges: readonly TimeRange[]) {
+  return ranges.some((range, index) =>
+    ranges.slice(index + 1).some((candidate) => rangesOverlap(range, candidate)),
+  )
+}
+
+function rangesOverlap(left: TimeRange, right: TimeRange) {
+  return left.start < right.end && right.start < left.end
+}
+
+function parseTimeOffRange(timeOff?: string): TimeRange | undefined {
+  const match = timeOff?.match(/(\d{2}:\d{2})\s*[–—-]\s*(\d{2}:\d{2})/)
+  return match ? { start: match[1], end: match[2] } : undefined
 }
 
 const weekdayLabels = {
