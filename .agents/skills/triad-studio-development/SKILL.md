@@ -77,8 +77,15 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
   implementation, not a product feature module.
 - Keep the foundation domain-neutral. Do not restore inherited business routes,
   catalogs, fixtures, placeholder mutations, or navigation entries. Introduce
-  a business domain only through an accepted initiative with explicit API,
-  authorization, persistence, and product contracts.
+  a business domain only through an accepted initiative. Production-capable
+  domain forms and mutations require explicit API, authorization, persistence,
+  and product contracts.
+- An explicitly accepted initiative may integrate a product-realistic evaluation module into the
+  authenticated shell for `local`/`dev` with a deterministic memory source. Require explicit source
+  configuration, fail-closed disabled resolution in `hml`/`prd`, no persistence, HTTP, or IDP
+  behavior, no ordinary preview/debug chrome, and a replaceable module-owned repository port backed
+  by production-boundary tests and durable documentation. Treat this as a bounded product-criticism
+  surface, not a production contract or general permission to add domains.
 - When a component is split into multiple companion files, put the files in a
   dedicated component folder with an `index.tsx` public entrypoint. Prefer
   domain-specific composition names such as `workspace-shell/sidebar-user-menu`
@@ -105,9 +112,11 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
 - Use shared sortable table headers for ordered columns. Sorting should cycle
   through ascending, descending, and no sorting, and paginated lists should send
   sort state to the API instead of sorting only the current browser page.
-- Filters, search, and sort controls for paginated or potentially large lists
-  must be backed by API query parameters. Keep UI control state locally, but do
-  not filter only the currently loaded page in the browser. Persist shareable
+- Filters, search, and sort controls for production-backed paginated or potentially large lists
+  must be backed by API query parameters. A governed `local`/`dev` evaluation module may instead
+  delegate them to its bounded repository source; do not present that behavior as API or capacity
+  evidence. Keep UI control state locally, but do not filter only the currently loaded page in the
+  browser. Persist shareable
   list state such as filters, search, sorting, pagination, and view mode in URL
   query parameters when it is useful for collaboration or handoff.
 - Use `DataTablePagination` for offset/page-number pagination in administrative
@@ -167,9 +176,10 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
 - Compose domain forms explicitly instead of building a schema/JSON-driven
   universal renderer. Prefer explicit variants and slots over boolean-prop
   proliferation, and do not create `packages/*` for studio-only form reuse.
-- Do not expose creation or edit forms without real mutation and authorization
-  contracts. Keep initiative-specific prototypes outside authenticated
-  production routes and do not invent catalogs, uploads, or persistence.
+- Do not expose creation or edit forms in `hml`/`prd` without real mutation and authorization
+  contracts. The governed `local`/`dev` evaluation exception above may exercise memory-backed forms
+  in the authenticated shell only within its accepted initiative and source boundary. Do not invent
+  uploads or persistence.
 - Treat shared mask values as canonical strings and display formatting as a
   separate concern. Keep completeness, impossible-date, range, checksum, and
   business validation in Zod/domain helpers, and wait for accepted API contracts

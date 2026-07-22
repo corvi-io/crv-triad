@@ -12,7 +12,11 @@ Read `docs/studio/component-system.md` before changing the catalog or developmen
    build/check, and relevant Playwright coverage.
 
 For development data, keep generic typed collection/scenario mechanics in `src/dev/mock-engine`.
-Keep record vocabulary, query/page types, repository port, query keys, adapter, and UI in the
-development sandbox or future owning module. Presentation consumes the port through TanStack Query.
-Do not add fake HTTP endpoints, auth interception, persistence, domain rules, or production imports
-from `src/dev`. Treat large local scenarios as UX stress only.
+Keep an accepted module's development source adapter under `src/dev`, and keep its record
+vocabulary, query/page types, repository port, query keys, and UI in the owning module. Presentation
+consumes the replaceable port through TanStack Query; production code does not import `src/dev`.
+An explicitly accepted product-realistic evaluation module may enter the authenticated shell only
+for configured `local`/`dev` sources that resolve fail-closed/disabled in `hml`/`prd`, expose no
+ordinary preview/debug chrome, and have production-boundary tests and durable documentation. Do not
+add fake HTTP endpoints, auth interception, persistence, or IDP behavior. Treat large local
+scenarios as UX stress only, never as API, production, or capacity evidence.

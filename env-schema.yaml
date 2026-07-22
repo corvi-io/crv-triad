@@ -175,3 +175,7 @@ apps:
         runtime: VITE_SCHEDULING_SOURCE
         github: variable
         required: false
+      - source: STUDIO__VITE_BARBERSHOP_SETUP_SOURCE
+        runtime: VITE_BARBERSHOP_SETUP_SOURCE
+        github: variable
+        required: false

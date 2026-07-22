@@ -60,6 +60,11 @@ describe("documented shared component contracts", () => {
     render(<ControlledTable />)
 
     expect(screen.getByRole("table", { name: "Registros de exemplo" })).toBeVisible()
+    expect(
+      document.querySelector(
+        '[data-slot="data-table"] [data-slot="scroll-area-scrollbar"][data-orientation="vertical"]',
+      ),
+    ).not.toBeInTheDocument()
     const header = screen.getByRole("columnheader", { name: "Título" })
     expect(header).toHaveAttribute("aria-sort", "none")
 

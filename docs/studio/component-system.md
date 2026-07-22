@@ -18,6 +18,7 @@ src/modules/shared/components/
 src/modules/shared/design-system/**  component metadata and token guidance
 src/dev/mock-engine/**               generic development-only memory/scenario mechanics
 src/dev/sandbox/**                   neutral sandbox module, adapter, queries, and UI
+src/dev/barbershop-setup/**          ENG-41 development-only related scenario adapter and seeds
 ```
 
 Routes may import modules and shared code. Modules may import shared code. Shared code must not
@@ -114,7 +115,8 @@ building block of a documented composition.
 
 | File | Classification | Catalog decision and rationale |
 | --- | --- | --- |
-| `data-display/data-table/index.tsx` | Data display | Documented public contract: semantic table with controlled sort, scroll, pagination, and contextual row actions available by right-click or `Shift+F10`; covered by sandbox and table tests. |
+| `data-display/filter-trigger.tsx` | Data display control | Documented public contract: compact icon-and-label trigger for bounded dropdown/popover filters, with optional active treatment and result/selection count; shared by Agenda and barbershop setup while the owning surface controls menu semantics. |
+| `data-display/data-table/index.tsx` | Data display | Documented public contract: semantic table with controlled sort, body-only vertical/horizontal scrolling, overflow-aware scrollbar visibility, fixed sticky header/external pagination, and contextual row actions available by right-click or `Shift+F10`; covered by unit and browser table tests. |
 | `data-display/metric-card.tsx` | Data display | Internal: inherited specialized composition using theme-aware feedback signal roles; promote to catalog when an accepted module supplies a real metric contract. |
 | `deferred-route-screen.tsx` | Routing helper | Internal: lazy-route implementation detail, not a visual assembly API. |
 | `feedback/empty-state.tsx` | Feedback | Documented public contract: default, optional action, long-content, and compact viewport states; heading and description remain semantic. |
@@ -135,8 +137,8 @@ building block of a documented composition.
 | `layout/module-tabs.tsx` | Layout/navigation | Internal: requires router context and module-owned tab metadata. |
 | `layout/page-header.tsx` | Layout | Internal: composed by module pages; actions remain module owned. |
 | `layout/section-header.tsx` | Layout | Internal: small structural helper documented through page compositions. |
-| `overlays/action-drawer.tsx` | Overlay | Documented public contract: focus-managed form composition with explicit primary and secondary action slots. |
-| `overlays/confirmation-dialog.tsx` | Overlay | Internal: specialized discard confirmation; covered by consuming form flows. |
+| `overlays/action-drawer.tsx` | Overlay | Documented public contract: focus-managed form composition with explicit primary and secondary action slots plus Base UI open-change completion notification for consumers that retain content through full-width entry/exit slide transitions; reduced motion removes the transition. |
+| `overlays/confirmation-dialog.tsx` | Overlay | Documented public contract: Base UI focus-managed confirmation with explicit title/description, configurable Portuguese action labels, and default or destructive confirmation treatment; covered by consuming form and prototype flows. |
 | `overlays/drawer-section.tsx` | Overlay anatomy | Internal: companion anatomy for `ActionDrawer`, not a standalone surface. |
 | `overlays/drawer-tabs.tsx` | Overlay anatomy | Internal: companion tab anatomy requiring a composed drawer. |
 | `reference-creation-page.tsx` | Legacy page helper | Internal: retained only for migration compatibility; do not use for new generic CRUD pages. |
@@ -163,7 +165,7 @@ building block of a documented composition.
 | `ui/label.tsx` | Primitive | Internal: cataloged with its associated form controls. |
 | `ui/pagination.tsx` | Primitive | Internal: lower-level anatomy cataloged through `DataTable`. |
 | `ui/popover.tsx` | Primitive | Internal: implementation detail of date/combobox controls. |
-| `ui/scroll-area.tsx` | Primitive | Internal: scroll wrapper documented through table, drawer, and module layouts. |
+| `ui/scroll-area.tsx` | Primitive | Internal: scroll wrapper documented through table, drawer, and module layouts; consumers may request overflow-measured scrollbar mounting when an idle painted track would misrepresent scrollability. |
 | `ui/select.tsx` | Primitive | Internal: cataloged through composed sandbox/filter forms. |
 | `ui/separator.tsx` | Primitive | Internal: non-interactive structural primitive. |
 | `ui/sheet.tsx` | Primitive | Internal: implementation detail of `ActionDrawer` and mobile sidebar. |
@@ -195,6 +197,14 @@ a null shim. The route graph therefore has no direct `src/dev` import and redire
 the loader is unavailable. Production-boundary checks scan output for mock engine, seed, Faker,
 obsolete catalog source, and control markers. The runtime contains no fetch, MSW, Better Auth, or
 `/api/auth` interception and stores nothing across refreshes.
+
+The ENG-41 barbershop setup module follows the same replaceable-adapter boundary while keeping its
+presentation contracts, query keys, forms, and UI under `src/modules/barbershop-setup`. One
+development adapter coordinates its related catalog and availability records through the generic
+engine. `virtual:studio-barbershop-setup-source` resolves to memory for configured `local`/`dev`
+targets and to a disabled source for `hml`/`prd`. The authenticated `/barbershop-setup` route exposes
+no ordinary scenario or reset controls. See `docs/studio/barbershop-setup.md` for its source,
+test-infrastructure, privacy, and production-exclusion contract.
 
 ## Primary Vendor References
 

@@ -14,9 +14,10 @@ import {
   UsersIcon,
   XIcon,
 } from "lucide-react"
-import { type ComponentProps, useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { DateRange } from "react-day-picker"
 import { ptBR } from "react-day-picker/locale"
+import { FilterTrigger } from "@/modules/shared/components/data-display/filter-trigger"
 import { formatDateOnly, parseDateOnly } from "@/modules/shared/components/forms/date-picker"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Calendar } from "@/modules/shared/components/ui/calendar"
@@ -45,7 +46,6 @@ import {
   PopoverTrigger,
 } from "@/modules/shared/components/ui/popover"
 import { ToggleGroup, ToggleGroupItem } from "@/modules/shared/components/ui/toggle-group"
-import { cn } from "@/modules/shared/lib/utils"
 
 import type { ScheduleSearch } from "./agenda"
 import { parseIdList, periodBounds, serializeIdList } from "./agenda"
@@ -562,40 +562,6 @@ function DevelopmentMenu({
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
-}
-
-function FilterTrigger({
-  active = false,
-  count,
-  icon: Icon,
-  id,
-  label,
-  ...triggerProps
-}: {
-  active?: boolean
-  count?: number
-  icon: LucideIcon
-  id: string
-  label: string
-} & Omit<ComponentProps<typeof Button>, "children" | "variant">) {
-  return (
-    <Button
-      {...triggerProps}
-      aria-label={label}
-      className={cn("h-9 min-w-max gap-1 px-2.5 text-xs", triggerProps.className)}
-      id={id}
-      type="button"
-      variant={active ? "filter-active" : "filter"}
-    >
-      <Icon data-icon="inline-start" aria-hidden="true" />
-      <span>{label}</span>
-      {typeof count === "number" ? (
-        <span className="ml-1 rounded-md bg-muted px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground">
-          {count}
-        </span>
-      ) : null}
-    </Button>
   )
 }
 

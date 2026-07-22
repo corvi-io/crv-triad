@@ -37,8 +37,14 @@
   or HTTP adapters at the boundary and invalidate only related query keys.
 - Keep the product foundation domain-neutral. Do not restore inherited business
   routes, catalogs, fixtures, placeholder mutations, or navigation entries.
-- Add a business domain only from an accepted initiative with explicit API,
-  authorization, persistence, and product contracts.
+- Add a business domain only from an accepted initiative. Production-capable domain forms and
+  mutations require explicit API, authorization, persistence, and product contracts.
+- An explicitly accepted initiative may integrate a product-realistic evaluation module into the
+  authenticated shell for `local`/`dev` with a deterministic memory source. This exception requires
+  explicit source configuration, a fail-closed disabled source in `hml`/`prd`, no persistence,
+  HTTP, or IDP behavior, no ordinary preview/debug chrome, and a replaceable module-owned repository
+  port with production-boundary tests and durable documentation. It supports product criticism; it
+  is not a production contract or permission to add an arbitrary domain.
 - Import icon components with the `Icon` suffix, using the library export or an explicit alias.
 - Keep drawer shells, bordered collapsible sections, label/icon/control rows, Base UI/shadcn
   controls, footer action slots, masks, and accessibility behavior in `src/modules/shared`.
@@ -46,9 +52,9 @@
   option catalogs, dependent rules, and submit intents in the owning domain module.
 - Compose domain forms explicitly. Do not build a schema-driven universal renderer, multiply boolean
   props where an explicit variant or slot works, or create `packages/*` for Studio-only form reuse.
-- Do not expose a creation or edit form until its mutation and authorization
-  contract exists. Demonstrations belong in initiative-specific prototypes,
-  not authenticated production routes.
+- Do not expose a creation or edit form in `hml`/`prd` until its mutation and authorization contract
+  exists. The governed `local`/`dev` evaluation exception above may exercise memory-backed forms in
+  the authenticated shell only within its accepted initiative and source boundary.
 - Treat the neutral development sandbox as UX/test tooling, never as a product domain or capacity
   claim. It must not intercept Better Auth and must redirect or be eliminated in production.
 - Use the shared `DatePicker` for real date fields. Keep the form value as a canonical

@@ -1,5 +1,6 @@
 import type { LucideIcon as LucideIconType } from "lucide-react"
 import {
+  Building2Icon,
   CalendarDaysIcon,
   HomeIcon,
   Settings2Icon,
@@ -7,7 +8,7 @@ import {
   UserRoundIcon,
 } from "lucide-react"
 
-export type WorkspaceModulePath = "/agenda" | "/overview"
+export type WorkspaceModulePath = "/agenda" | "/barbershop-setup" | "/overview"
 export type WorkspaceRoutePath = WorkspaceModulePath | "/profile" | "/preferences"
 
 type WorkspaceRoute = {
@@ -54,6 +55,14 @@ export const workspacePrimaryNavigation = [
 
 export const workspaceSecondaryNavigation = [
   {
+    id: "barbershop-setup",
+    label: "Barbearia",
+    description: "Configuração da barbearia.",
+    icon: Building2Icon,
+    path: "/barbershop-setup",
+    status: "active",
+  },
+  {
     id: "settings",
     label: "Configurações",
     description: "Preferências do TRIAD Studio.",
@@ -72,6 +81,15 @@ export const workspaceModules = [
     breadcrumbLabel: "Agenda",
     description: "Agenda diária da unidade.",
     commandKeywords: ["agenda", "agendamento", "horário", "profissional"],
+  },
+  {
+    id: "barbershop-setup",
+    label: "Barbearia",
+    path: "/barbershop-setup",
+    icon: Building2Icon,
+    breadcrumbLabel: "Configuração da barbearia",
+    description: "Gerencie unidades, profissionais, serviços e disponibilidade.",
+    commandKeywords: ["barbearia", "unidade", "profissional", "serviço", "disponibilidade"],
   },
   {
     id: "overview",

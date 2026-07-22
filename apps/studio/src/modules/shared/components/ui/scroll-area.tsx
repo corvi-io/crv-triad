@@ -23,6 +23,7 @@ type ScrollAreaProps = React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive
   maskClassName?: string
   maskHeight?: number
   scrollbars?: ScrollAreaScrollbars
+  scrollbarVisibility?: "configured" | "overflow"
   type?: ScrollAreaBehavior
   viewportClassName?: string
   viewportRef?: React.Ref<HTMLDivElement>
@@ -44,6 +45,7 @@ const ScrollArea = React.forwardRef<
       maskClassName,
       maskHeight = 30,
       scrollbars = "vertical",
+      scrollbarVisibility = "configured",
       type = "hover",
       viewportClassName,
       viewportRef,
@@ -57,6 +59,7 @@ const ScrollArea = React.forwardRef<
       right: false,
       top: false,
     })
+    const [overflow, setOverflow] = React.useState({ horizontal: false, vertical: false })
     const internalViewportRef = React.useRef<HTMLDivElement>(null)
     const isTouch = useTouchPrimary()
     const hasHorizontalScrollbar = scrollbars === "both" || scrollbars === "horizontal"
@@ -93,6 +96,10 @@ const ScrollArea = React.forwardRef<
         right: scrollLeft + clientWidth < scrollWidth - 1,
         top: scrollTop > 0,
       })
+      setOverflow({
+        horizontal: scrollWidth > clientWidth + 1,
+        vertical: scrollHeight > clientHeight + 1,
+      })
     }, [])
 
     React.useEffect(() => {
@@ -111,6 +118,7 @@ const ScrollArea = React.forwardRef<
         typeof ResizeObserver === "undefined" ? null : new ResizeObserver(checkScrollability)
 
       resizeObserver?.observe(element)
+      if (element.firstElementChild) resizeObserver?.observe(element.firstElementChild)
       element.addEventListener("scroll", checkScrollability, { signal: controller.signal })
       window.addEventListener("resize", checkScrollability, { signal: controller.signal })
 
@@ -155,8 +163,13 @@ const ScrollArea = React.forwardRef<
             >
               {children}
             </ScrollAreaPrimitive.Viewport>
-            {hasVerticalScrollbar ? <ScrollBar orientation="vertical" /> : null}
-            {hasHorizontalScrollbar ? <ScrollBar orientation="horizontal" /> : null}
+            {hasVerticalScrollbar && (scrollbarVisibility === "configured" || overflow.vertical) ? (
+              <ScrollBar orientation="vertical" />
+            ) : null}
+            {hasHorizontalScrollbar &&
+            (scrollbarVisibility === "configured" || overflow.horizontal) ? (
+              <ScrollBar orientation="horizontal" />
+            ) : null}
             <ScrollAreaPrimitive.Corner />
             {maskHeight > 0 ? (
               <ScrollMask className={maskClassName} maskHeight={maskHeight} showMask={showMask} />

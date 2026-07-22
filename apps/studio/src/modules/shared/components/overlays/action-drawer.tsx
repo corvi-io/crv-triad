@@ -23,6 +23,7 @@ type ActionDrawerProps = {
   footerClassName?: string
   isOpen: boolean
   onOpenChange: (isOpen: boolean) => void
+  onOpenChangeComplete?: (isOpen: boolean) => void
   primaryAction?: ReactNode
   secondaryActions?: ReactNode
   size?: ActionDrawerSize
@@ -47,6 +48,7 @@ export function ActionDrawer({
   footerClassName,
   isOpen,
   onOpenChange,
+  onOpenChangeComplete,
   primaryAction,
   secondaryActions,
   size = "md",
@@ -67,7 +69,7 @@ export function ActionDrawer({
     ) : null)
 
   return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange}>
+    <Sheet open={isOpen} onOpenChange={onOpenChange} onOpenChangeComplete={onOpenChangeComplete}>
       <SheetContent className={cn("gap-0", actionDrawerSizeClassNames[size], className)}>
         <SheetHeader className="shrink-0 border-b px-4 py-4 pr-12 sm:px-6 sm:pr-14">
           {context ? (
