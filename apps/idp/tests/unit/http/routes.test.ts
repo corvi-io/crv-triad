@@ -1,6 +1,9 @@
+import type { SQL } from "drizzle-orm"
+import { PgDialect } from "drizzle-orm/pg-core"
 import { Elysia } from "elysia"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { session } from "../../../src/database/schema.js"
 import { createApp } from "../../../src/http/app.js"
 import { createAuthRoutes } from "../../../src/http/routes/auth.js"
 import { createHealthRoutes } from "../../../src/http/routes/health.js"
@@ -113,6 +116,59 @@ function createAdminRouteDatabase({
         }
       },
     }),
+  }
+
+  return { calls, db }
+}
+
+function createUserMutationDatabase({
+  sessionUserIds,
+  updatedUser,
+}: {
+  sessionUserIds: string[]
+  updatedUser: Record<string, unknown>
+}) {
+  const calls = {
+    deletedSessionUserIds: [] as string[],
+    remainingSessionUserIds: [...sessionUserIds],
+    transactionCount: 0,
+    updatedValues: [] as unknown[],
+  }
+  const dialect = new PgDialect()
+  const select = () => {
+    const query = {
+      from: () => query,
+      where: () => query,
+      limit: async () => [{ id: "admin-1", status: "active", role: "admin" }],
+    }
+    return query
+  }
+  const transactionDb = {
+    delete: (table: unknown) => ({
+      where: async (condition: SQL) => {
+        expect(table).toBe(session)
+        const [userId] = dialect.sqlToQuery(condition).params
+        calls.deletedSessionUserIds.push(String(userId))
+        calls.remainingSessionUserIds = calls.remainingSessionUserIds.filter(
+          (candidate) => candidate !== userId,
+        )
+      },
+    }),
+    update: () => ({
+      set: (value: unknown) => {
+        calls.updatedValues.push(value)
+        return {
+          where: () => ({ returning: async () => [updatedUser] }),
+        }
+      },
+    }),
+  }
+  const db = {
+    select,
+    transaction: async <T>(callback: (transaction: typeof transactionDb) => Promise<T>) => {
+      calls.transactionCount += 1
+      return callback(transactionDb)
+    },
   }
 
   return { calls, db }
@@ -433,6 +489,42 @@ describe("custom routes", () => {
         code: "self_admin_change_not_allowed",
         message: "Admins cannot remove their own access.",
       },
+    })
+  })
+
+  it("disables a user and revokes only that user's persisted sessions transactionally", async () => {
+    const auth = { api: { getSession: async () => ({ user: { id: "admin-1" } }) } }
+    const createdAt = new Date("2026-07-10T10:00:00Z")
+    const updatedAt = new Date("2026-07-10T11:00:00Z")
+    const { calls, db } = createUserMutationDatabase({
+      sessionUserIds: ["user-1", "admin-1", "user-1", "user-2"],
+      updatedUser: {
+        id: "user-1",
+        name: "Maria Souza",
+        email: "maria@example.com",
+        image: null,
+        role: "member",
+        status: "disabled",
+        createdAt,
+        updatedAt,
+      },
+    })
+    const app = new Elysia().use(createUserRoutes(auth as never, db as never))
+
+    const response = await app.handle(
+      new Request("http://idp.test/users/user-1", {
+        method: "PATCH",
+        body: JSON.stringify({ status: "disabled" }),
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(calls.transactionCount).toBe(1)
+    expect(calls.updatedValues).toHaveLength(1)
+    expect(calls.deletedSessionUserIds).toEqual(["user-1"])
+    expect(calls.remainingSessionUserIds).toEqual(["admin-1", "user-2"])
+    await expect(response.json()).resolves.toMatchObject({
+      user: { id: "user-1", status: "disabled" },
     })
   })
 

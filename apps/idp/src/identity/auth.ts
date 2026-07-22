@@ -1,4 +1,4 @@
-import { betterAuth } from "better-auth"
+import { type BetterAuthOptions, betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { APIError } from "better-auth/api"
 import { eq } from "drizzle-orm"
@@ -8,19 +8,37 @@ import type { IdpDatabase } from "../database/client.js"
 import * as schema from "../database/schema.js"
 import { user } from "../database/schema.js"
 import { createId } from "../infra/ids.js"
-import { decideCredentialAccess, normalizeEmail } from "./access-policy.js"
+import { decideIdentityAccess, normalizeEmail } from "./access-policy.js"
 import { acceptInvitationForUser, findPendingInvitationByEmail } from "./invitations.js"
+import {
+  type AuthEmailSender,
+  assertAuthEmailSent,
+  createAuthEmailSender,
+} from "./transactional-email.js"
 
 type BetterAuthUserCreateInput = {
   id?: string
   email: string
+  emailVerified?: boolean
   name?: string
   [key: string]: unknown
 }
 
 type CookieEnv = Pick<IdpEnv, "APP_ENV" | "BETTER_AUTH_URL">
 
-const partitionedDevelopmentCookiePrefix = "triad-dev-partitioned"
+export type AuthEmailDeliveryFailureEvent = Readonly<{
+  event: "auth_email_delivery_failed"
+  operation: "password_reset"
+}>
+
+export type AuthEmailDeliveryFailureObserver = (event: AuthEmailDeliveryFailureEvent) => void
+
+const STANDARD_COOKIE_PREFIX = "triad-auth"
+const PARTITIONED_COOKIE_PREFIX = "triad-auth-partitioned"
+
+const defaultAuthEmailDeliveryFailureObserver: AuthEmailDeliveryFailureObserver = (event) => {
+  console.error(JSON.stringify(event))
+}
 
 function usesPartitionedDevelopmentCookies(env: CookieEnv) {
   const baseUrl = new URL(env.BETTER_AUTH_URL)
@@ -28,7 +46,7 @@ function usesPartitionedDevelopmentCookies(env: CookieEnv) {
 }
 
 export function getCookiePrefix(env: CookieEnv) {
-  return usesPartitionedDevelopmentCookies(env) ? partitionedDevelopmentCookiePrefix : undefined
+  return usesPartitionedDevelopmentCookies(env) ? PARTITIONED_COOKIE_PREFIX : STANDARD_COOKIE_PREFIX
 }
 
 export function getDefaultCookieAttributes(env: CookieEnv) {
@@ -43,17 +61,36 @@ export function getDefaultCookieAttributes(env: CookieEnv) {
   } as const
 }
 
-export function createAuth(env: IdpEnv, db: IdpDatabase) {
+export function handleBackgroundTask(promise: Promise<unknown>): void {
+  void promise.catch(() => undefined)
+}
+
+export function createAuth(
+  env: IdpEnv,
+  db: IdpDatabase,
+  authEmailSender: AuthEmailSender = createAuthEmailSender(env),
+  observeAuthEmailDeliveryFailure: AuthEmailDeliveryFailureObserver = defaultAuthEmailDeliveryFailureObserver,
+) {
+  return betterAuth(createAuthOptions(env, db, authEmailSender, observeAuthEmailDeliveryFailure))
+}
+
+export function createAuthOptions(
+  env: IdpEnv,
+  db: IdpDatabase,
+  authEmailSender: AuthEmailSender,
+  observeAuthEmailDeliveryFailure: AuthEmailDeliveryFailureObserver = defaultAuthEmailDeliveryFailureObserver,
+): BetterAuthOptions {
   const cookiePrefix = getCookiePrefix(env)
   const defaultCookieAttributes = getDefaultCookieAttributes(env)
 
-  return betterAuth({
+  return {
     appName: "CRV Triad Identity Provider",
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: env.AUTH_TRUSTED_ORIGINS,
     database: drizzleAdapter(db, {
       provider: "pg",
+      transaction: true,
       schema: {
         ...schema,
         user: schema.user,
@@ -62,31 +99,58 @@ export function createAuth(env: IdpEnv, db: IdpDatabase) {
         verification: schema.verification,
       },
     }),
+    emailVerification: {
+      autoSignInAfterVerification: false,
+      expiresIn: 3_600,
+      sendOnSignIn: true,
+      sendOnSignUp: true,
+      sendVerificationEmail: async ({ user: verificationUser, token }) => {
+        const delivery = await authEmailSender.sendVerification({
+          email: verificationUser.email,
+          token,
+        })
+        assertAuthEmailSent(delivery)
+      },
+    },
     emailAndPassword: {
       enabled: true,
+      requireEmailVerification: true,
       minPasswordLength: env.AUTH_PASSWORD_MIN_LENGTH,
       maxPasswordLength: env.AUTH_PASSWORD_MAX_LENGTH,
       resetPasswordTokenExpiresIn: env.AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS,
       revokeSessionsOnPasswordReset: true,
-      sendResetPassword: async ({ user: resetUser, url }) => {
-        if (!env.IDP_INVITATION_EMAILS_ENABLED) {
-          return
+      sendResetPassword: async ({ user: resetUser, token }) => {
+        try {
+          const delivery = await authEmailSender.sendPasswordReset({
+            email: resetUser.email,
+            token,
+          })
+          if (delivery === "sent") return
+        } catch {
+          // Delivery failures must not change the enumeration-safe reset response.
         }
 
-        await sendIdentityEmail(env, {
-          html: [
-            "<p>Recebemos uma solicitacao para redefinir sua senha no CRV Triad.</p>",
-            `<p><a href="${escapeHtml(url)}">Redefinir senha</a></p>`,
-            "<p>Se voce nao solicitou essa alteracao, ignore este email.</p>",
-          ].join(""),
-          subject: "Redefinicao de senha do CRV Triad",
-          text: [
-            "Recebemos uma solicitacao para redefinir sua senha no CRV Triad.",
-            `Redefinir senha: ${url}`,
-            "Se voce nao solicitou essa alteracao, ignore este email.",
-          ].join("\n"),
-          to: resetUser.email,
-        })
+        safelyObserveAuthEmailDeliveryFailure(observeAuthEmailDeliveryFailure)
+      },
+    },
+    socialProviders: {
+      google: {
+        clientId: env.AUTH_GOOGLE_CLIENT_ID,
+        clientSecret: env.AUTH_GOOGLE_CLIENT_SECRET,
+        disableDefaultScope: true,
+        overrideUserInfoOnSignIn: false,
+        scope: ["openid", "email", "profile"],
+      },
+    },
+    account: {
+      encryptOAuthTokens: true,
+      accountLinking: {
+        enabled: true,
+        disableImplicitLinking: false,
+        requireLocalEmailVerified: false,
+        allowDifferentEmails: false,
+        allowUnlinkingAll: false,
+        updateUserInfoOnLink: false,
       },
     },
     session: {
@@ -95,10 +159,27 @@ export function createAuth(env: IdpEnv, db: IdpDatabase) {
     },
     advanced: {
       useSecureCookies: env.NODE_ENV === "production",
-      ...(cookiePrefix ? { cookiePrefix } : {}),
+      cookiePrefix,
       ...(defaultCookieAttributes ? { defaultCookieAttributes } : {}),
+      backgroundTasks: {
+        handler: handleBackgroundTask,
+      },
       database: {
         generateId: createId,
+      },
+    },
+    rateLimit: {
+      enabled: true,
+      max: 100,
+      storage: "memory" as const,
+      window: 60,
+      customRules: {
+        "/callback/google": { max: 30, window: 60 },
+        "/request-password-reset": { max: 5, window: 60 },
+        "/send-verification-email": { max: 5, window: 60 },
+        "/sign-in/email": { max: 10, window: 60 },
+        "/sign-in/social": { max: 20, window: 60 },
+        "/sign-up/email": { max: 5, window: 60 },
       },
     },
     user: {
@@ -126,10 +207,16 @@ export function createAuth(env: IdpEnv, db: IdpDatabase) {
     databaseHooks: {
       user: {
         create: {
-          before: async (incomingUser) => {
+          before: async (incomingUser, context) => {
             const candidate = incomingUser as BetterAuthUserCreateInput
+            if (context?.path === "/callback/google" && candidate.emailVerified !== true) {
+              throw new APIError("FORBIDDEN", {
+                message: "Google email must be verified.",
+              })
+            }
+
             const email = normalizeEmail(candidate.email)
-            const decision = await decideCredentialAccess(email, {
+            const decision = await decideIdentityAccess(email, {
               findUserByEmail: async (lookupEmail) => {
                 const [existingUser] = await db
                   .select()
@@ -179,43 +266,22 @@ export function createAuth(env: IdpEnv, db: IdpDatabase) {
             if (sessionUser?.status !== "active") {
               throw new APIError("FORBIDDEN", { message: "User is not active." })
             }
+            if (!sessionUser.emailVerified) {
+              throw new APIError("FORBIDDEN", { message: "User email is not verified." })
+            }
           },
         },
       },
     },
-  })
+  }
+}
+
+function safelyObserveAuthEmailDeliveryFailure(observer: AuthEmailDeliveryFailureObserver): void {
+  try {
+    observer({ event: "auth_email_delivery_failed", operation: "password_reset" })
+  } catch {
+    // Observability must never change the authentication response contract.
+  }
 }
 
 export type IdpAuth = ReturnType<typeof createAuth>
-
-type IdentityEmailInput = {
-  html: string
-  subject: string
-  text: string
-  to: string
-}
-
-async function sendIdentityEmail(env: IdpEnv, input: IdentityEmailInput) {
-  if (!env.IDP_RESEND_API_KEY || !env.IDP_INVITATION_EMAIL_FROM) {
-    return
-  }
-
-  await fetch(`${env.IDP_RESEND_API_URL.replace(/\/$/, "")}/emails`, {
-    body: JSON.stringify({
-      from: env.IDP_INVITATION_EMAIL_FROM,
-      html: input.html,
-      subject: input.subject,
-      text: input.text,
-      to: [input.to],
-    }),
-    headers: {
-      Authorization: `Bearer ${env.IDP_RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-  })
-}
-
-function escapeHtml(value: string) {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
-}

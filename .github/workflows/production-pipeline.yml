@@ -110,6 +110,11 @@ jobs:
           IDP__APP_ENV: ${{ vars.IDP__APP_ENV }}
           IDP__BETTER_AUTH_URL: ${{ vars.IDP__BETTER_AUTH_URL }}
           IDP__AUTH_TRUSTED_ORIGINS: ${{ vars.IDP__AUTH_TRUSTED_ORIGINS }}
+          INFRA__GOOGLE_OAUTH_CLIENT_ID: ${{ vars.INFRA__GOOGLE_OAUTH_CLIENT_ID }}
+          INFRA__GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.INFRA__GOOGLE_OAUTH_CLIENT_SECRET }}
+          IDP__EMAIL_FROM: ${{ vars.IDP__EMAIL_FROM }}
+          IDP__STUDIO_URL: ${{ vars.IDP__STUDIO_URL }}
+          INFRA__RESEND_API_KEY: ${{ secrets.INFRA__RESEND_API_KEY }}
         run: bash .github/scripts/run-deploy-gate.sh prd idp
 
       - name: Site Deploy Gate

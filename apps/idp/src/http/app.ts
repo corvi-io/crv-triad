@@ -4,7 +4,7 @@ import { Elysia } from "elysia"
 import type { IdpEnv } from "../config/env.js"
 import type { IdpDatabase } from "../database/client.js"
 import type { IdpAuth } from "../identity/auth.js"
-import { createInvitationEmailSender } from "../identity/invitation-email.js"
+import { type AuthEmailSender, createAuthEmailSender } from "../identity/transactional-email.js"
 import { createCorsMiddleware } from "./middleware/cors.js"
 import { requestContextMiddleware } from "./middleware/request-context.js"
 import { createOpenApiDocument } from "./openapi/app.js"
@@ -18,11 +18,13 @@ import { createUserRoutes } from "./routes/users.js"
 type CreateAppInput = {
   env: IdpEnv
   auth: IdpAuth
+  authEmailSender?: AuthEmailSender
   db: IdpDatabase
 }
 
-export function createApp({ env, auth, db }: CreateAppInput) {
+export function createApp({ env, auth, authEmailSender, db }: CreateAppInput) {
   const app = new Elysia()
+  const emailSender = authEmailSender ?? createAuthEmailSender(env)
 
   app
     .use(requestContextMiddleware)
@@ -31,7 +33,7 @@ export function createApp({ env, auth, db }: CreateAppInput) {
     .use(createReadyRoutes(db))
     .use(createSessionContextRoutes(auth, db))
     .use(createUserRoutes(auth, db))
-    .use(createInvitationRoutes(auth, db, createInvitationEmailSender(env)))
+    .use(createInvitationRoutes(auth, db, emailSender))
     .use(createAuthRoutes(auth))
 
   if (env.APP_ENV !== "production") {

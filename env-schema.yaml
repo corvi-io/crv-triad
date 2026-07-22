@@ -111,6 +111,26 @@ apps:
         runtime: AUTH_TRUSTED_ORIGINS
         github: variable
         required: true
+      - source: INFRA__GOOGLE_OAUTH_CLIENT_ID
+        runtime: AUTH_GOOGLE_CLIENT_ID
+        github: variable
+        required: true
+      - source: INFRA__GOOGLE_OAUTH_CLIENT_SECRET
+        runtime: AUTH_GOOGLE_CLIENT_SECRET
+        github: secret
+        required: true
+      - source: IDP__EMAIL_FROM
+        runtime: IDP_EMAIL_FROM
+        github: variable
+        required: true
+      - source: IDP__STUDIO_URL
+        runtime: IDP_STUDIO_URL
+        github: variable
+        required: true
+      - source: INFRA__RESEND_API_KEY
+        runtime: IDP_RESEND_API_KEY
+        github: secret
+        required: true
   site:
     owner: apps/site
     runtime: cloudflare-pages-static

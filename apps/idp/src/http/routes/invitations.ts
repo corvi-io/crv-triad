@@ -6,12 +6,12 @@ import type { IdpDatabase } from "../../database/client.js"
 import { invitation } from "../../database/schema.js"
 import type { IdpRole, InvitationStatus } from "../../identity/access-policy.js"
 import type { IdpAuth } from "../../identity/auth.js"
-import type { InvitationEmailSender } from "../../identity/invitation-email.js"
 import {
   createInvitation,
   PendingInvitationAlreadyExistsError,
   revokeInvitation,
 } from "../../identity/invitations.js"
+import type { AuthEmailSender } from "../../identity/transactional-email.js"
 import { adminErrorBody, resolveAdminActor } from "../admin.js"
 import { buildPageMeta, getRepeatedQueryValues, parsePaginationQuery } from "../pagination.js"
 
@@ -36,7 +36,7 @@ const invitationSortColumns = {
 export function createInvitationRoutes(
   auth: IdpAuth,
   db: IdpDatabase,
-  invitationEmailSender?: InvitationEmailSender,
+  authEmailSender?: Pick<AuthEmailSender, "sendInvitation">,
 ) {
   return new Elysia({ name: "invitation-routes" })
     .get("/invitations", async ({ request, status }) => {
@@ -119,7 +119,7 @@ export function createInvitationRoutes(
       }
 
       const emailDelivery =
-        (await invitationEmailSender?.sendInvitation({
+        (await authEmailSender?.sendInvitation({
           email: created.email,
           expiresAt: created.expiresAt,
           role: created.role,

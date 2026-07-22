@@ -1,16 +1,24 @@
-import { betterAuth } from "better-auth"
+import { type BetterAuthOptions, betterAuth } from "better-auth"
 import { memoryAdapter } from "better-auth/adapters/memory"
 import { splitSetCookieHeader } from "better-auth/cookies"
-import { describe, expect, it } from "vitest"
+import { hashPassword } from "better-auth/crypto"
+import { describe, expect, it, vi } from "vitest"
 
-import { getCookiePrefix, getDefaultCookieAttributes } from "../../../src/identity/auth.js"
+import {
+  createAuthOptions,
+  getCookiePrefix,
+  getDefaultCookieAttributes,
+  handleBackgroundTask,
+} from "../../../src/identity/auth.js"
 
 const idpBaseUrl = "https://idp.example.com"
 const localIdpBaseUrl = "http://localhost:8001"
 const studioOrigin = "https://studio.example.com"
 const legacySecureSessionCookieName = "__Secure-better-auth.session_token"
-const localSessionCookieName = "better-auth.session_token"
-const partitionedDevelopmentSessionCookieName = "__Secure-triad-dev-partitioned.session_token"
+const transitionalSecureSessionCookieName = "__Secure-triad-dev-partitioned.session_token"
+const standardSecureSessionCookieName = "__Secure-triad-auth.session_token"
+const localSessionCookieName = "triad-auth.session_token"
+const partitionedDevelopmentSessionCookieName = "__Secure-triad-auth-partitioned.session_token"
 
 type CookieMetadata = {
   attributes: string[]
@@ -23,14 +31,21 @@ type SessionSummary = {
 }
 
 type TestResponse = {
+  body?: unknown
   cookies: CookieMetadata[]
+  oauthCallbackUri?: string
   session?: SessionSummary
   status: number
 }
 
+type SendResetPassword = NonNullable<
+  NonNullable<BetterAuthOptions["emailAndPassword"]>["sendResetPassword"]
+>
+
 function createStandaloneAuth(
   appEnv: "local" | "development" | "staging" | "production",
   baseURL = idpBaseUrl,
+  sendResetPassword?: SendResetPassword,
 ) {
   const cookieEnv = { APP_ENV: appEnv, BETTER_AUTH_URL: baseURL } as const
   const cookiePrefix = getCookiePrefix(cookieEnv)
@@ -38,13 +53,21 @@ function createStandaloneAuth(
   return betterAuth({
     baseURL,
     database: memoryAdapter({ account: [], session: [], user: [], verification: [] }),
-    emailAndPassword: { enabled: true },
+    emailAndPassword: { enabled: true, sendResetPassword },
+    socialProviders: {
+      google: {
+        clientId: "google-client-id-placeholder",
+        clientSecret: "google-client-secret-placeholder",
+        disableDefaultScope: true,
+        scope: ["openid", "email", "profile"],
+      },
+    },
     logger: { disabled: true },
     rateLimit: { enabled: false },
     secret: "test-secret-that-is-at-least-32-characters",
     trustedOrigins: [studioOrigin],
     advanced: {
-      ...(cookiePrefix ? { cookiePrefix } : {}),
+      cookiePrefix,
       defaultCookieAttributes: getDefaultCookieAttributes(cookieEnv),
     },
   })
@@ -74,9 +97,12 @@ function createSessionTestClient(
       }),
     )
     const cookies = applyResponseCookies(response)
+    const body = path === "/request-password-reset" ? await response.clone().json() : undefined
     const session = path === "/get-session" ? await summarizeSession(response) : undefined
+    const oauthCallbackUri =
+      path === "/sign-in/social" ? await extractOAuthCallbackUri(response.clone()) : undefined
 
-    return { cookies, session, status: response.status }
+    return { body, cookies, oauthCallbackUri, session, status: response.status }
   }
 
   function applyResponseCookies(response: Response) {
@@ -104,17 +130,16 @@ function createSessionTestClient(
 
   return {
     fork: () => createSessionTestClient(handler, baseUrl, cookieJar),
-    forkWithRenamedCookie: (sourceName: string, targetName: string) => {
-      const renamedCookies = new Map(cookieJar)
-      const value = renamedCookies.get(sourceName)
-      if (value !== undefined) {
-        renamedCookies.delete(sourceName)
-        renamedCookies.set(targetName, value)
-      }
-      return createSessionTestClient(handler, baseUrl, renamedCookies)
-    },
     request,
   }
+}
+
+async function extractOAuthCallbackUri(response: Response): Promise<string | undefined> {
+  const payload = (await response.json()) as { url?: unknown }
+  if (typeof payload.url !== "string") return undefined
+
+  const authorizationUrl = new URL(payload.url)
+  return authorizationUrl.searchParams.get("redirect_uri") ?? undefined
 }
 
 async function summarizeSession(response: Response): Promise<SessionSummary> {
@@ -148,7 +173,7 @@ async function createStandaloneUser(
 describe("getDefaultCookieAttributes", () => {
   it("keeps local HTTP cookies compatible with localhost development", () => {
     const cookieEnv = { APP_ENV: "local", BETTER_AUTH_URL: localIdpBaseUrl } as const
-    expect(getCookiePrefix(cookieEnv)).toBeUndefined()
+    expect(getCookiePrefix(cookieEnv)).toBe("triad-auth")
     expect(getDefaultCookieAttributes(cookieEnv)).toBeUndefined()
   })
 
@@ -157,7 +182,7 @@ describe("getDefaultCookieAttributes", () => {
       APP_ENV: "development",
       BETTER_AUTH_URL: "https://triad-idp-dev.fly.dev",
     } as const
-    expect(getCookiePrefix(cookieEnv)).toBe("triad-dev-partitioned")
+    expect(getCookiePrefix(cookieEnv)).toBe("triad-auth-partitioned")
     expect(getDefaultCookieAttributes(cookieEnv)).toEqual({
       partitioned: true,
       sameSite: "none",
@@ -173,7 +198,7 @@ describe("getDefaultCookieAttributes", () => {
       APP_ENV: appEnv,
       BETTER_AUTH_URL: `https://triad-idp-${appEnv}.fly.dev`,
     } as const
-    expect(getCookiePrefix(cookieEnv)).toBeUndefined()
+    expect(getCookiePrefix(cookieEnv)).toBe("triad-auth")
     expect(getDefaultCookieAttributes(cookieEnv)).toEqual({
       sameSite: "none",
       secure: true,
@@ -187,9 +212,14 @@ describe("getDefaultCookieAttributes", () => {
 
     const sessionCookie = response.cookies.find(({ name }) => name === localSessionCookieName)
     expect(sessionCookie?.name).toBe(localSessionCookieName)
-    expect(sessionCookie?.attributes).toEqual(expect.arrayContaining(["HttpOnly", "SameSite=Lax"]))
+    expect(sessionCookie?.attributes).toEqual(
+      expect.arrayContaining(["HttpOnly", "SameSite=Lax", "Path=/"]),
+    )
     expect(sessionCookie?.attributes).not.toContain("Secure")
     expect(sessionCookie?.attributes).not.toContain("Partitioned")
+    expect(sessionCookie?.attributes.some((attribute) => attribute.startsWith("Domain="))).toBe(
+      false,
+    )
   })
 
   it("retains and invalidates a protected development session across requests", async () => {
@@ -217,14 +247,21 @@ describe("getDefaultCookieAttributes", () => {
     )
     expect(sessionCookie?.name).toBe(partitionedDevelopmentSessionCookieName)
     expect(sessionCookie?.attributes).toEqual(
-      expect.arrayContaining(["HttpOnly", "Secure", "SameSite=None", "Partitioned"]),
+      expect.arrayContaining(["HttpOnly", "Secure", "SameSite=None", "Partitioned", "Path=/"]),
+    )
+    expect(sessionCookie?.attributes.some((attribute) => attribute.startsWith("Domain="))).toBe(
+      false,
     )
 
-    const legacyCookieClient = client.forkWithRenamedCookie(
-      partitionedDevelopmentSessionCookieName,
-      legacySecureSessionCookieName,
+    const ignoredOldCookies = createSessionTestClient(
+      (request) => auth.handler(request),
+      idpBaseUrl,
+      new Map([
+        [legacySecureSessionCookieName, "opaque-legacy-value"],
+        [transitionalSecureSessionCookieName, "opaque-transitional-value"],
+      ]),
     )
-    const ignoredLegacySession = await legacyCookieClient.request("/get-session")
+    const ignoredLegacySession = await ignoredOldCookies.request("/get-session")
     expect(ignoredLegacySession.status).toBe(200)
     expect(ignoredLegacySession.session).toEqual({ authenticated: false })
 
@@ -257,12 +294,551 @@ describe("getDefaultCookieAttributes", () => {
     expect(response.status).toBe(200)
 
     const sessionCookie = response.cookies.find(
-      ({ name }) => name === legacySecureSessionCookieName,
+      ({ name }) => name === standardSecureSessionCookieName,
     )
-    expect(sessionCookie?.name).toBe(legacySecureSessionCookieName)
+    expect(sessionCookie?.name).toBe(standardSecureSessionCookieName)
     expect(sessionCookie?.attributes).toEqual(
-      expect.arrayContaining(["HttpOnly", "Secure", "SameSite=None"]),
+      expect.arrayContaining(["HttpOnly", "Secure", "SameSite=None", "Path=/"]),
     )
     expect(sessionCookie?.attributes).not.toContain("Partitioned")
+    expect(sessionCookie?.attributes.some((attribute) => attribute.startsWith("Domain="))).toBe(
+      false,
+    )
+  })
+
+  it("ignores legacy cookie families under the standard HTTPS topology", async () => {
+    const auth = createStandaloneAuth("production")
+    const client = createSessionTestClient(
+      (request) => auth.handler(request),
+      idpBaseUrl,
+      new Map([
+        [legacySecureSessionCookieName, "opaque-legacy-value"],
+        [transitionalSecureSessionCookieName, "opaque-transitional-value"],
+      ]),
+    )
+
+    const response = await client.request("/get-session")
+
+    expect(response.status).toBe(200)
+    expect(response.session).toEqual({ authenticated: false })
+  })
+
+  it("uses the selected TRIAD family for the native OAuth state cookie", async () => {
+    const auth = createStandaloneAuth("development")
+    const client = createSessionTestClient((request) => auth.handler(request))
+
+    const response = await client.request("/sign-in/social", {
+      body: { callbackURL: `${studioOrigin}/login`, provider: "google" },
+    })
+
+    expect(response.status).toBe(200)
+    expect(response.oauthCallbackUri).toBe(`${idpBaseUrl}/api/auth/callback/google`)
+    expect(response.cookies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          attributes: expect.arrayContaining([
+            "HttpOnly",
+            "Secure",
+            "SameSite=None",
+            "Partitioned",
+            "Path=/",
+          ]),
+          name: "__Secure-triad-auth-partitioned.state",
+        }),
+      ]),
+    )
+    expect(
+      response.cookies.every(({ name }) => name.startsWith("__Secure-triad-auth-partitioned.")),
+    ).toBe(true)
+  })
+})
+
+describe("createAuthOptions", () => {
+  const env = {
+    NODE_ENV: "test",
+    APP_ENV: "test",
+    IDP_HOST: "127.0.0.1",
+    IDP_PORT: 8001,
+    DATABASE_URL: "postgresql://idp:idp@127.0.0.1:5432/idp",
+    BETTER_AUTH_SECRET: "test-secret-that-is-at-least-32-characters",
+    BETTER_AUTH_URL: "http://127.0.0.1:8001",
+    AUTH_TRUSTED_ORIGINS: ["http://localhost:3000"],
+    AUTH_SESSION_EXPIRES_IN_SECONDS: 2_592_000,
+    AUTH_PASSWORD_MIN_LENGTH: 12,
+    AUTH_PASSWORD_MAX_LENGTH: 256,
+    AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS: 3_600,
+    AUTH_GOOGLE_CLIENT_ID: "google-client-id-placeholder",
+    AUTH_GOOGLE_CLIENT_SECRET: "google-client-secret-placeholder",
+    IDP_EMAIL_FROM: "auth@example.invalid",
+    IDP_STUDIO_URL: "http://localhost:3000",
+    IDP_RESEND_API_KEY: "resend-api-key-placeholder",
+    IDP_RESEND_API_URL: "https://api.resend.com",
+  } as const
+
+  const emailSender = {
+    sendInvitation: async () => "sent" as const,
+    sendPasswordReset: async () => "sent" as const,
+    sendVerification: async () => "sent" as const,
+  }
+
+  const testPassword = "test-password-123"
+
+  type GoogleIdentity = {
+    id: string
+    email: string
+    emailVerified: boolean
+    name: string
+  }
+
+  type LocalIdentity = {
+    email: string
+    emailVerified: boolean
+    id: string
+    name: string
+    role: "admin" | "member"
+    status: "active" | "disabled"
+  }
+
+  function createHookDb(rowsByQuery: unknown[][]) {
+    let queryIndex = 0
+    const takeRows = async () => rowsByQuery[queryIndex++] ?? []
+
+    return {
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: takeRows,
+            orderBy: () => ({ limit: takeRows }),
+          }),
+        }),
+      }),
+      update: () => ({
+        set: () => ({
+          where: () => ({ returning: async () => [] }),
+        }),
+      }),
+    }
+  }
+
+  async function createAuthPolicyHarness({
+    googleIdentity,
+    hookSelectRows,
+    localIdentity,
+  }: {
+    googleIdentity: GoogleIdentity
+    hookSelectRows?: unknown[][]
+    localIdentity?: LocalIdentity
+  }) {
+    const now = new Date()
+    const persistedUser = localIdentity
+      ? { ...localIdentity, createdAt: now, image: null, updatedAt: now }
+      : undefined
+    const memoryDb: Record<string, Array<Record<string, unknown>>> = {
+      account: persistedUser
+        ? [
+            {
+              accountId: persistedUser.id,
+              createdAt: now,
+              id: `credential-${persistedUser.id}`,
+              password: await hashPassword(testPassword),
+              providerId: "credential",
+              updatedAt: now,
+              userId: persistedUser.id,
+            },
+          ]
+        : [],
+      session: [],
+      user: persistedUser ? [persistedUser] : [],
+      verification: [],
+    }
+    const defaultHookRows = persistedUser ? [[persistedUser]] : [[], []]
+    const options = createAuthOptions(
+      env as never,
+      createHookDb(hookSelectRows ?? defaultHookRows) as never,
+      emailSender,
+    )
+    const google = options.socialProviders?.google
+    if (!google || typeof google === "function") {
+      throw new Error("Expected the Google provider configuration.")
+    }
+
+    const auth = betterAuth({
+      ...options,
+      database: memoryAdapter(memoryDb),
+      logger: { disabled: true },
+      rateLimit: { enabled: false },
+      socialProviders: {
+        google: {
+          ...google,
+          getUserInfo: async () => ({ data: googleIdentity, user: googleIdentity }),
+          verifyIdToken: async () => true,
+        },
+      },
+    })
+    const client = createSessionTestClient((request) => auth.handler(request), env.BETTER_AUTH_URL)
+
+    return { client, memoryDb }
+  }
+
+  it("observes detached background task failures without logging sensitive context", () => {
+    const catchTaskFailure = vi.fn()
+
+    handleBackgroundTask({ catch: catchTaskFailure } as unknown as Promise<unknown>)
+
+    expect(catchTaskFailure).toHaveBeenCalledOnce()
+    const rejectionHandler = catchTaskFailure.mock.calls[0]?.[0]
+    expect(rejectionHandler).toBeTypeOf("function")
+    expect(rejectionHandler?.(new Error("delivery failed"))).toBeUndefined()
+  })
+
+  it("keeps existing and unknown reset responses identical when delivery fails", async () => {
+    const existingEmail = "existing-reset-user@example.invalid"
+    const observeDeliveryFailure = vi.fn()
+    const failingEmailSender = {
+      ...emailSender,
+      sendPasswordReset: vi.fn(async () => "failed" as const),
+    }
+    const options = createAuthOptions(
+      env as never,
+      {} as never,
+      failingEmailSender,
+      observeDeliveryFailure,
+    )
+    const sendResetPassword = options.emailAndPassword?.sendResetPassword
+    if (!sendResetPassword) throw new Error("Expected reset delivery callback to be configured.")
+
+    const auth = createStandaloneAuth("local", localIdpBaseUrl, sendResetPassword)
+    const createdUser = await createStandaloneUser(auth, existingEmail, localIdpBaseUrl)
+    expect(createdUser.status).toBe(200)
+
+    const client = createSessionTestClient((request) => auth.handler(request), localIdpBaseUrl)
+    const existingResponse = await client.request("/request-password-reset", {
+      body: { email: existingEmail, redirectTo: `${studioOrigin}/reset-password` },
+    })
+    const unknownResponse = await client.request("/request-password-reset", {
+      body: {
+        email: "unknown-reset-user@example.invalid",
+        redirectTo: `${studioOrigin}/reset-password`,
+      },
+    })
+
+    expect({ body: existingResponse.body, status: existingResponse.status }).toEqual({
+      body: unknownResponse.body,
+      status: unknownResponse.status,
+    })
+    expect(existingResponse.status).toBe(200)
+    expect(failingEmailSender.sendPasswordReset).toHaveBeenCalledOnce()
+    expect(observeDeliveryFailure).toHaveBeenCalledOnce()
+    expect(observeDeliveryFailure).toHaveBeenCalledWith({
+      event: "auth_email_delivery_failed",
+      operation: "password_reset",
+    })
+    expect(JSON.stringify(observeDeliveryFailure.mock.calls)).not.toContain(existingEmail)
+  })
+
+  it("records reset delivery exceptions without sensitive context or response failure", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    const sensitiveEmail = "private-reset-user@example.invalid"
+    const sensitiveToken = "opaque-private-reset-token"
+    const sensitiveFailure = "provider response with private context"
+    const failingEmailSender = {
+      ...emailSender,
+      sendPasswordReset: vi.fn(async () => {
+        throw new Error(sensitiveFailure)
+      }),
+    }
+
+    try {
+      const options = createAuthOptions(env as never, {} as never, failingEmailSender)
+      const sendResetPassword = options.emailAndPassword?.sendResetPassword
+      if (!sendResetPassword) throw new Error("Expected reset delivery callback to be configured.")
+
+      await expect(
+        sendResetPassword(
+          {
+            token: sensitiveToken,
+            url: "https://idp.example.invalid/reset-password/private-value",
+            user: { email: sensitiveEmail },
+          } as never,
+          new Request("https://idp.example.invalid/api/auth/request-password-reset"),
+        ),
+      ).resolves.toBeUndefined()
+
+      expect(consoleError).toHaveBeenCalledOnce()
+      expect(consoleError).toHaveBeenCalledWith(
+        '{"event":"auth_email_delivery_failed","operation":"password_reset"}',
+      )
+      const loggedContext = JSON.stringify(consoleError.mock.calls)
+      expect(loggedContext).not.toContain(sensitiveEmail)
+      expect(loggedContext).not.toContain(sensitiveToken)
+      expect(loggedContext).not.toContain(sensitiveFailure)
+      expect(loggedContext).not.toContain("private-value")
+    } finally {
+      consoleError.mockRestore()
+    }
+  })
+
+  it("configures the native verification, Google, linking, token, and rate-limit contract", () => {
+    const options = createAuthOptions(env as never, {} as never, emailSender)
+
+    expect(options.emailAndPassword).toMatchObject({
+      enabled: true,
+      requireEmailVerification: true,
+      revokeSessionsOnPasswordReset: true,
+    })
+    expect(options.emailVerification).toMatchObject({
+      autoSignInAfterVerification: false,
+      sendOnSignIn: true,
+      sendOnSignUp: true,
+    })
+    expect(options.socialProviders?.google).toMatchObject({
+      disableDefaultScope: true,
+      overrideUserInfoOnSignIn: false,
+      scope: ["openid", "email", "profile"],
+    })
+    expect(options.account).toMatchObject({
+      encryptOAuthTokens: true,
+      accountLinking: {
+        allowDifferentEmails: false,
+        allowUnlinkingAll: false,
+        disableImplicitLinking: false,
+        enabled: true,
+        requireLocalEmailVerified: false,
+        updateUserInfoOnLink: false,
+      },
+    })
+    expect(options.rateLimit).toMatchObject({ enabled: true, storage: "memory" })
+    expect(options.advanced?.backgroundTasks?.handler).toBeTypeOf("function")
+    expect(options.databaseHooks?.user?.create?.before).toBeTypeOf("function")
+    expect(options.databaseHooks?.session?.create?.before).toBeTypeOf("function")
+  })
+
+  it("rejects a Google user-create callback without a verified email claim", async () => {
+    const options = createAuthOptions(env as never, {} as never, emailSender)
+
+    await expect(
+      options.databaseHooks?.user?.create?.before?.(
+        {
+          email: "recipient@example.invalid",
+          emailVerified: false,
+          name: "Test identity",
+        } as never,
+        { path: "/callback/google" } as never,
+      ),
+    ).rejects.toMatchObject({ status: "FORBIDDEN" })
+  })
+
+  it("links a provider-verified normalized same-email Google identity and creates a session", async () => {
+    const localIdentity = {
+      email: "existing-user@example.invalid",
+      emailVerified: false,
+      id: "existing-user-id",
+      name: "Existing user",
+      role: "member",
+      status: "active",
+    } as const
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email: "EXISTING-USER@example.invalid",
+        emailVerified: true,
+        id: "google-existing-user-id",
+        name: "Google user",
+      },
+      localIdentity,
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "verified-google-token" }, provider: "google" },
+    })
+
+    expect(response.status).toBe(200)
+    expect(memoryDb.account).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          accountId: "google-existing-user-id",
+          providerId: "google",
+          userId: localIdentity.id,
+        }),
+      ]),
+    )
+    expect(memoryDb.session).toHaveLength(1)
+    expect(memoryDb.user[0]).toMatchObject({
+      email: localIdentity.email,
+      emailVerified: true,
+      id: localIdentity.id,
+      name: localIdentity.name,
+      role: localIdentity.role,
+      status: localIdentity.status,
+    })
+  })
+
+  it("keeps password sign-in verification-gated for a locally unverified user", async () => {
+    const localIdentity = {
+      email: "password-user@example.invalid",
+      emailVerified: false,
+      id: "password-user-id",
+      name: "Password user",
+      role: "member",
+      status: "active",
+    } as const
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email: localIdentity.email,
+        emailVerified: true,
+        id: "unused-google-id",
+        name: "Unused Google user",
+      },
+      localIdentity,
+    })
+
+    const response = await client.request("/sign-in/email", {
+      body: { email: localIdentity.email, password: testPassword },
+    })
+
+    expect(response.status).toBe(403)
+    expect(memoryDb.session).toHaveLength(0)
+    expect(memoryDb.user[0]).toMatchObject({ emailVerified: false })
+  })
+
+  it("rejects an unverified invited Google identity without creating a usable session", async () => {
+    const email = "invited-unverified-google@example.invalid"
+    const pendingInvitation = {
+      email,
+      expiresAt: new Date(Date.now() + 60_000),
+      id: "pending-unverified-google-invitation-id",
+      role: "member",
+      status: "pending",
+    }
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email,
+        emailVerified: false,
+        id: "invited-unverified-google-account-id",
+        name: "Invited unverified Google user",
+      },
+      hookSelectRows: [
+        [],
+        [pendingInvitation],
+        [pendingInvitation],
+        [{ emailVerified: false, status: "active" }],
+      ],
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "invited-unverified-google-token" }, provider: "google" },
+    })
+    const session = await client.request("/get-session")
+
+    expect(response.status).toBe(403)
+    expect(response.cookies.map(({ name }) => name)).not.toContain(localSessionCookieName)
+    expect(memoryDb.session).toHaveLength(0)
+    expect(session.status).toBe(200)
+    expect(session.session).toEqual({ authenticated: false })
+  })
+
+  it("rejects an unverified Google identity for an existing same-email user", async () => {
+    const localIdentity = {
+      email: "unverified-google@example.invalid",
+      emailVerified: false,
+      id: "unverified-google-user-id",
+      name: "Unverified Google user",
+      role: "member",
+      status: "active",
+    } as const
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email: localIdentity.email,
+        emailVerified: false,
+        id: "unverified-google-account-id",
+        name: "Unverified Google user",
+      },
+      localIdentity,
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "unverified-google-token" }, provider: "google" },
+    })
+
+    expect(response.status).toBe(401)
+    expect(memoryDb.account).toHaveLength(1)
+    expect(memoryDb.session).toHaveLength(0)
+    expect(memoryDb.user[0]).toMatchObject({ emailVerified: false })
+  })
+
+  it("rejects a different-email Google identity instead of linking it", async () => {
+    const localIdentity = {
+      email: "local-user@example.invalid",
+      emailVerified: false,
+      id: "local-user-id",
+      name: "Local user",
+      role: "member",
+      status: "active",
+    } as const
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email: "different-user@example.invalid",
+        emailVerified: true,
+        id: "different-google-account-id",
+        name: "Different Google user",
+      },
+      hookSelectRows: [[], []],
+      localIdentity,
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "different-email-google-token" }, provider: "google" },
+    })
+
+    expect(response.status).toBe(401)
+    expect(memoryDb.account).toHaveLength(1)
+    expect(memoryDb.session).toHaveLength(0)
+    expect(memoryDb.user).toHaveLength(1)
+  })
+
+  it("rejects an unknown uninvited Google identity", async () => {
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email: "unknown-user@example.invalid",
+        emailVerified: true,
+        id: "unknown-google-account-id",
+        name: "Unknown Google user",
+      },
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "unknown-google-token" }, provider: "google" },
+    })
+
+    expect(response.status).toBe(401)
+    expect(memoryDb.account).toHaveLength(0)
+    expect(memoryDb.session).toHaveLength(0)
+    expect(memoryDb.user).toHaveLength(0)
+  })
+
+  it("rejects a disabled existing user from creating a Google session", async () => {
+    const localIdentity = {
+      email: "disabled-user@example.invalid",
+      emailVerified: false,
+      id: "disabled-user-id",
+      name: "Disabled user",
+      role: "member",
+      status: "disabled",
+    } as const
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email: localIdentity.email,
+        emailVerified: true,
+        id: "disabled-google-account-id",
+        name: "Disabled Google user",
+      },
+      localIdentity,
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "disabled-user-google-token" }, provider: "google" },
+    })
+
+    expect(response.status).toBe(403)
+    expect(memoryDb.session).toHaveLength(0)
   })
 })

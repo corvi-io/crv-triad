@@ -3,7 +3,7 @@ import { Elysia } from "elysia"
 import { z } from "zod"
 
 import type { IdpDatabase } from "../../database/client.js"
-import { user } from "../../database/schema.js"
+import { session, user } from "../../database/schema.js"
 import type { IdpRole, IdpUserStatus } from "../../identity/access-policy.js"
 import type { IdpAuth } from "../../identity/auth.js"
 import { adminErrorBody, resolveAdminActor } from "../admin.js"
@@ -97,11 +97,19 @@ export function createUserRoutes(auth: IdpAuth, db: IdpDatabase) {
         })
       }
 
-      const [updated] = await db
-        .update(user)
-        .set({ ...parsed.data, updatedAt: new Date() })
-        .where(eq(user.id, params.userId))
-        .returning()
+      const updated = await db.transaction(async (transaction) => {
+        const [updatedUser] = await transaction
+          .update(user)
+          .set({ ...parsed.data, updatedAt: new Date() })
+          .where(eq(user.id, params.userId))
+          .returning()
+
+        if (updatedUser && parsed.data.status === "disabled") {
+          await transaction.delete(session).where(eq(session.userId, params.userId))
+        }
+
+        return updatedUser
+      })
 
       if (!updated) {
         return status(404, { error: { code: "not_found", message: "User not found." } })

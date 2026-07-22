@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm"
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core"
+import { boolean, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core"
 
 export const user = pgTable("idp_users", {
   id: text("id").primaryKey(),
@@ -60,7 +60,10 @@ export const account = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("idp_accounts_user_id_idx").on(table.userId)],
+  (table) => [
+    index("idp_accounts_user_id_idx").on(table.userId),
+    uniqueIndex("idp_accounts_provider_account_unique").on(table.providerId, table.accountId),
+  ],
 )
 
 export const verification = pgTable(

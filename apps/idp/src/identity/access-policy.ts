@@ -31,7 +31,7 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
 }
 
-export async function decideCredentialAccess(
+export async function decideIdentityAccess(
   email: string,
   lookup: AccessPolicyLookup,
   now = new Date(),
