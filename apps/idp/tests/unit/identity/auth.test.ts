@@ -399,7 +399,7 @@ describe("createAuthOptions", () => {
     status: "active" | "disabled"
   }
 
-  function createSelectOnlyDb(rowsByQuery: unknown[][]) {
+  function createHookDb(rowsByQuery: unknown[][]) {
     let queryIndex = 0
     const takeRows = async () => rowsByQuery[queryIndex++] ?? []
 
@@ -410,6 +410,11 @@ describe("createAuthOptions", () => {
             limit: takeRows,
             orderBy: () => ({ limit: takeRows }),
           }),
+        }),
+      }),
+      update: () => ({
+        set: () => ({
+          where: () => ({ returning: async () => [] }),
         }),
       }),
     }
@@ -449,7 +454,7 @@ describe("createAuthOptions", () => {
     const defaultHookRows = persistedUser ? [[persistedUser]] : [[], []]
     const options = createAuthOptions(
       env as never,
-      createSelectOnlyDb(hookSelectRows ?? defaultHookRows) as never,
+      createHookDb(hookSelectRows ?? defaultHookRows) as never,
       emailSender,
     )
     const google = options.socialProviders?.google
@@ -693,6 +698,42 @@ describe("createAuthOptions", () => {
     expect(response.status).toBe(403)
     expect(memoryDb.session).toHaveLength(0)
     expect(memoryDb.user[0]).toMatchObject({ emailVerified: false })
+  })
+
+  it("rejects an unverified invited Google identity without creating a usable session", async () => {
+    const email = "invited-unverified-google@example.invalid"
+    const pendingInvitation = {
+      email,
+      expiresAt: new Date(Date.now() + 60_000),
+      id: "pending-unverified-google-invitation-id",
+      role: "member",
+      status: "pending",
+    }
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email,
+        emailVerified: false,
+        id: "invited-unverified-google-account-id",
+        name: "Invited unverified Google user",
+      },
+      hookSelectRows: [
+        [],
+        [pendingInvitation],
+        [pendingInvitation],
+        [{ emailVerified: false, status: "active" }],
+      ],
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "invited-unverified-google-token" }, provider: "google" },
+    })
+    const session = await client.request("/get-session")
+
+    expect(response.status).toBe(403)
+    expect(response.cookies.map(({ name }) => name)).not.toContain(localSessionCookieName)
+    expect(memoryDb.session).toHaveLength(0)
+    expect(session.status).toBe(200)
+    expect(session.session).toEqual({ authenticated: false })
   })
 
   it("rejects an unverified Google identity for an existing same-email user", async () => {

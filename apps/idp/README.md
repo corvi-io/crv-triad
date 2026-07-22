@@ -7,8 +7,13 @@ Elysia + Better Auth identity provider for CRV Triad.
 - Email/password and Google sign-in are mandatory runtime capabilities.
 - Public self-registration is not open.
 - Access requires an existing active user or a pending invitation.
-- Credential access requires email verification.
-- Google may link implicitly only to the same normalized, verified local email.
+- Every session requires an active user with a verified local email; credential access remains
+  verification-gated.
+- A provider-verified Google identity may link implicitly to an existing active user with the exact
+  same normalized email even when the local email starts unverified. Better Auth promotes that
+  matching local email to verified before the retained session gate runs.
+- Unverified Google emails, different-email linking, disabled users, and unknown users without a
+  pending invitation remain rejected.
 - Invitation, verification, and reset messages use one IDP-owned transactional email sender.
 - The bootstrap script creates the first pending admin invitation.
 

@@ -266,6 +266,9 @@ export function createAuthOptions(
             if (sessionUser?.status !== "active") {
               throw new APIError("FORBIDDEN", { message: "User is not active." })
             }
+            if (!sessionUser.emailVerified) {
+              throw new APIError("FORBIDDEN", { message: "User email is not verified." })
+            }
           },
         },
       },
