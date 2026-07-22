@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { approvedKanbanFixtures, SCHEDULING_FIXTURE_DATE } from "@/dev/scheduling/scenarios"
+
+import { approvedBoardFixtures, SCHEDULING_FIXTURE_DATE } from "@/dev/scheduling/scenarios"
 import {
   agendaColumns,
   columnForStatus,
@@ -7,12 +8,14 @@ import {
   periodBounds,
   validateScheduleSearch,
 } from "@/modules/scheduling/agenda"
-import { getDragTransitionRequest } from "@/modules/scheduling/agenda-kanban"
 
 const professionals = [
   { id: "professional-carlos", name: "Carlos Lima" },
   { id: "professional-bruno", name: "Bruno Rocha" },
   { id: "professional-ana", name: "Ana Clara" },
+  { id: "professional-joao", name: "João Vitor" },
+  { id: "professional-diego", name: "Diego Rodrigues" },
+  { id: "professional-marcos", name: "Marcos Paulo" },
 ]
 const services = [
   {
@@ -22,10 +25,17 @@ const services = [
     name: "Cabelo & Barba",
     priceCents: 6500,
   },
+  {
+    durationMinutes: 35,
+    eligibleProfessionalIds: professionals.map(({ id }) => id),
+    id: "service-fade",
+    name: "Corte degradê",
+    priceCents: 4500,
+  },
 ]
 
 describe("agenda derivation", () => {
-  it("keeps the approved column order and distinct terminal statuses", () => {
+  it("keeps transition status mapping while the primary board is organized by barber", () => {
     expect(agendaColumns.map(({ label }) => label)).toEqual([
       "Confirmados",
       "Check-in",
@@ -37,60 +47,52 @@ describe("agenda derivation", () => {
     expect(columnForStatus("canceled")).toBe("canceled-no-show")
     expect(columnForStatus("no-show")).toBe("canceled-no-show")
     expect(columnForStatus("scheduled")).toBeUndefined()
-
-    const confirmed = approvedKanbanFixtures.find(({ status }) => status === "confirmed")
-    const completed = approvedKanbanFixtures.find(({ status }) => status === "completed")
-    expect(confirmed).toBeDefined()
-    expect(completed).toBeDefined()
-    if (!confirmed || !completed) return
-    expect(
-      getDragTransitionRequest([completed], [{ column: "waiting", id: completed.id }]),
-    ).toBeUndefined()
-    expect(
-      getDragTransitionRequest([confirmed], [{ column: "waiting", id: confirmed.id }]),
-    ).toEqual({ appointment: confirmed, column: "waiting" })
   })
 
-  it("derives cards, counts, summary, and accent-insensitive search from one result", () => {
-    const result = deriveAgendaResult(approvedKanbanFixtures, professionals, services, {
+  it("derives accent-insensitive search and status filtering from one result", () => {
+    const target = approvedBoardFixtures.find(({ customerName }) => customerName === "João Paulo")
+    expect(target).toBeDefined()
+    if (!target) return
+
+    const result = deriveAgendaResult(approvedBoardFixtures, professionals, services, {
       clientIds: [],
       endDate: SCHEDULING_FIXTURE_DATE,
       professionalIds: [],
-      searchText: "Joao",
+      searchText: "Joao Paulo",
       serviceIds: [],
       startDate: SCHEDULING_FIXTURE_DATE,
+      statusIds: [target.status],
       unitId: "centro",
     })
 
-    expect(result.appointments.map(({ customerName }) => customerName)).toEqual(["João Vitor"])
-    expect(result.boardAppointments).toHaveLength(1)
-    expect(result.counts.confirmed).toBe(1)
+    expect(result.appointments).toEqual([target])
     expect(result.total).toBe(1)
-    expect(result.totalValueCents).toBe(6500)
+    expect(result.totalValueCents).toBe(target.priceCents)
   })
 
-  it("combines professional, client, service, date, and unit predicates", () => {
-    const target = approvedKanbanFixtures[1]
-    const result = deriveAgendaResult(approvedKanbanFixtures, professionals, services, {
+  it("combines professional, client, service, status, date, and unit predicates", () => {
+    const target = approvedBoardFixtures[1]
+    const result = deriveAgendaResult(approvedBoardFixtures, professionals, services, {
       clientIds: [target.clientId],
       endDate: SCHEDULING_FIXTURE_DATE,
       professionalIds: [target.professionalId],
       searchText: "",
       serviceIds: [target.serviceId],
       startDate: SCHEDULING_FIXTURE_DATE,
+      statusIds: [target.status],
       unitId: "centro",
     })
     expect(result.appointments).toEqual([target])
   })
 
-  it("computes deterministic period bounds and validates non-sensitive URL state", () => {
+  it("computes period bounds and defaults invalid URL state to the board", () => {
     expect(periodBounds("2026-07-21", "this-week")).toEqual({
       endDate: "2026-07-26",
       startDate: "2026-07-20",
     })
-    expect(periodBounds("2026-07-21", "custom", "2026-07-25", "2026-07-22")).toEqual({
-      endDate: "2026-07-21",
-      startDate: "2026-07-21",
+    expect(periodBounds("2026-07-21", "custom", "2026-07-22", "2026-07-25")).toEqual({
+      endDate: "2026-07-25",
+      startDate: "2026-07-22",
     })
     expect(
       validateScheduleSearch(
@@ -98,6 +100,7 @@ describe("agenda derivation", () => {
           client: "Maria Silva",
           customStart: "2026-02-30",
           date: "2026-02-30",
+          status: "invalid",
           unit: "invalid",
           view: "invalid",
         },
@@ -107,8 +110,9 @@ describe("agenda derivation", () => {
       client: undefined,
       customStart: undefined,
       date: "2026-07-21",
+      status: undefined,
       unit: "centro",
-      view: "kanban",
+      view: "board",
     })
   })
 })

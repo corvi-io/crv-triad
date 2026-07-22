@@ -36,7 +36,7 @@ describe("scheduling memory repository", () => {
     const centro = await repository.getDay(query())
     const artesao = await repository.getDay(query("normal", "artesao"))
 
-    expect(centro.appointments).toHaveLength(18)
+    expect(centro.appointments).toHaveLength(42)
     expect(centro.unitName).toBe("Centro")
     expect(centro.appointments.every(({ unitId }) => unitId === "centro")).toBe(true)
     expect(artesao.appointments).toEqual([])
@@ -46,7 +46,7 @@ describe("scheduling memory repository", () => {
     const repository = new SchedulingMemoryRepository()
     const day = await repository.getDay(query())
 
-    expect(day.occupancies).toHaveLength(15)
+    expect(day.occupancies).toHaveLength(30)
     expect(day.occupancies[0]).toEqual(
       expect.objectContaining({ date: SCHEDULING_FIXTURE_DATE, id: "kanban-01" }),
     )
@@ -106,7 +106,9 @@ describe("scheduling memory repository", () => {
   it("updates status and payment atomically", async () => {
     const repository = new SchedulingMemoryRepository()
     const day = await repository.getDay(query())
-    const candidate = day.appointments[0]
+    const candidate = day.appointments.find(({ status }) => status === "confirmed")
+    expect(candidate).toBeDefined()
+    if (!candidate) return
 
     await expect(
       repository.transition({ id: candidate.id, paymentStatus: "paid", status: "completed" }),
@@ -116,7 +118,9 @@ describe("scheduling memory repository", () => {
   it("keeps generic edits status-neutral and reserves state changes for transitions", async () => {
     const repository = new SchedulingMemoryRepository()
     const day = await repository.getDay(query())
-    const candidate = day.appointments[0]
+    const candidate = day.appointments.find(({ status }) => status === "confirmed")
+    expect(candidate).toBeDefined()
+    if (!candidate) return
 
     await expect(
       repository.update(candidate.id, { ...candidate, status: "completed" }),
@@ -152,7 +156,7 @@ describe("scheduling memory repository", () => {
     const slow = await slowRequest
 
     expect(empty.appointments).toEqual([])
-    expect(slow.appointments).toHaveLength(18)
+    expect(slow.appointments).toHaveLength(42)
   })
 
   it("allows the default service to save an extra-professional slot", async () => {

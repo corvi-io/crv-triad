@@ -1,21 +1,22 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, within } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { useState } from "react"
+import { type ReactElement, useState } from "react"
 import { describe, expect, it, vi } from "vitest"
+
 import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
-import { approvedKanbanFixtures } from "@/dev/scheduling/scenarios"
+import { approvedBoardFixtures } from "@/dev/scheduling/scenarios"
 import { AppointmentDrawer, appointmentFormSchema } from "@/modules/scheduling/appointment-drawer"
 import { SchedulingRepositoryProvider } from "@/modules/scheduling/repository-context"
 import { SchedulePage, type ScheduleSearch } from "@/modules/scheduling/schedule-page"
 import { TransitionDialog } from "@/modules/scheduling/transition-dialog"
 
-const baseSearch = {
+const baseSearch: ScheduleSearch = {
   date: "2026-07-19",
-  period: "today" as const,
+  period: "today",
   scenario: "normal",
-  unit: "centro" as const,
-  view: "kanban" as const,
+  unit: "centro",
+  view: "board",
 }
 
 describe("schedule page", () => {
@@ -40,40 +41,46 @@ describe("schedule page", () => {
       ]),
     )
   })
-  it("renders textual status cues and opens the view/edit drawer journey", async () => {
-    const user = userEvent.setup()
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(
-      <QueryClientProvider client={queryClient}>
-        <SchedulingRepositoryProvider repository={new SchedulingMemoryRepository()}>
-          <SchedulePage search={baseSearch} onSearchChange={vi.fn()} />
-        </SchedulingRepositoryProvider>
-      </QueryClientProvider>,
+
+  it("renders the temporal board with six barber columns, time rows, and portrait cards", async () => {
+    const { container } = renderSchedule(
+      <SchedulePage search={baseSearch} onSearchChange={vi.fn()} />,
     )
+
     expect(await screen.findByRole("heading", { name: "Agenda" })).toBeInTheDocument()
-    const card = (await screen.findByText("João Vitor")).closest("[data-appointment-id]")
+    expect(screen.getByRole("button", { name: "Visualizar como quadro" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    )
+    await screen.findByRole("table", { name: /Horários em linhas/ })
+    for (const name of [
+      "Carlos Lima",
+      "Bruno Rocha",
+      "Ana Clara",
+      "João Vitor",
+      "Diego Rodrigues",
+      "Marcos Paulo",
+    ]) {
+      expect(screen.getByRole("columnheader", { name: new RegExp(name) })).toBeInTheDocument()
+    }
+    expect(screen.getByRole("rowheader", { name: "08:00" })).toBeInTheDocument()
+    expect(screen.getByRole("rowheader", { name: "08:15" })).toBeInTheDocument()
+    expect(container.querySelectorAll("[data-appointment-id]")).toHaveLength(42)
+    expect(container.querySelectorAll("[data-slot=avatar]").length).toBeGreaterThan(42)
+    expect(screen.queryByText("Resumo da agenda")).not.toBeInTheDocument()
+  })
+
+  it("opens details from a board card and preserves the edit journey", async () => {
+    const user = userEvent.setup()
+    renderSchedule(<SchedulePage search={baseSearch} onSearchChange={vi.fn()} />)
+
+    const card = (await screen.findByText("Carlos Eduardo")).closest("[data-appointment-id]")
     expect(card).not.toBeNull()
     if (!card) return
-    expect(card).toHaveTextContent("Confirmado")
-    expect(card).not.toHaveAttribute("customername")
-    expect(card).not.toHaveAttribute("customerphone")
-    expect(
-      within(card as HTMLElement).getByRole("button", {
-        name: "Mover agendamento de João Vitor",
-      }),
-    ).toBeEnabled()
-    const terminalCard = (await screen.findByText("Marcos Paulo")).closest("[data-appointment-id]")
-    expect(terminalCard).not.toBeNull()
-    if (!terminalCard) return
-    expect(
-      within(terminalCard as HTMLElement).getByRole("button", {
-        name: "Agendamento de Marcos Paulo não pode ser movido",
-      }),
-    ).toBeDisabled()
-    expect(
-      within(terminalCard as HTMLElement).getByRole("button", { name: "Ver detalhes" }),
-    ).toBeEnabled()
-    await user.click(within(card as HTMLElement).getByRole("button", { name: "Ver detalhes" }))
+    expect(card).toHaveTextContent("Em atendimento")
+    expect(card.querySelector("[data-slot=avatar]")).toBeInTheDocument()
+
+    await user.click(within(card as HTMLElement).getByRole("button", { name: /^Carlos Eduardo/ }))
     expect(
       await screen.findByRole("dialog", { name: "Agenda / Ver agendamento" }),
     ).toBeInTheDocument()
@@ -81,197 +88,120 @@ describe("schedule page", () => {
     expect(
       await screen.findByRole("dialog", { name: "Agenda / Editar agendamento" }),
     ).toBeInTheDocument()
-    expect(screen.getByLabelText(/Nome/)).toHaveValue("João Vitor")
+    expect(screen.getByLabelText(/Nome/)).toHaveValue("Carlos Eduardo")
     expect(screen.queryByLabelText("Status inicial")).not.toBeInTheDocument()
-    expect(screen.queryByLabelText("Pagamento")).not.toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Voltar" }))
-    expect(
-      await screen.findByRole("dialog", { name: "Agenda / Ver agendamento" }),
-    ).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Remarcar" }))
-    expect(
-      await screen.findByRole("dialog", { name: "Agenda / Remarcar agendamento" }),
-    ).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Voltar" }))
-    expect(
-      await screen.findByRole("dialog", { name: "Agenda / Ver agendamento" }),
-    ).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Cancelar agendamento" }))
-    expect(
-      await screen.findByRole("dialog", { name: "Agenda / Cancelar agendamento" }),
-    ).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Manter agendamento" }))
-    expect(
-      await screen.findByRole("dialog", { name: "Agenda / Ver agendamento" }),
-    ).toBeInTheDocument()
   })
 
-  it("offers the canonical views and completes a non-drag status transition", async () => {
+  it("switches between Quadro and Lista through the canonical icon toggle", async () => {
     const user = userEvent.setup()
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(
-      <QueryClientProvider client={queryClient}>
-        <SchedulingRepositoryProvider repository={new SchedulingMemoryRepository()}>
-          <SchedulePage search={baseSearch} onSearchChange={vi.fn()} />
-        </SchedulingRepositoryProvider>
-      </QueryClientProvider>,
+    renderSchedule(<ScheduleHarness initialSearch={baseSearch} />)
+
+    expect(await screen.findByRole("table", { name: /Horários em linhas/ })).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Visualizar como lista" }))
+    expect(await screen.findByRole("table", { name: /Agendamentos filtrados/ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Visualizar como lista" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
     )
+  })
 
-    expect(await screen.findByRole("radio", { name: "Kanban" })).toBeChecked()
-    expect(screen.getByRole("radio", { name: "Grade diária" })).not.toBeChecked()
-    expect(
-      await screen.findAllByRole("heading", {
-        name: /Confirmados|Check-in|Em espera|Em atendimento|Finalizados|Cancelados \/ No-show/,
-      }),
-    ).toHaveLength(6)
+  it("completes the non-drag status path from the appointment menu", async () => {
+    const user = userEvent.setup()
+    renderSchedule(<SchedulePage search={baseSearch} onSearchChange={vi.fn()} />)
 
-    await user.click(screen.getByRole("button", { name: "Ações de João Vitor" }))
+    await user.click(await screen.findByRole("button", { name: "Ações de Carlos Eduardo" }))
     await user.click(await screen.findByRole("menuitem", { name: "Alterar status" }))
     expect(await screen.findByRole("dialog", { name: "Alterar status" })).toBeInTheDocument()
     await user.click(screen.getByRole("radio", { name: "Em espera" }))
     await user.click(screen.getByRole("button", { name: "Confirmar alteração" }))
 
-    const movedCard = (await screen.findByText("João Vitor")).closest("[data-appointment-id]")
-    expect(movedCard).toHaveTextContent("Aguardando")
-    if (!movedCard) return
-
-    await user.click(within(movedCard as HTMLElement).getByRole("button", { name: "Ver detalhes" }))
-    expect(
-      await screen.findByRole("dialog", { name: "Agenda / Ver agendamento" }),
-    ).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Fechar" }))
-
-    await user.click(screen.getByRole("button", { name: "Ações de João Vitor" }))
-    await user.click(await screen.findByRole("menuitem", { name: "Alterar status" }))
-    await user.click(screen.getByRole("radio", { name: "Check-in" }))
-    await user.click(screen.getByRole("button", { name: "Confirmar alteração" }))
-    expect(
-      (await screen.findByText("João Vitor")).closest("[data-appointment-id]"),
-    ).toHaveTextContent("Chegou")
+    const card = (await screen.findByText("Carlos Eduardo")).closest("[data-appointment-id]")
+    expect(card).toHaveTextContent("Em espera")
   })
 
-  it("hides invalid terminal actions in menus and details", async () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(
-      <QueryClientProvider client={queryClient}>
-        <SchedulingRepositoryProvider repository={new SchedulingMemoryRepository()}>
-          <AppointmentDrawer
-            appointment={approvedKanbanFixtures[12]}
-            isOpen
-            mode="view"
-            onModeChange={vi.fn()}
-            onOpenChange={vi.fn()}
-            professionals={[]}
-            selectedDate={baseSearch.date}
-            selectedUnit="centro"
-            services={[]}
-          />
-        </SchedulingRepositoryProvider>
-      </QueryClientProvider>,
+  it("uses button-like filter triggers with counters and searchable menus", async () => {
+    const user = userEvent.setup()
+    renderSchedule(<ScheduleHarness initialSearch={baseSearch} />)
+
+    const barberFilter = await screen.findByRole("button", { name: "Barbeiro" })
+    await waitFor(() => expect(barberFilter).toHaveTextContent("6"))
+    await user.click(barberFilter)
+    fireEvent.change(await screen.findByLabelText("Pesquisar barbeiro"), {
+      target: { value: "Carlos" },
+    })
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Carlos Lima" }))
+    expect(screen.getByRole("button", { name: "Barbeiro" })).toHaveTextContent("1")
+
+    await user.click(screen.getByRole("button", { name: "Status" }))
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Confirmado" }))
+    expect(screen.getByRole("button", { name: "Status" })).toHaveTextContent("1")
+  })
+
+  it("opens a calendar range from the period trigger and keeps scenarios in settings", async () => {
+    const user = userEvent.setup()
+    renderSchedule(<ScheduleHarness initialSearch={baseSearch} />)
+
+    await user.click(screen.getByRole("button", { name: "Período: 19/07" }))
+    expect(screen.getByText("Período da agenda")).toBeInTheDocument()
+    expect(
+      screen.getByText("Escolha um atalho ou selecione as datas inicial e final."),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Aplicar período" })).toBeEnabled()
+    await user.keyboard("{Escape}")
+
+    await user.click(screen.getByRole("button", { name: "Configurações do protótipo" }))
+    expect(await screen.findByText("Cenário de desenvolvimento")).toBeInTheDocument()
+    expect(screen.getByRole("menuitemradio", { name: /Quadro preenchido/ })).toBeChecked()
+  })
+
+  it("keeps terminal appointments read-only in the drawer", async () => {
+    const completed = approvedBoardFixtures.find(({ status }) => status === "completed")
+    expect(completed).toBeDefined()
+    if (!completed) return
+
+    renderSchedule(
+      <AppointmentDrawer
+        appointment={completed}
+        isOpen
+        mode="view"
+        professionals={[]}
+        selectedDate={baseSearch.date}
+        selectedUnit="centro"
+        services={[]}
+        onModeChange={vi.fn()}
+        onOpenChange={vi.fn()}
+      />,
     )
 
     expect(
       await screen.findByRole("dialog", { name: "Agenda / Ver agendamento" }),
     ).toBeInTheDocument()
-    expect(screen.getByText("✓ Concluído")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Editar agendamento" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Remarcar" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Cancelar agendamento" })).not.toBeInTheDocument()
   })
 
-  it("distinguishes empty periods from filtered results and clears filters independently", async () => {
-    const user = userEvent.setup()
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const { unmount } = render(
-      <QueryClientProvider client={queryClient}>
-        <SchedulingRepositoryProvider repository={new SchedulingMemoryRepository()}>
-          <SchedulePage search={{ ...baseSearch, scenario: "empty" }} onSearchChange={vi.fn()} />
-        </SchedulingRepositoryProvider>
-      </QueryClientProvider>,
-    )
-    expect(
-      await screen.findByRole("heading", { name: "Agenda livre no período" }),
-    ).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Adicionar agendamento" })).toBeInTheDocument()
-
-    unmount()
-    const filteredQueryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    })
-    render(
-      <QueryClientProvider client={filteredQueryClient}>
-        <SchedulingRepositoryProvider repository={new SchedulingMemoryRepository()}>
-          <ScheduleHarness
-            initialSearch={{
-              ...baseSearch,
-              period: "tomorrow",
-              professional: "professional-carlos",
-              scenario: "many-professionals",
-              unit: "artesao",
-            }}
-          />
-        </SchedulingRepositoryProvider>
-      </QueryClientProvider>,
-    )
-    expect(
-      await screen.findByRole("heading", { name: "Nenhum agendamento encontrado" }),
-    ).toBeInTheDocument()
-    expect(screen.getByLabelText("Período")).toHaveTextContent("Amanhã")
-    expect(screen.getByLabelText("Unidade")).toHaveTextContent("Artesão")
-    expect(screen.getByLabelText("Barbeiro")).toHaveTextContent("1 selecionado")
-
-    await user.click(screen.getByRole("button", { name: "Limpar filtro unidade" }))
-    expect(screen.getByLabelText("Unidade")).toHaveTextContent("Centro")
-    expect(screen.getByLabelText("Período")).toHaveTextContent("Amanhã")
-    expect(screen.getByLabelText("Barbeiro")).toHaveTextContent("1 selecionado")
-
-    await user.click(screen.getAllByRole("button", { name: "Limpar filtros" })[0])
-    expect(screen.getByLabelText("Unidade")).toHaveTextContent("Centro")
-    expect(screen.getByLabelText("Período")).toHaveTextContent("Hoje")
-    expect(screen.getByLabelText("Barbeiro")).toHaveTextContent("Todos")
-  })
-
-  it("searches inside a long professional catalog", async () => {
-    const user = userEvent.setup()
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(
-      <QueryClientProvider client={queryClient}>
-        <SchedulingRepositoryProvider repository={new SchedulingMemoryRepository()}>
-          <ScheduleHarness initialSearch={{ ...baseSearch, scenario: "many-professionals" }} />
-        </SchedulingRepositoryProvider>
-      </QueryClientProvider>,
-    )
-
-    await user.click(await screen.findByLabelText("Barbeiro"))
-    await user.type(
-      await screen.findByRole("textbox", { name: "Pesquisar barbeiro" }),
-      "Sintético 7",
-    )
-    expect(
-      screen.getByRole("menuitemcheckbox", { name: "Profissional Sintético 7" }),
-    ).toBeInTheDocument()
-    expect(
-      screen.queryByRole("menuitemcheckbox", { name: "Profissional Sintético 1" }),
-    ).not.toBeInTheDocument()
-  })
-
-  it("requires cancellation reasons and unpaid-completion decisions in the non-drag path", async () => {
+  it("requires cancellation reasons and unpaid-completion decisions", async () => {
     const user = userEvent.setup()
     const onConfirm = vi.fn()
+    const confirmed = approvedBoardFixtures.find(({ status }) => status === "confirmed")
+    const inProgress = approvedBoardFixtures.find(({ status }) => status === "in-progress")
+    expect(confirmed).toBeDefined()
+    expect(inProgress).toBeDefined()
+    if (!confirmed || !inProgress) return
+
     const { rerender } = render(
       <TransitionDialog
-        appointment={approvedKanbanFixtures[0]}
+        appointment={confirmed}
         initialColumn="canceled-no-show"
         isPending={false}
         onCancel={vi.fn()}
         onConfirm={onConfirm}
       />,
     )
-    const confirm = screen.getByRole("button", { name: "Confirmar alteração" })
-    expect(confirm).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Confirmar alteração" })).toBeDisabled()
     await user.click(screen.getByRole("radio", { name: "Não compareceu" }))
-    expect(confirm).toBeEnabled()
-    await user.click(confirm)
+    await user.click(screen.getByRole("button", { name: "Confirmar alteração" }))
     expect(onConfirm).toHaveBeenLastCalledWith(
       expect.objectContaining({ cancellationReason: "no-show", status: "no-show" }),
     )
@@ -279,7 +209,7 @@ describe("schedule page", () => {
     rerender(
       <TransitionDialog
         key="completion"
-        appointment={approvedKanbanFixtures[9]}
+        appointment={inProgress}
         initialColumn="completed"
         isPending={false}
         onCancel={vi.fn()}
@@ -294,51 +224,36 @@ describe("schedule page", () => {
     )
   })
 
-  it("renders a deliberate narrow-layout professional list alongside the desktop table", async () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(
-      <QueryClientProvider client={queryClient}>
-        <SchedulingRepositoryProvider repository={new SchedulingMemoryRepository()}>
-          <SchedulePage
-            search={{ ...baseSearch, scenario: "walk-in", view: "daily-grid" }}
-            onSearchChange={vi.fn()}
-          />
-        </SchedulingRepositoryProvider>
-      </QueryClientProvider>,
-    )
-    expect(
-      await screen.findByRole("table", { name: /Profissionais em colunas/ }),
-    ).toBeInTheDocument()
-    expect(screen.getAllByRole("heading", { name: "Carlos Lima" }).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Encaixe aguardando/).length).toBeGreaterThan(0)
-  })
-
-  it("renders hidden-status occupancy as a non-interactive duration span", async () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(
-      <QueryClientProvider client={queryClient}>
-        <SchedulingRepositoryProvider repository={new SchedulingMemoryRepository()}>
-          <SchedulePage
-            search={{
-              ...baseSearch,
-              client: "client-kanban-02",
-              professional: "professional-ana",
-              view: "daily-grid",
-            }}
-            onSearchChange={vi.fn()}
-          />
-        </SchedulingRepositoryProvider>
-      </QueryClientProvider>,
+  it("renders filtered-out appointments as occupied time spans", async () => {
+    renderSchedule(
+      <SchedulePage
+        search={{
+          ...baseSearch,
+          client: "client-kanban-02",
+          professional: "professional-carlos",
+        }}
+        onSearchChange={vi.fn()}
+      />,
     )
 
-    const descriptions = await screen.findAllByText(/Agendamento fora do filtro · 11:00–11:50/)
-    const desktopCell = descriptions.map((node) => node.closest("td")).find(Boolean)
-    expect(desktopCell).toHaveAttribute("rowspan", "4")
+    const occupancy = await screen.findByText("Ocupado · 08:00–08:45")
+    expect(occupancy.closest("td")).toHaveAttribute("rowspan", "3")
     expect(
-      screen.queryByRole("button", { name: "Disponível às 11:00 para Ana Clara" }),
+      screen.queryByRole("button", { name: "Novo agendamento às 08:00 com Carlos Lima" }),
     ).not.toBeInTheDocument()
   })
 })
+
+function renderSchedule(ui: ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <SchedulingRepositoryProvider repository={new SchedulingMemoryRepository()}>
+        {ui}
+      </SchedulingRepositoryProvider>
+    </QueryClientProvider>,
+  )
+}
 
 function ScheduleHarness({ initialSearch }: { initialSearch: ScheduleSearch }) {
   const [search, setSearch] = useState(initialSearch)

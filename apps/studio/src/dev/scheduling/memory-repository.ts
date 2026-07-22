@@ -16,10 +16,13 @@ const baseProfessionals: readonly Professional[] = [
   { id: "professional-carlos", name: "Carlos Lima" },
   { id: "professional-bruno", name: "Bruno Rocha" },
   { id: "professional-ana", name: "Ana Clara" },
+  { id: "professional-joao", name: "João Vitor" },
+  { id: "professional-diego", name: "Diego Rodrigues" },
+  { id: "professional-marcos", name: "Marcos Paulo" },
 ]
 const extraProfessionals: readonly Professional[] = Array.from({ length: 7 }, (_, index) => ({
-  id: `professional-extra-${index + 1}`,
-  name: `Profissional Sintético ${index + 1}`,
+  id: `professional-extra-${index + 7}`,
+  name: `Profissional Sintético ${index + 7}`,
 }))
 const allProfessionals = [...baseProfessionals, ...extraProfessionals]
 const services: readonly Service[] = [
@@ -224,24 +227,7 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
 }
 
 function periodsFor(scenarioId: string): readonly SchedulePeriod[] {
-  const base: SchedulePeriod[] = [
-    {
-      id: "break-bruno",
-      kind: "break",
-      label: "Pausa",
-      professionalId: "professional-bruno",
-      start: "12:00",
-      end: "13:00",
-    },
-    {
-      id: "blocked-carla",
-      kind: "blocked",
-      label: "Bloqueado",
-      professionalId: "professional-ana",
-      start: "16:00",
-      end: "17:00",
-    },
-  ]
+  const base: SchedulePeriod[] = []
   if (scenarioId === "walk-in")
     base.push({
       id: "walk-in-ana",
@@ -252,14 +238,24 @@ function periodsFor(scenarioId: string): readonly SchedulePeriod[] {
       end: "11:45",
     })
   if (scenarioId === "blocked")
-    base.push({
-      id: "blocked-ana",
-      kind: "blocked",
-      label: "Indisponível",
-      professionalId: "professional-ana",
-      start: "09:00",
-      end: "12:00",
-    })
+    base.push(
+      {
+        id: "break-bruno",
+        kind: "break",
+        label: "Pausa",
+        professionalId: "professional-bruno",
+        start: "12:00",
+        end: "13:00",
+      },
+      {
+        id: "blocked-ana",
+        kind: "blocked",
+        label: "Indisponível",
+        professionalId: "professional-ana",
+        start: "09:00",
+        end: "12:00",
+      },
+    )
   return base
 }
 

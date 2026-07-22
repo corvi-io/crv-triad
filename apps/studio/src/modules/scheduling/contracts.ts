@@ -11,7 +11,7 @@ export const appointmentStatuses = [
 
 export type AppointmentStatus = (typeof appointmentStatuses)[number]
 
-export const agendaViews = ["kanban", "daily-grid"] as const
+export const agendaViews = ["board", "list"] as const
 export type AgendaView = (typeof agendaViews)[number]
 
 export const schedulingUnitIds = ["centro", "artesao"] as const

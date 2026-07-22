@@ -12,6 +12,10 @@ const buttonVariants = cva(
         default: "bg-primary text-primary-foreground hover:bg-primary/80",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+        filter:
+          "justify-start border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:border-primary aria-expanded:bg-primary/10 aria-expanded:text-primary dark:border-input dark:bg-input/30",
+        "filter-active":
+          "justify-start border-primary bg-primary/10 text-primary hover:bg-primary/15 aria-expanded:bg-primary/15",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:

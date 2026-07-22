@@ -15,7 +15,7 @@ import type {
   SchedulingUnitId,
   Service,
 } from "./contracts"
-import { agendaViews, schedulingUnitIds } from "./contracts"
+import { agendaViews, appointmentStatuses, schedulingUnitIds } from "./contracts"
 
 export const agendaPeriodIds = [
   "today",
@@ -37,6 +37,7 @@ export type ScheduleSearch = {
   professional?: string
   scenario: string
   service?: string
+  status?: string
   unit: SchedulingUnitId
   view: AgendaView
 }
@@ -73,6 +74,7 @@ export type AgendaFilters = {
   searchText: string
   serviceIds: readonly string[]
   startDate: string
+  statusIds: readonly AppointmentStatus[]
   unitId: SchedulingUnitId
 }
 
@@ -146,6 +148,8 @@ export function deriveAgendaResult(
       return false
     if (filters.serviceIds.length > 0 && !filters.serviceIds.includes(appointment.serviceId))
       return false
+    if (filters.statusIds.length > 0 && !filters.statusIds.includes(appointment.status))
+      return false
     if (!normalizedSearch) return true
     return normalize(
       [
@@ -211,6 +215,7 @@ export function validateScheduleSearch(
     professional: validIdList(search.professional),
     scenario: typeof search.scenario === "string" ? search.scenario : "normal",
     service: validIdList(search.service),
+    status: validStatusList(search.status),
     unit:
       typeof search.unit === "string" && schedulingUnitIds.includes(search.unit as SchedulingUnitId)
         ? (search.unit as SchedulingUnitId)
@@ -218,7 +223,7 @@ export function validateScheduleSearch(
     view:
       typeof search.view === "string" && agendaViews.includes(search.view as AgendaView)
         ? (search.view as AgendaView)
-        : "kanban",
+        : "board",
   }
 }
 
@@ -232,4 +237,13 @@ function validDate(value: unknown) {
 
 function validIdList(value: unknown) {
   return typeof value === "string" && /^[a-z0-9,-]{1,500}$/.test(value) ? value : undefined
+}
+
+function validStatusList(value: unknown) {
+  if (typeof value !== "string") return undefined
+  const values = value.split(",")
+  return values.length > 0 &&
+    values.every((item) => appointmentStatuses.includes(item as AppointmentStatus))
+    ? values.sort().join(",")
+    : undefined
 }
