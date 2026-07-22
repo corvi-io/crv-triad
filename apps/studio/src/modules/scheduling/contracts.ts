@@ -11,6 +11,18 @@ export const appointmentStatuses = [
 
 export type AppointmentStatus = (typeof appointmentStatuses)[number]
 
+export const agendaViews = ["board", "list"] as const
+export type AgendaView = (typeof agendaViews)[number]
+
+export const schedulingUnitIds = ["centro", "artesao"] as const
+export type SchedulingUnitId = (typeof schedulingUnitIds)[number]
+
+export const paymentStatuses = ["pending", "paid"] as const
+export type PaymentStatus = (typeof paymentStatuses)[number]
+
+export const cancellationReasons = ["client", "barbershop", "no-show"] as const
+export type CancellationReason = (typeof cancellationReasons)[number]
+
 export type Professional = { id: string; name: string }
 export type Service = {
   durationMinutes: number
@@ -30,6 +42,8 @@ export type SchedulePeriod = {
 }
 
 export type Appointment = {
+  cancellationReason?: CancellationReason
+  clientId: string
   customerName: string
   customerPhone: string
   date: string
@@ -37,25 +51,29 @@ export type Appointment = {
   id: string
   notes: string
   origin: "phone" | "reception" | "whatsapp"
+  paymentStatus: PaymentStatus
   priceCents: number
   professionalId: string
+  rating?: number
   serviceId: string
   start: string
   status: AppointmentStatus
+  tags: readonly string[]
+  unitId: SchedulingUnitId
 }
 
 export type AppointmentInput = Omit<Appointment, "id">
 
 export type ScheduleOccupancy = Pick<
   Appointment,
-  "durationMinutes" | "id" | "professionalId" | "start"
+  "date" | "durationMinutes" | "id" | "professionalId" | "start"
 >
 
 export type ScheduleDayQuery = {
-  date: string
-  professionalId?: string
+  endDate: string
   scenarioId?: string
-  status?: AppointmentStatus
+  startDate: string
+  unitId: SchedulingUnitId
 }
 
 export type ScheduleDay = {
@@ -72,13 +90,21 @@ export type ScheduleDay = {
 
 export type SchedulingScenario = { description: string; id: string; label: string }
 
+export type AppointmentTransitionInput = {
+  cancellationReason?: CancellationReason
+  id: string
+  paymentStatus?: PaymentStatus
+  status: AppointmentStatus
+}
+
 export type SchedulingRepository = {
-  cancel(id: string): Promise<Appointment>
+  cancel(id: string, reason: Exclude<CancellationReason, "no-show">): Promise<Appointment>
   create(input: AppointmentInput): Promise<Appointment>
   getDay(query: ScheduleDayQuery): Promise<ScheduleDay>
   reset(): Promise<void>
   scenarios(): readonly SchedulingScenario[]
   selectScenario(id: string): Promise<void>
+  transition(input: AppointmentTransitionInput): Promise<Appointment>
   update(id: string, input: AppointmentInput): Promise<Appointment>
 }
 

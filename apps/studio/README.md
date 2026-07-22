@@ -17,8 +17,8 @@ Routes:
 - `/reset-password` (consumes Better Auth's native query-token contract)
 - `/workspace-preview` (development-only visual shell preview; no login required)
 - `/workspace-preview/sandbox` (development-only neutral component/data sandbox)
-- `/workspace-preview/agenda` (development-only schedule interaction/QA surface)
-- `/agenda` (authenticated daily schedule visual prototype when enabled)
+- `/workspace-preview/agenda` (development-only Agenda board/list interaction and QA surface)
+- `/agenda` (authenticated Agenda visual prototype with default temporal board and alternate list)
 - `/overview`
 - `/profile`
 - `/preferences`
@@ -41,6 +41,14 @@ resettable, persists nothing, and never mocks authentication. Verify it with
 The focused auth browser flow is available through
 `bun --filter studio test:e2e -- tests/e2e/auth-lifecycle.spec.ts`; it uses local network fakes and
 never calls Google, Resend, or a deployed IDP.
+
+The Agenda prototype uses one canonical `Quadro`/`Lista` selector, a 15-minute time axis with barber
+columns, deterministic session-memory fixtures, button-trigger filters, a date-range calendar,
+mouse/touch/keyboard allocation drag, drawer-based non-drag rescheduling, non-drag status changes,
+and atomic optimistic rollback. Temporal drag changes start/barber only, never status. It is
+intentionally unavailable in `hml`
+and `prd`; see `docs/studio/schedule-prototype.md` for the visual contract, runtime boundary, and
+residual manual accessibility checks.
 
 Component placement, exhaustive inventory, public and internal-only decisions, token layers,
 adapter boundaries, and manual accessibility checks are documented in English at

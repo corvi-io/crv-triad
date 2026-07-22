@@ -130,7 +130,7 @@ building block of a documented composition.
 | `forms/permission-group.tsx` | Form composition | Internal: no accepted active authorization editor in Studio. |
 | `forms/quantity-unit-control.tsx` | Form composition | Internal: inherited composition without an active module-owned quantity contract. |
 | `forms/rhf-form-fields.tsx` | Form adapters | Internal: React Hook Form adapters; discover through owning module forms, not as standalone UI. |
-| `kibo-ui/kanban/index.tsx` | Vendor-derived composite | Internal: inherited drag/drop primitive with no accepted Studio module and no capacity claim. |
+| `kibo-ui/kanban/index.tsx` | Vendor-derived composite | Internal legacy composite: retained for migration compatibility but no longer consumed by the accepted Agenda board. A future workflow must revalidate its DnD and accessibility contract before reuse. |
 | `layout/module-layout.tsx` | Layout | Internal: structural fixed-head/scroll-body shell exercised through composed pages. |
 | `layout/module-tabs.tsx` | Layout/navigation | Internal: requires router context and module-owned tab metadata. |
 | `layout/page-header.tsx` | Layout | Internal: composed by module pages; actions remain module owned. |
@@ -152,13 +152,14 @@ building block of a documented composition.
 | `workspace-shell/workspace-brand.tsx` | Shell companion | Internal: Studio brand composition private to the shell folder. |
 | `ui/avatar.tsx` | Primitive | Internal: Base UI/shadcn building block, documented through shell composition. |
 | `ui/breadcrumb.tsx` | Primitive | Internal: building block documented through workspace breadcrumbs. |
-| `ui/button.tsx` | Primitive | Documented public contract: explicit variants, disabled/loading states, stable long labels, and keyboard activation. |
+| `ui/button.tsx` | Primitive | Documented public contract: explicit variants, disabled/loading states, stable long labels, and keyboard activation. Agenda adds quiet `filter` and brand-selected `filter-active` variants for menu/popover triggers; state remains textual and exposed through the owning primitive. |
 | `ui/calendar.tsx` | Primitive | Internal: implementation detail of the shared date picker. |
 | `ui/card.tsx` | Primitive | Internal: structural primitive documented through consuming composites. |
 | `ui/collapsible.tsx` | Primitive | Internal: implementation detail of drawer/form sections. |
 | `ui/dropdown-menu.tsx` | Primitive | Internal: implementation detail of menus and table controls. |
 | `ui/field.tsx` | Primitive | Internal: form anatomy documented through explicit module forms. |
 | `ui/input.tsx` | Primitive | Internal: cataloged through drawer/form compositions. |
+| `ui/input-group.tsx` | Primitive composition | Documented public contract: official shadcn-style grouped input with leading/trailing addons and a single focus boundary; Agenda uses it for global and in-menu search. |
 | `ui/label.tsx` | Primitive | Internal: cataloged with its associated form controls. |
 | `ui/pagination.tsx` | Primitive | Internal: lower-level anatomy cataloged through `DataTable`. |
 | `ui/popover.tsx` | Primitive | Internal: implementation detail of date/combobox controls. |
@@ -172,6 +173,8 @@ building block of a documented composition.
 | `ui/switch.tsx` | Primitive | Internal: catalog through accepted explicit forms. |
 | `ui/textarea.tsx` | Primitive | Internal: cataloged through drawer/form compositions. |
 | `ui/tooltip.tsx` | Primitive | Internal: accessible-description helper used by shell/action controls. |
+| `ui/toggle-group.tsx` | Primitive composition | Documented public contract: Base UI controlled single/multiple selection composition; Agenda uses one controlled selection for the `Lista`/`Quadro` icon toggle. |
+| `ui/toggle.tsx` | Primitive | Internal companion to `ToggleGroup`; the `brand` variant exposes selected state with semantic brand tokens and visible `aria-pressed` state. |
 | `ui/tri-state-toggle.tsx` | Primitive | Internal: only for an accepted tri-state group composition. |
 
 ## Development Runtime And Replaceable Adapter

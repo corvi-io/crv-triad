@@ -18,12 +18,12 @@ const semanticTextPairs = [
 const scheduleStates = [
   ["scheduled", "Agendado"],
   ["confirmed", "Confirmado"],
-  ["arrived", "Chegou"],
-  ["waiting", "Aguardando"],
+  ["arrived", "Check-in"],
+  ["waiting", "Em espera"],
   ["in-progress", "Em atendimento"],
-  ["completed", "Concluído"],
+  ["completed", "Finalizado"],
   ["canceled", "Cancelado"],
-  ["no-show", "Não compareceu"],
+  ["no-show", "No-show"],
 ] as const
 
 test("resolves saved and system preferences before the first animation frame", async ({
@@ -72,7 +72,7 @@ test("follows system changes while preserving the system preference", async ({ p
 test("meets computed contrast for global feedback, focus, inputs, and every schedule state", async ({
   page,
 }) => {
-  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=all-statuses")
+  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=all-statuses&view=board")
 
   for (const theme of ["light", "dark"] as const) {
     await selectTheme(page, theme)
@@ -144,7 +144,7 @@ test("renders a contrasting focus indicator on representative controls", async (
       { label: "sidebar link", locator: page.getByRole("link", { name: "Agenda", exact: true }) },
       {
         label: "primary button",
-        locator: page.getByRole("button", { name: "Novo agendamento" }),
+        locator: page.getByRole("button", { exact: true, name: "Novo agendamento" }),
       },
     ]
 
@@ -156,7 +156,7 @@ test("renders a contrasting focus indicator on representative controls", async (
       testInfo.annotations.push({ type: "focus-contrast", description: evidence })
     }
 
-    await page.getByRole("button", { name: "Novo agendamento" }).click()
+    await page.getByRole("button", { exact: true, name: "Novo agendamento" }).click()
     const evidence = await expectRenderedFocusContrast(
       page.getByRole("textbox", { name: /^Nome/ }),
       `${theme} drawer input`,
@@ -168,7 +168,7 @@ test("renders a contrasting focus indicator on representative controls", async (
 
 test("retains status text and boundaries in forced colors", async ({ page }) => {
   await page.emulateMedia({ forcedColors: "active" })
-  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=all-statuses")
+  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=all-statuses&view=board")
 
   for (const [status, label] of scheduleStates) {
     const card = page.locator(`[data-appointment-status="${status}"]`).first()
@@ -180,12 +180,12 @@ test("retains status text and boundaries in forced colors", async ({ page }) => 
 
 test("keeps both themes usable at 320 CSS pixels and a 200%-zoom equivalent", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 720 })
-  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=all-statuses")
+  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=all-statuses&view=board")
 
   for (const theme of ["light", "dark"] as const) {
     await selectTheme(page, theme)
     await expect(page.getByRole("heading", { name: "Agenda" })).toBeVisible()
-    await expect(page.getByRole("button", { name: "Novo agendamento" })).toBeVisible()
+    await expect(page.getByRole("button", { exact: true, name: "Novo agendamento" })).toBeVisible()
     await expect(page.locator('[data-appointment-status="scheduled"]').first()).toContainText(
       "Agendado",
     )
@@ -197,7 +197,7 @@ test("keeps both themes usable at 320 CSS pixels and a 200%-zoom equivalent", as
     document.body.style.zoom = "200%"
   })
   await expect(page.getByRole("heading", { name: "Agenda" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Novo agendamento" })).toBeVisible()
+  await expect(page.getByRole("button", { exact: true, name: "Novo agendamento" })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(640)
 })
 

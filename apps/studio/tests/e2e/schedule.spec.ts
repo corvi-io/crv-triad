@@ -1,45 +1,39 @@
 import AxeBuilder from "@axe-core/playwright"
-import { expect, type Locator, test } from "@playwright/test"
+import { expect, test } from "@playwright/test"
 
-test("completes the schedule view, reschedule, cancel, URL scenario, and axe journey", async ({
-  page,
-}) => {
-  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=normal")
-  await expect(page.getByRole("heading", { name: "Agenda" })).toBeVisible()
-  await expect(page.getByRole("link", { name: "Agenda", exact: true })).toHaveAttribute(
-    "aria-current",
-    "page",
+const agendaUrl = (scenario = "normal") =>
+  `/workspace-preview/agenda?date=2026-07-22&scenario=${scenario}`
+
+test("renders the reference-aligned temporal board and passes axe", async ({ page }) => {
+  await page.setViewportSize({ height: 900, width: 1440 })
+  await page.goto(agendaUrl())
+
+  await expect(page.getByRole("heading", { exact: true, name: "Agenda" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Visualizar como quadro" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
   )
+  const board = page.getByTestId("agenda-board")
+  await expect(board).toBeVisible()
+  await expect(board.getByRole("columnheader", { name: /Carlos Lima/ })).toBeVisible()
+  await expect(board.getByRole("columnheader", { name: /Bruno Rocha/ })).toBeVisible()
+  await expect(board.getByRole("columnheader", { name: /Ana Clara/ })).toBeVisible()
+  await expect(board.getByRole("columnheader", { name: /João Vitor/ })).toBeVisible()
+  await expect(board.getByRole("columnheader", { name: /Diego Rodrigues/ })).toBeVisible()
+  await expect(board.getByRole("columnheader", { name: /Marcos Paulo/ })).toBeVisible()
+  await expect(board.getByRole("rowheader", { name: "08:00" })).toBeVisible()
+  await expect(board.getByRole("rowheader", { name: "08:15" })).toBeVisible()
+  await expect(board.locator("[data-appointment-id]")).toHaveCount(42)
+  expect(await board.locator("[data-slot=avatar]").count()).toBeGreaterThan(42)
+  await expect(page.getByText("Resumo da agenda")).toHaveCount(0)
 
-  await page.locator("table button").filter({ hasText: "Marina Teste" }).click()
-  await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeVisible()
-  await page.getByRole("button", { name: "Remarcar" }).click()
-  await page.getByLabel("Horário").fill("09:15")
-  await page.getByRole("button", { name: "Confirmar remarcação" }).click()
-  await expect(page.getByText("Agendamento atualizado.")).toBeVisible()
-
-  await page.locator("table button").filter({ hasText: "Marina Teste" }).click()
-  await page.getByRole("button", { name: "Cancelar agendamento" }).click()
-  await expect(page.getByText(/Cancelar o horário/)).toBeVisible()
-  await page.getByRole("button", { name: "Cancelar agendamento" }).click()
-  await expect(page.getByText("Agendamento cancelado.")).toBeVisible()
-
-  await page.getByLabel("Cenário").click()
-  await page.getByRole("option", { name: "Muitos profissionais" }).click()
-  await expect(page).toHaveURL(/scenario=many-professionals/)
-  await expect(page.getByRole("columnheader", { name: "Profissional Sintético 7" })).toBeVisible()
-
-  await page
-    .getByRole("button", { name: "Disponível às 17:00 para Profissional Sintético 7" })
-    .click()
-  await page.getByRole("textbox", { name: /^Nome/ }).fill("Cliente Criado no Teste")
-  await page.getByRole("textbox", { name: /^Telefone/ }).fill("81999990000")
-  await page.getByRole("textbox", { name: /^Horário/ }).fill("17:00")
-  await page.getByRole("button", { name: "Criar agendamento" }).click()
-  await expect(page.getByText("Agendamento criado.")).toBeVisible()
-  await expect(
-    page.locator("table button").filter({ hasText: "Cliente Criado no Teste" }),
-  ).toBeVisible()
+  const filterGroup = page.getByRole("group", {
+    name: "Pesquisa, filtros e visualização da agenda",
+  })
+  for (const label of ["Barbeiro", "Cliente", "Serviço", "Status", "Unidade"]) {
+    await expect(filterGroup.getByRole("button", { name: label })).toBeVisible()
+  }
+  await expect(filterGroup.getByRole("button", { name: "Período: 22/07" })).toBeVisible()
 
   const results = await new AxeBuilder({ page })
     .include("#main-content")
@@ -48,107 +42,323 @@ test("completes the schedule view, reschedule, cancel, URL scenario, and axe jou
   expect(results.violations).toEqual([])
 })
 
-test("shows a recoverable conflict and preserves filter state in the URL", async ({ page }) => {
-  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=conflict")
-  await page.getByRole("button", { name: "Novo agendamento" }).click()
-  await page.getByRole("textbox", { name: /^Nome/ }).fill("Cliente de Conflito")
-  await page.getByRole("textbox", { name: /^Telefone/ }).fill("81999990000")
-  await page.getByRole("textbox", { name: /^Horário/ }).fill("10:15")
-  const createButton = page.getByRole("button", { name: "Criar agendamento" })
-  await createButton.click()
-  await expect(page.locator("#appointment-time-error")).toContainText(/não tem espaço suficiente/i)
-  await expect(page.getByRole("textbox", { name: /^Horário/ })).toBeFocused()
-  const conflictToast = page
-    .locator('[data-sonner-toast][data-type="error"]')
-    .filter({ hasText: /não tem espaço suficiente/i })
-  await expect(conflictToast).toBeVisible()
-  await page.getByRole("textbox", { name: /^Horário/ }).fill("11:00")
-  await expect(page.getByText(/não tem espaço suficiente neste horário/i)).toBeHidden()
-  await expectLocatorsNotToOverlap(conflictToast, createButton)
-  await createButton.click()
-  await expect(page.getByText("Agendamento criado.")).toBeVisible()
+test("keeps the sticky time axis above cards after horizontal scrolling", async ({ page }) => {
+  await page.setViewportSize({ height: 900, width: 640 })
+  await page.goto(agendaUrl())
 
-  await page.goto(
-    "/workspace-preview/agenda?date=2026-07-19&scenario=normal&professional=professional-ana",
-  )
-  await expect(page).toHaveURL(/professional=professional-ana/)
-  await page.getByLabel("Status").click()
-  await page.getByRole("option", { name: "Agendado" }).click()
-  await expect(page).toHaveURL(/professional=professional-ana/)
-  await expect(page).toHaveURL(/status=scheduled/)
+  const board = page.getByTestId("agenda-board")
+  const scrollContainer = board.locator(":scope > div")
+  const timeCell = board.getByRole("rowheader", { exact: true, name: "08:00" })
+  const appointment = board.locator('[data-appointment-id="kanban-01"]')
+
+  await expect(timeCell).toBeVisible()
+  await expect(appointment).toBeVisible()
+  await scrollContainer.evaluate((element) => {
+    element.scrollLeft = 120
+  })
+
+  const stacking = await timeCell.evaluate((element) => {
+    const appointment = document.querySelector<HTMLElement>('[data-appointment-id="kanban-01"]')
+    const scrollContainer = element.closest("table")?.parentElement
+    if (!appointment || !scrollContainer) return null
+
+    const timeBounds = element.getBoundingClientRect()
+    const appointmentBounds = appointment.getBoundingClientRect()
+    const point = {
+      x: timeBounds.left + timeBounds.width / 2,
+      y: timeBounds.top + timeBounds.height / 2,
+    }
+    const hit = document.elementFromPoint(point.x, point.y)
+
+    return {
+      appointmentCoversPoint:
+        appointmentBounds.left < point.x &&
+        appointmentBounds.right > point.x &&
+        appointmentBounds.top < point.y &&
+        appointmentBounds.bottom > point.y,
+      appointmentWinsHitTest: hit !== null && appointment.contains(hit),
+      scrollLeft: scrollContainer.scrollLeft,
+      timeAxisWinsHitTest: hit !== null && element.contains(hit),
+    }
+  })
+
+  expect(stacking).toEqual({
+    appointmentCoversPoint: true,
+    appointmentWinsHitTest: false,
+    scrollLeft: 120,
+    timeAxisWinsHitTest: true,
+  })
 })
 
-test("keeps hidden-status appointment spans occupied and non-interactive", async ({ page }) => {
-  await page.goto(
-    "/workspace-preview/agenda?date=2026-07-19&scenario=normal&professional=professional-ana&status=scheduled",
-  )
+test("filters from button menus, selects a period, and switches to Lista", async ({ page }) => {
+  await page.goto(agendaUrl())
 
-  const occupancy = page.getByText(/Agendamento fora do filtro · 09:00–09:45 · 45 min/).first()
-  await expect(occupancy).toBeVisible()
-  await expect(occupancy.locator("xpath=ancestor::td[1]")).toHaveAttribute("rowspan", "3")
-  await expect(page.getByRole("button", { name: "Disponível às 09:00 para Ana Lima" })).toHaveCount(
-    0,
-  )
+  const barber = page.getByRole("button", { name: "Barbeiro" })
+  await expect(barber).toContainText("6")
+  await barber.click()
+  await page.getByLabel("Pesquisar barbeiro").fill("Carlos")
+  await page.getByRole("menuitemcheckbox", { name: "Carlos Lima" }).click()
+  await expect(page).toHaveURL(/professional=professional-carlos/)
+  await expect(barber).toContainText("1")
+  await page.keyboard.press("Escape")
+
+  await page.getByRole("button", { name: "Status" }).click()
+  await page.getByRole("menuitemcheckbox", { name: "Confirmado" }).click()
+  await expect(page).toHaveURL(/status=confirmed/)
+  await expect(page.locator("[data-appointment-id]")).toHaveCount(1)
+  await page.keyboard.press("Escape")
+
+  await page.getByRole("button", { name: "Período: 22/07" }).click()
+  await expect(page.getByRole("dialog", { name: "Período da agenda" })).toBeVisible()
+  await page.getByRole("button", { name: "7 dias" }).click()
+  await expect(page).toHaveURL(/period=next-seven-days/)
+
+  await page.getByRole("button", { name: "Visualizar como lista" }).click()
+  await expect(page).toHaveURL(/view=list/)
+  await expect(page.getByRole("table", { name: /Agendamentos filtrados/ })).toBeVisible()
 })
 
-test("rejects blocked and off-grid starts with visible focused feedback", async ({ page }) => {
-  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=blocked")
-  await expect(
-    page.locator("table button").filter({ hasText: "Cliente sintético appointment-blocked" }),
-  ).toBeVisible()
-  await page.getByRole("button", { name: "Novo agendamento" }).click()
-  await page.getByRole("textbox", { name: /^Nome/ }).fill("Cliente de Bloqueio")
-  await page.getByRole("textbox", { name: /^Telefone/ }).fill("81999990000")
+test("opens a portrait card and completes the non-drag status path", async ({ page }) => {
+  await page.goto(agendaUrl())
 
-  const timeField = page.getByRole("textbox", { name: /^Horário/ })
-  await timeField.fill("09:15")
-  await page.getByRole("button", { name: "Criar agendamento" }).click()
-  await expect(page.locator("#appointment-time-error")).toContainText(
-    /coincide com uma pausa ou bloqueio/i,
-  )
-  await expect(page.getByText(/coincide com uma pausa ou bloqueio/i).last()).toBeVisible()
-  await expect(timeField).toBeFocused()
-  const blockedToast = page
-    .locator('[data-sonner-toast][data-type="error"]')
-    .filter({ hasText: /coincide com uma pausa ou bloqueio/i })
-  await expect(blockedToast).toBeVisible()
+  const card = page.locator('[data-appointment-id="kanban-02"]')
+  await expect(card).toContainText("Carlos Eduardo")
+  await expect(card).toContainText("Em atendimento")
+  await expect(card.locator("[data-slot=avatar]")).toBeVisible()
 
-  await timeField.fill("09:10")
-  const createButton = page.getByRole("button", { name: "Criar agendamento" })
-  await expectLocatorsNotToOverlap(blockedToast, createButton)
-  await createButton.click()
-  await expect(page.locator("#appointment-time-error")).toContainText(/15 em 15 minutos/i)
-  await expect(timeField).toBeFocused()
+  await card.getByRole("button", { name: "Ações de Carlos Eduardo" }).click()
+  await page.getByRole("menuitem", { name: "Alterar status" }).click()
+  await page.getByRole("radio", { name: "Em espera" }).click()
+  await page.getByRole("button", { name: "Confirmar alteração" }).click()
+  await expect(page.getByText("Status atualizado para “Em espera”.")).toBeVisible()
+  await expect(card).toContainText("Em espera")
+
+  await card.getByRole("button", { name: /^Carlos Eduardo/ }).click()
+  await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeVisible()
 })
 
-test("keeps the grouped journey usable at 320 CSS pixels in dark reduced-motion mode", async ({
+test("contains short appointment cards within proportional 15-minute rows", async ({ page }) => {
+  await page.setViewportSize({ height: 900, width: 1440 })
+  await page.goto(agendaUrl("short-durations"))
+
+  const cases = [
+    { duration: 15, height: 28, id: "duration-15", layout: "compact", nextSlot: "08:15" },
+    { duration: 30, height: 64, id: "duration-30", layout: "medium", nextSlot: "09:30" },
+    { duration: 45, height: 100, id: "duration-45", layout: "full", nextSlot: "10:45" },
+  ] as const
+
+  const measuredHeights: number[] = []
+  for (const item of cases) {
+    const card = page.locator(`[data-appointment-id="${item.id}"]`)
+    await expect(card).toHaveAttribute("data-card-layout", item.layout)
+    await expect(card).toHaveAttribute("data-duration-minutes", String(item.duration))
+    await expect(card.getByRole("button", { name: /^Ações de / })).toBeAttached()
+    await expect(card.getByRole("button", { name: /^Remarcar / })).toBeAttached()
+
+    const measurement = await card.evaluate((element) => {
+      const bounds = element.getBoundingClientRect()
+      const cellContent = element.parentElement?.getBoundingClientRect()
+      return {
+        cellContentHeight: cellContent?.height ?? 0,
+        clientHeight: element.clientHeight,
+        height: bounds.height,
+        overflow: getComputedStyle(element).overflow,
+        scrollHeight: element.scrollHeight,
+      }
+    })
+    expect(measurement.height).toBe(item.height)
+    expect(measurement.height).toBe(measurement.cellContentHeight)
+    expect(measurement.overflow).toBe("hidden")
+    expect(measurement.scrollHeight).toBeLessThanOrEqual(measurement.clientHeight)
+    measuredHeights.push(measurement.height)
+
+    const nextSlot = page.locator(
+      `[data-drop-professional-id="professional-carlos"][data-drop-start="${item.nextSlot}"]`,
+    )
+    const [cardBounds, nextSlotBounds] = await Promise.all([
+      card.boundingBox(),
+      nextSlot.boundingBox(),
+    ])
+    expect(cardBounds).not.toBeNull()
+    expect(nextSlotBounds).not.toBeNull()
+    if (cardBounds && nextSlotBounds) {
+      expect(cardBounds.y + cardBounds.height).toBeLessThanOrEqual(nextSlotBounds.y)
+    }
+  }
+
+  expect(measuredHeights[1] - measuredHeights[0]).toBe(36)
+  expect(measuredHeights[2] - measuredHeights[1]).toBe(36)
+
+  const compact = page.locator('[data-appointment-id="duration-15"]')
+  await expect(compact).toContainText("Cliente quinze")
+  await expect(compact).toContainText("08:00")
+  const compactHandle = compact.getByRole("button", { name: "Remarcar Cliente quinze" })
+  await compactHandle.focus()
+  await expect(compactHandle).toBeFocused()
+  await compact.getByRole("button", { name: "Ações de Cliente quinze" }).click()
+  await expect(page.getByRole("menuitem", { name: "Ver detalhes" })).toBeVisible()
+})
+
+test("reschedules vertically, horizontally, and diagonally without changing status", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 320, height: 720 })
-  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" })
-  await page.goto("/workspace-preview/agenda?date=2026-07-19&scenario=long-content")
-  await expect(page.getByRole("heading", { name: "Ana Lima" })).toBeVisible()
-  const appointment = page.getByRole("button", {
-    name: /Cliente Sintético Com Nome Intencionalmente/,
-  })
-  await expect(appointment).toBeVisible()
-  await appointment.click()
-  await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeVisible()
-  await page.keyboard.press("Escape")
-  await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeHidden()
-  await expect(appointment).toBeFocused()
+  await page.setViewportSize({ height: 1100, width: 1440 })
+  await page.goto(agendaUrl())
+
+  const card = page.locator('[data-appointment-id="kanban-05"]')
+  await expect(card).toContainText("Confirmado")
+
+  await dragAppointment(page, "kanban-05", "professional-carlos", "13:15")
+  await expect(page.getByText("Agendamento remarcado para 13:15 com Carlos Lima.")).toBeVisible()
+  await expect(card).toContainText("13:15")
+  await expect(card).toContainText("Confirmado")
+
+  await dragAppointment(page, "kanban-05", "professional-bruno", "13:15")
+  await expect(page.getByText("Agendamento remarcado para 13:15 com Bruno Rocha.")).toBeVisible()
+  await expect(card).toContainText("13:15")
+  await expect(card).toContainText("Confirmado")
+
+  await dragAppointment(page, "kanban-05", "professional-ana", "14:00")
+  await expect(page.getByText("Agendamento remarcado para 14:00 com Ana Clara.")).toBeVisible()
+  await expect(card).toContainText("14:00")
+  await expect(card).toContainText("Confirmado")
 })
 
-async function expectLocatorsNotToOverlap(first: Locator, second: Locator) {
-  const [firstBox, secondBox] = await Promise.all([first.boundingBox(), second.boundingBox()])
-  expect(firstBox, "first locator has a rendered box").not.toBeNull()
-  expect(secondBox, "second locator has a rendered box").not.toBeNull()
-  if (!firstBox || !secondBox) return
+test("supports keyboard rescheduling with Portuguese live announcements", async ({ page }) => {
+  await page.setViewportSize({ height: 1100, width: 1440 })
+  await page.goto(agendaUrl())
 
-  const overlap =
-    firstBox.x < secondBox.x + secondBox.width &&
-    firstBox.x + firstBox.width > secondBox.x &&
-    firstBox.y < secondBox.y + secondBox.height &&
-    firstBox.y + firstBox.height > secondBox.y
-  expect(overlap, "active feedback does not obscure the retry action").toBe(false)
+  const card = page.locator('[data-appointment-id="kanban-05"]')
+  const handle = card.getByRole("button", { name: "Remarcar Rafael Costa" })
+  await handle.focus()
+  await page.keyboard.press("Space")
+  await page.keyboard.press("Space")
+  await expect(
+    page.locator("#main-content").getByText("O agendamento já está nesse horário e barbeiro."),
+  ).toBeAttached()
+  await expect(card).toContainText("11:00")
+
+  await handle.focus()
+  await page.keyboard.press("Space")
+  await expect(page.getByText(/Remarcando Rafael Costa\. Use as setas/)).toBeAttached()
+  for (let step = 0; step < 10; step += 1) {
+    await page.keyboard.press("ArrowDown")
+  }
+  await page.keyboard.press("ArrowRight")
+  await expect(page.getByText(/Destino 13:30 com Bruno Rocha/)).toBeAttached()
+  await page.keyboard.press("Space")
+
+  await expect(page.getByText("Agendamento remarcado para 13:30 com Bruno Rocha.")).toBeVisible()
+  await expect(card).toContainText("13:30")
+  await expect(card).toContainText("Confirmado")
+  await expect(handle).toBeFocused()
+})
+
+test("rolls back appointment and hidden occupancy atomically after a conflict", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 900, width: 1440 })
+  await page.goto(`${agendaUrl()}&professional=professional-carlos&client=client-kanban-02`)
+
+  const card = page.locator('[data-appointment-id="kanban-02"]')
+  await expect(card).toContainText("08:45")
+  await expect(page.getByText("Ocupado · 08:00–08:45")).toBeVisible()
+  await dragAppointment(page, "kanban-02", "professional-carlos", "08:00")
+
+  await expect(
+    page.getByLabel("Notifications alt+T").getByText(/não tem espaço suficiente.*restaurado/i),
+  ).toBeVisible()
+  await expect(card).toContainText("08:45")
+  await expect(card).toContainText("Em atendimento")
+  await expect(page.getByText("Ocupado · 08:00–08:45")).toBeVisible()
+})
+
+test("disables drag for terminal appointments while preserving details", async ({ page }) => {
+  await page.goto(agendaUrl())
+
+  const terminal = page.locator('[data-appointment-id="kanban-01"]')
+  await expect(
+    terminal.getByRole("button", { name: "Remarcação indisponível para João Vitor" }),
+  ).toBeDisabled()
+  await terminal.getByRole("button", { name: /^João Vitor/ }).click()
+  await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Remarcar" })).toHaveCount(0)
+})
+
+test("keeps the board bounded and applies and resets development scenarios", async ({ page }) => {
+  await page.setViewportSize({ height: 720, width: 640 })
+  await page.goto(agendaUrl("dense"))
+
+  const board = page.getByTestId("agenda-board")
+  const dimensions = await board.evaluate((element) => {
+    const scroll = element.firstElementChild
+    if (!(scroll instanceof HTMLElement)) return { clientWidth: 0, scrollWidth: 0 }
+    return { clientWidth: scroll.clientWidth, scrollWidth: scroll.scrollWidth }
+  })
+  expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.clientWidth)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(640)
+
+  await page.setViewportSize({ height: 900, width: 1440 })
+  await page.getByRole("button", { name: "Configurações do protótipo" }).click()
+  await expect(page.getByText("Cenário de desenvolvimento")).toBeVisible()
+  await expect(page.getByRole("menuitemradio", { name: /Denso/ })).toBeChecked()
+
+  await page.getByRole("menuitemradio", { name: /Muitos profissionais/ }).click()
+  await expect(page).toHaveURL(/scenario=many-professionals/)
+  await expect(board.locator("[data-appointment-id]")).toHaveCount(42)
+  await expect(board.getByRole("columnheader", { name: /Profissional Sintético 7/ })).toBeVisible()
+
+  await page.getByRole("button", { name: "Configurações do protótipo" }).click()
+
+  await page.getByRole("menuitemradio", { name: /Vazio/ }).click()
+  await expect(page).toHaveURL(/scenario=empty/)
+  await expect(page.getByRole("heading", { name: "Agenda livre no período" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Adicionar agendamento" })).toBeVisible()
+
+  await page.getByRole("button", { name: "Configurações do protótipo" }).click()
+  await page.getByRole("menuitemradio", { name: /Todos os status/ }).click()
+  await expect(page).toHaveURL(/scenario=all-statuses/)
+  await expect(page.locator("[data-appointment-id]")).toHaveCount(8)
+
+  const confirmed = page.locator('[data-appointment-id="status-confirmed"]')
+  await expect(confirmed).toContainText("Confirmado")
+  await confirmed.getByRole("button", { name: "Ações de Cliente confirmado" }).click()
+  await page.getByRole("menuitem", { name: "Alterar status" }).click()
+  await page.getByRole("radio", { name: "Em espera" }).click()
+  await page.getByRole("button", { name: "Confirmar alteração" }).click()
+  await expect(confirmed).toContainText("Em espera")
+
+  await page.getByRole("button", { name: "Configurações do protótipo" }).click()
+  await page.getByRole("menuitem", { name: "Restaurar cenário" }).click()
+  await expect(confirmed).toContainText("Confirmado")
+})
+
+async function dragAppointment(
+  page: import("@playwright/test").Page,
+  appointmentId: string,
+  professionalId: string,
+  start: string,
+) {
+  const handle = page
+    .locator(`[data-appointment-id="${appointmentId}"]`)
+    .getByRole("button", { name: /^Remarcar / })
+  const target = page.locator(
+    `[data-drop-professional-id="${professionalId}"][data-drop-start="${start}"]`,
+  )
+  await target.scrollIntoViewIfNeeded()
+  const sourceBox = await handle.boundingBox()
+  const targetBox = await target.boundingBox()
+  expect(sourceBox).not.toBeNull()
+  expect(targetBox).not.toBeNull()
+  if (!sourceBox || !targetBox) return
+
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2 + 8, sourceBox.y + sourceBox.height / 2, {
+    steps: 2,
+  })
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, {
+    steps: 12,
+  })
+  await page.mouse.up()
 }

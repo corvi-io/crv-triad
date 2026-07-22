@@ -1,89 +1,92 @@
-# Studio Schedule Visual Prototype
+# Studio Agenda Visual Prototype
 
-ENG-34 introduces a frontend-only daily schedule for product and UX validation. The authenticated
-product route is `/agenda`; `/workspace-preview/agenda` is a development-only QA surface using the
-same presentation and repository port without mocking or intercepting authentication.
+ENG-40 refines the existing authenticated `/agenda` route into a visual prototype aligned with the
+approved operational reference. The primary surface is a temporal board: time progresses down the
+left edge and each barber owns one column. The alternate `Lista` view presents the same derived
+records without changing the repository contract. `/workspace-preview/agenda` remains the
+development-only QA route.
 
-## Accepted Product Decisions
+## Accepted Views And Layout
 
-- Daily view only, one synthetic unit, 15-minute increments, and visible hours from 08:00 to 18:00.
-- Professionals are columns and time is rows on desktop. Below the large breakpoint, each
-  professional has a semantic ordered list. This avoids an incomplete ARIA-grid keyboard model and
-  keeps long content readable at 320 CSS pixels and 200% zoom-equivalent widths.
-- Walk-ins are diamond-shaped visual markers only. There is no queue action or lifecycle.
-- Statuses use Portuguese text plus symbols and bordered shapes; color is supplementary.
-- Prototype types are UI-facing validation vocabulary, not future OpenAPI, database, or
-  authorization contracts.
+- `Quadro` is the default and canonical temporal view.
+- `Lista` is the alternate view; the selector uses icon buttons and one controlled URL value.
+- The board has a sticky `Horário` column with 15-minute rows and sticky barber headings.
+- Each barber heading includes a deterministic portrait, name, unit, active marker, and appointment
+  count.
+- Each appointment card includes a deterministic client portrait, client name, time range, service,
+  and textual status. Color is supplementary.
+- The lower summary from the previous prototype is intentionally absent.
+- The temporal `Quadro` is the allocation Kanban. Eligible appointments can move vertically between
+  15-minute times, horizontally between barber columns, or both; drag never changes status.
+- Status-column Kanban remains outside the accepted visual direction.
 
-## Component Discovery
+## Filters And Period
 
-The existing Studio inventory supplied `ModuleLayout`, `PageHeader`, `ActionDrawer`, form fields,
-`DatePicker`, select/input/textarea controls, loading/empty/error surfaces, `Button`, and Sonner.
-`bunx --bun shadcn@latest info --json` confirmed Base UI, Vite, Tailwind v4, and the installed
-catalog. `bunx --bun shadcn@latest docs sheet select calendar badge skeleton empty` inspected the
-official APIs. `bunx --bun shadcn@latest search @shadcn -q "schedule calendar timeline"` returned
-no schedule composition. No community item or dependency was accepted.
+Search, `Barbeiro`, `Cliente`, `Serviço`, `Status`, `Período`, `Unidade`, the view toggle, and
+prototype settings share one horizontally bounded control row. Filters are button-like triggers,
+not visible select fields. Each categorical trigger has a leading icon and a trailing total or
+selected count, and opens a keyboard-accessible menu. Searchable catalogs provide a labeled search
+field inside the menu.
 
-The schedule table and grouped lists are module-owned because an official primitive was unavailable
-and a generic calendar/ARIA grid would add behavior outside the accepted journey. No shared
-component changed, so the exhaustive shared inventory requires no new entry.
+`Período` opens a popover with today, tomorrow, and seven-day shortcuts plus a range calendar for
+start/end selection. Unit, period, view, scenario, and stable synthetic entity IDs are shareable URL
+state. Global search stays local so client-shaped text is not placed in URLs.
 
-## Runtime And Repository Boundary
+All predicates feed one `deriveAgendaResult`. Filtered-out appointments remain privacy-safe occupied
+spans so the visible board cannot offer a conflicting free slot. The prototype is not an API or
+database contract.
 
-`src/modules/scheduling` owns the async repository port, query keys, TanStack Query hooks, status
-presentation, validation, and UI. `src/dev/scheduling` owns deterministic synthetic data and the
-memory adapter, which reuses the domain-neutral `MemoryScenarioEngine`.
+## Actions And State Changes
 
-Vite aliases `virtual:studio-scheduling-prototype` to memory only when
-`VITE_SCHEDULING_SOURCE=memory` and `VITE_DEPLOY_TARGET` is `local` or `dev`; otherwise it resolves
-to a null shim. Production builds exclude the adapter, scenarios, synthetic records, and mock-engine
-markers. Production-boundary scripts force `prd` plus `disabled` even when the parent process asks
-for `dev` plus `memory`; development and deploy builds retain their explicit environment. No fetch
-handler, API route/client, durable browser storage, or auth interception was added.
+Cards open the existing details/edit/reschedule/cancel drawer. A contextual action menu supplies a
+non-drag `Alterar status` path for non-terminal appointments. Cancellation/no-show and unpaid
+completion still require explicit decisions. Terminal records remain read-only. Optimistic updates
+and rollback update appointments plus occupancy projections together. Drag uses an explicit named
+handle and changes only `start` and `professionalId`; no-op, conflicts, blocked periods, hidden
+occupancy, ineligible barber/service, out-of-hours, invalid destinations, and terminal cards are
+rejected. The drawer `Remarcar` action remains the equivalent click/tap alternative to drag.
 
-## Scenarios And Feedback
+## Deterministic Data And Runtime Boundary
 
-The URL reproduces `normal`, `empty`, `all-statuses`, `dense`, `many-professionals`, `long-content`,
-`blocked`, `walk-in`, `conflict`, `slow`, `next-failure`, and `persistent-error`. Reset restores the
-active scenario. Create/update/cancel invalidate only scheduling keys. Starts must align to the
-15-minute grid. Appointment conflicts, breaks, blocked periods, closed hours, ineligible
-professionals, and insufficient space are rejected at the repository boundary. Recoverable domain
-failures keep the drawer open, focus the time field, and provide field plus toast feedback. Walk-in
-markers remain visual-only and do not block appointments.
+The normal scenario contains six synthetic barbers and 42 synthetic appointments between 08:00 and
+the early afternoon. A 72-record dense scenario, empty, filtered-empty, many-professionals,
+long-content, conflict, failure, and rollback scenarios remain available from prototype settings.
+Generated SVG portraits are deterministic local data URIs: they require no network, persist no
+biometrics, and do not represent real people.
 
-Status filtering changes the visible appointment list without changing occupancy. A privacy-safe
-occupancy projection carries only ID, professional, start, and duration, so hidden appointments
-render as non-interactive “Ocupado” spans without exposing filtered details or offering false create
-actions. The default synthetic service includes the extra professionals used by
-`many-professionals`, making those stress-test slots honestly actionable.
+`src/dev/scheduling` is session-memory-only. Refresh reconstructs the selected fixture; the app does
+not write client, phone, note, portrait, payment, or transition data to browser storage or a mock
+HTTP service. Vite exposes the memory implementation only for `local` or explicitly configured
+`dev`; `hml` and `prd` resolve the null implementation. Better Auth remains the real identity
+boundary.
 
-## Verification Evidence
+## Accessibility, Responsive, And Performance
 
-- `bun --filter studio format`, `lint`, and `typecheck`: pass during focused verification.
-- `bun --filter studio check`: 20 files and 94 tests passed; production build and the 30-file
-  synthetic-marker scan passed.
-- `bun --filter studio test:e2e`: 10 Chromium tests passed, including 5 schedule journeys and axe.
-- `bun --filter studio test:e2e:production`: 3 Chromium production-preview tests passed.
-- `bun test ./.github/scripts`: 16 tests passed, including fixed target and scheduling-source
-  propagation through the three deployment workflows.
-- `VITE_DEPLOY_TARGET=dev VITE_SCHEDULING_SOURCE=memory bun --filter studio
-  test:production-boundary`: passed because the boundary build deterministically used
-  `prd`/`disabled`.
-- Explicit `dev`/`memory` build plus marker inspection and Playwright preview journeys proved that
-  development composition still includes and serves the prototype.
+- The board uses a semantic table with column and row headers; the time axis remains available to
+  screen readers.
+- Every interactive slot, card, filter, menu, toggle, drawer, and dialog has a keyboard path and a
+  visible focus treatment.
+- Mouse, touch, and keyboard drag use logical 15-minute targets across table `rowSpan` geometry;
+  each arrow press advances exactly one time row or barber column. Portuguese live announcements,
+  restored handle focus, and reduced-motion behavior remain part of the interaction.
+- Filter state, status, and selection do not depend on color alone.
+- Menus and calendar use Base UI/shadcn focus management; card actions remain visible on coarse
+  pointers.
+- The filter row and board own their horizontal overflow so narrow layouts do not widen the page.
+- Fixed 15-minute rows and bounded development fixtures keep DOM size predictable. The 72-record
+  scenario is interaction evidence, not a production-capacity claim.
 
-Automated browser evidence covers desktop, 320 CSS pixels, dark mode, reduced motion, keyboard
-Escape/focus return, long content, horizontal density, hidden-status occupancy, extra-professional
-creation, conflicts, and axe. VoiceOver and Windows High Contrast remain manual-only and must not
-be claimed unless performed.
+Focused Vitest covers URL parsing, derived filters, fixtures, the temporal board, list switching,
+calendar opening, menus, drawers, drag contracts, repository validation, optimistic occupancy, and
+non-drag state changes. Focused Playwright covers the reference layout, pointer and keyboard drag,
+announcements, rollback, terminal state, menus, period, view switch, state transition, narrow
+overflow, scenarios, and axe WCAG 2.2 A/AA checks. Real-device touch, VoiceOver/NVDA, and
+authenticated deployed `dev` review remain manual follow-ups.
 
-Manual screenshot inspection covered 1440 × 900 light mode with ten professional columns and a
-320 × 720 dark narrow layout. It found and corrected overflow in the narrow date-control row.
-VoiceOver, Windows High Contrast, and real-IDP deployed `dev` login were not available locally.
+## Backend And Observability Follow-ups
 
-## Scale And Residual Risk
-
-Scenarios query one bounded day for one synthetic unit. Dense and many-professional cases are UX
-stress fixtures, not capacity measurements. A future API needs bounded indexed time-range queries,
-authorization, concurrency semantics, and measurements before considering virtualization.
-VoiceOver behavior and real IDP login in a deployed `dev` environment remain residual manual risks.
+A production API must define authorization, bounded server filtering, conflict detection,
+idempotency, stale-write handling, audit attribution, pagination/virtualization thresholds, and
+realtime reconciliation. Operational telemetry must not log client names, phones, notes, portraits,
+tokens, or private headers. Useful future events are aggregate query duration, result count, filter
+kind, transition outcome, and conflict class.

@@ -10,12 +10,16 @@ import {
 } from "lucide-react"
 import type { AppointmentStatus } from "./contracts"
 
+export function isTerminalAppointmentStatus(status: AppointmentStatus) {
+  return status === "completed" || status === "canceled" || status === "no-show"
+}
+
 export const appointmentStatusPresentation = {
   arrived: {
     className:
       "border-schedule-arrived-border bg-schedule-arrived text-schedule-arrived-foreground",
     icon: UserCheckIcon,
-    label: "Chegou",
+    label: "Check-in",
     symbol: "◆",
   },
   canceled: {
@@ -29,7 +33,7 @@ export const appointmentStatusPresentation = {
     className:
       "border-schedule-completed-border bg-schedule-completed text-schedule-completed-foreground",
     icon: CheckCircle2Icon,
-    label: "Concluído",
+    label: "Finalizado",
     symbol: "✓",
   },
   confirmed: {
@@ -50,7 +54,7 @@ export const appointmentStatusPresentation = {
     className:
       "border-schedule-no-show-border bg-schedule-no-show text-schedule-no-show-foreground",
     icon: UserRoundXIcon,
-    label: "Não compareceu",
+    label: "No-show",
     symbol: "!",
   },
   scheduled: {
@@ -64,7 +68,7 @@ export const appointmentStatusPresentation = {
     className:
       "border-schedule-waiting-border bg-schedule-waiting text-schedule-waiting-foreground",
     icon: Clock3Icon,
-    label: "Aguardando",
+    label: "Em espera",
     symbol: "…",
   },
 } as const satisfies Record<
