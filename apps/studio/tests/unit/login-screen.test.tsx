@@ -137,6 +137,10 @@ describe("login screen", () => {
       "INVALID_TOKEN",
       "O link de verificação é inválido ou já foi usado. Solicite uma nova verificação.",
     ],
+    [
+      "invalid_token",
+      "O link de verificação é inválido ou já foi usado. Solicite uma nova verificação.",
+    ],
     ["TOKEN_EXPIRED", "O link de verificação expirou. Solicite uma nova verificação."],
   ])("maps %s verification callbacks without contradictory success or Google copy", async (code, copy) => {
     const { router } = renderLogin(`/login?verified=true&error=${code}`)

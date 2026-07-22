@@ -1,4 +1,4 @@
-import { betterAuth } from "better-auth"
+import { type BetterAuthOptions, betterAuth } from "better-auth"
 import { memoryAdapter } from "better-auth/adapters/memory"
 import { splitSetCookieHeader } from "better-auth/cookies"
 import { describe, expect, it, vi } from "vitest"
@@ -30,15 +30,21 @@ type SessionSummary = {
 }
 
 type TestResponse = {
+  body?: unknown
   cookies: CookieMetadata[]
   oauthCallbackUri?: string
   session?: SessionSummary
   status: number
 }
 
+type SendResetPassword = NonNullable<
+  NonNullable<BetterAuthOptions["emailAndPassword"]>["sendResetPassword"]
+>
+
 function createStandaloneAuth(
   appEnv: "local" | "development" | "staging" | "production",
   baseURL = idpBaseUrl,
+  sendResetPassword?: SendResetPassword,
 ) {
   const cookieEnv = { APP_ENV: appEnv, BETTER_AUTH_URL: baseURL } as const
   const cookiePrefix = getCookiePrefix(cookieEnv)
@@ -46,7 +52,7 @@ function createStandaloneAuth(
   return betterAuth({
     baseURL,
     database: memoryAdapter({ account: [], session: [], user: [], verification: [] }),
-    emailAndPassword: { enabled: true },
+    emailAndPassword: { enabled: true, sendResetPassword },
     socialProviders: {
       google: {
         clientId: "google-client-id-placeholder",
@@ -90,11 +96,12 @@ function createSessionTestClient(
       }),
     )
     const cookies = applyResponseCookies(response)
+    const body = path === "/request-password-reset" ? await response.clone().json() : undefined
     const session = path === "/get-session" ? await summarizeSession(response) : undefined
     const oauthCallbackUri =
       path === "/sign-in/social" ? await extractOAuthCallbackUri(response.clone()) : undefined
 
-    return { cookies, oauthCallbackUri, session, status: response.status }
+    return { body, cookies, oauthCallbackUri, session, status: response.status }
   }
 
   function applyResponseCookies(response: Response) {
@@ -382,6 +389,93 @@ describe("createAuthOptions", () => {
     const rejectionHandler = catchTaskFailure.mock.calls[0]?.[0]
     expect(rejectionHandler).toBeTypeOf("function")
     expect(rejectionHandler?.(new Error("delivery failed"))).toBeUndefined()
+  })
+
+  it("keeps existing and unknown reset responses identical when delivery fails", async () => {
+    const existingEmail = "existing-reset-user@example.invalid"
+    const observeDeliveryFailure = vi.fn()
+    const failingEmailSender = {
+      ...emailSender,
+      sendPasswordReset: vi.fn(async () => "failed" as const),
+    }
+    const options = createAuthOptions(
+      env as never,
+      {} as never,
+      failingEmailSender,
+      observeDeliveryFailure,
+    )
+    const sendResetPassword = options.emailAndPassword?.sendResetPassword
+    if (!sendResetPassword) throw new Error("Expected reset delivery callback to be configured.")
+
+    const auth = createStandaloneAuth("local", localIdpBaseUrl, sendResetPassword)
+    const createdUser = await createStandaloneUser(auth, existingEmail, localIdpBaseUrl)
+    expect(createdUser.status).toBe(200)
+
+    const client = createSessionTestClient((request) => auth.handler(request), localIdpBaseUrl)
+    const existingResponse = await client.request("/request-password-reset", {
+      body: { email: existingEmail, redirectTo: `${studioOrigin}/reset-password` },
+    })
+    const unknownResponse = await client.request("/request-password-reset", {
+      body: {
+        email: "unknown-reset-user@example.invalid",
+        redirectTo: `${studioOrigin}/reset-password`,
+      },
+    })
+
+    expect({ body: existingResponse.body, status: existingResponse.status }).toEqual({
+      body: unknownResponse.body,
+      status: unknownResponse.status,
+    })
+    expect(existingResponse.status).toBe(200)
+    expect(failingEmailSender.sendPasswordReset).toHaveBeenCalledOnce()
+    expect(observeDeliveryFailure).toHaveBeenCalledOnce()
+    expect(observeDeliveryFailure).toHaveBeenCalledWith({
+      event: "auth_email_delivery_failed",
+      operation: "password_reset",
+    })
+    expect(JSON.stringify(observeDeliveryFailure.mock.calls)).not.toContain(existingEmail)
+  })
+
+  it("records reset delivery exceptions without sensitive context or response failure", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    const sensitiveEmail = "private-reset-user@example.invalid"
+    const sensitiveToken = "opaque-private-reset-token"
+    const sensitiveFailure = "provider response with private context"
+    const failingEmailSender = {
+      ...emailSender,
+      sendPasswordReset: vi.fn(async () => {
+        throw new Error(sensitiveFailure)
+      }),
+    }
+
+    try {
+      const options = createAuthOptions(env as never, {} as never, failingEmailSender)
+      const sendResetPassword = options.emailAndPassword?.sendResetPassword
+      if (!sendResetPassword) throw new Error("Expected reset delivery callback to be configured.")
+
+      await expect(
+        sendResetPassword(
+          {
+            token: sensitiveToken,
+            url: "https://idp.example.invalid/reset-password/private-value",
+            user: { email: sensitiveEmail },
+          } as never,
+          new Request("https://idp.example.invalid/api/auth/request-password-reset"),
+        ),
+      ).resolves.toBeUndefined()
+
+      expect(consoleError).toHaveBeenCalledOnce()
+      expect(consoleError).toHaveBeenCalledWith(
+        '{"event":"auth_email_delivery_failed","operation":"password_reset"}',
+      )
+      const loggedContext = JSON.stringify(consoleError.mock.calls)
+      expect(loggedContext).not.toContain(sensitiveEmail)
+      expect(loggedContext).not.toContain(sensitiveToken)
+      expect(loggedContext).not.toContain(sensitiveFailure)
+      expect(loggedContext).not.toContain("private-value")
+    } finally {
+      consoleError.mockRestore()
+    }
   })
 
   it("configures the native verification, Google, linking, token, and rate-limit contract", () => {

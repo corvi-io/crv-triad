@@ -83,7 +83,7 @@ test("maps verification failures without contradictory success and consumes the 
 }) => {
   await routeUnauthenticatedSession(page)
 
-  await page.goto("/login?verified=true&error=INVALID_TOKEN")
+  await page.goto("/login?verified=true&error=invalid_token")
   await expect(page.getByRole("alert")).toContainText("O link de verificação é inválido")
   await expect(page.getByText("E-mail confirmado. Você já pode entrar.")).toHaveCount(0)
   await expect(page.getByText(/acesso com o Google não foi concluído/)).toHaveCount(0)

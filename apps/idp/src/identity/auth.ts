@@ -26,8 +26,19 @@ type BetterAuthUserCreateInput = {
 
 type CookieEnv = Pick<IdpEnv, "APP_ENV" | "BETTER_AUTH_URL">
 
+export type AuthEmailDeliveryFailureEvent = Readonly<{
+  event: "auth_email_delivery_failed"
+  operation: "password_reset"
+}>
+
+export type AuthEmailDeliveryFailureObserver = (event: AuthEmailDeliveryFailureEvent) => void
+
 const STANDARD_COOKIE_PREFIX = "triad-auth"
 const PARTITIONED_COOKIE_PREFIX = "triad-auth-partitioned"
+
+const defaultAuthEmailDeliveryFailureObserver: AuthEmailDeliveryFailureObserver = (event) => {
+  console.error(JSON.stringify(event))
+}
 
 function usesPartitionedDevelopmentCookies(env: CookieEnv) {
   const baseUrl = new URL(env.BETTER_AUTH_URL)
@@ -58,14 +69,16 @@ export function createAuth(
   env: IdpEnv,
   db: IdpDatabase,
   authEmailSender: AuthEmailSender = createAuthEmailSender(env),
+  observeAuthEmailDeliveryFailure: AuthEmailDeliveryFailureObserver = defaultAuthEmailDeliveryFailureObserver,
 ) {
-  return betterAuth(createAuthOptions(env, db, authEmailSender))
+  return betterAuth(createAuthOptions(env, db, authEmailSender, observeAuthEmailDeliveryFailure))
 }
 
 export function createAuthOptions(
   env: IdpEnv,
   db: IdpDatabase,
   authEmailSender: AuthEmailSender,
+  observeAuthEmailDeliveryFailure: AuthEmailDeliveryFailureObserver = defaultAuthEmailDeliveryFailureObserver,
 ): BetterAuthOptions {
   const cookiePrefix = getCookiePrefix(env)
   const defaultCookieAttributes = getDefaultCookieAttributes(env)
@@ -107,11 +120,17 @@ export function createAuthOptions(
       resetPasswordTokenExpiresIn: env.AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user: resetUser, token }) => {
-        const delivery = await authEmailSender.sendPasswordReset({
-          email: resetUser.email,
-          token,
-        })
-        assertAuthEmailSent(delivery)
+        try {
+          const delivery = await authEmailSender.sendPasswordReset({
+            email: resetUser.email,
+            token,
+          })
+          if (delivery === "sent") return
+        } catch {
+          // Delivery failures must not change the enumeration-safe reset response.
+        }
+
+        safelyObserveAuthEmailDeliveryFailure(observeAuthEmailDeliveryFailure)
       },
     },
     socialProviders: {
@@ -254,6 +273,14 @@ export function createAuthOptions(
         },
       },
     },
+  }
+}
+
+function safelyObserveAuthEmailDeliveryFailure(observer: AuthEmailDeliveryFailureObserver): void {
+  try {
+    observer({ event: "auth_email_delivery_failed", operation: "password_reset" })
+  } catch {
+    // Observability must never change the authentication response contract.
   }
 }
 

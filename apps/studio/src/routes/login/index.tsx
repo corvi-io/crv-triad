@@ -6,7 +6,7 @@ import { LoginScreen } from "@/modules/auth/components/login-screen"
 
 const loginSearchSchema = z.object({
   error: z.preprocess((value) => {
-    if (value === "INVALID_TOKEN") return "verification_invalid"
+    if (value === "INVALID_TOKEN" || value === "invalid_token") return "verification_invalid"
     if (value === "TOKEN_EXPIRED") return "verification_expired"
     if (value === "verification_invalid" || value === "verification_expired") return value
     if (value === "session") return "session"
