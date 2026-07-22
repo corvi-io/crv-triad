@@ -8,7 +8,7 @@
 - Parallel, non-blocking authentication work: [ENG-38](https://linear.app/corvi-io/issue/ENG-38/complete-triad-studio-authentication-lifecycle-and-google-sign-in)
 - Linear initiative: [TRIAD Studio Agenda Kanban Visual Prototype](https://linear.app/corvi-io/initiative/triad-studio-agenda-kanban-visual-prototype-57dbe6ebc7ea)
 - Implementation issue: [ENG-40](https://linear.app/corvi-io/issue/ENG-40/build-the-triad-studio-agenda-kanban-visual-prototype)
-- Related PR: not created
+- Related PR: [#21](https://github.com/corvi-io/crv-triad/pull/21)
 
 ## Implementation Principles
 
