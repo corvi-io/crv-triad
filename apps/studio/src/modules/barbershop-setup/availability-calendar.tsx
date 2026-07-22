@@ -259,10 +259,25 @@ export function AvailabilityCalendar({
     }
 
     const seriesId = editor.original?.seriesId ?? createAvailabilityId("series")
+    const editsSingleRecurringOccurrence = Boolean(
+      editor.original && isRecurringBlock(editor.original) && editor.scope === "single",
+    )
+    const retainedSeriesExclusions =
+      editor.original &&
+      isRecurringBlock(editor.original) &&
+      editor.scope === "series" &&
+      editor.repeat
+        ? normalizeSeriesExcludedDates(
+            editor.original.excludedDates,
+            editor.recurrenceStart,
+            editor.recurrenceUntil || undefined,
+            targetDays,
+          )
+        : []
     const nextRecords = records.map((record) => {
       let next = record
       if (editor.original) {
-        if (isRecurringBlock(editor.original) && editor.scope === "single") {
+        if (editsSingleRecurringOccurrence) {
           next = excludeSeriesDate(next, editor.original.seriesId, editor.date)
         } else {
           next =
@@ -277,31 +292,27 @@ export function AvailabilityCalendar({
           : targetDays.includes(record.day)
       if (!shouldAdd) return next
       return addBlock(next, editor.type, {
-        excludedDates:
-          editor.original && isRecurringBlock(editor.original) && editor.scope === "series"
-            ? editor.original.excludedDates
-            : [],
+        excludedDates: retainedSeriesExclusions,
         id: createAvailabilityId(`block-${record.day}`),
-        occurrenceDate:
-          editor.original && isRecurringBlock(editor.original) && editor.scope === "single"
-            ? editor.date
-            : editor.repeat
-              ? undefined
-              : editor.date,
-        recurrenceStart:
-          editor.original && isRecurringBlock(editor.original) && editor.scope === "single"
+        occurrenceDate: editsSingleRecurringOccurrence
+          ? editor.date
+          : editor.repeat
             ? undefined
-            : editor.repeat
-              ? editor.recurrenceStart
-              : undefined,
-        seriesId:
-          editor.original && isRecurringBlock(editor.original) && editor.scope === "single"
-            ? createAvailabilityId("series-exception")
-            : seriesId,
+            : editor.date,
+        recurrenceStart: editsSingleRecurringOccurrence
+          ? undefined
+          : editor.repeat
+            ? editor.recurrenceStart
+            : undefined,
+        seriesId: editsSingleRecurringOccurrence
+          ? createAvailabilityId("series-exception")
+          : seriesId,
         start: editor.start,
         end: editor.end,
         recurrenceUntil:
-          editor.repeat && editor.recurrenceUntil ? editor.recurrenceUntil : undefined,
+          !editsSingleRecurringOccurrence && editor.repeat && editor.recurrenceUntil
+            ? editor.recurrenceUntil
+            : undefined,
       })
     })
 
@@ -1115,6 +1126,20 @@ function excludeSeriesDate(record: SetupAvailability, seriesId: string, date: st
     breaks: record.breaks.map(exclude),
     absences: record.absences.map(exclude),
   }
+}
+
+function normalizeSeriesExcludedDates(
+  excludedDates: readonly string[],
+  recurrenceStart: string,
+  recurrenceUntil: string | undefined,
+  days: readonly Weekday[],
+) {
+  return excludedDates.filter(
+    (date) =>
+      date >= recurrenceStart &&
+      (!recurrenceUntil || date <= recurrenceUntil) &&
+      days.includes(weekdayForDate(date)),
+  )
 }
 
 function normalizeClosedDay(record: SetupAvailability): SetupAvailability {

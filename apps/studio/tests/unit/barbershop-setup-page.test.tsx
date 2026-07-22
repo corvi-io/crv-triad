@@ -255,6 +255,101 @@ describe("barbershop setup module", () => {
     )
   })
 
+  it("edits one occurrence from a finite series without recurrence metadata", async () => {
+    const repository = await repositoryWithFiniteSeries()
+    const user = userEvent.setup()
+    renderSetup("single-unit", "availability", repository)
+    await user.click(
+      await screen.findByRole("button", {
+        name: /Disponível, Segunda-feira, 20 de julho de 2026, das 09:00 às 18:00/,
+      }),
+    )
+    const drawer = await screen.findByRole("dialog", { name: "Disponibilidade / Editar bloco" })
+    const start = within(drawer).getByLabelText("Início")
+    const end = within(drawer).getByLabelText("Fim")
+    await user.clear(start)
+    await user.type(start, "10:00")
+    await user.clear(end)
+    await user.type(end, "17:00")
+    await user.click(within(drawer).getByRole("button", { name: "Salvar bloco" }))
+
+    expect(
+      await screen.findByRole("button", {
+        name: /Disponível, Segunda-feira, 20 de julho de 2026, das 10:00 às 17:00/,
+      }),
+    ).toBeVisible()
+    const after = await repository.getAvailability(availabilityQuery)
+    const override = after.records
+      .flatMap(({ periods }) => periods)
+      .find(({ occurrenceDate }) => occurrenceDate === "2026-07-20")
+    expect(override).toMatchObject({
+      end: "17:00",
+      excludedDates: [],
+      occurrenceDate: "2026-07-20",
+      start: "10:00",
+    })
+    expect(override?.recurrenceStart).toBeUndefined()
+    expect(override?.recurrenceUntil).toBeUndefined()
+    expect(projectAvailability(after.records, { start: "2026-07-27", end: "2026-07-27" })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ seriesId: morningSeriesId, start: "09:00", end: "18:00" }),
+      ]),
+    )
+  })
+
+  it("normalizes retained exceptions when the whole series range and weekdays change", async () => {
+    const repository = await repositoryWithFiniteSeries([
+      "2026-07-20",
+      "2026-08-03",
+      "2026-08-04",
+      "2026-09-07",
+    ])
+    const user = userEvent.setup()
+    renderSetup("single-unit", "availability", repository)
+    await user.click(await screen.findByRole("button", { name: "Próximo período" }))
+    await user.click(
+      await screen.findByRole("button", {
+        name: /Disponível, Segunda-feira, 27 de julho de 2026, das 09:00 às 18:00/,
+      }),
+    )
+    const drawer = await screen.findByRole("dialog", { name: "Disponibilidade / Editar bloco" })
+    await user.click(within(drawer).getByText("Toda a recorrência", { exact: true }))
+
+    await user.click(within(drawer).getByLabelText("Iniciar em"))
+    await user.click(screen.getByRole("button", { name: /segunda-feira, 27 de julho de 2026/ }))
+    await user.click(within(drawer).getByLabelText(/Repetir até \(opcional\)/))
+    await user.selectOptions(screen.getByRole("combobox", { name: "Escolha o mês" }), "7")
+    await user.click(screen.getByRole("button", { name: /segunda-feira, 31 de agosto de 2026/ }))
+    await user.click(within(drawer).getByText("Ter", { exact: true }))
+    await user.click(within(drawer).getByRole("button", { name: "Salvar bloco" }))
+    await waitFor(() => expect(drawer).not.toBeInTheDocument())
+
+    const after = await repository.getAvailability(availabilityQuery)
+    const seriesBlocks = after.records
+      .flatMap((record) => record.periods.map((block) => ({ ...block, day: record.day })))
+      .filter(({ seriesId }) => seriesId === morningSeriesId)
+    expect(seriesBlocks).toHaveLength(5)
+    expect(seriesBlocks.map(({ day }) => day)).not.toContain("tuesday")
+    expect(seriesBlocks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          excludedDates: ["2026-08-03"],
+          recurrenceStart: "2026-07-27",
+          recurrenceUntil: "2026-08-31",
+        }),
+      ]),
+    )
+    expect(seriesBlocks.every(({ excludedDates }) => excludedDates.length === 1)).toBe(true)
+    expect(
+      projectAvailability(after.records, { start: "2026-08-03", end: "2026-08-03" }).some(
+        ({ seriesId }) => seriesId === morningSeriesId,
+      ),
+    ).toBe(false)
+    expect(projectAvailability(after.records, { start: "2026-08-10", end: "2026-08-10" })).toEqual(
+      expect.arrayContaining([expect.objectContaining({ seriesId: morningSeriesId })]),
+    )
+  })
+
   it("creates the first availability block after a professional gains a unit", async () => {
     const repository = new BarbershopSetupMemoryRepository()
     await repository.selectScenario("incomplete-setup")
@@ -374,6 +469,25 @@ async function repositoryWithIndependentMondayBlocks() {
         ],
       }
     }),
+  })
+  return repository
+}
+
+async function repositoryWithFiniteSeries(excludedDates: readonly string[] = []) {
+  const repository = new BarbershopSetupMemoryRepository()
+  const availability = await repository.getAvailability(availabilityQuery)
+  await repository.updateAvailabilityBatch({
+    records: availability.records.map((record) => ({
+      ...record,
+      absences: [],
+      breaks: [],
+      periods: record.periods.map((block) => ({
+        ...block,
+        excludedDates: [...excludedDates],
+        recurrenceStart: "2026-07-01",
+        recurrenceUntil: "2026-09-30",
+      })),
+    })),
   })
   return repository
 }
