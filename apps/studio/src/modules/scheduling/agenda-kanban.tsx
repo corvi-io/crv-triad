@@ -27,7 +27,7 @@ import {
 import { cn } from "@/modules/shared/lib/utils"
 import { type AgendaColumnId, type AgendaResult, agendaColumns, columnForStatus } from "./agenda"
 import type { Appointment, Professional, Service } from "./contracts"
-import { appointmentStatusPresentation } from "./status"
+import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
 
 type KanbanAppointment = Appointment & { column: AgendaColumnId; name: string }
 
@@ -298,7 +298,7 @@ function AppointmentMenu({
   onOpen: () => void
   onTransition: (column?: AgendaColumnId) => void
 }) {
-  const isTerminal = appointment.status === "canceled" || appointment.status === "no-show"
+  const isTerminal = isTerminalAppointmentStatus(appointment.status)
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -318,10 +318,10 @@ function AppointmentMenu({
         <DropdownMenuGroup>
           <DropdownMenuLabel>Ações do agendamento</DropdownMenuLabel>
           <DropdownMenuItem onClick={onOpen}>Ver detalhes</DropdownMenuItem>
-          <DropdownMenuItem onClick={onEdit}>Editar agendamento</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onTransition()}>Alterar status</DropdownMenuItem>
           {!isTerminal ? (
             <>
+              <DropdownMenuItem onClick={onEdit}>Editar agendamento</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onTransition()}>Alterar status</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onTransition("canceled-no-show")}>
                 Cancelar atendimento
               </DropdownMenuItem>
@@ -330,12 +330,12 @@ function AppointmentMenu({
               </DropdownMenuItem>
             </>
           ) : null}
-          {appointment.status === "in-progress" ? (
+          {!isTerminal && appointment.status === "in-progress" ? (
             <DropdownMenuItem onClick={() => onTransition("completed")}>
               Finalizar atendimento
             </DropdownMenuItem>
           ) : null}
-          {appointment.paymentStatus === "pending" ? (
+          {!isTerminal && appointment.paymentStatus === "pending" ? (
             <DropdownMenuItem onClick={() => onTransition("completed")}>
               <CircleDollarSignIcon aria-hidden="true" /> Registrar pagamento
             </DropdownMenuItem>

@@ -10,6 +10,10 @@ import {
 } from "lucide-react"
 import type { AppointmentStatus } from "./contracts"
 
+export function isTerminalAppointmentStatus(status: AppointmentStatus) {
+  return status === "completed" || status === "canceled" || status === "no-show"
+}
+
 export const appointmentStatusPresentation = {
   arrived: {
     className:

@@ -108,7 +108,23 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
 
   async update(id: string, input: AppointmentInput) {
     return this.#engine.execute("update", () => {
-      this.#assertValid(input, id)
+      const current = this.#engine.get(id)
+      if (!current) throw new Error("Agendamento não encontrado.")
+      if (
+        input.status !== current.status ||
+        input.paymentStatus !== current.paymentStatus ||
+        input.cancellationReason !== current.cancellationReason
+      ) {
+        throw new Error("Use a transição de status para alterar status ou pagamento.")
+      }
+      const allocationChanged =
+        input.date !== current.date ||
+        input.durationMinutes !== current.durationMinutes ||
+        input.professionalId !== current.professionalId ||
+        input.serviceId !== current.serviceId ||
+        input.start !== current.start ||
+        input.unitId !== current.unitId
+      if (allocationChanged) this.#assertValid(input, id)
       const updated = this.#engine.update(id, input)
       if (!updated) throw new Error("Agendamento não encontrado.")
       return updated

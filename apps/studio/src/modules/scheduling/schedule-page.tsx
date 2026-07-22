@@ -113,6 +113,27 @@ export function SchedulePage({
     toast.success("Cenário restaurado.")
   }
 
+  function clearFilters() {
+    setSearchText("")
+    onSearchChange({
+      client: undefined,
+      customEnd: undefined,
+      customStart: undefined,
+      period: "today",
+      professional: undefined,
+      service: undefined,
+      unit: "centro",
+    })
+  }
+
+  const hasActiveFilters =
+    debouncedSearchText.length > 0 ||
+    parseIdList(search.professional).length > 0 ||
+    parseIdList(search.client).length > 0 ||
+    parseIdList(search.service).length > 0 ||
+    search.period !== "today" ||
+    search.unit !== "centro"
+
   async function transitionAppointment(input: AppointmentTransitionInput) {
     if (transitionMutation.isPending) return
     const destination = appointmentStatusPresentation[input.status].label
@@ -177,6 +198,7 @@ export function SchedulePage({
             onSearchTextChange={setSearchText}
             onScenarioChange={selectScenario}
             onReset={resetScenario}
+            onClearFilters={clearFilters}
           />
         </>
       }
@@ -188,22 +210,48 @@ export function SchedulePage({
         <ScheduleError onRetry={() => dayQuery.refetch()} />
       ) : dayQuery.data && gridDay ? (
         search.view === "kanban" ? (
-          <AgendaKanban
-            announcement={announcement}
-            dateLabel={
-              bounds.startDate === bounds.endDate
-                ? formatDisplayDate(bounds.startDate)
-                : `${formatDisplayDate(bounds.startDate)} a ${formatDisplayDate(bounds.endDate)}`
-            }
-            onAdd={() => setDrawer({ mode: "create" })}
-            onEdit={(appointment) => setDrawer({ appointment, mode: "edit" })}
-            onOpen={(appointment) => setDrawer({ appointment, mode: "view" })}
-            onTransitionRequest={requestTransition}
-            pendingAppointmentId={transitionMutation.variables?.id}
-            professionals={dayQuery.data.professionals}
-            result={result}
-            services={dayQuery.data.services}
-          />
+          result.total === 0 ? (
+            <EmptyState
+              action={
+                hasActiveFilters ? (
+                  <Button type="button" variant="outline" onClick={clearFilters}>
+                    Limpar filtros
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={() => setDrawer({ mode: "create" })}>
+                    <PlusIcon data-icon="inline-start" />
+                    Adicionar agendamento
+                  </Button>
+                )
+              }
+              description={
+                hasActiveFilters
+                  ? "Os filtros atuais não correspondem a nenhum agendamento. Limpe um filtro ou restaure todos."
+                  : "Não há agendamentos neste período. Você pode adicionar um novo horário."
+              }
+              icon={CalendarDaysIcon}
+              title={hasActiveFilters ? "Nenhum agendamento encontrado" : "Agenda livre no período"}
+            />
+          ) : (
+            <AgendaKanban
+              announcement={announcement}
+              dateLabel={
+                bounds.startDate === bounds.endDate
+                  ? formatDisplayDate(bounds.startDate)
+                  : `${formatDisplayDate(bounds.startDate)} a ${formatDisplayDate(bounds.endDate)}`
+              }
+              onAdd={() => setDrawer({ mode: "create" })}
+              onEdit={(appointment) => setDrawer({ appointment, mode: "edit" })}
+              onOpen={(appointment) => setDrawer({ appointment, mode: "view" })}
+              onTransitionRequest={requestTransition}
+              pendingAppointmentId={
+                transitionMutation.isPending ? transitionMutation.variables?.id : undefined
+              }
+              professionals={dayQuery.data.professionals}
+              result={result}
+              services={dayQuery.data.services}
+            />
+          )
         ) : (
           <Schedule
             day={gridDay}

@@ -113,6 +113,26 @@ describe("scheduling memory repository", () => {
     ).resolves.toMatchObject({ paymentStatus: "paid", status: "completed" })
   })
 
+  it("keeps generic edits status-neutral and reserves state changes for transitions", async () => {
+    const repository = new SchedulingMemoryRepository()
+    const day = await repository.getDay(query())
+    const candidate = day.appointments[0]
+
+    await expect(
+      repository.update(candidate.id, { ...candidate, status: "completed" }),
+    ).rejects.toThrow("Use a transição de status")
+    await expect(
+      repository.update(candidate.id, { ...candidate, paymentStatus: "paid" }),
+    ).rejects.toThrow("Use a transição de status")
+    await expect(
+      repository.update(candidate.id, { ...candidate, notes: "Edição neutra a status." }),
+    ).resolves.toMatchObject({
+      notes: "Edição neutra a status.",
+      paymentStatus: candidate.paymentStatus,
+      status: candidate.status,
+    })
+  })
+
   it("fails exactly the next transition in the rollback scenario", async () => {
     const repository = new SchedulingMemoryRepository()
     const day = await repository.getDay(query("transition-rollback"))

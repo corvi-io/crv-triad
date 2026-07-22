@@ -32,7 +32,7 @@ import type {
 } from "./contracts"
 import { ScheduleConflictError } from "./contracts"
 import { useCancelAppointment, useCreateAppointment, useUpdateAppointment } from "./queries"
-import { appointmentStatusPresentation } from "./status"
+import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
 
 export type DrawerMode = "cancel" | "create" | "edit" | "reschedule" | "view"
 
@@ -114,6 +114,13 @@ export function AppointmentDrawer({
       priceCents: selectedService.priceCents,
       rating: appointment?.rating,
       tags: appointment?.tags ?? [],
+      ...(appointment
+        ? {
+            cancellationReason: appointment.cancellationReason,
+            paymentStatus: appointment.paymentStatus,
+            status: appointment.status,
+          }
+        : {}),
     }
     try {
       if (appointment) await updateMutation.mutateAsync({ id: appointment.id, input })
@@ -144,6 +151,7 @@ export function AppointmentDrawer({
 
   if (mode === "view" && appointment) {
     const status = appointmentStatusPresentation[appointment.status]
+    const isTerminal = isTerminalAppointmentStatus(appointment.status)
     return (
       <ActionDrawer
         context="Agenda"
@@ -152,19 +160,23 @@ export function AppointmentDrawer({
         onOpenChange={onOpenChange}
         title={title}
         primaryAction={
-          <Button type="button" onClick={() => onModeChange("edit")}>
-            Editar agendamento
-          </Button>
+          isTerminal ? undefined : (
+            <Button type="button" onClick={() => onModeChange("edit")}>
+              Editar agendamento
+            </Button>
+          )
         }
         secondaryActions={
-          <>
-            <Button type="button" variant="outline" onClick={() => onModeChange("reschedule")}>
-              Remarcar
-            </Button>
-            <Button type="button" variant="destructive" onClick={() => onModeChange("cancel")}>
-              Cancelar agendamento
-            </Button>
-          </>
+          isTerminal ? undefined : (
+            <>
+              <Button type="button" variant="outline" onClick={() => onModeChange("reschedule")}>
+                Remarcar
+              </Button>
+              <Button type="button" variant="destructive" onClick={() => onModeChange("cancel")}>
+                Cancelar agendamento
+              </Button>
+            </>
+          )
         }
       >
         <dl className="grid gap-4 text-sm">
@@ -323,34 +335,38 @@ export function AppointmentDrawer({
             placeholder="Selecione"
             required
           />
-          <CompactRhfSelectField
-            control={form.control}
-            id="initial-status"
-            label="Status inicial"
-            name="status"
-            options={[
-              { label: "Agendado", value: "scheduled" },
-              { label: "Confirmado", value: "confirmed" },
-              { label: "Check-in", value: "arrived" },
-              { label: "Em espera", value: "waiting" },
-              { label: "Em atendimento", value: "in-progress" },
-              { label: "Finalizado", value: "completed" },
-            ]}
-            placeholder="Selecione"
-            required
-          />
-          <CompactRhfSelectField
-            control={form.control}
-            id="payment-status"
-            label="Pagamento"
-            name="paymentStatus"
-            options={[
-              { label: "Pendente", value: "pending" },
-              { label: "Pago", value: "paid" },
-            ]}
-            placeholder="Selecione"
-            required
-          />
+          {mode === "create" ? (
+            <>
+              <CompactRhfSelectField
+                control={form.control}
+                id="initial-status"
+                label="Status inicial"
+                name="status"
+                options={[
+                  { label: "Agendado", value: "scheduled" },
+                  { label: "Confirmado", value: "confirmed" },
+                  { label: "Check-in", value: "arrived" },
+                  { label: "Em espera", value: "waiting" },
+                  { label: "Em atendimento", value: "in-progress" },
+                  { label: "Finalizado", value: "completed" },
+                ]}
+                placeholder="Selecione"
+                required
+              />
+              <CompactRhfSelectField
+                control={form.control}
+                id="payment-status"
+                label="Pagamento"
+                name="paymentStatus"
+                options={[
+                  { label: "Pendente", value: "pending" },
+                  { label: "Pago", value: "paid" },
+                ]}
+                placeholder="Selecione"
+                required
+              />
+            </>
+          ) : null}
           <CompactRhfSelectField
             control={form.control}
             id="professional"

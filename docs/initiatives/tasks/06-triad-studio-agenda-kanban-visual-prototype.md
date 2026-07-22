@@ -121,7 +121,7 @@
   - [x] Add explicit rest/active states, selected counts/labels, individual clear,
         and global clear behavior.
   - [x] Derive visible cards, columns, counts, empty states, and summary from one
-        memoized result and profile the dense scenario.
+        memoized result.
 - [x] Build the Kanban board and appointment cards:
   - [x] Render the six approved columns and headings in the approved order.
   - [x] Add visible counts, semantic text/icon markers, empty-column state,
@@ -160,16 +160,16 @@
         transition rollback, and scenario factories.
   - [x] Test repository filtering, creation, edits, transitions, reset, delays,
         failures, pending guards, and delayed-result isolation.
-  - [x] Component-test board/column/card semantics, active/rest filters, view
-        switching, menus, drawers, dialogs, toasts, long content, themes, and
-        responsive overflow.
+  - [x] Cover board/column/card semantics, active/rest filters, view switching,
+        menus, drawers, dialogs, toasts, long content, themes, and responsive
+        overflow across focused component and browser suites.
   - [x] Add Playwright coverage for the main pointer and non-drag keyboard
         transition journeys, cancellation reason, payment choice, filters,
         rollback, focus return, dense scrolling, zoom-relevant viewport, and axe.
   - [x] Verify Better Auth is not intercepted and memory scheduling remains
         excluded from `hml` and `prd` artifacts.
-  - [x] Record bundle delta and dense-scenario profiling without making an
-        unsupported capacity claim.
+  - [x] Record bundle delta and dense-scenario browser interaction evidence
+        without making an unsupported capacity claim.
 - [x] Complete documentation and handoff:
   - [x] Update `docs/studio/schedule-prototype.md` with the accepted view,
         transition, status mapping, runtime, and test behavior.
@@ -190,23 +190,24 @@ Record evidence as tasks are completed:
 
 - Command: `bun --filter studio check`
 - Result: passed
-- Notes: Biome and TypeScript passed; Vitest passed 25 files and 120 tests; the
+- Notes: Biome and TypeScript passed; Vitest passed 25 files and 125 tests; the
   `prd` build and production-boundary scan passed across 36 files (967,090
   bytes).
 - Command: `bun --filter studio test:e2e`
 - Result: passed
-- Notes: Playwright passed all 22 Chromium tests, including six Agenda journeys,
+- Notes: Playwright passed all 24 Chromium tests, including eight Agenda journeys,
   axe, pointer and keyboard drag, decision dialogs, rollback, focus, dense
-  overflow, themes, forced colors, narrow viewports, and 200%-zoom equivalents.
+  overflow, status-neutral editing, terminal actions, filter clearing/catalog
+  search, themes, forced colors, narrow viewports, and 200%-zoom equivalents.
 - Command: `bun --filter studio test:e2e:production`
 - Result: passed
 - Notes: The production build passed and all three production-preview boundary
   tests passed, including exclusion of the synthetic scheduling preview.
 - Command: targeted scheduling unit/component tests
 - Result: passed
-- Notes: Focused Agenda mapping, filtering, period, repository, transition, and
-  component suites passed during implementation; the final full Vitest run
-  includes those suites.
+- Notes: Three focused Agenda files passed 24 tests covering mapping, filtering,
+  period, repository policy, decisions, same-card transitions, drawers, and
+  terminal actions; the final full Vitest run includes those suites.
 - Command: production-boundary scan for `hml` and `prd`
 - Result: passed
 - Notes: Explicit disabled-source builds and scans passed for both deployment
@@ -222,20 +223,23 @@ Record evidence as tasks are completed:
 
 ## Risks And Follow-Ups
 
-- [x] The approved UX reference may be interpreted as permission to rebuild the
+- [ ] Record React Profiler render-commit and rerender evidence for initial
+      dense render, one search refinement, and one transition. This measurement
+      was not performed in ENG-40 and remains an explicit follow-up.
+- The approved UX reference may be interpreted as permission to rebuild the
       shell or theme; enforce the documented deviations during review.
-- [x] Drag-and-drop can appear accessible while producing ambiguous keyboard
+- Drag-and-drop can appear accessible while producing ambiguous keyboard
       destinations or announcements; keep the non-drag transition path complete.
-- [x] The inherited Kibo Kanban may require adaptation or replacement after the
+- The inherited Kibo Kanban may require adaptation or replacement after the
       audit; record evidence instead of forcing reuse.
-- [x] Shared filters across two views can drift; keep one canonical state and
+- Shared filters across two views can drift; keep one canonical state and
       test identical result sets.
-- [x] Optimistic transitions can leave counts and summaries inconsistent; capture
+- Optimistic transitions can leave counts and summaries inconsistent; capture
       and roll back the complete derived state.
-- [x] UI mock fields can be mistaken for backend requirements; design the real
+- UI mock fields can be mistaken for backend requirements; design the real
       API, authorization, audit, and concurrency model in a separate initiative.
-- [x] Dense synthetic fixtures validate browser interaction only, not production
+- Dense synthetic fixtures validate browser interaction only, not production
       throughput or multi-user behavior.
-- [x] The informal Initiative 03 roadmap called its future queue work
+- The informal Initiative 03 roadmap called its future queue work
       “Initiative 06.” This numbered document supersedes that placeholder but
       does not pull service-fulfillment scope into the Kanban prototype.

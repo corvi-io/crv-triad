@@ -100,8 +100,10 @@ boundary.
 - Manual screenshot inspection covered the six-column 1440 × 900 dark surface and a 640 × 720
   light narrow surface. It found and corrected the 1440px breakpoint so all columns fit without
   page-level overflow while intermediate and narrow layouts retain bounded board scrolling.
-- The focused dense/long-content browser journey rendered 72 cards and completed in 1.3 seconds in
-  the local four-worker Playwright run. This is interaction evidence, not a capacity claim.
+- The focused dense/long-content browser journey renders 72 synthetic cards and verifies bounded
+  scrolling, long-content actions, and reduced-motion behavior. No React render-commit or rerender
+  profiling was performed, so the browser-test duration is not presented as rendering evidence or
+  a capacity claim.
 - Touch uses the DnD TouchSensor with a 150 ms/5 px activation constraint, and browser evidence
   verifies drag handles exceed the WCAG 2.2 24 px target minimum. A real touch device remains a
   residual manual check.
@@ -120,5 +122,8 @@ Synthetic fixtures and the memory adapter remain absent from production output.
 
 The 72-card scenario validates browser interaction only. It does not establish production capacity,
 multi-user concurrency, authorization, audit, realtime reconciliation, or payment correctness.
+The exact performance follow-up is to record React Profiler commits for the initial 72-card render,
+one global-search refinement, and one status transition under documented local build/hardware
+conditions before considering virtualization or making a render-performance claim.
 Real-device touch, VoiceOver/NVDA, Windows High Contrast beyond Chromium forced-colors emulation,
 and authenticated deployed `dev` review remain manual handoff checks.

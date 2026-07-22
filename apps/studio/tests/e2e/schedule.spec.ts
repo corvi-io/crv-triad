@@ -34,10 +34,25 @@ test("renders the canonical Kanban, composes filters, retains the grid, and pass
   await page.getByLabel("Unidade").click()
   await page.getByRole("option", { name: "Artesão" }).click()
   await expect(page).toHaveURL(/unit=artesao/)
-  await expect(page.getByText("0 atendimentos visíveis")).toBeVisible()
-  await page.getByRole("button", { name: "Limpar filtros" }).click()
+  await expect(page.getByRole("heading", { name: "Nenhum agendamento encontrado" })).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Unidade" })).toHaveAttribute(
+    "class",
+    /border-primary/,
+  )
+  await page.getByRole("button", { name: "Limpar filtro unidade" }).click()
   await expect(page).toHaveURL(/unit=centro/)
+  await expect(page.getByRole("searchbox", { name: "Pesquisa global" })).toHaveValue("Joao")
+  await expect(page.getByText("1 atendimentos visíveis")).toBeVisible()
+  await page.getByLabel("Período").click()
+  await page.getByRole("option", { name: "Amanhã" }).click()
+  await expect(page.getByRole("combobox", { name: "Período" })).toHaveAttribute(
+    "class",
+    /border-primary/,
+  )
+  await page.getByRole("button", { name: "Limpar filtros" }).first().click()
   await expect(page.getByText("18 atendimentos visíveis")).toBeVisible()
+  await expect(page.getByLabel("Unidade")).toHaveText("Centro")
+  await expect(page.getByLabel("Período")).toHaveText("Hoje")
 
   await page.locator("label").filter({ hasText: "Grade diária" }).click()
   await expect(page).toHaveURL(/view=daily-grid/)
@@ -78,6 +93,12 @@ test("completes cancellation and unpaid completion decisions with focus restorat
   await page.getByRole("button", { name: "Confirmar alteração" }).click()
   await expect(page.getByText("Status atualizado para “Concluído”.")).toBeVisible()
   await expect(appointmentCard(page, "kanban-10")).toContainText("Pagamento pendente")
+
+  await appointmentCard(page, "kanban-10")
+    .getByRole("button", { name: "Ações de André Silva" })
+    .click()
+  await expect(page.getByRole("menuitem", { name: "Ver detalhes" })).toBeVisible()
+  await expect(page.getByRole("menuitem", { name: "Alterar status" })).toHaveCount(0)
 })
 
 test("rolls back card, counts, and summary together after a simulated transition failure", async ({
@@ -102,6 +123,13 @@ test("rolls back card, counts, and summary together after a simulated transition
   await expect(confirmed.locator("[data-column-count] [aria-hidden=true]")).toHaveText("3")
   await expect(waiting.locator("[data-column-count] [aria-hidden=true]")).toHaveText("3")
   await expect(page.getByText("18 atendimentos visíveis")).toBeVisible()
+
+  await card.getByRole("button", { name: "Ações de João Vitor" }).click()
+  await page.getByRole("menuitem", { name: "Alterar status" }).click()
+  await page.getByRole("radio", { name: "Em espera" }).click()
+  await page.getByRole("button", { name: "Confirmar alteração" }).click()
+  await expect(page.getByText("Status atualizado para “Aguardando”.")).toBeVisible()
+  await expect(waiting.getByText("João Vitor")).toBeVisible()
 })
 
 test("supports pointer drag and keyboard drag announcements", async ({ page }) => {
@@ -114,6 +142,17 @@ test("supports pointer drag and keyboard drag announcements", async ({ page }) =
   await expect(page.getByText("Status atualizado para “Aguardando”.")).toBeVisible()
   await expect(waitingColumn.getByText("João Vitor")).toBeVisible()
 
+  await appointmentCard(page, "kanban-01").getByRole("button", { name: "Ver detalhes" }).click()
+  await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeVisible()
+  await page.getByRole("button", { name: "Fechar" }).click()
+  await appointmentCard(page, "kanban-01")
+    .getByRole("button", { name: "Ações de João Vitor" })
+    .click()
+  await page.getByRole("menuitem", { name: "Alterar status" }).click()
+  await page.getByRole("radio", { name: "Check-in" }).click()
+  await page.getByRole("button", { name: "Confirmar alteração" }).click()
+  await expect(page.getByText("Status atualizado para “Chegou”.").last()).toBeVisible()
+
   const pedroHandle = appointmentCard(page, "kanban-02").getByRole("button", {
     name: "Mover agendamento de Pedro Henrique",
   })
@@ -125,7 +164,7 @@ test("supports pointer drag and keyboard drag announcements", async ({ page }) =
   ).toBeAttached()
   await page.keyboard.press("ArrowRight")
   await page.keyboard.press("Space")
-  await expect(page.getByText("Status atualizado para “Chegou”.")).toBeVisible()
+  await expect(page.getByText("Status atualizado para “Chegou”.").last()).toBeVisible()
 })
 
 test("keeps dense and long content usable at a narrow zoom-equivalent viewport", async ({
@@ -177,6 +216,47 @@ test("creates an appointment in the selected unit with a visible initial status"
   await page.getByRole("button", { name: "Criar agendamento" }).click()
   await expect(page.getByText("Agendamento criado.")).toBeVisible()
   await expect(page.getByText("Cliente Criado no Teste")).toBeVisible()
+})
+
+test("keeps edits status-neutral and terminal appointments read-only", async ({ page }) => {
+  await page.goto(agendaUrl())
+  const joaoCard = appointmentCard(page, "kanban-01")
+  await joaoCard.getByRole("button", { name: "Ações de João Vitor" }).click()
+  await page.getByRole("menuitem", { name: "Editar agendamento" }).click()
+  const editDrawer = page.getByRole("dialog", { name: "Agenda / Editar agendamento" })
+  await expect(editDrawer).toBeVisible()
+  await expect(editDrawer.getByLabel("Status inicial")).toHaveCount(0)
+  await expect(editDrawer.getByLabel("Pagamento")).toHaveCount(0)
+  await editDrawer.getByLabel("Observações").fill("Edição neutra a status no navegador.")
+  await page.getByRole("button", { name: "Salvar alterações" }).click()
+  await expect(page.getByText("Agendamento atualizado.")).toBeVisible()
+  await expect(joaoCard).toContainText("Confirmado")
+
+  const completedCard = appointmentCard(page, "kanban-13")
+  await completedCard.getByRole("button", { name: "Ações de Marcos Paulo" }).click()
+  await expect(page.getByRole("menuitem", { name: "Ver detalhes" })).toBeVisible()
+  await expect(page.getByRole("menuitem", { name: "Editar agendamento" })).toHaveCount(0)
+  await expect(page.getByRole("menuitem", { name: "Alterar status" })).toHaveCount(0)
+  await page.getByRole("menuitem", { name: "Ver detalhes" }).click()
+  await expect(page.getByRole("button", { name: "Editar agendamento" })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Remarcar" })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Cancelar agendamento" })).toHaveCount(0)
+})
+
+test("distinguishes empty periods and searches long professional catalogs", async ({ page }) => {
+  await page.goto(agendaUrl("empty"))
+  await expect(page.getByRole("heading", { name: "Agenda livre no período" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Adicionar agendamento" })).toBeVisible()
+
+  await page.goto(agendaUrl("many-professionals"))
+  await page.getByLabel("Barbeiro").click()
+  await page.getByRole("textbox", { name: "Pesquisar barbeiro" }).fill("Sintético 7")
+  await expect(
+    page.getByRole("menuitemcheckbox", { name: "Profissional Sintético 7" }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole("menuitemcheckbox", { name: "Profissional Sintético 1" }),
+  ).toHaveCount(0)
 })
 
 function appointmentCard(page: import("@playwright/test").Page, id: string) {

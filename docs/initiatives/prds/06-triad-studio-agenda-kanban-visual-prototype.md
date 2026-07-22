@@ -331,7 +331,9 @@ announcements and a menu/select-based transition fallback.
     the operational window. Virtualization should be introduced only after
     profiling an accepted card layout and interaction model.
 - Measurement:
-  - Record board bundle impact and profile dense-scenario rerenders. Do not state
+  - Record board bundle impact. Dense-scenario browser interaction is covered,
+    but React render-commit/rerender profiling remains a documented follow-up for
+    initial render, one search refinement, and one transition. Do not state
     numeric capacity without measured evidence and documented conditions.
 
 ## Security, Privacy, And Abuse
@@ -392,7 +394,7 @@ announcements and a menu/select-based transition fallback.
     and result; use synthetic/stable record IDs only when needed for debugging.
 - Metrics:
   - Prototype test timings, transition failure/rollback counts, bundle delta,
-    and dense-scenario render evidence.
+    and, when separately measured, dense-scenario React render evidence.
 - Traces/spans:
   - No distributed trace requirement in the memory phase. Future HTTP queries
     and transition commands should participate in existing API telemetry.

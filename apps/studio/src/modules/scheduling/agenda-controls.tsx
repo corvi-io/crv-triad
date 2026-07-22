@@ -32,6 +32,7 @@ type Option = { label: string; value: string }
 export function AgendaControls({
   appointments,
   onReset,
+  onClearFilters,
   onScenarioChange,
   onSearchChange,
   onSearchTextChange,
@@ -43,6 +44,7 @@ export function AgendaControls({
 }: {
   appointments: readonly Appointment[]
   onReset: () => void
+  onClearFilters: () => void
   onScenarioChange: (id: string) => void
   onSearchChange: (next: Partial<ScheduleSearch>) => void
   onSearchTextChange: (value: string) => void
@@ -82,7 +84,12 @@ export function AgendaControls({
     <div className="flex flex-col gap-2">
       <fieldset className="grid gap-2 rounded-lg border bg-card p-3 xl:grid-cols-[minmax(13rem,1.4fr)_repeat(5,minmax(9rem,1fr))_auto] xl:items-end">
         <legend className="sr-only">Pesquisa e filtros da agenda</legend>
-        <Filter label="Pesquisa global" htmlFor="agenda-search">
+        <Filter
+          active={searchText.length > 0}
+          label="Pesquisa global"
+          htmlFor="agenda-search"
+          onClear={() => onSearchTextChange("")}
+        >
           <Input
             id="agenda-search"
             placeholder="Cliente, serviço, profissional ou código"
@@ -92,6 +99,7 @@ export function AgendaControls({
           />
         </Filter>
         <MultiSelectFilter
+          searchable
           id="professional-filter"
           label="Barbeiro"
           options={professionals.map(({ id, name }) => ({ label: name, value: id }))}
@@ -113,8 +121,16 @@ export function AgendaControls({
           values={serviceIds}
           onValuesChange={(values) => onSearchChange({ service: serializeIdList(values) })}
         />
-        <Filter label="Período" htmlFor="period-filter">
+        <Filter
+          active={search.period !== "today"}
+          label="Período"
+          htmlFor="period-filter"
+          onClear={() =>
+            onSearchChange({ customEnd: undefined, customStart: undefined, period: "today" })
+          }
+        >
           <SelectInput
+            className={cn(search.period !== "today" && "border-primary bg-accent")}
             id="period-filter"
             placeholder="Selecione"
             value={search.period}
@@ -131,8 +147,14 @@ export function AgendaControls({
             }
           />
         </Filter>
-        <Filter label="Unidade" htmlFor="unit-filter">
+        <Filter
+          active={search.unit !== "centro"}
+          label="Unidade"
+          htmlFor="unit-filter"
+          onClear={() => onSearchChange({ unit: "centro" })}
+        >
           <SelectInput
+            className={cn(search.unit !== "centro" && "border-primary bg-accent")}
             id="unit-filter"
             placeholder="Selecione"
             value={search.unit}
@@ -147,18 +169,7 @@ export function AgendaControls({
           disabled={!hasActiveFilters}
           type="button"
           variant="outline"
-          onClick={() => {
-            onSearchTextChange("")
-            onSearchChange({
-              client: undefined,
-              customEnd: undefined,
-              customStart: undefined,
-              period: "today",
-              professional: undefined,
-              service: undefined,
-              unit: "centro",
-            })
-          }}
+          onClick={onClearFilters}
         >
           <XIcon data-icon="inline-start" />
           Limpar filtros
@@ -284,7 +295,12 @@ function MultiSelectFilter({
     optionLabel.toLocaleLowerCase("pt-BR").includes(query.toLocaleLowerCase("pt-BR")),
   )
   return (
-    <Filter label={label} htmlFor={id}>
+    <Filter
+      active={values.length > 0}
+      label={label}
+      htmlFor={id}
+      onClear={() => onValuesChange([])}
+    >
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -312,6 +328,7 @@ function MultiSelectFilter({
                   placeholder="Pesquisar"
                   value={query}
                   onChange={(event) => setQuery(event.currentTarget.value)}
+                  onKeyDown={(event) => event.stopPropagation()}
                 />
               </div>
             ) : null}
@@ -341,19 +358,36 @@ function MultiSelectFilter({
 }
 
 function Filter({
+  active = false,
   children,
   htmlFor,
   label,
+  onClear,
 }: {
+  active?: boolean
   children: React.ReactNode
   htmlFor: string
   label: string
+  onClear?: () => void
 }) {
   return (
-    <div className="min-w-0">
-      <label className="mb-1 block text-xs font-medium" htmlFor={htmlFor}>
-        {label}
-      </label>
+    <div className="min-w-0" data-filter-state={active ? "active" : "rest"}>
+      <div className="mb-1 flex min-h-6 items-center justify-between gap-1">
+        <label className={cn("text-xs font-medium", active && "text-primary")} htmlFor={htmlFor}>
+          {label}
+        </label>
+        {active && onClear ? (
+          <Button
+            aria-label={`Limpar filtro ${label.toLocaleLowerCase("pt-BR")}`}
+            size="icon-xs"
+            type="button"
+            variant="ghost"
+            onClick={onClear}
+          >
+            <XIcon />
+          </Button>
+        ) : null}
+      </div>
       {children}
     </div>
   )
