@@ -17,20 +17,37 @@ describe("barbershop setup module", () => {
   it("accepts only stable scenario and section identifiers in URL state", () => {
     expect(
       validateBarbershopSetupSearch(
-        { scenario: "multi-unit", section: "services" },
+        {
+          availabilityDate: "2028-12-25",
+          availabilityView: "month",
+          scenario: "multi-unit",
+          section: "services",
+        },
         resolveBarbershopSetupScenario,
       ),
-    ).toEqual({ scenario: "multi-unit", section: "services" })
+    ).toEqual({
+      availabilityDate: "2028-12-25",
+      availabilityView: "month",
+      scenario: "multi-unit",
+      section: "services",
+    })
     expect(
       validateBarbershopSetupSearch(
         {
           scenario: "Nome da pessoa",
           section: "Rua com dados privados",
+          availabilityDate: "2026-02-31",
+          availabilityView: "agenda",
           phone: "81999999999",
         },
         resolveBarbershopSetupScenario,
       ),
-    ).toEqual({ scenario: "single-unit", section: "overview" })
+    ).toEqual({
+      availabilityDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      availabilityView: "week",
+      scenario: "single-unit",
+      section: "overview",
+    })
   })
 
   it("renders overview actions and switches all stable sections", async () => {
@@ -45,7 +62,9 @@ describe("barbershop setup module", () => {
     await user.click(screen.getByRole("button", { name: "Serviços" }))
     expect(await screen.findByRole("table", { name: "Serviços da configuração" })).toBeVisible()
     await user.click(screen.getByRole("button", { name: "Disponibilidade" }))
-    expect(await screen.findByRole("heading", { name: "Disponibilidade semanal" })).toBeVisible()
+    expect(
+      await screen.findByRole("heading", { name: "Calendário de disponibilidade" }),
+    ).toBeVisible()
   })
 
   it("shows field errors in Portuguese and focuses the first invalid field", async () => {
@@ -75,7 +94,7 @@ describe("barbershop setup module", () => {
     await user.click(await screen.findByRole("option", { name: "Profissional Bravo" }))
     expect(
       await screen.findByRole("button", {
-        name: "Disponível, Segunda-feira, das 09:00 às 18:00",
+        name: /Disponível, Segunda-feira, 20 de julho de 2026, das 09:00 às 18:00/,
       }),
     ).toBeVisible()
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
@@ -98,7 +117,7 @@ describe("barbershop setup module", () => {
     const user = userEvent.setup()
     renderSetup("single-unit", "availability")
     const sunday = await screen.findByRole("button", {
-      name: "Adicionar período em Domingo",
+      name: /Adicionar período em Domingo, 26 de julho de 2026/,
     })
     sunday.focus()
     await user.keyboard("{Enter}")
@@ -143,7 +162,7 @@ describe("barbershop setup module", () => {
     )
     expect(
       await screen.findByRole("button", {
-        name: "Disponível, Segunda-feira, das 09:00 às 10:00",
+        name: /Disponível, Segunda-feira, 20 de julho de 2026, das 09:00 às 10:00/,
       }),
     ).toBeVisible()
     await expect(
@@ -193,7 +212,12 @@ function renderSetup(
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   function Harness() {
-    const [search, setSearch] = useState<BarbershopSetupSearch>({ scenario, section })
+    const [search, setSearch] = useState<BarbershopSetupSearch>({
+      availabilityDate: "2026-07-20",
+      availabilityView: "week",
+      scenario,
+      section,
+    })
     return (
       <QueryClientProvider client={queryClient}>
         <BarbershopSetupRepositoryProvider repository={repository}>

@@ -1,7 +1,16 @@
 import { MemoryScenarioEngine, SimulatedMockFailure } from "@/dev/mock-engine"
+import {
+  availabilityBlocks,
+  blockDateSetIsSubset,
+  blockDateSetsIntersect,
+  isCanonicalDate,
+  weekdayForDate,
+} from "@/modules/barbershop-setup/availability-dates"
 import type {
+  AvailabilityBlockType,
   AvailabilityQuery,
   AvailabilityResult,
+  AvailabilityTimeBlock,
   BarbershopSetupRepository,
   CopyAvailabilityToWeekdaysInput,
   SetupAvailability,
@@ -18,6 +27,7 @@ import type {
   SetupUnit,
   TimeRange,
   UpdateAvailabilityBatchInput,
+  Weekday,
 } from "@/modules/barbershop-setup/contracts"
 import {
   SetupDependencyError,
@@ -318,6 +328,7 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
         )
           throw new SetupValidationError("Este dia já possui disponibilidade configurada.")
       }
+      validateAvailabilitySeries(mergeAvailabilityRecords(this.#engine.values(), records))
       return records.map((record) => {
         const current = this.#engine.get(record.id)
         if (current?.kind === "availability") {
@@ -537,8 +548,38 @@ function validateAvailability(record: SetupAvailability) {
     ) {
       throw new SetupValidationError("Informe um intervalo com início anterior ao fim.")
     }
-    if (range.recurrenceUntil && !/^\d{4}-\d{2}-\d{2}$/.test(range.recurrenceUntil))
+    const isOneOff = Boolean(range.occurrenceDate)
+    const isRecurring = Boolean(range.recurrenceStart)
+    if (isOneOff === isRecurring)
+      throw new SetupValidationError("Informe uma data exata ou o início da recorrência.")
+    if (range.occurrenceDate && !isCanonicalDate(range.occurrenceDate))
+      throw new SetupValidationError("Informe uma data válida para o bloco.")
+    if (range.occurrenceDate && weekdayForDate(range.occurrenceDate) !== record.day)
+      throw new SetupValidationError("A data do bloco deve corresponder ao dia configurado.")
+    if (range.occurrenceDate && range.occurrenceDate !== undefined) {
+      if (range.recurrenceUntil || range.excludedDates.length > 0)
+        throw new SetupValidationError("Um bloco pontual não pode conter regras de recorrência.")
+    }
+    if (range.recurrenceStart && !isCanonicalDate(range.recurrenceStart))
+      throw new SetupValidationError("Informe uma data inicial válida para a recorrência.")
+    if (range.recurrenceUntil && !isCanonicalDate(range.recurrenceUntil))
       throw new SetupValidationError("Informe uma data final válida para a recorrência.")
+    if (
+      range.recurrenceStart &&
+      range.recurrenceUntil &&
+      range.recurrenceUntil < range.recurrenceStart
+    )
+      throw new SetupValidationError("A data final deve ser igual ou posterior à data inicial.")
+    if (
+      new Set(range.excludedDates).size !== range.excludedDates.length ||
+      range.excludedDates.some(
+        (date) =>
+          !isCanonicalDate(date) ||
+          (range.recurrenceStart && date < range.recurrenceStart) ||
+          (range.recurrenceUntil && date > range.recurrenceUntil),
+      )
+    )
+      throw new SetupValidationError("Informe datas de exceção únicas dentro da recorrência.")
   }
   const conflict = findConflicts([record])[0]
   if (conflict) throw new SetupValidationError(conflict)
@@ -555,19 +596,37 @@ function findConflicts(records: readonly SetupAvailability[]) {
     if (record.closed) return []
 
     const conflicts: string[] = []
-    if (hasOverlaps(record.periods)) conflicts.push(`${weekday}: períodos de trabalho sobrepostos.`)
-    if (hasOverlaps(record.breaks)) conflicts.push(`${weekday}: pausas sobrepostas.`)
+    if (hasOverlaps(record.periods, record.day))
+      conflicts.push(`${weekday}: períodos de trabalho sobrepostos.`)
+    if (hasOverlaps(record.breaks, record.day)) conflicts.push(`${weekday}: pausas sobrepostas.`)
     if (
-      record.breaks.some((pause) => !record.periods.some((period) => containsRange(period, pause)))
+      record.breaks.some(
+        (pause) =>
+          !record.periods.some(
+            (period) =>
+              containsRange(period, pause) && blockDateSetIsSubset(pause, period, record.day),
+          ),
+      )
     ) {
       conflicts.push(`${weekday}: pausa fora do período de trabalho.`)
     }
 
-    if (hasOverlaps(record.absences)) conflicts.push(`${weekday}: ausências sobrepostas.`)
+    if (hasOverlaps(record.absences, record.day))
+      conflicts.push(`${weekday}: ausências sobrepostas.`)
     for (const absence of record.absences) {
-      if (!record.periods.some((period) => containsRange(period, absence))) {
+      if (
+        !record.periods.some(
+          (period) =>
+            containsRange(period, absence) && blockDateSetIsSubset(absence, period, record.day),
+        )
+      ) {
         conflicts.push(`${weekday}: ausência fora do período de trabalho.`)
-      } else if (record.breaks.some((pause) => rangesOverlap(pause, absence))) {
+      } else if (
+        record.breaks.some(
+          (pause) =>
+            rangesOverlap(pause, absence) && blockDateSetsIntersect(pause, absence, record.day),
+        )
+      ) {
         conflicts.push(`${weekday}: ausência sobrepõe uma pausa.`)
       }
     }
@@ -579,14 +638,73 @@ function containsRange(container: TimeRange, range: TimeRange) {
   return range.start >= container.start && range.end <= container.end
 }
 
-function hasOverlaps(ranges: readonly TimeRange[]) {
+function hasOverlaps(ranges: readonly AvailabilityTimeBlock[], day: Weekday) {
   return ranges.some((range, index) =>
-    ranges.slice(index + 1).some((candidate) => rangesOverlap(range, candidate)),
+    ranges
+      .slice(index + 1)
+      .some(
+        (candidate) =>
+          rangesOverlap(range, candidate) && blockDateSetsIntersect(range, candidate, day),
+      ),
   )
 }
 
 function rangesOverlap(left: TimeRange, right: TimeRange) {
   return left.start < right.end && right.start < left.end
+}
+
+function mergeAvailabilityRecords(
+  current: readonly SetupRecord[],
+  updates: readonly SetupAvailability[],
+) {
+  const byRelationshipDay = new Map(
+    updates.map((record) => [availabilityRelationshipDay(record), record]),
+  )
+  const merged = current
+    .filter((record): record is SetupAvailability => record.kind === "availability")
+    .map((record) => byRelationshipDay.get(availabilityRelationshipDay(record)) ?? record)
+  const existingKeys = new Set(merged.map(availabilityRelationshipDay))
+  return [
+    ...merged,
+    ...updates.filter((record) => !existingKeys.has(availabilityRelationshipDay(record))),
+  ]
+}
+
+function availabilityRelationshipDay(record: SetupAvailability) {
+  return `${record.professionalId}:${record.unitId}:${record.day}`
+}
+
+function validateAvailabilitySeries(records: readonly SetupAvailability[]) {
+  const series = new Map<
+    string,
+    Array<{
+      block: AvailabilityTimeBlock
+      type: AvailabilityBlockType
+    }>
+  >()
+  for (const record of records) {
+    for (const item of availabilityBlocks(record)) {
+      const key = `${record.professionalId}:${record.unitId}:${item.block.seriesId}`
+      series.set(key, [...(series.get(key) ?? []), item])
+    }
+  }
+  for (const items of series.values()) {
+    const [reference, ...rest] = items
+    if (!reference) continue
+    if (
+      rest.some(
+        ({ block, type }) =>
+          type !== reference.type ||
+          block.start !== reference.block.start ||
+          block.end !== reference.block.end ||
+          block.occurrenceDate !== reference.block.occurrenceDate ||
+          block.recurrenceStart !== reference.block.recurrenceStart ||
+          block.recurrenceUntil !== reference.block.recurrenceUntil ||
+          JSON.stringify(block.excludedDates) !== JSON.stringify(reference.block.excludedDates),
+      )
+    )
+      throw new SetupValidationError("Os blocos da recorrência devem compartilhar a mesma regra.")
+  }
 }
 
 const weekdayLabels = {

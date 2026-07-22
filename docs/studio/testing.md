@@ -41,8 +41,10 @@ chrome, guided overview, fill-height catalogs, session-memory create/reload, str
 hours, observable drawer entry/exit with reduced-motion suppression and focus restoration, scalar
 and relationship first-invalid focus, one-shot mutation recovery, atomic recurring availability
 failure/retry, series-scoped editing, safe recurring deletion, pointer-drag and keyboard block
-creation, linked-service archive blocking, service-unit eligibility, Portuguese numeric errors,
-persistent load failure, axe, 320 CSS-pixel calendar reflow and keyboard focus, and dark mode.
+creation, dated day/week/month navigation, bounded projection, single-occurrence exceptions,
+overflow-aware catalog scrollbars with body-only scrolling, linked-service archive blocking,
+service-unit eligibility, Portuguese numeric errors, persistent load failure, axe, 320 CSS-pixel
+calendar reflow and keyboard focus, and dark mode.
 Production coverage proves the removed setup preview route is inaccessible, the normal route
 resolves a disabled source, and the artifact scan rejects adapter, fixture, scenario, and
 dense-record markers.

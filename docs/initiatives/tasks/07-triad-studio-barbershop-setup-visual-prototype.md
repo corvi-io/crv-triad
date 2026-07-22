@@ -22,6 +22,25 @@
 
 ## Tasks
 
+- [x] Apply the dated calendar product-review expansion:
+  - [x] Record the dated day/week/month, URL-state, bounded projection, recurrence-rule, and
+        per-occurrence exception decisions in the PRD.
+  - [x] Extend the availability block contract with exact occurrence date, recurrence start date,
+        and excluded dates without claiming a production persistence schema.
+  - [x] Project occurrences only for the visible bounded date range.
+  - [x] Add previous, next, today, and direct-date navigation plus `Dia`, `Semana`, and `Mês` views.
+  - [x] Persist the selected date and view in stable non-PII route search state.
+  - [x] Keep drag, click/tap, and keyboard creation in day/week grids and make month cells open the
+        selected day.
+  - [x] Implement one-occurrence edit as an exclusion plus dated override and one-occurrence delete
+        as an excluded date, while preserving explicit whole-series mutation.
+  - [x] Keep recurrence and exception batches atomic in the memory adapter, including rollback and
+        first-block creation.
+  - [x] Make shared catalog table scrollbars reflect real body overflow while preserving horizontal
+        scroll and fixed header/footer behavior.
+  - [x] Update repository/component/Playwright coverage and durable Studio documentation.
+  - [x] Run full local verification and browser inspection before pushing the existing PR update.
+
 - [x] Apply the July 2026 product-review iteration:
   - [x] Record the accepted guided overview, compact catalog toolbar, fill-height table, composed
         range, calendar, block-type, recurrence, and accessibility decisions in the PRD.
@@ -116,6 +135,18 @@
 
 ## Verification Evidence
 
+- Dated-calendar expansion: `bun --filter studio check` passed route generation, Biome, typecheck,
+  all 29 Vitest files and 166 tests, production build, and the production-boundary scan across 39
+  files and 993,311 bytes.
+- `bun --filter studio test:e2e -- tests/e2e/barbershop-setup.spec.ts`: all 15 Chromium tests passed,
+  including bounded day/week/month projection, URL navigation, a single July 20 exception with the
+  July 27 series occurrence preserved, axe, 320px reflow, and measured catalog overflow behavior.
+- `bun --filter studio test:e2e`: all 41 Chromium tests passed. The table viewport evidence showed no
+  vertical scrollbar without overflow, usable vertical/horizontal scroll positions with dense
+  content, and unchanged sticky-header/footer coordinates while the body moved.
+- `bun --filter studio test:e2e:production`: the production build and all 5 Chromium production
+  journeys passed with the memory source disabled.
+- `git diff --check`: passed after the dated-calendar, scrollbar, test, and documentation updates.
 - `bun run --filter studio check`: passed generation, Biome, typecheck, all 28 Vitest files and 162
   tests, production build, and the production-boundary scan across 39 files and 991,853 bytes.
 - Focused barbershop-setup Vitest: all 24 repository and page tests passed after adding first-block

@@ -150,6 +150,7 @@ export function BarbershopSetupPage({
         <SetupSectionContent
           search={search}
           onSectionChange={(section) => onSearchChange({ section })}
+          onSearchChange={onSearchChange}
         />
       </div>
     </ModuleLayout>
@@ -159,9 +160,11 @@ export function BarbershopSetupPage({
 function SetupSectionContent({
   search,
   onSectionChange,
+  onSearchChange,
 }: {
   search: BarbershopSetupSearch
   onSectionChange: (section: SetupSection) => void
+  onSearchChange: (next: Partial<BarbershopSetupSearch>) => Promise<void> | void
 }) {
   switch (search.section) {
     case "overview":
@@ -173,7 +176,14 @@ function SetupSectionContent({
     case "services":
       return <EntitySection kind="service" scenarioId={search.scenario} />
     case "availability":
-      return <AvailabilityCalendar scenarioId={search.scenario} />
+      return (
+        <AvailabilityCalendar
+          date={search.availabilityDate}
+          scenarioId={search.scenario}
+          view={search.availabilityView}
+          onSearchChange={onSearchChange}
+        />
+      )
   }
 }
 

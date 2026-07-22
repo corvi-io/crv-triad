@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright"
 import { expect, type Page, type Route, test } from "@playwright/test"
 
 const setupUrl = (scenario = "single-unit", section = "overview") =>
-  `/barbershop-setup?scenario=${scenario}&section=${section}`
+  `/barbershop-setup?scenario=${scenario}&section=${section}&availabilityDate=2026-07-20&availabilityView=week`
 
 test.beforeEach(async ({ page }) => routeAuthenticatedSession(page))
 
@@ -77,11 +77,59 @@ test("shares stable sections, renders the complete overview, and passes focused 
   expect(tableLayout.footerVisible).toBe(true)
   expect(tableLayout.remainingBodySpace).not.toBeNull()
   expect(tableLayout.remainingBodySpace ?? Number.POSITIVE_INFINITY).toBeLessThan(8)
+  await expect(
+    page.locator(
+      '[data-slot="data-table"] [data-slot="scroll-area-scrollbar"][data-orientation="vertical"]',
+    ),
+  ).toHaveCount(0)
   const results = await new AxeBuilder({ page })
     .include("#main-content")
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"])
     .analyze()
   expect(results.violations).toEqual([])
+})
+
+test("shows and operates catalog scrollbars only for real body overflow", async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 620 })
+  await page.goto(setupUrl("dense-catalogs", "services"))
+  const table = page.locator('[data-slot="data-table"]')
+  const viewport = table.locator('[data-slot="scroll-area-viewport"]')
+  await expect(page.getByRole("table", { name: "Serviços da configuração" })).toBeVisible()
+
+  await expect
+    .poll(() =>
+      viewport.evaluate((element) => ({
+        horizontal: element.scrollWidth > element.clientWidth + 1,
+        vertical: element.scrollHeight > element.clientHeight + 1,
+      })),
+    )
+    .toEqual({ horizontal: true, vertical: true })
+  await expect(
+    table.locator('[data-slot="scroll-area-scrollbar"][data-orientation="vertical"]'),
+  ).toHaveCount(1)
+  await expect(
+    table.locator('[data-slot="scroll-area-scrollbar"][data-orientation="horizontal"]'),
+  ).toHaveCount(1)
+
+  const before = await table.evaluate((element) => ({
+    footerTop: element.querySelector('[data-slot="data-table-footer"]')?.getBoundingClientRect()
+      .top,
+    headerTop: element.querySelector("thead")?.getBoundingClientRect().top,
+  }))
+  await viewport.evaluate((element) => {
+    element.scrollTop = 80
+    element.scrollLeft = 80
+    element.dispatchEvent(new Event("scroll"))
+  })
+  await expect.poll(() => viewport.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  await expect.poll(() => viewport.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0)
+  const after = await table.evaluate((element) => ({
+    footerTop: element.querySelector('[data-slot="data-table-footer"]')?.getBoundingClientRect()
+      .top,
+    headerTop: element.querySelector("thead")?.getBoundingClientRect().top,
+  }))
+  expect(after.headerTop).toBeCloseTo(before.headerTop ?? 0, 0)
+  expect(after.footerTop).toBeCloseTo(before.footerTop ?? 0, 0)
 })
 
 test("creates a unit in memory and starts clean after a reload", async ({ page }) => {
@@ -285,7 +333,9 @@ test("creates a recurring block atomically and blocks archiving a linked service
     page.getByRole("button", { name: /Pausa ou bloqueio, .*das 14:00 às 15:00/ }),
   ).toHaveCount(5)
   await page
-    .getByRole("button", { name: "Pausa ou bloqueio, Terça-feira, das 14:00 às 15:00" })
+    .getByRole("button", {
+      name: /Pausa ou bloqueio, Terça-feira, 21 de julho de 2026, das 14:00 às 15:00/,
+    })
     .click()
   const editDrawer = page.getByRole("dialog", { name: "Disponibilidade / Editar bloco" })
   await expect(editDrawer.getByText("Aplicar alteração em")).toBeVisible()
@@ -308,17 +358,51 @@ test("creates a recurring block atomically and blocks archiving a linked service
   await expect(serviceRow).toContainText("Ativo")
 })
 
+test("navigates dated views and removes only one recurring occurrence", async ({ page }) => {
+  await page.goto(setupUrl("single-unit", "availability"))
+  await page.getByRole("button", { name: "Mês" }).click()
+  await expect(page).toHaveURL(/availabilityView=month/)
+  await expect(page.getByRole("button", { name: "Abrir dia 20 de julho de 2026" })).toBeVisible()
+
+  await page.getByRole("button", { name: "Abrir dia 20 de julho de 2026" }).click()
+  await expect(page).toHaveURL(/availabilityView=day/)
+  await page.getByRole("button", { name: "Semana" }).click()
+  const selectedOccurrence = page.getByRole("button", {
+    name: /Disponível, Segunda-feira, 20 de julho de 2026, das 09:00 às 18:00/,
+  })
+  await selectedOccurrence.click()
+  const drawer = page.getByRole("dialog", { name: "Disponibilidade / Editar bloco" })
+  await expect(drawer.getByText("Somente 20 de julho de 2026")).toBeVisible()
+  await drawer.getByRole("button", { name: "Excluir" }).click()
+  const deleteDialog = page.getByRole("dialog", { name: "Excluir este bloco?" })
+  await deleteDialog.getByRole("button", { name: "Excluir" }).click()
+  await expect(selectedOccurrence).toHaveCount(0)
+
+  await page.getByRole("button", { name: "Próximo período" }).click()
+  await expect(page).toHaveURL(/availabilityDate=2026-07-27/)
+  await expect(
+    page.getByRole("button", {
+      name: /Disponível, Segunda-feira, 27 de julho de 2026, das 09:00 às 18:00/,
+    }),
+  ).toBeVisible()
+  await page.getByRole("button", { name: "Período anterior" }).click()
+  await expect(page).toHaveURL(/availabilityDate=2026-07-20/)
+  await expect(selectedOccurrence).toHaveCount(0)
+})
+
 test("selects a calendar range by dragging and preserves the keyboard alternative", async ({
   page,
 }) => {
   await page.goto(setupUrl("single-unit", "availability"))
-  await expect(page.getByRole("heading", { name: "Disponibilidade" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Calendário de disponibilidade" })).toBeVisible()
   const accessibility = await new AxeBuilder({ page })
     .include("#main-content")
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"])
     .analyze()
   expect(accessibility.violations).toEqual([])
-  const sunday = page.getByRole("button", { name: "Adicionar período em Domingo" })
+  const sunday = page.getByRole("button", {
+    name: /Adicionar período em Domingo, 26 de julho de 2026/,
+  })
   await sunday.scrollIntoViewIfNeeded()
   const bounds = await sunday.boundingBox()
   expect(bounds).not.toBeNull()
@@ -373,7 +457,9 @@ test("shows persistent load recovery and explicit availability conflicts", async
   await page.getByLabel("Profissional").click()
   await page.getByRole("option", { name: "Profissional Bravo" }).click()
   await expect(
-    page.getByRole("button", { name: "Disponível, Segunda-feira, das 09:00 às 18:00" }),
+    page.getByRole("button", {
+      name: /Disponível, Segunda-feira, 20 de julho de 2026, das 09:00 às 18:00/,
+    }),
   ).toBeVisible()
   await expect(page.getByRole("alert")).toHaveCount(0)
 })
@@ -397,7 +483,7 @@ test("supports 320px reflow, keyboard focus, dark theme, and reduced motion", as
   expect(metrics.dark).toBe(true)
 
   await sectionButton.click()
-  await expect(page.getByRole("heading", { name: "Disponibilidade semanal" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Calendário de disponibilidade" })).toBeVisible()
   const calendarMetrics = await page.evaluate(() => ({
     bodyWidth: document.body.scrollWidth,
     viewportWidth: window.innerWidth,

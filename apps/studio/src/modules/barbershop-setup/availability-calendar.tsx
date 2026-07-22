@@ -1,5 +1,7 @@
 import {
   CalendarClockIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CircleAlertIcon,
   MousePointerClickIcon,
   PlusIcon,
@@ -26,26 +28,29 @@ import {
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import { Switch } from "@/modules/shared/components/ui/switch"
 import { cn } from "@/modules/shared/lib/utils"
-
+import {
+  type AvailabilityDateRange,
+  datesInRange,
+  isRecurringBlock,
+  localToday,
+  navigateAvailabilityDate,
+  type ProjectedAvailabilityBlock,
+  projectAvailability,
+  visibleAvailabilityRange,
+  weekdayForDate,
+  weekdays,
+} from "./availability-dates"
 import type {
   AvailabilityBlockType,
   AvailabilityTimeBlock,
+  AvailabilityView,
   SetupAvailability,
   SetupScenarioId,
   Weekday,
 } from "./contracts"
 import { SetupOperationInvalidatedError, SetupValidationError } from "./contracts"
 import { useSetupAvailability, useUpdateSetupAvailabilityBatch } from "./queries"
-
-const weekdays: readonly Weekday[] = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-]
+import type { BarbershopSetupSearch } from "./search"
 
 const weekdayLabels: Record<Weekday, string> = {
   monday: "Segunda-feira",
@@ -85,17 +90,15 @@ const calendarDurationMinutes = calendarEndMinutes - calendarStartMinutes
 const slotMinutes = 30
 const calendarHeight = 16 * 56
 
-type CalendarBlock = AvailabilityTimeBlock & {
-  day: Weekday
-  recordId: string
-  type: AvailabilityBlockType
-}
+type CalendarBlock = ProjectedAvailabilityBlock
 
 type BlockEditorDraft = {
+  date: string
   day: Weekday
   days: Weekday[]
   end: string
   original?: CalendarBlock
+  recurrenceStart: string
   recurrenceUntil: string
   repeat: boolean
   scope: "single" | "series"
@@ -103,9 +106,19 @@ type BlockEditorDraft = {
   type: AvailabilityBlockType
 }
 
-type DragSelection = { day: Weekday; endMinutes: number; startMinutes: number }
+type DragSelection = { date: string; day: Weekday; endMinutes: number; startMinutes: number }
 
-export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenarioId }) {
+export function AvailabilityCalendar({
+  date,
+  onSearchChange,
+  scenarioId,
+  view,
+}: {
+  date: string
+  onSearchChange: (next: Partial<BarbershopSetupSearch>) => Promise<void> | void
+  scenarioId: SetupScenarioId
+  view: AvailabilityView
+}) {
   const [professionalId, setProfessionalId] = useState<string>()
   const [unitId, setUnitId] = useState<string>()
   const [editor, setEditor] = useState<BlockEditorDraft | null>(null)
@@ -163,7 +176,11 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
     selectedProfessional.id,
     selectedUnitId,
   )
-  const blocks = calendarBlocks(records)
+  const visibleRange = visibleAvailabilityRange(view, date)
+  const blocks = projectAvailability(records, visibleRange)
+  const sourceBlocks = records.flatMap((record) =>
+    calendarSourceBlocks(record).map((block) => ({ ...block, day: record.day })),
+  )
 
   function openEditor(nextEditor: BlockEditorDraft) {
     setEditorError(undefined)
@@ -180,11 +197,14 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
     if (!open) setEditor(null)
   }
 
-  function startCreate(day: Weekday, start = "09:00", end = "10:00") {
+  function startCreate(occurrenceDate: string, start = "09:00", end = "10:00") {
+    const day = weekdayForDate(occurrenceDate)
     openEditor({
+      date: occurrenceDate,
       day,
       days: [day],
       end,
+      recurrenceStart: occurrenceDate,
       recurrenceUntil: "",
       repeat: false,
       scope: "single",
@@ -195,15 +215,19 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
 
   function startEdit(block: CalendarBlock) {
     const seriesDays = weekdays.filter((day) =>
-      blocks.some((candidate) => candidate.seriesId === block.seriesId && candidate.day === day),
+      sourceBlocks.some(
+        (candidate) => candidate.seriesId === block.seriesId && candidate.day === day,
+      ),
     )
     openEditor({
+      date: block.date,
       day: block.day,
       days: seriesDays.length > 0 ? seriesDays : [block.day],
       end: block.end,
       original: block,
+      recurrenceStart: block.recurrenceStart ?? block.date,
       recurrenceUntil: block.recurrenceUntil ?? "",
-      repeat: seriesDays.length > 1 || Boolean(block.recurrenceUntil),
+      repeat: isRecurringBlock(block),
       scope: "single",
       start: block.start,
       type: block.type,
@@ -222,17 +246,30 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
       return
     }
 
-    const seriesId =
-      editor.original && editor.scope === "series"
-        ? editor.original.seriesId
-        : createAvailabilityId("series")
+    if (
+      editor.repeat &&
+      editor.recurrenceUntil &&
+      editor.recurrenceUntil < editor.recurrenceStart
+    ) {
+      setEditorError("A data final deve ser igual ou posterior à data inicial.")
+      return
+    }
+
+    const seriesId = editor.original?.seriesId ?? createAvailabilityId("series")
     const nextRecords = records.map((record) => {
       let next = record
       if (editor.original) {
-        next =
-          editor.scope === "series"
-            ? removeSeries(next, editor.original.seriesId)
-            : removeBlock(next, editor.original)
+        if (isRecurringBlock(editor.original) && editor.scope === "single") {
+          next =
+            editor.original.type === "available"
+              ? excludeAllRecurringBlocksOnDate(next, editor.date)
+              : excludeSeriesDate(next, editor.original.seriesId, editor.date)
+        } else {
+          next =
+            editor.scope === "series"
+              ? removeSeries(next, editor.original.seriesId)
+              : removeBlock(next, editor.original)
+        }
       }
       const shouldAdd =
         editor.original && editor.scope === "single"
@@ -240,8 +277,27 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
           : targetDays.includes(record.day)
       if (!shouldAdd) return next
       return addBlock(next, editor.type, {
+        excludedDates:
+          editor.original && isRecurringBlock(editor.original) && editor.scope === "series"
+            ? editor.original.excludedDates
+            : [],
         id: createAvailabilityId(`block-${record.day}`),
-        seriesId,
+        occurrenceDate:
+          editor.original && isRecurringBlock(editor.original) && editor.scope === "single"
+            ? editor.date
+            : editor.repeat
+              ? undefined
+              : editor.date,
+        recurrenceStart:
+          editor.original && isRecurringBlock(editor.original) && editor.scope === "single"
+            ? undefined
+            : editor.repeat
+              ? editor.recurrenceStart
+              : undefined,
+        seriesId:
+          editor.original && isRecurringBlock(editor.original) && editor.scope === "single"
+            ? createAvailabilityId("series-exception")
+            : seriesId,
         start: editor.start,
         end: editor.end,
         recurrenceUntil:
@@ -264,7 +320,11 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
     const nextRecords = records.map((record) =>
       deleteTarget.scope === "series"
         ? removeSeries(record, original.seriesId)
-        : removeBlock(record, original),
+        : isRecurringBlock(original)
+          ? original.type === "available"
+            ? excludeAllRecurringBlocksOnDate(record, original.date)
+            : excludeSeriesDate(record, original.seriesId, original.date)
+          : removeBlock(record, original),
     )
     try {
       await updateBatch.mutateAsync({ records: changedRecords(records, nextRecords) })
@@ -286,11 +346,16 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
     )
   }
 
-  function handlePointerDown(event: ReactPointerEvent<HTMLButtonElement>, day: Weekday) {
+  function handlePointerDown(event: ReactPointerEvent<HTMLButtonElement>, occurrenceDate: string) {
     if (event.button !== 0) return
     event.currentTarget.setPointerCapture(event.pointerId)
     const minute = pointerMinute(event)
-    const next = { day, startMinutes: minute, endMinutes: minute + slotMinutes }
+    const next = {
+      date: occurrenceDate,
+      day: weekdayForDate(occurrenceDate),
+      startMinutes: minute,
+      endMinutes: minute + slotMinutes,
+    }
     dragRef.current = next
     setSelection(next)
   }
@@ -312,15 +377,13 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
     setSelection(null)
     const normalized = normalizeSelection(current)
     startCreate(
-      current.day,
+      current.date,
       fromMinutes(normalized.startMinutes),
       fromMinutes(normalized.endMinutes),
     )
   }
 
-  const editorSeriesCount = editor?.original
-    ? blocks.filter(({ seriesId }) => seriesId === editor.original?.seriesId).length
-    : 0
+  const editorIsRecurring = Boolean(editor?.original && isRecurringBlock(editor.original))
 
   return (
     <section
@@ -330,17 +393,87 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
       <div className="flex shrink-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 id="availability-title" className="text-lg font-semibold">
-            Disponibilidade semanal
+            Calendário de disponibilidade
           </h2>
           <p className="text-sm text-muted-foreground">
-            Arraste sobre a grade ou use “Adicionar bloco” para informar o período com precisão.
+            Navegue por datas e ajuste horários, pausas, feriados e ausências sem perder a série.
           </p>
         </div>
-        <Button type="button" onClick={() => startCreate("monday")}>
+        <Button type="button" onClick={() => startCreate(date)}>
           <PlusIcon aria-hidden="true" />
           Adicionar bloco
         </Button>
       </div>
+
+      <div className="flex shrink-0 flex-col gap-3 rounded-lg border bg-card p-3 xl:flex-row xl:items-end xl:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Período anterior"
+            onClick={() =>
+              onSearchChange({ availabilityDate: navigateAvailabilityDate(view, date, -1) })
+            }
+          >
+            <ChevronLeftIcon aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onSearchChange({ availabilityDate: localToday() })}
+          >
+            Hoje
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Próximo período"
+            onClick={() =>
+              onSearchChange({ availabilityDate: navigateAvailabilityDate(view, date, 1) })
+            }
+          >
+            <ChevronRightIcon aria-hidden="true" />
+          </Button>
+          <div className="min-w-44">
+            <Label className="sr-only" htmlFor="availability-calendar-date">
+              Ir para data
+            </Label>
+            <DatePicker
+              id="availability-calendar-date"
+              placeholder="Selecionar data"
+              value={date}
+              onValueChange={(availabilityDate) => onSearchChange({ availabilityDate })}
+            />
+          </div>
+        </div>
+        <fieldset className="grid grid-cols-3 rounded-md border p-0.5">
+          <legend className="sr-only">Visualização do calendário</legend>
+          {(
+            [
+              ["day", "Dia"],
+              ["week", "Semana"],
+              ["month", "Mês"],
+            ] as const
+          ).map(([candidate, label]) => (
+            <Button
+              key={candidate}
+              type="button"
+              size="sm"
+              variant={view === candidate ? "default" : "ghost"}
+              aria-pressed={view === candidate}
+              onClick={() => onSearchChange({ availabilityView: candidate })}
+            >
+              {label}
+            </Button>
+          ))}
+        </fieldset>
+      </div>
+
+      <p aria-live="polite" aria-atomic="true" className="shrink-0 text-sm font-medium">
+        {formatVisibleRange(view, date, visibleRange)}
+      </p>
 
       <div className="grid shrink-0 gap-3 rounded-lg border bg-card p-3 sm:grid-cols-2">
         <div className="grid gap-1">
@@ -413,58 +546,38 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
           <span className="inline-flex items-center gap-1.5">
             <span className="size-2.5 rounded-sm bg-feedback-destructive-foreground" /> Ausência
           </span>
-          <span className="ml-auto inline-flex items-center gap-1.5">
-            <MousePointerClickIcon aria-hidden="true" className="size-3.5" /> Clique ou arraste
-          </span>
+          {view !== "month" ? (
+            <span className="ml-auto inline-flex items-center gap-1.5">
+              <MousePointerClickIcon aria-hidden="true" className="size-3.5" /> Clique ou arraste
+            </span>
+          ) : null}
         </div>
-        <ScrollArea className="min-h-0 flex-1" scrollbars="both" maskHeight={18}>
-          <div className="grid min-w-[68rem] grid-cols-[4rem_repeat(7,minmax(8.5rem,1fr))]">
-            <div className="sticky top-0 left-0 z-40 border-r border-b bg-card" />
-            {weekdays.map((day) => (
-              <div
-                key={day}
-                className="sticky top-0 z-30 border-r border-b bg-card px-2 py-2 text-center"
-              >
-                <span className="block text-sm font-medium">{weekdayShortLabels[day]}</span>
-                <span className="text-xs text-muted-foreground">{weekdayLabels[day]}</span>
-              </div>
-            ))}
-            <TimeRail />
-            {weekdays.map((day) => (
-              <div
-                key={day}
-                className="relative border-r"
-                style={{ height: `${calendarHeight}px` }}
-              >
-                <button
-                  type="button"
-                  aria-label={`Adicionar período em ${weekdayLabels[day]}`}
-                  className="absolute inset-0 cursor-crosshair bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_calc(3.125%-1px),var(--border)_3.125%)] focus-visible:z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                  onClick={(event) => {
-                    if (event.detail === 0) startCreate(day)
-                  }}
-                  onPointerCancel={() => {
-                    dragRef.current = null
-                    setSelection(null)
-                  }}
-                  onPointerDown={(event) => handlePointerDown(event, day)}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
-                />
-                {selection?.day === day ? <SelectionPreview selection={selection} /> : null}
-                {blocks
-                  .filter((block) => block.day === day)
-                  .map((block) => (
-                    <CalendarBlockButton
-                      key={block.id}
-                      block={block}
-                      onClick={() => startEdit(block)}
-                    />
-                  ))}
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
+        {view === "month" ? (
+          <MonthCalendar
+            anchorDate={date}
+            blocks={blocks}
+            range={visibleRange}
+            onDateOpen={(availabilityDate) =>
+              onSearchChange({ availabilityDate, availabilityView: "day" })
+            }
+            onEdit={startEdit}
+          />
+        ) : (
+          <TimeGrid
+            blocks={blocks}
+            dates={datesInRange(visibleRange)}
+            selection={selection}
+            onEdit={startEdit}
+            onKeyboardCreate={startCreate}
+            onPointerCancel={() => {
+              dragRef.current = null
+              setSelection(null)
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          />
+        )}
       </div>
 
       {editor ? (
@@ -522,12 +635,12 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
 
             <TimeRangeEditor editor={editor} onChange={setEditor} hasError={Boolean(editorError)} />
 
-            {editor.original && editorSeriesCount > 1 ? (
+            {editor.original && editorIsRecurring ? (
               <fieldset className="grid gap-2 rounded-lg border p-3">
                 <legend className="px-1 text-sm font-medium">Aplicar alteração em</legend>
                 <ScopeOption
                   checked={editor.scope === "single"}
-                  label={`Somente ${weekdayLabels[editor.day].toLocaleLowerCase("pt-BR")}`}
+                  label={`Somente ${formatDateForSpeech(editor.date)}`}
                   onChange={() => setEditor({ ...editor, scope: "single" })}
                 />
                 <ScopeOption
@@ -552,7 +665,7 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
                   id="availability-repeat"
                   checked={editor.repeat}
                   disabled={Boolean(
-                    editor.original && editorSeriesCount > 1 && editor.scope === "single",
+                    editor.original && editorIsRecurring && editor.scope === "single",
                   )}
                   onCheckedChange={(repeat) => setEditor({ ...editor, repeat })}
                 />
@@ -572,7 +685,7 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
                             type="checkbox"
                             checked={editor.days.includes(day)}
                             disabled={Boolean(
-                              editor.original && editorSeriesCount > 1 && editor.scope === "single",
+                              editor.original && editorIsRecurring && editor.scope === "single",
                             )}
                             onChange={(event) =>
                               setEditor({
@@ -588,6 +701,15 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
                       ))}
                     </div>
                   </fieldset>
+                  <div className="grid gap-1">
+                    <Label htmlFor="availability-repeat-start">Iniciar em</Label>
+                    <DatePicker
+                      id="availability-repeat-start"
+                      placeholder="Selecionar data inicial"
+                      value={editor.recurrenceStart}
+                      onValueChange={(recurrenceStart) => setEditor({ ...editor, recurrenceStart })}
+                    />
+                  </div>
                   <div className="grid gap-1">
                     <Label htmlFor="availability-repeat-until">Repetir até (opcional)</Label>
                     <DatePicker
@@ -629,10 +751,10 @@ export function AvailabilityCalendar({ scenarioId }: { scenarioId: SetupScenario
           deleteTarget?.original?.type === "available"
             ? deleteTarget.scope === "series"
               ? "Os períodos disponíveis ligados a esta recorrência serão removidos. Se um dia ficar sem disponibilidade, pausas e ausências desse dia também serão removidas. Agendamentos existentes não serão afetados."
-              : "Somente o período disponível deste dia será removido. Se o dia ficar sem disponibilidade, suas pausas e ausências também serão removidas. Os demais dias continuarão iguais."
+              : `Somente o período disponível de ${formatDateForSpeech(deleteTarget.date)} será removido. As ocorrências seguintes continuarão iguais.`
             : deleteTarget?.scope === "series"
               ? "Todos os dias ligados a esta recorrência serão removidos. Esta ação não afeta agendamentos existentes."
-              : "Somente o bloco do dia selecionado será removido. Os demais dias da recorrência continuarão iguais."
+              : `Somente o bloco de ${formatDateForSpeech(deleteTarget?.date ?? date)} será removido. As ocorrências seguintes continuarão iguais.`
         }
         cancelLabel="Cancelar"
         confirmLabel="Excluir"
@@ -706,6 +828,141 @@ function ScopeOption({
   )
 }
 
+function TimeGrid({
+  blocks,
+  dates,
+  onEdit,
+  onKeyboardCreate,
+  onPointerCancel,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  selection,
+}: {
+  blocks: readonly CalendarBlock[]
+  dates: readonly string[]
+  onEdit: (block: CalendarBlock) => void
+  onKeyboardCreate: (date: string) => void
+  onPointerCancel: () => void
+  onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>, date: string) => void
+  onPointerMove: (event: ReactPointerEvent<HTMLButtonElement>) => void
+  onPointerUp: (event: ReactPointerEvent<HTMLButtonElement>) => void
+  selection: DragSelection | null
+}) {
+  return (
+    <ScrollArea className="min-h-0 flex-1" scrollbars="both" maskHeight={18}>
+      <div
+        className={cn("grid", dates.length === 1 ? "min-w-[24rem]" : "min-w-[68rem]")}
+        style={{ gridTemplateColumns: `4rem repeat(${dates.length}, minmax(8.5rem, 1fr))` }}
+      >
+        <div className="sticky top-0 left-0 z-40 border-r border-b bg-card" />
+        {dates.map((date) => {
+          const day = weekdayForDate(date)
+          return (
+            <div
+              key={date}
+              className="sticky top-0 z-30 border-r border-b bg-card px-2 py-2 text-center"
+            >
+              <span className="block text-sm font-medium">{weekdayShortLabels[day]}</span>
+              <span className="text-xs text-muted-foreground">{formatDateHeader(date)}</span>
+            </div>
+          )
+        })}
+        <TimeRail />
+        {dates.map((date) => {
+          const day = weekdayForDate(date)
+          return (
+            <div key={date} className="relative border-r" style={{ height: `${calendarHeight}px` }}>
+              <button
+                type="button"
+                aria-label={`Adicionar período em ${weekdayLabels[day]}, ${formatDateForSpeech(date)}`}
+                className="absolute inset-0 cursor-crosshair bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_calc(3.125%-1px),var(--border)_3.125%)] focus-visible:z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                onClick={(event) => {
+                  if (event.detail === 0) onKeyboardCreate(date)
+                }}
+                onPointerCancel={onPointerCancel}
+                onPointerDown={(event) => onPointerDown(event, date)}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+              />
+              {selection?.date === date ? <SelectionPreview selection={selection} /> : null}
+              {blocks
+                .filter((block) => block.date === date)
+                .map((block) => (
+                  <CalendarBlockButton
+                    key={block.projectedId}
+                    block={block}
+                    onClick={() => onEdit(block)}
+                  />
+                ))}
+            </div>
+          )
+        })}
+      </div>
+    </ScrollArea>
+  )
+}
+
+function MonthCalendar({
+  anchorDate,
+  blocks,
+  onDateOpen,
+  onEdit,
+  range,
+}: {
+  anchorDate: string
+  blocks: readonly CalendarBlock[]
+  onDateOpen: (date: string) => void
+  onEdit: (block: CalendarBlock) => void
+  range: AvailabilityDateRange
+}) {
+  return (
+    <ScrollArea className="min-h-0 flex-1" scrollbars="both" maskHeight={18}>
+      <div className="grid min-w-[48rem] grid-cols-7">
+        {weekdays.map((day) => (
+          <div
+            key={day}
+            className="sticky top-0 z-20 border-r border-b bg-card px-2 py-2 text-center text-xs font-medium"
+          >
+            {weekdayShortLabels[day]}
+          </div>
+        ))}
+        {datesInRange(range).map((date) => {
+          const dateBlocks = blocks.filter((block) => block.date === date)
+          const isOutsideMonth = date.slice(0, 7) !== anchorDate.slice(0, 7)
+          return (
+            <div
+              key={date}
+              className={cn(
+                "min-h-32 border-r border-b p-1.5",
+                isOutsideMonth && "bg-muted/25 text-muted-foreground",
+              )}
+            >
+              <button
+                type="button"
+                className="flex size-8 cursor-pointer items-center justify-center rounded-md text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Abrir dia ${formatDateForSpeech(date)}`}
+                onClick={() => onDateOpen(date)}
+              >
+                {Number(date.slice(-2))}
+              </button>
+              <div className="mt-1 grid gap-1">
+                {dateBlocks.map((block) => (
+                  <MonthBlockButton
+                    key={block.projectedId}
+                    block={block}
+                    onClick={() => onEdit(block)}
+                  />
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </ScrollArea>
+  )
+}
+
 function TimeRail() {
   const labels = Array.from({ length: 17 }, (_, index) => calendarStartMinutes + index * 60)
   return (
@@ -742,7 +999,7 @@ function CalendarBlockButton({ block, onClick }: { block: CalendarBlock; onClick
   return (
     <button
       type="button"
-      aria-label={`${blockTypeLabels[block.type]}, ${weekdayLabels[block.day]}, das ${block.start} às ${block.end}`}
+      aria-label={calendarBlockAccessibleName(block)}
       className={cn(
         "absolute right-1 left-1 z-10 overflow-hidden rounded-md border px-2 py-1 text-left text-xs shadow-sm transition-[filter,transform] hover:brightness-95 focus-visible:z-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         block.type === "available" && "border-primary/40 bg-primary text-primary-foreground",
@@ -765,20 +1022,43 @@ function CalendarBlockButton({ block, onClick }: { block: CalendarBlock; onClick
   )
 }
 
-function calendarBlocks(records: readonly SetupAvailability[]) {
-  return records.flatMap((record) => [
-    ...record.periods.map((block) => calendarBlock(record, block, "available")),
-    ...record.breaks.map((block) => calendarBlock(record, block, "break")),
-    ...record.absences.map((block) => calendarBlock(record, block, "absence")),
-  ])
+function MonthBlockButton({ block, onClick }: { block: CalendarBlock; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={calendarBlockAccessibleName(block)}
+      className={cn(
+        "min-h-7 w-full cursor-pointer truncate rounded-sm border px-1.5 py-1 text-left text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        block.type === "available" && "border-primary/40 bg-primary text-primary-foreground",
+        block.type === "break" && "border-warning bg-warning text-warning-foreground",
+        block.type === "absence" &&
+          "border-feedback-destructive-border bg-feedback-destructive text-feedback-destructive-foreground",
+      )}
+      onClick={onClick}
+    >
+      {blockTypeLabels[block.type]} · {block.start}–{block.end}
+    </button>
+  )
 }
 
-function calendarBlock(
-  record: SetupAvailability,
-  block: AvailabilityTimeBlock,
-  type: AvailabilityBlockType,
-): CalendarBlock {
-  return { ...block, day: record.day, recordId: record.id, type }
+function calendarSourceBlocks(record: SetupAvailability) {
+  return [
+    ...record.periods.map((block) => ({
+      ...block,
+      recordId: record.id,
+      type: "available" as const,
+    })),
+    ...record.breaks.map((block) => ({
+      ...block,
+      recordId: record.id,
+      type: "break" as const,
+    })),
+    ...record.absences.map((block) => ({
+      ...block,
+      recordId: record.id,
+      type: "absence" as const,
+    })),
+  ]
 }
 
 function addBlock(
@@ -810,6 +1090,32 @@ function removeSeries(record: SetupAvailability, seriesId: string): SetupAvailab
     breaks: record.breaks.filter((block) => block.seriesId !== seriesId),
     absences: record.absences.filter((block) => block.seriesId !== seriesId),
   })
+}
+
+function excludeSeriesDate(record: SetupAvailability, seriesId: string, date: string) {
+  const exclude = (block: AvailabilityTimeBlock) =>
+    block.seriesId === seriesId && isRecurringBlock(block)
+      ? { ...block, excludedDates: [...new Set([...block.excludedDates, date])].sort() }
+      : block
+  return {
+    ...record,
+    periods: record.periods.map(exclude),
+    breaks: record.breaks.map(exclude),
+    absences: record.absences.map(exclude),
+  }
+}
+
+function excludeAllRecurringBlocksOnDate(record: SetupAvailability, date: string) {
+  const exclude = (block: AvailabilityTimeBlock) =>
+    isRecurringBlock(block)
+      ? { ...block, excludedDates: [...new Set([...block.excludedDates, date])].sort() }
+      : block
+  return {
+    ...record,
+    periods: record.periods.map(exclude),
+    breaks: record.breaks.map(exclude),
+    absences: record.absences.map(exclude),
+  }
 }
 
 function normalizeClosedDay(record: SetupAvailability): SetupAvailability {
@@ -877,6 +1183,41 @@ function toMinutes(value: string) {
 function fromMinutes(value: number) {
   const normalized = Math.min(24 * 60 - 1, Math.max(0, value))
   return `${String(Math.floor(normalized / 60)).padStart(2, "0")}:${String(normalized % 60).padStart(2, "0")}`
+}
+
+function formatVisibleRange(
+  view: AvailabilityView,
+  anchorDate: string,
+  range: AvailabilityDateRange,
+) {
+  if (view === "day") return formatDateForSpeech(anchorDate)
+  if (view === "month")
+    return dateFromOnly(anchorDate).toLocaleDateString("pt-BR", {
+      month: "long",
+      year: "numeric",
+    })
+  return `${formatDateForSpeech(range.start)} a ${formatDateForSpeech(range.end)}`
+}
+
+function formatDateHeader(value: string) {
+  return dateFromOnly(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+}
+
+function formatDateForSpeech(value: string) {
+  return dateFromOnly(value).toLocaleDateString("pt-BR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+}
+
+function dateFromOnly(value: string) {
+  const [year, month, day] = value.split("-").map(Number)
+  return new Date(year, month - 1, day, 12)
+}
+
+function calendarBlockAccessibleName(block: CalendarBlock) {
+  return `${blockTypeLabels[block.type]}, ${weekdayLabels[block.day]}, ${formatDateForSpeech(block.date)}, das ${block.start} às ${block.end}`
 }
 
 function createAvailabilityId(prefix: string) {

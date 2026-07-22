@@ -11,11 +11,13 @@ until a separate initiative accepts API, persistence, tenancy, and authorization
 
 ## Experience Contract
 
-The stable URL state contains `section` and an optional technical `scenario` identifier. Supported
-sections are `overview`, `units`, `professionals`, `services`, and `availability`. Missing or invalid
-scenarios resolve to `single-unit`. The scenario value exists only for dev/test reproducibility and
-has no ordinary visible selector. Search text, names, addresses, notes, form values, and other
-PII-shaped values remain component-local.
+The stable URL state contains `section`, `availabilityView`, `availabilityDate`, and an optional
+technical `scenario` identifier. Supported calendar views are `day`, `week`, and `month`; the date
+is a validated canonical local `YYYY-MM-DD` value. Invalid temporal values resolve to the current
+local date and week view. Supported sections are `overview`, `units`, `professionals`, `services`,
+and `availability`. Missing or invalid scenarios resolve to `single-unit`. The scenario value exists
+only for dev/test reproducibility and has no ordinary visible selector. Search text, names,
+addresses, notes, form values, and other PII-shaped values remain component-local.
 
 The normal page does not expose preview/prototype terminology, scenario controls, reset controls,
 fixture counts, latency, or failure modes. Loading, errors, retry, validation, confirmation, success,
@@ -27,31 +29,39 @@ for later review after the operation is complete.
 
 Catalog sections use the same compact search and icon/menu filter language as Agenda. Units,
 professionals, and services fill the remaining module body with a shared data table: the header and
-pagination remain fixed while the table viewport owns vertical and horizontal scrolling. They
-support bounded search, status filtering, three-state sorting, pagination, inspect, create, edit,
-archive, and restore. Archive commands block active dependencies instead of silently orphaning
-records. Unit opening hours are a structured composed period with selectable weekdays instead of a
-free-text summary. Service
+pagination remain fixed while the table viewport owns vertical and horizontal scrolling. A vertical
+scrollbar is mounted only when the body has real overflow; when present, it moves the body while the
+sticky header and external pagination stay fixed. Horizontal overflow remains independently
+operable. The catalogs support bounded search, status filtering, three-state sorting, pagination,
+inspect, create, edit, archive, and restore. Archive commands block active dependencies instead of
+silently orphaning records. Unit opening hours are a structured composed period with selectable
+weekdays instead of a free-text summary. Service
 `professionalIds` are the canonical professional/service relationship in the memory adapter;
 professional `serviceIds` are synchronized after create, update, archive, restore, scenario
 selection, and reset. A selected professional must serve at least one active unit selected for the
 service.
 
-Availability uses a weekly time grid filtered by professional and unit. Available, break/block, and
-absence intervals are separately labeled and keep meaning independent from color. Pointer drag is a
-fast range-selection path; clicking/tapping the grid and the explicit `Adicionar bloco` command open
-the same composed start/end editor, so dragging is never required. Native buttons expose each block
-and every day insertion surface to keyboard and assistive technology.
+Availability uses a real dated calendar filtered by professional and unit. Day and week views use a
+time grid; month uses the complete Monday-to-Sunday grid around the selected month. Users can move
+backward or forward, return to today, jump to a date, and open a month cell as a day. Available,
+break/block, and absence intervals are separately labeled and keep meaning independent from color.
+Pointer drag is a fast range-selection path in day/week; clicking/tapping the grid and the explicit
+`Adicionar bloco` command open the same composed start/end editor, so dragging is never required.
+Native buttons expose each projected occurrence and insertion surface to keyboard and assistive
+technology.
 
-Weekly recurrence selects weekdays and may include an optional end date to express a month, year,
-or custom operating period. Editing and deletion require explicit selected-day versus entire-series
-scope. The memory adapter gives every interval a block ID and series ID and applies recurrence
-changes atomically through `updateAvailabilityBatch`; simulated mutation failure rolls the whole
-batch back. A linked professional/unit pair can create its first day directly; the memory adapter
-creates the missing day record during the same validated batch instead of requiring pre-seeded
-availability. This is an evaluation contract only. A future dated API must define persisted series,
-exceptions, effective dates, `this and following` behavior, transactions/idempotency, tenancy, and
-authorization independently.
+Weekly recurrence selects weekdays, requires a start date, and may include an end date. One-off
+blocks carry an exact date. Recurring rules keep excluded dates and are projected only across the
+bounded visible day/week/month range. Editing one occurrence atomically excludes the source date and
+adds a dated override; deleting one occurrence adds the exclusion without changing later dates.
+Editing or deleting the series remains an explicit separate scope. The memory adapter gives every
+interval a block ID and series ID and applies recurrence/exception changes atomically through
+`updateAvailabilityBatch`; simulated mutation failure rolls the whole batch back. A linked
+professional/unit pair can create its first day directly; the memory adapter creates the missing
+day record during the same validated batch instead of requiring pre-seeded availability. This is an
+evaluation contract only. A future dated API must define persisted series, exceptions, effective
+dates, `this and following` behavior, transactions/idempotency, tenancy, and authorization
+independently.
 
 Appointment occupancy is not manually editable in setup. Agenda remains the owner of appointments;
 a future accepted cross-module contract may overlay that information read-only.
@@ -121,15 +131,16 @@ The original ENG-41 implementation inspected the existing Base UI/Vite and insta
 components. `DataTable`, `FilterTrigger`, `ActionDrawer`, `ConfirmationDialog`, `FormSection`, field
 primitives, `EmptyState`, `StatusBadge`, `Button`, `Card`, `Select`, `Switch`, `Input`, `Textarea`,
 and `Skeleton` cover the module contract. `FilterTrigger` was promoted from Agenda after setup
-became its second concrete consumer. The weekly grid and composed time-range fields remain
+became its second concrete consumer. The dated calendar and composed time-range fields remain
 module-owned because their semantics are specific to barbershop configuration. No dependency,
 registry item, or token was added.
 
 ## Verification And Residual Manual Work
 
-Vitest covers URL validation, source targets, scenario isolation, deterministic IDs, dependency
-blocking, failure behavior, stale-operation isolation, relationships, atomic availability batches,
-composed opening-hours validation, compact filters, keyboard calendar entry, forms, route gating,
+Vitest covers URL/date/view validation, bounded occurrence projection, source targets, scenario
+isolation, deterministic IDs, dependency blocking, failure behavior, stale-operation isolation,
+relationships, atomic availability/exception batches, composed opening-hours validation, compact
+filters, keyboard calendar entry, forms, route gating,
 registry, breadcrumbs, and architecture boundaries. Playwright covers direct authenticated entry,
 expanded/collapsed/mobile sidebar navigation, absence of preview chrome, guided overview,
 fill-height tables, CRUD, retry, rollback, relationship validation, recurrence creation and scope,

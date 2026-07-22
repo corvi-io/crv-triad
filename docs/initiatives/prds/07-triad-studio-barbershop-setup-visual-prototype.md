@@ -59,6 +59,9 @@ Related sources:
 - Replace seven independent availability cards with a weekly time-grid editor that supports
   pointer selection, an equivalent click/keyboard form path, block types, weekly recurrence, and
   explicit edit/delete scope.
+- Make availability a dated calendar with day, week, and month views; previous/next/today
+  navigation; direct date selection; and per-date recurrence exceptions for future holidays,
+  vacations, and other operational changes.
 - Replace free-text unit opening hours and separate start/end affordances with composed time-range
   controls that communicate one period.
 
@@ -74,9 +77,8 @@ Related sources:
 - Enabling the memory source in `hml` or `prd`.
 - Treating appointments as manually editable availability blocks. Appointment occupancy remains an
   Agenda concern and may only be overlaid by a future accepted cross-module contract.
-- Monthly or yearly cadence for ordinary working hours. Weekly recurrence with an optional end date
-  represents a month, year, or bounded operating period without inventing calendar semantics that
-  do not match staff availability.
+- Monthly or yearly recurrence cadence for ordinary working hours. Month is an accepted calendar
+  view, while the operating rule remains weekly with explicit start/end dates and dated exceptions.
 - Inventing general-company registration fields before legal identity, contact, branding, tenancy,
   and API ownership are accepted. The overview may expose the gap, but this iteration does not
   fabricate a business profile contract.
@@ -156,6 +158,35 @@ The approach remains an evaluation contract, not a backend schema. Batch availab
 atomic in the memory repository so a failed recurrence change cannot partially update weekdays.
 Future API work must provide equivalent transactional behavior or a documented idempotent command.
 
+### Dated Calendar Product Review Expansion
+
+A timeless week cannot answer the actual operational question: “what will happen on the holiday
+next Monday?” Product review therefore requires a real calendar rather than a reusable weekday
+template. The accepted design is:
+
+- Keep weekly recurrence as the rule language, but project occurrences only for the bounded day,
+  week, or month currently visible.
+- Add `Dia`, `Semana`, and `Mês` views with previous, next, today, and direct-date navigation.
+- Put the selected view and date in stable non-PII URL state so a reviewer can refresh or share the
+  exact temporal context.
+- Give every one-off block an exact occurrence date. Give recurring blocks a start date, optional
+  end date, selected weekdays, and a set of excluded dates.
+- Editing one recurring occurrence creates a dated exception/override; deleting one recurring
+  occurrence adds only that date to the series exclusions. Editing or deleting the series remains
+  an explicit separate action.
+- Let a month cell open the corresponding day while retaining directly operable event buttons.
+  Day and week time grids retain pointer drag plus explicit click/keyboard alternatives.
+
+The simpler alternative—adding only previous/next buttons to the timeless week—was rejected because
+the same weekday record would still be indistinguishable across dates and could not represent a
+holiday exception. Materializing every future occurrence was also rejected: it is unbounded and
+would create unnecessary storage, migration, and concurrency problems. The long-term API should
+persist recurrence rules plus exceptions and return occurrences for a required bounded date range.
+
+The memory source implements this evaluation contract without defining the future database or REST
+shape. It does not log schedule payloads, add analytics, change authentication, or introduce
+background work. Capacity remains unknown; fixtures are bounded UX evidence only.
+
 ## Experience Contract
 
 ### Route And Navigation
@@ -172,6 +203,9 @@ Future API work must provide equivalent transactional behavior or a documented i
   through the stable `section` query value.
 - `scenario` may remain as a technical non-PII dev/test query value; invalid or missing values
   resolve to `single-unit`.
+- `availabilityView` (`day`, `week`, or `month`) and canonical date-only `availabilityDate` may
+  enter URL state because they are shareable non-PII calendar context. Invalid values resolve to
+  `week` and the current local date.
 - Names, phones, addresses, notes, searches, and form payloads never enter URL state.
 
 ### Normal Product Chrome
@@ -195,6 +229,8 @@ using Brazilian Portuguese product language.
   conflict feedback, rollback, and retry continue through the module-owned repository port.
 - Recurring block changes update the selected weekdays atomically while unrelated blocks remain
   attached to their original weekday.
+- Calendar projection is bounded to the visible day/week/month. One-off blocks occur only on their
+  exact date; recurring blocks honor start date, optional end date, and excluded occurrence dates.
 - The default `single-unit` state opens a complete, useful setup rather than an empty harness.
 
 ## Architecture And Boundaries
@@ -214,6 +250,8 @@ using Brazilian Portuguese product language.
 ## Performance And Scalability
 
 - Current collections are bounded UX/test fixtures, not capacity evidence.
+- Day/week/month projection scans only the selected relationship and visible date interval; month
+  view is bounded to its displayed calendar grid rather than expanding an unbounded series.
 - Existing table pagination and scoped TanStack Query keys remain in place.
 - No polling, WebSocket, background refresh, upload, or external request is introduced.
 - Stale delayed operations remain generation-guarded and may not overwrite a newer technical test
@@ -248,6 +286,9 @@ using Brazilian Portuguese product language.
   add/edit form. Calendar blocks are native buttons with names that include type, weekday, and time.
 - The weekly grid uses bounded horizontal scrolling on narrow viewports without creating page-level
   horizontal overflow; focus remains visible above fixed table/footer chrome.
+- Previous/next/today, direct-date selection, and day/week/month switching use native or existing
+  shared controls with accessible names. View changes announce the visible interval without moving
+  focus unexpectedly.
 
 ## Acceptance Criteria
 
@@ -284,6 +325,20 @@ using Brazilian Portuguese product language.
 - [x] Focused unit/component and browser evidence covers table sizing, filter menus, range fields,
       calendar block operations, recurrence scope, drag alternative, axe, 320px reflow, dark mode,
       focus, and reduced motion.
+- [x] Availability offers dated day, week, and month views with previous, next, today, and direct
+      date navigation.
+- [x] The selected calendar view and canonical date survive refresh through stable non-PII URL
+      state.
+- [x] Non-recurring blocks appear only on their exact date; recurring blocks honor start date,
+      optional end date, selected weekdays, and excluded dates.
+- [x] Editing or deleting one recurring occurrence affects only that date, while the explicit
+      whole-series action updates or removes the recurrence atomically.
+- [x] Month cells expose the correct bounded occurrences and can open the corresponding day view;
+      day/week retain drag plus click/tap/keyboard creation.
+- [x] Catalog table bodies show a vertical scrollbar only for real overflow, preserve horizontal
+      scrolling, and keep the header/footer fixed while the body scrolls.
+- [x] Focused repository, component, and browser evidence covers navigation boundaries, projection,
+      holiday exclusion, occurrence override, series mutation, axe, keyboard, and 320px reflow.
 
 ## Verification Plan
 
@@ -311,7 +366,7 @@ using Brazilian Portuguese product language.
 - [x] July 2026 product review: combine the ongoing hub with guided next actions.
 - [x] Availability semantics: setup owns available, break/block, and absence; Agenda owns
       appointment occupancy.
-- [x] Recurrence: weekly weekdays plus optional end date for the evaluation experience; future API
-      work owns dated series/exceptions and `this and following` behavior.
+- [x] Recurrence: weekly weekdays with start/end dates and excluded occurrence dates for the
+      evaluation experience; future API work owns persistence and `this and following` behavior.
 - [ ] A future initiative must define the general barbershop/company profile fields and ownership;
       this iteration does not invent legal identity or tenant data.

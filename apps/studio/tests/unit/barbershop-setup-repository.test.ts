@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { BarbershopSetupMemoryRepository } from "@/dev/barbershop-setup/memory-repository"
 import { SimulatedMockFailure } from "@/dev/mock-engine"
+import { projectAvailability } from "@/modules/barbershop-setup/availability-dates"
 import type {
   BusinessHours,
   SetupAvailability,
@@ -370,7 +371,9 @@ describe("barbershop setup memory repository", () => {
       breaks: [
         ...record.breaks,
         {
+          excludedDates: [],
           id: `batch-${record.day}`,
+          recurrenceStart: "2026-01-01",
           seriesId: "batch-series",
           start: "14:00",
           end: "15:00",
@@ -405,6 +408,59 @@ describe("barbershop setup memory repository", () => {
         .flatMap(({ breaks }) => breaks)
         .filter(({ seriesId }) => seriesId === "batch-series"),
     ).toHaveLength(2)
+  })
+
+  it("stores one dated override without changing later series occurrences", async () => {
+    const repository = new BarbershopSetupMemoryRepository()
+    const before = await repository.getAvailability({
+      professionalId: "professional-alpha",
+      scenarioId: "single-unit",
+      unitId: "unit-center",
+    })
+    const exceptionDate = "2026-07-20"
+    const monday = before.records.find(({ day }) => day === "monday")
+    expect(monday).toBeDefined()
+    if (!monday) return
+
+    const excludeDate = (block: (typeof monday.periods)[number]) => ({
+      ...block,
+      excludedDates: [...block.excludedDates, exceptionDate],
+    })
+    const updates = before.records.map((record) => ({
+      ...record,
+      absences: record.absences.map(excludeDate),
+      breaks: record.breaks.map(excludeDate),
+      periods: record.periods.map(excludeDate),
+    }))
+    const mondayUpdate = updates.find(({ day }) => day === "monday")
+    if (!mondayUpdate) return
+    mondayUpdate.periods = [
+      ...mondayUpdate.periods,
+      {
+        end: "17:00",
+        excludedDates: [],
+        id: "monday-override",
+        occurrenceDate: exceptionDate,
+        seriesId: "monday-override",
+        start: "10:00",
+      },
+    ]
+
+    await repository.updateAvailabilityBatch({ records: updates })
+    const after = await repository.getAvailability({
+      professionalId: "professional-alpha",
+      scenarioId: "single-unit",
+      unitId: "unit-center",
+    })
+    const occurrences = projectAvailability(after.records, {
+      start: exceptionDate,
+      end: "2026-07-27",
+    }).filter(({ day, type }) => day === "monday" && type === "available")
+
+    expect(occurrences).toEqual([
+      expect.objectContaining({ date: exceptionDate, start: "10:00", end: "17:00" }),
+      expect.objectContaining({ date: "2026-07-27", start: "09:00", end: "18:00" }),
+    ])
   })
 
   it("creates a complete week for a newly linked professional and unit", async () => {
@@ -447,8 +503,10 @@ describe("barbershop setup memory repository", () => {
         day === "monday"
           ? [
               {
+                excludedDates: [],
                 end: "18:00",
                 id: "new-week-monday",
+                recurrenceStart: "2026-01-01",
                 seriesId: "new-week",
                 start: "09:00",
               },
@@ -501,7 +559,9 @@ describe("barbershop setup memory repository", () => {
       ...target,
       absences: [
         {
+          excludedDates: [],
           id: "absence-thursday",
+          recurrenceStart: "2026-01-01",
           seriesId: "absence-thursday",
           start: "14:00",
           end: "15:00",
@@ -513,7 +573,9 @@ describe("barbershop setup memory repository", () => {
         ...source,
         absences: [
           {
+            excludedDates: [],
             id: "absence-monday",
+            recurrenceStart: "2026-01-01",
             seriesId: "absence-monday",
             start: "15:00",
             end: "16:00",

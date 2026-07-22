@@ -67,6 +67,7 @@ export function DataTable({
         className="min-h-0 flex-1"
         maskClassName="before:from-card after:from-card"
         scrollbars="both"
+        scrollbarVisibility="overflow"
         viewportClassName={cn("min-h-0", viewportClassName)}
       >
         <table

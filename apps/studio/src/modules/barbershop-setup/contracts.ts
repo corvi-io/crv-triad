@@ -16,11 +16,16 @@ export type AccountAccessStatus = "connected" | "invited" | "not-configured"
 export type TimeRange = { end: string; start: string }
 export type BusinessHours = TimeRange & { days: readonly Weekday[] }
 export type AvailabilityTimeBlock = TimeRange & {
+  excludedDates: readonly string[]
   id: string
+  occurrenceDate?: string
+  recurrenceStart?: string
   recurrenceUntil?: string
   seriesId: string
 }
 export type AvailabilityBlockType = "available" | "break" | "absence"
+export const availabilityViews = ["day", "week", "month"] as const
+export type AvailabilityView = (typeof availabilityViews)[number]
 
 type SetupEntityBase = {
   id: string

@@ -52,10 +52,11 @@ and `prd`; see `docs/studio/schedule-prototype.md` for the visual contract, runt
 residual manual accessibility checks.
 
 The authenticated barbershop setup module presents a guided overview, fill-height
-unit/professional/service catalogs, structured unit opening hours, and a weekly block-based
-availability calendar. The calendar supports pointer selection plus click/keyboard alternatives,
-weekly recurrence, bounded end dates, explicit selected-day/series scope, conflict feedback, retry,
-and atomic batch rollback. Local and configured deployed `dev` builds compose a deterministic
+unit/professional/service catalogs, structured unit opening hours, and a dated block-based
+availability calendar. The calendar supports day, week, and month views, URL-backed temporal
+navigation, pointer selection plus click/keyboard alternatives, bounded weekly recurrence, exact
+one-offs, per-date exclusions, explicit occurrence/series scope, conflict feedback, retry, and
+atomic batch rollback. Local and configured deployed `dev` builds compose a deterministic
 session-memory source; the normal UI does not expose scenario or reset controls. `hml` and `prd`
 resolve the source as disabled and exclude fixtures; no API, persistence, tenancy, or authorization
 contract is accepted. See `docs/studio/barbershop-setup.md`.

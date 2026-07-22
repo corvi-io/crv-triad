@@ -90,7 +90,9 @@ function availability(
       end: string,
       suffix = "default",
     ): AvailabilityTimeBlock => ({
+      excludedDates: [],
       id: `block-${professionalId}-${unitId}-${day}-${type}-${suffix}`,
+      recurrenceStart: "2025-01-01",
       seriesId: `series-${professionalId}-${unitId}-${type}-${suffix}`,
       start,
       end,
