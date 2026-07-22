@@ -91,6 +91,7 @@ describe("scheduling memory repository", () => {
       "dense",
       "many-professionals",
       "long-content",
+      "short-durations",
       "blocked",
       "walk-in",
       "conflict",

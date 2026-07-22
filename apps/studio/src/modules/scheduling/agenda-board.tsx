@@ -359,6 +359,7 @@ function ScheduleCell({
             appointment={appointment}
             isReschedulePending={isReschedulePending}
             professionalIndex={professionalIndex}
+            rowSpan={rowSpan}
             service={service.get(appointment.serviceId)}
             slotIndex={slotIndex}
             onAppointment={() => onAppointment(appointment)}
@@ -425,6 +426,7 @@ function AppointmentCard({
   onAppointment,
   onTransition,
   professionalIndex,
+  rowSpan,
   service,
   slotIndex,
 }: {
@@ -433,6 +435,7 @@ function AppointmentCard({
   onAppointment: () => void
   onTransition: () => void
   professionalIndex: number
+  rowSpan: number
   service?: Service
   slotIndex: number
 }) {
@@ -451,36 +454,64 @@ function AppointmentCard({
   })
   const presentation = appointmentStatusPresentation[appointment.status]
   const end = fromMinutes(toMinutes(appointment.start) + appointment.durationMinutes)
+  const layout = appointmentCardLayout(rowSpan)
+  const serviceName = service?.name ?? "Serviço sintético"
 
   return (
     <div
       className={cn(
-        "group relative z-10 flex h-full min-h-16 items-start gap-2 rounded-md border-2 p-2 pr-8",
+        "group relative z-10 flex h-full overflow-hidden rounded-md border-2",
+        layout === "compact" && "items-center",
+        layout === "medium" && "items-start gap-1 p-1 pr-8",
+        layout === "full" && "items-start gap-2 p-2 pr-8",
         presentation.className,
         isDragging && "opacity-35",
       )}
       data-appointment-id={appointment.id}
       data-appointment-status={appointment.status}
+      data-card-layout={layout}
+      data-duration-minutes={appointment.durationMinutes}
       ref={setNodeRef}
     >
-      <AgendaAvatar className="mt-0.5" name={appointment.customerName} size="sm" />
+      {layout !== "compact" ? (
+        <AgendaAvatar
+          className={layout === "full" ? "mt-0.5" : undefined}
+          name={appointment.customerName}
+          size="sm"
+        />
+      ) : null}
       <button
-        className="min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
+        aria-label={`${appointment.customerName}, ${appointment.start} às ${end}, ${serviceName}, situação ${presentation.label}. Ver detalhes`}
+        className={cn(
+          "min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/60 focus-visible:ring-inset",
+          layout === "compact" && "flex h-full items-center gap-1 px-1 pr-12 text-xs",
+        )}
         type="button"
         onClick={onAppointment}
       >
-        <span className="flex items-start justify-between gap-1">
-          <span className="truncate font-semibold">{appointment.customerName}</span>
-          <span className="shrink-0 text-[0.68rem] tabular-nums">
-            {appointment.start} – {end}
-          </span>
-        </span>
-        <span className="mt-0.5 block truncate text-xs text-current/75">
-          {service?.name ?? "Serviço sintético"}
-        </span>
-        <span className="mt-1 flex">
-          <StatusBadge tone={toneForStatus(appointment.status)}>{presentation.label}</StatusBadge>
-        </span>
+        {layout === "compact" ? (
+          <>
+            <span className="shrink-0 text-[0.68rem] tabular-nums">{appointment.start}</span>
+            <span className="truncate font-semibold">{appointment.customerName}</span>
+          </>
+        ) : (
+          <>
+            <span className="flex items-start justify-between gap-1">
+              <span className="truncate font-semibold">{appointment.customerName}</span>
+              <span className="shrink-0 text-[0.68rem] tabular-nums">
+                {appointment.start} – {end}
+              </span>
+            </span>
+            {layout === "full" ? (
+              <span className="mt-0.5 block truncate text-xs text-current/75">{serviceName}</span>
+            ) : null}
+            <span className="mt-1 flex">
+              <StatusBadge tone={toneForStatus(appointment.status)}>
+                {presentation.label}
+              </StatusBadge>
+            </span>
+          </>
+        )}
       </button>
       <button
         {...attributes}
@@ -493,7 +524,8 @@ function AppointmentCard({
               : `Remarcar ${appointment.customerName}`
         }
         className={cn(
-          "absolute right-1 bottom-1 z-30 flex size-7 touch-none items-center justify-center rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/60",
+          "absolute z-30 flex size-7 touch-none items-center justify-center rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/60 focus-visible:ring-inset",
+          layout === "compact" ? "top-0 right-0 size-6" : "right-1 bottom-1",
           isDragDisabled
             ? "cursor-not-allowed text-current/40"
             : "cursor-grab text-current/70 hover:bg-background/30 active:cursor-grabbing",
@@ -508,6 +540,7 @@ function AppointmentCard({
       </button>
       <AppointmentActions
         appointment={appointment}
+        layout={layout}
         onOpen={onAppointment}
         onTransition={onTransition}
       />
@@ -623,10 +656,12 @@ function SpannedDropTarget({
 
 function AppointmentActions({
   appointment,
+  layout,
   onOpen,
   onTransition,
 }: {
   appointment: Appointment
+  layout: AppointmentCardLayout
   onOpen: () => void
   onTransition: () => void
 }) {
@@ -636,7 +671,12 @@ function AppointmentActions({
         render={
           <Button
             aria-label={`Ações de ${appointment.customerName}`}
-            className="absolute top-1 right-1 z-30 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100"
+            className={cn(
+              "absolute z-30 focus-visible:ring-inset",
+              layout === "compact"
+                ? "top-0 right-6 opacity-100"
+                : "top-1 right-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100",
+            )}
             size="icon-xs"
             type="button"
             variant="ghost"
@@ -756,6 +796,14 @@ function slotTargetId({ professionalId, start }: SlotDropData) {
 
 const AGENDA_SLOT_HEIGHT_PX = 36
 const SPANNED_CELL_VERTICAL_PADDING_PX = 8
+
+type AppointmentCardLayout = "compact" | "medium" | "full"
+
+function appointmentCardLayout(rowSpan: number): AppointmentCardLayout {
+  if (rowSpan === 1) return "compact"
+  if (rowSpan === 2) return "medium"
+  return "full"
+}
 
 function spannedContentHeight(rowSpan: number) {
   return `${rowSpan * AGENDA_SLOT_HEIGHT_PX - SPANNED_CELL_VERTICAL_PADDING_PX}px`

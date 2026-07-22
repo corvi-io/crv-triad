@@ -263,6 +263,21 @@ export const schedulingScenarios: readonly ScenarioDefinition<Appointment>[] = [
     ],
   },
   {
+    id: "short-durations",
+    label: "Durações curtas",
+    description: "Cartões de 15, 30 e 45 minutos para validar a proporção da grade.",
+    records: [
+      appointment("duration-15", "Cliente quinze", "08:00", { durationMinutes: 15 }),
+      appointment("duration-30", "Cliente trinta", "09:00", {
+        durationMinutes: 30,
+        serviceId: "service-simple-cut",
+      }),
+      appointment("duration-45", "Cliente quarenta e cinco", "10:00", {
+        durationMinutes: 45,
+      }),
+    ],
+  },
+  {
     id: "blocked",
     label: "Bloqueios",
     description: "Pausas e períodos indisponíveis na grade.",

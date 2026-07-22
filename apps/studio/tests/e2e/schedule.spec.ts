@@ -89,6 +89,68 @@ test("opens a portrait card and completes the non-drag status path", async ({ pa
   await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeVisible()
 })
 
+test("contains short appointment cards within proportional 15-minute rows", async ({ page }) => {
+  await page.setViewportSize({ height: 900, width: 1440 })
+  await page.goto(agendaUrl("short-durations"))
+
+  const cases = [
+    { duration: 15, height: 28, id: "duration-15", layout: "compact", nextSlot: "08:15" },
+    { duration: 30, height: 64, id: "duration-30", layout: "medium", nextSlot: "09:30" },
+    { duration: 45, height: 100, id: "duration-45", layout: "full", nextSlot: "10:45" },
+  ] as const
+
+  const measuredHeights: number[] = []
+  for (const item of cases) {
+    const card = page.locator(`[data-appointment-id="${item.id}"]`)
+    await expect(card).toHaveAttribute("data-card-layout", item.layout)
+    await expect(card).toHaveAttribute("data-duration-minutes", String(item.duration))
+    await expect(card.getByRole("button", { name: /^Ações de / })).toBeAttached()
+    await expect(card.getByRole("button", { name: /^Remarcar / })).toBeAttached()
+
+    const measurement = await card.evaluate((element) => {
+      const bounds = element.getBoundingClientRect()
+      const cellContent = element.parentElement?.getBoundingClientRect()
+      return {
+        cellContentHeight: cellContent?.height ?? 0,
+        clientHeight: element.clientHeight,
+        height: bounds.height,
+        overflow: getComputedStyle(element).overflow,
+        scrollHeight: element.scrollHeight,
+      }
+    })
+    expect(measurement.height).toBe(item.height)
+    expect(measurement.height).toBe(measurement.cellContentHeight)
+    expect(measurement.overflow).toBe("hidden")
+    expect(measurement.scrollHeight).toBeLessThanOrEqual(measurement.clientHeight)
+    measuredHeights.push(measurement.height)
+
+    const nextSlot = page.locator(
+      `[data-drop-professional-id="professional-carlos"][data-drop-start="${item.nextSlot}"]`,
+    )
+    const [cardBounds, nextSlotBounds] = await Promise.all([
+      card.boundingBox(),
+      nextSlot.boundingBox(),
+    ])
+    expect(cardBounds).not.toBeNull()
+    expect(nextSlotBounds).not.toBeNull()
+    if (cardBounds && nextSlotBounds) {
+      expect(cardBounds.y + cardBounds.height).toBeLessThanOrEqual(nextSlotBounds.y)
+    }
+  }
+
+  expect(measuredHeights[1] - measuredHeights[0]).toBe(36)
+  expect(measuredHeights[2] - measuredHeights[1]).toBe(36)
+
+  const compact = page.locator('[data-appointment-id="duration-15"]')
+  await expect(compact).toContainText("Cliente quinze")
+  await expect(compact).toContainText("08:00")
+  const compactHandle = compact.getByRole("button", { name: "Remarcar Cliente quinze" })
+  await compactHandle.focus()
+  await expect(compactHandle).toBeFocused()
+  await compact.getByRole("button", { name: "Ações de Cliente quinze" }).click()
+  await expect(page.getByRole("menuitem", { name: "Ver detalhes" })).toBeVisible()
+})
+
 test("reschedules vertically, horizontally, and diagonally without changing status", async ({
   page,
 }) => {
