@@ -4,6 +4,9 @@ import { AlertTriangleIcon } from "lucide-react"
 import { Button } from "@/modules/shared/components/ui/button"
 
 type ConfirmationDialogProps = {
+  cancelLabel?: string
+  confirmLabel?: string
+  confirmVariant?: "default" | "destructive"
   description: string
   isOpen: boolean
   onCancel: () => void
@@ -12,6 +15,9 @@ type ConfirmationDialogProps = {
 }
 
 export function ConfirmationDialog({
+  cancelLabel = "Continuar preenchendo",
+  confirmLabel = "Descartar alterações",
+  confirmVariant = "destructive",
   description,
   isOpen,
   onCancel,
@@ -34,10 +40,10 @@ export function ConfirmationDialog({
           </div>
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>
-              Continuar preenchendo
+              {cancelLabel}
             </Button>
-            <Button type="button" variant="destructive" onClick={onConfirm}>
-              Descartar alterações
+            <Button type="button" variant={confirmVariant} onClick={onConfirm}>
+              {confirmLabel}
             </Button>
           </div>
         </Dialog.Popup>

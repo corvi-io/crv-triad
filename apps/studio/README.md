@@ -18,6 +18,7 @@ Routes:
 - `/workspace-preview` (development-only visual shell preview; no login required)
 - `/workspace-preview/sandbox` (development-only neutral component/data sandbox)
 - `/workspace-preview/agenda` (development-only Agenda board/list interaction and QA surface)
+- `/workspace-preview/barbershop-setup` (development-only barbershop setup presentation and QA surface)
 - `/agenda` (authenticated Agenda visual prototype with default temporal board and alternate list)
 - `/overview`
 - `/profile`
@@ -49,6 +50,13 @@ and atomic optimistic rollback. Temporal drag changes start/barber only, never s
 intentionally unavailable in `hml`
 and `prd`; see `docs/studio/schedule-prototype.md` for the visual contract, runtime boundary, and
 residual manual accessibility checks.
+
+The barbershop setup prototype presents URL-selectable overview, units, professionals, services,
+and availability sections over deterministic related memory scenarios. It supports local
+create/edit/archive/restore, relationship validation, conflict feedback, bounded failures, retry,
+and full scenario reset without accepting an API, persistence, tenancy, or authorization contract.
+It is excluded from production builds through a virtual null-loader boundary; see
+`docs/studio/barbershop-setup-prototype.md`.
 
 Component placement, exhaustive inventory, public and internal-only decisions, token layers,
 adapter boundaries, and manual accessibility checks are documented in English at

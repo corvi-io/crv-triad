@@ -17,6 +17,12 @@ const forbiddenMarkers = [
   "kanban-01",
   "transition-rollback",
   "João Vitor",
+  "BarbershopSetupMemoryRepository",
+  "Configuração da barbearia",
+  "Cenário de apresentação",
+  "Profissional sintético 01",
+  "service-dense-01",
+  "availability-professional-alpha",
   ".stories.",
 ]
 

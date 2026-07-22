@@ -29,3 +29,12 @@ test("redirects the schedule preview and excludes synthetic scheduling in produc
   await expect(page).toHaveURL(/\/login$/)
   await expect(page.getByText("Unidade sintética Centro")).toHaveCount(0)
 })
+
+test("redirects the setup preview and excludes its scenario controls in production", async ({
+  page,
+}) => {
+  await page.goto("/workspace-preview/barbershop-setup?scenario=single-unit&section=overview")
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByRole("heading", { name: "Configuração da barbearia" })).toHaveCount(0)
+  await expect(page.getByLabel("Cenário de apresentação")).toHaveCount(0)
+})

@@ -50,6 +50,20 @@ describe("Studio component dependency model", () => {
     )
     expect(`${productionRoute}\n${productionShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
     expect(productionRoute).toContain('from "virtual:studio-development-sandbox"')
+
+    const setupRoute = await readFile(
+      path.resolve(process.cwd(), "src/routes/workspace-preview/barbershop-setup/index.tsx"),
+      "utf8",
+    )
+    const setupShim = await readFile(
+      path.resolve(
+        process.cwd(),
+        "src/modules/shared/config/barbershop-setup-prototype-disabled.ts",
+      ),
+      "utf8",
+    )
+    expect(`${setupRoute}\n${setupShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
+    expect(setupRoute).toContain('from "virtual:studio-barbershop-setup-prototype"')
   })
 
   it("has no shared mega-barrel", async () => {

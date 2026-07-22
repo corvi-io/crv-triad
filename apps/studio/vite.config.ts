@@ -19,6 +19,10 @@ export default defineConfig(({ command, mode }) => {
   const schedulingPrototypeEntry = schedulingPrototypeEnabled
     ? "./src/dev/scheduling/entry.ts"
     : "./src/modules/shared/config/scheduling-prototype-disabled.ts"
+  const barbershopSetupPrototypeEntry =
+    command === "serve"
+      ? "./src/dev/barbershop-setup/entry.ts"
+      : "./src/modules/shared/config/barbershop-setup-prototype-disabled.ts"
 
   return {
     plugins: [
@@ -34,6 +38,10 @@ export default defineConfig(({ command, mode }) => {
         "@": path.resolve(__dirname, "./src"),
         "virtual:studio-development-sandbox": path.resolve(__dirname, developmentSandboxEntry),
         "virtual:studio-scheduling-prototype": path.resolve(__dirname, schedulingPrototypeEntry),
+        "virtual:studio-barbershop-setup-prototype": path.resolve(
+          __dirname,
+          barbershopSetupPrototypeEntry,
+        ),
       },
     },
     server: {

@@ -18,6 +18,7 @@ src/modules/shared/components/
 src/modules/shared/design-system/**  component metadata and token guidance
 src/dev/mock-engine/**               generic development-only memory/scenario mechanics
 src/dev/sandbox/**                   neutral sandbox module, adapter, queries, and UI
+src/dev/barbershop-setup/**          ENG-41 development-only related scenario adapter and seeds
 ```
 
 Routes may import modules and shared code. Modules may import shared code. Shared code must not
@@ -136,7 +137,7 @@ building block of a documented composition.
 | `layout/page-header.tsx` | Layout | Internal: composed by module pages; actions remain module owned. |
 | `layout/section-header.tsx` | Layout | Internal: small structural helper documented through page compositions. |
 | `overlays/action-drawer.tsx` | Overlay | Documented public contract: focus-managed form composition with explicit primary and secondary action slots. |
-| `overlays/confirmation-dialog.tsx` | Overlay | Internal: specialized discard confirmation; covered by consuming form flows. |
+| `overlays/confirmation-dialog.tsx` | Overlay | Documented public contract: Base UI focus-managed confirmation with explicit title/description, configurable Portuguese action labels, and default or destructive confirmation treatment; covered by consuming form and prototype flows. |
 | `overlays/drawer-section.tsx` | Overlay anatomy | Internal: companion anatomy for `ActionDrawer`, not a standalone surface. |
 | `overlays/drawer-tabs.tsx` | Overlay anatomy | Internal: companion tab anatomy requiring a composed drawer. |
 | `reference-creation-page.tsx` | Legacy page helper | Internal: retained only for migration compatibility; do not use for new generic CRUD pages. |
@@ -195,6 +196,13 @@ a null shim. The route graph therefore has no direct `src/dev` import and redire
 the loader is unavailable. Production-boundary checks scan output for mock engine, seed, Faker,
 obsolete catalog source, and control markers. The runtime contains no fetch, MSW, Better Auth, or
 `/api/auth` interception and stores nothing across refreshes.
+
+The ENG-41 barbershop setup presentation follows the same replaceable-adapter boundary while keeping
+its presentation contracts, query keys, forms, and UI under `src/modules/barbershop-setup`. One
+development adapter coordinates its related catalog and availability records through the generic
+engine. The adapter is exposed only through a development-serve virtual module and resolves to a
+null shim in builds. See `docs/studio/barbershop-setup-prototype.md` for its scenario, reset,
+component-discovery, privacy, and production-exclusion contract.
 
 ## Primary Vendor References
 

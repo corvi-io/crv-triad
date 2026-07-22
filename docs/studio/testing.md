@@ -35,6 +35,12 @@ filters, conflict recovery, 320 CSS-pixel grouping, dark mode, reduced motion, f
 content, horizontal density, and a focused axe scan. The authenticated `/agenda` route continues to
 use the real IDP boundary; the preview is local QA tooling and redirects in production.
 
+`tests/e2e/barbershop-setup.spec.ts` covers the development-only setup presentation: stable section
+URLs, overview, catalogs, in-memory create/reset, one-shot mutation recovery, persistent load
+failure, availability conflicts, axe, 320 CSS-pixel reflow, keyboard focus, dark mode, and reduced
+motion. Production preview coverage proves the route redirects, and the production-boundary scan
+rejects adapter, fixture, scenario-control, and dense-record markers.
+
 `tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
 the resolved class at the first animation frame, measures browser-computed contrast for core
 semantic pairs, all four feedback roles, focus, input boundaries, and all eight schedule roles in
