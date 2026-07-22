@@ -42,9 +42,11 @@ Contextual menus provide view, edit, status, cancellation/no-show, completion, a
 actions only where meaningful.
 
 Pointer, touch, and keyboard drag use the shared Kibo-derived Kanban with a dedicated native drag
-handle. `Alterar status` provides the complete non-drag path. DnD announcements cover selection,
-source/destination, result, and cancellation. The module live region covers transition progress,
-success, failure, and rollback.
+handle. Terminal appointments keep their read-only details action while `useSortable` and the native
+activator are disabled without a grab affordance; scheduling guards also reject synthetic terminal
+move payloads. `Alterar status` provides the complete non-drag path. DnD announcements cover
+selection, source/destination, result, and cancellation. The module live region covers transition
+progress, success, failure, and rollback.
 
 Entering the terminal cancellation column requires one of `Cliente cancelou`, `Barbearia cancelou`,
 or `Não compareceu`; the first two map to `canceled` with a separate actor and the last maps to
@@ -54,7 +56,8 @@ pendente`. These are visual prototype decisions and do not capture money.
 `useTransitionAppointment` snapshots every scheduling query before the optimistic update, updates
 appointment plus occupancy projections, blocks a conflicting transition, restores every snapshot on
 failure, and invalidates only scheduling keys after settlement. Cards, counts, and summary therefore
-move and roll back atomically. Focus returns to the moved card handle or the stable dialog trigger.
+move and roll back atomically. Focus returns to the active moved-card handle, or to its stable
+read-only details action when the transition produces a terminal appointment.
 The existing appointment drawer now carries unit, initial status, and visual payment state while
 preserving create, view, edit, reschedule, and reasoned cancellation flows.
 

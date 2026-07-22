@@ -62,13 +62,8 @@ export function AgendaKanban({
   const columns = agendaColumns.map(({ id, label }) => ({ id, name: label }))
 
   function handleDataChange(next: KanbanAppointment[]) {
-    const moved = next.find((candidate) => {
-      const current = items.find(({ id }) => id === candidate.id)
-      return current && current.column !== candidate.column
-    })
-    if (!moved || moved.id === pendingAppointmentId) return
-    const appointment = result.boardAppointments.find(({ id }) => id === moved.id)
-    if (appointment) onTransitionRequest(appointment, moved.column)
+    const request = getDragTransitionRequest(result.boardAppointments, next, pendingAppointmentId)
+    if (request) onTransitionRequest(request.appointment, request.column)
   }
 
   return (
@@ -202,6 +197,8 @@ function AppointmentKanbanCard({
   service?: Service
 }) {
   const presentation = appointmentStatusPresentation[appointment.status]
+  const isTerminal = isTerminalAppointmentStatus(appointment.status)
+  const isDragDisabled = disabled || isTerminal
   const cancellationLabel = appointment.cancellationReason
     ? { barbershop: "Barbearia cancelou", client: "Cliente cancelou", "no-show": "Não compareceu" }[
         appointment.cancellationReason
@@ -215,8 +212,15 @@ function AppointmentKanbanCard({
       data-appointment-id={appointment.id}
       data-appointment-status={appointment.status}
       dragHandle={<GripVerticalIcon aria-hidden="true" />}
-      dragHandleLabel={`Mover agendamento de ${appointment.customerName}`}
+      dragHandleLabel={
+        isTerminal
+          ? `Agendamento de ${appointment.customerName} não pode ser movido`
+          : disabled
+            ? `Movimentação de ${appointment.customerName} indisponível durante atualização`
+            : `Mover agendamento de ${appointment.customerName}`
+      }
       id={appointment.id}
+      isDragDisabled={isDragDisabled}
       name={appointment.name}
     >
       <div className="flex items-start gap-2">
@@ -267,7 +271,14 @@ function AppointmentKanbanCard({
         ))}
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button disabled={disabled} size="sm" type="button" variant="outline" onClick={onOpen}>
+        <Button
+          data-appointment-details
+          disabled={disabled}
+          size="sm"
+          type="button"
+          variant="outline"
+          onClick={onOpen}
+        >
           Ver detalhes
         </Button>
         {appointment.status === "in-progress" ? (
@@ -283,6 +294,21 @@ function AppointmentKanbanCard({
       </div>
     </KanbanCard>
   )
+}
+
+export function getDragTransitionRequest(
+  appointments: readonly Appointment[],
+  next: readonly { column: AgendaColumnId; id: string }[],
+  pendingAppointmentId?: string,
+) {
+  const moved = next.find((candidate) => {
+    const current = appointments.find(({ id }) => id === candidate.id)
+    return current && columnForStatus(current.status) !== candidate.column
+  })
+  if (!moved || moved.id === pendingAppointmentId) return undefined
+  const appointment = appointments.find(({ id }) => id === moved.id)
+  if (!appointment || isTerminalAppointmentStatus(appointment.status)) return undefined
+  return { appointment, column: moved.column }
 }
 
 function AppointmentMenu({

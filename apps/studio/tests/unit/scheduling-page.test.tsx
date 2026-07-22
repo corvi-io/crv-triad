@@ -57,6 +57,22 @@ describe("schedule page", () => {
     expect(card).toHaveTextContent("Confirmado")
     expect(card).not.toHaveAttribute("customername")
     expect(card).not.toHaveAttribute("customerphone")
+    expect(
+      within(card as HTMLElement).getByRole("button", {
+        name: "Mover agendamento de João Vitor",
+      }),
+    ).toBeEnabled()
+    const terminalCard = (await screen.findByText("Marcos Paulo")).closest("[data-appointment-id]")
+    expect(terminalCard).not.toBeNull()
+    if (!terminalCard) return
+    expect(
+      within(terminalCard as HTMLElement).getByRole("button", {
+        name: "Agendamento de Marcos Paulo não pode ser movido",
+      }),
+    ).toBeDisabled()
+    expect(
+      within(terminalCard as HTMLElement).getByRole("button", { name: "Ver detalhes" }),
+    ).toBeEnabled()
     await user.click(within(card as HTMLElement).getByRole("button", { name: "Ver detalhes" }))
     expect(
       await screen.findByRole("dialog", { name: "Agenda / Ver agendamento" }),

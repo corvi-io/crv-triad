@@ -26,7 +26,7 @@ import type {
   ScheduleDayQuery,
 } from "./contracts"
 import { useScenarioActions, useScheduleDay, useTransitionAppointment } from "./queries"
-import { appointmentStatusPresentation } from "./status"
+import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
 import { TransitionDialog } from "./transition-dialog"
 
 export type { ScheduleSearch } from "./agenda"
@@ -145,8 +145,9 @@ export function SchedulePage({
       setTransitionRequest(null)
       requestAnimationFrame(() => {
         document
-          .querySelector<HTMLElement>(
-            `[data-appointment-id="${input.id}"] [data-kanban-drag-handle]`,
+          .querySelector<HTMLElement>(`[data-appointment-id="${input.id}"]`)
+          ?.querySelector<HTMLElement>(
+            "[data-kanban-drag-handle]:not([disabled]), [data-appointment-details]",
           )
           ?.focus()
       })
@@ -158,7 +159,7 @@ export function SchedulePage({
   }
 
   function requestTransition(appointment: Appointment, column?: AgendaColumnId) {
-    if (transitionMutation.isPending) return
+    if (transitionMutation.isPending || isTerminalAppointmentStatus(appointment.status)) return
     if (
       !column ||
       column === "canceled-no-show" ||

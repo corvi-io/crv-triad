@@ -109,6 +109,7 @@ export type KanbanCardProps<T extends KanbanItemProps = KanbanItemProps> = T &
     className?: string
     dragHandle?: ReactNode
     dragHandleLabel?: string
+    isDragDisabled?: boolean
   }
 
 export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
@@ -119,6 +120,7 @@ export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
   className,
   dragHandle,
   dragHandleLabel,
+  isDragDisabled = false,
   ...props
 }: KanbanCardProps<T>) => {
   const {
@@ -129,7 +131,7 @@ export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
     transition,
     transform,
     isDragging,
-  } = useSortable({ id })
+  } = useSortable({ disabled: isDragDisabled, id })
   const { activeCardId } = useContext(KanbanContext) as KanbanContextProps
   const reduceMotion = useReducedMotion()
 
@@ -137,14 +139,15 @@ export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
     transition: reduceMotion ? "none" : transition,
     transform: CSS.Transform.toString(transform),
   }
-  const rootActivatorProps = dragHandle ? {} : { ...listeners, ...attributes }
+  const rootActivatorProps = dragHandle || isDragDisabled ? {} : { ...listeners, ...attributes }
 
   return (
     <>
       <div style={style} {...rootActivatorProps} {...props} ref={setNodeRef}>
         <Card
           className={cn(
-            "cursor-grab gap-4 rounded-md p-3 shadow-sm",
+            "gap-4 rounded-md p-3 shadow-sm",
+            isDragDisabled ? "cursor-default" : "cursor-grab",
             isDragging && "pointer-events-none cursor-grabbing opacity-30",
             className,
           )}
@@ -153,11 +156,17 @@ export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
             <button
               ref={setActivatorNodeRef}
               aria-label={dragHandleLabel ?? `Mover ${name}`}
-              className="flex min-h-8 w-full cursor-grab items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:cursor-grabbing"
+              className={cn(
+                "flex min-h-8 w-full items-center justify-center rounded-md text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                isDragDisabled
+                  ? "cursor-default"
+                  : "cursor-grab hover:bg-muted active:cursor-grabbing",
+              )}
               data-kanban-drag-handle
+              disabled={isDragDisabled}
               type="button"
-              {...listeners}
-              {...attributes}
+              {...(isDragDisabled ? {} : listeners)}
+              {...(isDragDisabled ? {} : attributes)}
             >
               {dragHandle}
             </button>

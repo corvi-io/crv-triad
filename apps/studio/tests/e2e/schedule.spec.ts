@@ -81,10 +81,13 @@ test("completes cancellation and unpaid completion decisions with focus restorat
   await expect(page.getByText("Status atualizado para “Cancelado”.")).toBeVisible()
   await expect(appointmentCard(page, "kanban-01")).toContainText("Cliente cancelou")
   await expect(
-    appointmentCard(page, "kanban-01").getByRole("button", {
-      name: "Mover agendamento de João Vitor",
-    }),
+    appointmentCard(page, "kanban-01").getByRole("button", { name: "Ver detalhes" }),
   ).toBeFocused()
+  await expect(
+    appointmentCard(page, "kanban-01").getByRole("button", {
+      name: "Agendamento de João Vitor não pode ser movido",
+    }),
+  ).toBeDisabled()
 
   const andreCard = appointmentCard(page, "kanban-10")
   await andreCard.getByRole("button", { name: "Finalizar" }).click()
@@ -137,6 +140,8 @@ test("supports pointer drag and keyboard drag announcements", async ({ page }) =
   const joaoHandle = appointmentCard(page, "kanban-01").getByRole("button", {
     name: "Mover agendamento de João Vitor",
   })
+  await expect(joaoHandle).toBeEnabled()
+  await expect(joaoHandle).toHaveCSS("cursor", "grab")
   const waitingColumn = page.locator('[aria-labelledby="kanban-column-waiting"]')
   await dragBetween(joaoHandle, waitingColumn, page)
   await expect(page.getByText("Status atualizado para “Aguardando”.")).toBeVisible()
@@ -260,6 +265,18 @@ test("keeps edits status-neutral and terminal appointments read-only", async ({ 
   await detailsDrawer.getByRole("button", { name: "Fechar" }).click()
 
   const completedCard = appointmentCard(page, "kanban-13")
+  const completedHandle = completedCard.getByRole("button", {
+    name: "Agendamento de Marcos Paulo não pode ser movido",
+  })
+  await expect(completedHandle).toBeDisabled()
+  await expect(completedHandle).toHaveCSS("cursor", "default")
+  await expect(completedCard.getByRole("button", { name: "Ver detalhes" })).toBeEnabled()
+  const finalizedColumn = page.locator('[aria-labelledby="kanban-column-completed"]')
+  const waitingColumn = page.locator('[aria-labelledby="kanban-column-waiting"]')
+  await dragBetween(completedHandle, waitingColumn, page)
+  await expect(finalizedColumn.getByText("Marcos Paulo")).toBeVisible()
+  await expect(completedCard).toHaveAttribute("data-appointment-status", "completed")
+  await expect(page.getByText("Status atualizado para “Aguardando”.")).toHaveCount(0)
   await completedCard.getByRole("button", { name: "Ações de Marcos Paulo" }).click()
   await expect(page.getByRole("menuitem", { name: "Ver detalhes" })).toBeVisible()
   await expect(page.getByRole("menuitem", { name: "Editar agendamento" })).toHaveCount(0)

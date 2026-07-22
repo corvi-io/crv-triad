@@ -7,6 +7,7 @@ import {
   periodBounds,
   validateScheduleSearch,
 } from "@/modules/scheduling/agenda"
+import { getDragTransitionRequest } from "@/modules/scheduling/agenda-kanban"
 
 const professionals = [
   { id: "professional-carlos", name: "Carlos Lima" },
@@ -36,6 +37,18 @@ describe("agenda derivation", () => {
     expect(columnForStatus("canceled")).toBe("canceled-no-show")
     expect(columnForStatus("no-show")).toBe("canceled-no-show")
     expect(columnForStatus("scheduled")).toBeUndefined()
+
+    const confirmed = approvedKanbanFixtures.find(({ status }) => status === "confirmed")
+    const completed = approvedKanbanFixtures.find(({ status }) => status === "completed")
+    expect(confirmed).toBeDefined()
+    expect(completed).toBeDefined()
+    if (!confirmed || !completed) return
+    expect(
+      getDragTransitionRequest([completed], [{ column: "waiting", id: completed.id }]),
+    ).toBeUndefined()
+    expect(
+      getDragTransitionRequest([confirmed], [{ column: "waiting", id: confirmed.id }]),
+    ).toEqual({ appointment: confirmed, column: "waiting" })
   })
 
   it("derives cards, counts, summary, and accent-insensitive search from one result", () => {
