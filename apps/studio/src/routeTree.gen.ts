@@ -16,11 +16,11 @@ import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as ForgotPasswordIndexRouteImport } from './routes/forgot-password/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as WorkspacePreviewSandboxIndexRouteImport } from './routes/workspace-preview/sandbox/index'
-import { Route as WorkspacePreviewBarbershopSetupIndexRouteImport } from './routes/workspace-preview/barbershop-setup/index'
 import { Route as WorkspacePreviewAgendaIndexRouteImport } from './routes/workspace-preview/agenda/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
 import { Route as AuthenticatedPreferencesIndexRouteImport } from './routes/_authenticated/preferences/index'
 import { Route as AuthenticatedOverviewIndexRouteImport } from './routes/_authenticated/overview/index'
+import { Route as AuthenticatedBarbershopSetupIndexRouteImport } from './routes/_authenticated/barbershop-setup/index'
 import { Route as AuthenticatedAgendaIndexRouteImport } from './routes/_authenticated/agenda/index'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -58,12 +58,6 @@ const WorkspacePreviewSandboxIndexRoute =
     path: '/workspace-preview/sandbox/',
     getParentRoute: () => rootRouteImport,
   } as any)
-const WorkspacePreviewBarbershopSetupIndexRoute =
-  WorkspacePreviewBarbershopSetupIndexRouteImport.update({
-    id: '/workspace-preview/barbershop-setup/',
-    path: '/workspace-preview/barbershop-setup/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const WorkspacePreviewAgendaIndexRoute =
   WorkspacePreviewAgendaIndexRouteImport.update({
     id: '/workspace-preview/agenda/',
@@ -88,6 +82,12 @@ const AuthenticatedOverviewIndexRoute =
     path: '/overview/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBarbershopSetupIndexRoute =
+  AuthenticatedBarbershopSetupIndexRouteImport.update({
+    id: '/barbershop-setup/',
+    path: '/barbershop-setup/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAgendaIndexRoute =
   AuthenticatedAgendaIndexRouteImport.update({
     id: '/agenda/',
@@ -102,11 +102,11 @@ export interface FileRoutesByFullPath {
   '/reset-password/': typeof ResetPasswordIndexRoute
   '/workspace-preview/': typeof WorkspacePreviewIndexRoute
   '/agenda/': typeof AuthenticatedAgendaIndexRoute
+  '/barbershop-setup/': typeof AuthenticatedBarbershopSetupIndexRoute
   '/overview/': typeof AuthenticatedOverviewIndexRoute
   '/preferences/': typeof AuthenticatedPreferencesIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
   '/workspace-preview/agenda/': typeof WorkspacePreviewAgendaIndexRoute
-  '/workspace-preview/barbershop-setup/': typeof WorkspacePreviewBarbershopSetupIndexRoute
   '/workspace-preview/sandbox/': typeof WorkspacePreviewSandboxIndexRoute
 }
 export interface FileRoutesByTo {
@@ -116,11 +116,11 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordIndexRoute
   '/workspace-preview': typeof WorkspacePreviewIndexRoute
   '/agenda': typeof AuthenticatedAgendaIndexRoute
+  '/barbershop-setup': typeof AuthenticatedBarbershopSetupIndexRoute
   '/overview': typeof AuthenticatedOverviewIndexRoute
   '/preferences': typeof AuthenticatedPreferencesIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
   '/workspace-preview/agenda': typeof WorkspacePreviewAgendaIndexRoute
-  '/workspace-preview/barbershop-setup': typeof WorkspacePreviewBarbershopSetupIndexRoute
   '/workspace-preview/sandbox': typeof WorkspacePreviewSandboxIndexRoute
 }
 export interface FileRoutesById {
@@ -132,11 +132,11 @@ export interface FileRoutesById {
   '/reset-password/': typeof ResetPasswordIndexRoute
   '/workspace-preview/': typeof WorkspacePreviewIndexRoute
   '/_authenticated/agenda/': typeof AuthenticatedAgendaIndexRoute
+  '/_authenticated/barbershop-setup/': typeof AuthenticatedBarbershopSetupIndexRoute
   '/_authenticated/overview/': typeof AuthenticatedOverviewIndexRoute
   '/_authenticated/preferences/': typeof AuthenticatedPreferencesIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
   '/workspace-preview/agenda/': typeof WorkspacePreviewAgendaIndexRoute
-  '/workspace-preview/barbershop-setup/': typeof WorkspacePreviewBarbershopSetupIndexRoute
   '/workspace-preview/sandbox/': typeof WorkspacePreviewSandboxIndexRoute
 }
 export interface FileRouteTypes {
@@ -148,11 +148,11 @@ export interface FileRouteTypes {
     | '/reset-password/'
     | '/workspace-preview/'
     | '/agenda/'
+    | '/barbershop-setup/'
     | '/overview/'
     | '/preferences/'
     | '/profile/'
     | '/workspace-preview/agenda/'
-    | '/workspace-preview/barbershop-setup/'
     | '/workspace-preview/sandbox/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -162,11 +162,11 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/workspace-preview'
     | '/agenda'
+    | '/barbershop-setup'
     | '/overview'
     | '/preferences'
     | '/profile'
     | '/workspace-preview/agenda'
-    | '/workspace-preview/barbershop-setup'
     | '/workspace-preview/sandbox'
   id:
     | '__root__'
@@ -177,11 +177,11 @@ export interface FileRouteTypes {
     | '/reset-password/'
     | '/workspace-preview/'
     | '/_authenticated/agenda/'
+    | '/_authenticated/barbershop-setup/'
     | '/_authenticated/overview/'
     | '/_authenticated/preferences/'
     | '/_authenticated/profile/'
     | '/workspace-preview/agenda/'
-    | '/workspace-preview/barbershop-setup/'
     | '/workspace-preview/sandbox/'
   fileRoutesById: FileRoutesById
 }
@@ -192,7 +192,6 @@ export interface RootRouteChildren {
   ResetPasswordIndexRoute: typeof ResetPasswordIndexRoute
   WorkspacePreviewIndexRoute: typeof WorkspacePreviewIndexRoute
   WorkspacePreviewAgendaIndexRoute: typeof WorkspacePreviewAgendaIndexRoute
-  WorkspacePreviewBarbershopSetupIndexRoute: typeof WorkspacePreviewBarbershopSetupIndexRoute
   WorkspacePreviewSandboxIndexRoute: typeof WorkspacePreviewSandboxIndexRoute
 }
 
@@ -247,13 +246,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspacePreviewSandboxIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/workspace-preview/barbershop-setup/': {
-      id: '/workspace-preview/barbershop-setup/'
-      path: '/workspace-preview/barbershop-setup'
-      fullPath: '/workspace-preview/barbershop-setup/'
-      preLoaderRoute: typeof WorkspacePreviewBarbershopSetupIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/workspace-preview/agenda/': {
       id: '/workspace-preview/agenda/'
       path: '/workspace-preview/agenda'
@@ -282,6 +274,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOverviewIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/barbershop-setup/': {
+      id: '/_authenticated/barbershop-setup/'
+      path: '/barbershop-setup'
+      fullPath: '/barbershop-setup/'
+      preLoaderRoute: typeof AuthenticatedBarbershopSetupIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/agenda/': {
       id: '/_authenticated/agenda/'
       path: '/agenda'
@@ -295,6 +294,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAgendaIndexRoute: typeof AuthenticatedAgendaIndexRoute
+  AuthenticatedBarbershopSetupIndexRoute: typeof AuthenticatedBarbershopSetupIndexRoute
   AuthenticatedOverviewIndexRoute: typeof AuthenticatedOverviewIndexRoute
   AuthenticatedPreferencesIndexRoute: typeof AuthenticatedPreferencesIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
@@ -303,6 +303,8 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAgendaIndexRoute: AuthenticatedAgendaIndexRoute,
+  AuthenticatedBarbershopSetupIndexRoute:
+    AuthenticatedBarbershopSetupIndexRoute,
   AuthenticatedOverviewIndexRoute: AuthenticatedOverviewIndexRoute,
   AuthenticatedPreferencesIndexRoute: AuthenticatedPreferencesIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
@@ -318,8 +320,6 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordIndexRoute: ResetPasswordIndexRoute,
   WorkspacePreviewIndexRoute: WorkspacePreviewIndexRoute,
   WorkspacePreviewAgendaIndexRoute: WorkspacePreviewAgendaIndexRoute,
-  WorkspacePreviewBarbershopSetupIndexRoute:
-    WorkspacePreviewBarbershopSetupIndexRoute,
   WorkspacePreviewSandboxIndexRoute: WorkspacePreviewSandboxIndexRoute,
 }
 export const routeTree = rootRouteImport

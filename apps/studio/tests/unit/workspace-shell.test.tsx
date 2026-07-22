@@ -91,6 +91,10 @@ describe("authenticated workspace shell", () => {
       "href",
       "/preferences",
     )
+    expect(screen.getByRole("link", { name: "Barbearia" })).toHaveAttribute(
+      "href",
+      "/barbershop-setup",
+    )
     expect(screen.getByText("MS")).toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "Abrir menu de Maria Souza" }))
@@ -117,6 +121,7 @@ describe("authenticated workspace shell", () => {
     const dialog = await screen.findByRole("dialog", { name: "Navegação do TRIAD Studio" })
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByRole("link", { name: "Dashboard" })).toBeVisible()
+    expect(within(dialog).getByRole("link", { name: "Barbearia" })).toBeVisible()
 
     await user.keyboard("{Escape}")
     await waitFor(() => expect(dialog).not.toBeInTheDocument())

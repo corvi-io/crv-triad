@@ -25,7 +25,7 @@ function isCurrentGeneration(queryClient: QueryClient, generation: number) {
 }
 
 export const barbershopSetupQueryKeys = {
-  all: ["barbershop-setup-presentation"] as const,
+  all: ["barbershop-setup"] as const,
   availability: (query: AvailabilityQuery) =>
     [...barbershopSetupQueryKeys.all, "availability", query] as const,
   list: (query: SetupListQuery) => [...barbershopSetupQueryKeys.all, "list", query] as const,

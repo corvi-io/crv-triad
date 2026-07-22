@@ -78,6 +78,7 @@ jobs:
           STUDIO__VITE_AUTH_BASE_URL: ${{ vars.STUDIO__VITE_AUTH_BASE_URL }}
           STUDIO__VITE_DEPLOY_TARGET: prd
           STUDIO__VITE_SCHEDULING_SOURCE: ${{ vars.STUDIO__VITE_SCHEDULING_SOURCE }}
+          STUDIO__VITE_BARBERSHOP_SETUP_SOURCE: ${{ vars.STUDIO__VITE_BARBERSHOP_SETUP_SOURCE }}
         run: bun .github/scripts/env-management.ts export --app studio --target prd --github-env "$GITHUB_ENV"
 
       - name: Install Studio Playwright browser
@@ -129,4 +130,5 @@ jobs:
           STUDIO__VITE_AUTH_BASE_URL: ${{ vars.STUDIO__VITE_AUTH_BASE_URL }}
           STUDIO__VITE_DEPLOY_TARGET: prd
           STUDIO__VITE_SCHEDULING_SOURCE: ${{ vars.STUDIO__VITE_SCHEDULING_SOURCE }}
+          STUDIO__VITE_BARBERSHOP_SETUP_SOURCE: ${{ vars.STUDIO__VITE_BARBERSHOP_SETUP_SOURCE }}
         run: bash .github/scripts/run-deploy-gate.sh prd studio

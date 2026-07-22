@@ -1,9 +1,4 @@
-import {
-  type SetupScenarioId,
-  type SetupSection,
-  setupScenarioIds,
-  setupSections,
-} from "./contracts"
+import { type SetupScenarioId, type SetupSection, setupSections } from "./contracts"
 
 export type BarbershopSetupSearch = {
   scenario: SetupScenarioId
@@ -12,11 +7,10 @@ export type BarbershopSetupSearch = {
 
 export function validateBarbershopSetupSearch(
   search: Record<string, unknown>,
+  resolveScenario: (value: unknown) => SetupScenarioId,
 ): BarbershopSetupSearch {
   return {
-    scenario: setupScenarioIds.includes(search.scenario as SetupScenarioId)
-      ? (search.scenario as SetupScenarioId)
-      : "single-unit",
+    scenario: resolveScenario(search.scenario),
     section: setupSections.includes(search.section as SetupSection)
       ? (search.section as SetupSection)
       : "overview",

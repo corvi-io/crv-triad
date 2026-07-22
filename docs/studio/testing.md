@@ -35,15 +35,16 @@ filters, conflict recovery, 320 CSS-pixel grouping, dark mode, reduced motion, f
 content, horizontal density, and a focused axe scan. The authenticated `/agenda` route continues to
 use the real IDP boundary; the preview is local QA tooling and redirects in production.
 
-`tests/e2e/barbershop-setup.spec.ts` covers the development-only setup presentation: stable section
-URLs, overview, catalogs, in-memory create/reset, observable drawer entry/exit with reduced-motion
-suppression and focus restoration, scalar and relationship first-invalid focus, slow-result
-isolation, one-shot mutation recovery, atomic weekday-copy failure/success with active-draft
-preservation, destination-specific absences, linked-service archive blocking, service-unit
-eligibility, Portuguese numeric errors, persistent load failure, availability conflicts filtered to
-the visible relationship, axe, 320 CSS-pixel reflow, keyboard focus, and dark mode. Production
-preview coverage proves the route redirects, and the production-boundary scan rejects adapter,
-fixture, scenario-control, and dense-record markers.
+`tests/e2e/barbershop-setup.spec.ts` covers the authenticated setup module: direct entry, normal
+sidebar navigation, collapsed and mobile active states, stable section URLs, absence of preview
+chrome, overview, catalogs, session-memory create/reload, observable drawer entry/exit with
+reduced-motion suppression and focus restoration, scalar and relationship first-invalid focus,
+one-shot mutation recovery, atomic weekday-copy failure/success with active-draft preservation,
+destination-specific absences, linked-service archive blocking, service-unit eligibility,
+Portuguese numeric errors, persistent load failure, availability conflicts filtered to the visible
+relationship, axe, 320 CSS-pixel reflow, keyboard focus, and dark mode. Production coverage proves
+the removed setup preview route is inaccessible, the normal route resolves a disabled source, and
+the artifact scan rejects adapter, fixture, scenario, and dense-record markers.
 
 `tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
 the resolved class at the first animation frame, measures browser-computed contrast for core

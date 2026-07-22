@@ -13,7 +13,6 @@ import type {
   SetupOverview,
   SetupProfessional,
   SetupRecord,
-  SetupRuntimeSnapshot,
   SetupScenarioId,
   SetupService,
   SetupUnit,
@@ -43,7 +42,7 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
     }))
   }
 
-  snapshot(scenarioId?: SetupScenarioId): SetupRuntimeSnapshot {
+  snapshot(scenarioId?: SetupScenarioId) {
     if (scenarioId) this.#ensureScenario(scenarioId)
     const snapshot = this.#engine.snapshot
     const records = this.#engine.values()

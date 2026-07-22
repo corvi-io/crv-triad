@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Navigate } from "@tanstack/react-router"
+import { createFileRoute, Navigate } from "@tanstack/react-router"
 import { MoonIcon, SunIcon } from "lucide-react"
 import { Button } from "@/modules/shared/components/ui/button"
 import { WorkspacePreviewShell } from "@/modules/shared/components/workspace-shell"
@@ -50,18 +50,6 @@ function WorkspacePreviewRoute() {
             Tema escuro
           </Button>
         </fieldset>
-        <Button
-          nativeButton={false}
-          render={
-            <Link
-              to="/workspace-preview/barbershop-setup"
-              search={{ scenario: "single-unit", section: "overview" }}
-            />
-          }
-          variant="outline"
-        >
-          Abrir configuração da barbearia
-        </Button>
       </section>
     </WorkspacePreviewShell>
   )

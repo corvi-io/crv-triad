@@ -1,256 +1,152 @@
-# 07 TRIAD Studio Barbershop Setup Visual Prototype - Execution Plan
+# 07 TRIAD Studio Barbershop Setup Module - Execution Plan
 
 ## Source
 
 - PRD: `docs/initiatives/prds/07-triad-studio-barbershop-setup-visual-prototype.md`
-- Linear initiative: [TRIAD Studio Barbershop Setup Visual Prototype](https://linear.app/corvi-io/initiative/triad-studio-barbershop-setup-visual-prototype-d02965c61df9)
-- Related issue: [ENG-41](https://linear.app/corvi-io/issue/ENG-41/build-the-triad-studio-barbershop-setup-visual-prototype)
+- Linear issue: [ENG-41](https://linear.app/corvi-io/issue/ENG-41/integrate-the-triad-studio-barbershop-setup-module)
+- Pull request: [#22](https://github.com/corvi-io/crv-triad/pull/22)
 
 ## Implementation Principles
 
-- Follow the accepted frontend-only recommendation from the PRD.
-- Treat the deliverable as a presentation-quality prototype, not a production
-  settings system or a backend contract.
-- Keep all business-shaped records deterministic, synthetic,
-  session-memory-only, selectable by scenario, and fully resettable.
-- Reuse `MemoryScenarioEngine` for generic development mechanics while keeping
-  module vocabulary, repository contracts, query keys, and UI in the owning
-  `barbershop-setup` module.
-- Keep `src/modules/barbershop-setup` independent of `src/dev`; compose the
-  development adapter only through the preview loader boundary.
-- Use `/workspace-preview/barbershop-setup` and `WorkspacePreviewShell`; keep
-  fixtures, scenario controls, and reset behavior unavailable in `hml`/`prd`.
-- Reuse existing Studio components and inspect official shadcn candidates
-  before accepting new primitives or custom shared compositions.
-- Keep UI copy and validation in Brazilian Portuguese; keep code, types, routes,
-  filenames, and durable docs in English.
-- Do not add API, IDP, OpenAPI, database, migration, browser persistence,
-  external provider, analytics, polling, realtime, or deployment behavior.
+- Treat `/barbershop-setup` as a normal authenticated Studio module.
+- Preserve the accepted setup journeys and presentation repository port while removing visible
+  preview/debug controls and terminology.
+- Keep deterministic scenarios under `src/dev` as test infrastructure only.
+- Keep the technical `scenario` query value non-PII, invisible in ordinary UI, and defaulted to
+  `single-unit`.
+- Compose memory through `virtual:studio-barbershop-setup-source` only when source is `memory` and
+  target is `local` or `dev`.
+- Resolve `hml` and `prd` to the disabled source even when memory is requested.
+- Do not add API, IDP, site, persistence, dependencies, external providers, analytics, realtime, or
+  real data.
 
 ## Tasks
 
-- [x] Confirm scope and traceability:
-  - [x] Link the final Linear initiative and implementation issue.
-  - [x] Re-read the active Studio component inventory, Agenda prototype
-        contract, and development runtime before implementation.
-  - [x] Record any product decision that would expand the task beyond units,
-        professionals, services, availability, and overview as a follow-up.
-- [x] Confirm the visual information architecture:
-  - [x] Define `overview`, `units`, `professionals`, `services`, and
-        `availability` as the accepted sections.
-  - [x] Define the overview completion/checklist presentation and direct next
-        actions without claiming production readiness.
-  - [x] Define stable URL state for section, scenario, and safe identifier-only
-        filters; prohibit names, phones, addresses, and notes in URLs.
-  - [x] Inspect existing Studio components, official shadcn, and reviewed
-        compatible registries for any missing table/form/schedule primitive;
-        record selection or custom-composition rationale.
-- [x] Establish the module and preview boundaries:
-  - [x] Add presentation-facing contracts under
-        `src/modules/barbershop-setup` for unit, professional, service,
-        availability, section summaries, filters, commands, and result states.
-  - [x] Add a narrow repository port, query keys, TanStack Query hooks, and
-        mutation invalidation rules owned by the module.
-  - [x] Add a build-time preview loader that composes the development adapter
-        only for local/dev and resolves to null elsewhere.
-  - [x] Add `/workspace-preview/barbershop-setup` using
-        `WorkspacePreviewShell`, with no direct route/module import from
-        `src/dev`.
-  - [x] Update route generation and module-boundary tests.
-- [x] Build deterministic related scenarios:
-  - [x] Define `new-business`, `incomplete-setup`, `single-unit`, `multi-unit`,
-        `dense-catalogs`, `availability-conflicts`, `slow`, `next-failure`, and
-        `persistent-error` scenarios.
-  - [x] Use only synthetic businesses, units, people, addresses, contact values,
-        images, services, schedules, and notes.
-  - [x] Keep normal fixtures presentation-sized and dense fixtures explicitly
-        bounded UX stress data rather than capacity evidence.
-  - [x] Ensure cross-collection IDs and relationships are deterministic and
-        restored as one scenario snapshot.
-  - [x] Add one-shot and persistent failure behavior plus bounded deterministic
-        latency without network requests.
-- [x] Implement the in-memory repository adapter:
-  - [x] Reuse `MemoryScenarioEngine` rather than introducing a second scenario
-        engine.
-  - [x] Implement bounded list/search/filter/sort/pagination and section summary
-        operations needed by the UI.
-  - [x] Implement create, inspect, update, archive, restore, relationship, and
-        availability commands in memory.
-  - [x] Validate visible dependencies and return stable prototype error
-        categories without defining future API error codes.
-  - [x] Make related optimistic mutations and rollback atomic across visible
-        collections.
-  - [x] Prevent slow/stale results from overwriting a later scenario, reset, or
-        navigation state.
-  - [x] Implement a full reset that restores seed records, ID sequence, latency,
-        failure mode, selection, query state, and pending mutation state.
-- [x] Build the setup overview:
-  - [x] Show synthetic completion state for business/unit basics,
-        professionals, services, and availability.
-  - [x] Show incomplete reasons and direct section actions with stable focus and
-        no misleading production-success claim.
-  - [x] Cover new-business, incomplete, complete, loading, slow, error, retry,
-        and long-content states.
-- [x] Build the units section:
-  - [x] Add bounded list/search/filter/sort/pagination, empty/filtered-empty,
-        status, and long-content states.
-  - [x] Add detail/create/edit drawers for presentation fields, operating hours,
-        and address display using module-owned RHF/Zod schemas.
-  - [x] Add archive/restore confirmation and dependency outcomes without
-        silently orphaning professionals/services.
-  - [x] Reuse shared masks, form sections, drawer anatomy, status badges, table
-        actions, and feedback components where their contracts fit.
-- [x] Build the professionals section:
-  - [x] Add list/detail/create/edit/archive/restore interactions.
-  - [x] Present assigned units, eligible services, availability summary,
-        active/inactive status, and visual-only account access state.
-  - [x] Keep access state synthetic and read-only; do not call or model an IDP
-        organization/invitation mutation.
-  - [x] Cover missing assignment, inactive dependency, long content, and dense
-        catalog states.
-- [x] Build the services section:
-  - [x] Add list/detail/create/edit/archive/restore interactions for category,
-        name, description, duration, price, unit availability, eligible
-        professionals, and active/inactive presentation.
-  - [x] Validate visible duration/price/relationship errors with Portuguese
-        copy and first-invalid-field focus.
-  - [x] Demonstrate safe dependency handling when a service remains referenced
-        by a professional or setup summary.
-- [ ] Build the availability section:
-  - [x] Add unit/professional selection and an accessible weekly schedule editor.
-  - [ ] Support working periods, breaks, closed days, time off, copy-to-days,
-        explicit overlap/conflict feedback, and discard confirmation.
-  - [x] Keep drag optional and never the only way to edit time ranges.
-  - [x] Cover narrow reflow, long days, multiple periods, conflicts, empty,
-        slow, failure, retry, and rollback states.
-- [x] Build presentation controls and reset:
-  - [x] Expose clearly labeled development-only scenario selection and scenario
-        descriptions.
-  - [x] Add `Restaurar cenário` with explicit confirmation where accidental
-        loss of current prototype changes would be surprising.
-  - [x] On scenario switch/reset, close or safely discard open drafts, clear
-        stale selection, reset query/mutation state, and focus the resulting
-        page heading or status message.
-  - [x] Show only safe local scenario ID, record counts, latency, and failure
-        mode in any diagnostic summary.
-- [ ] Complete accessibility, responsive, and theme validation:
-  - [x] Verify keyboard-only section navigation, tables, contextual actions,
-        drawers, forms, confirmations, availability editing, scenario switch,
-        and reset.
-  - [x] Add appropriate headings, labels, descriptions, table semantics,
-        `aria-invalid`, status/alert announcements, and focus restoration.
-  - [ ] Verify 320 CSS pixels, 200% zoom-equivalent width, bounded overflow,
-        coarse pointers, autofill/paste, duplicate submission, light/dark/system,
-        forced colors, and reduced motion.
-  - [x] Run focused axe scans and record VoiceOver/NVDA/manual skips.
-- [x] Enforce privacy and production boundaries:
-  - [x] Prove no fixture or mutation performs fetch, IDP interception, storage,
-        cookie, service-worker, analytics, or external image behavior.
-  - [x] Prove synthetic contact/address/note values do not enter URLs, logs, or
-        persistent browser storage.
-  - [x] Extend production-boundary tests to reject module fixture, scenario,
-        reset-control, mock-engine, and presentation-only markers from `hml` and
-        `prd` artifacts.
-- [ ] Add focused verification:
-  - [x] Unit-test deterministic scenario isolation, IDs, related reset, latency,
-        one-shot/persistent failure, stale-result protection, dependency rules,
-        optimistic rollback, and query invalidation.
-  - [ ] Unit/component-test every section's normal/loading/empty/error/dense,
-        form, confirmation, relationship, and reset behavior.
-  - [x] Add Playwright journeys for overview-to-section navigation, catalog
-        mutations, availability editing, scenario switching, reset, failure,
-        rollback, narrow layout, keyboard/focus, and axe.
-  - [x] Run route generation, format, lint, typecheck, unit tests, focused/full
-        Playwright, production-boundary, Studio build/check, and workspace check.
+- [x] Reconfirm direction and boundaries:
+  - [x] Read updated ENG-41, PR #22, review threads, PRD/task, applicable instructions, skills, and
+        existing implementation.
+  - [x] Record the product decision that authenticated integration replaces the old preview
+        decision.
+  - [x] Preserve the two user-owned untracked ENG-08 documentation files untouched and unstaged.
+- [x] Integrate the route:
+  - [x] Add `src/routes/_authenticated/barbershop-setup/index.tsx`.
+  - [x] Render through the existing `_authenticated` `AuthGate` and `WorkspaceShell`.
+  - [x] Keep stable `section` URL state and the invisible technical `scenario` value.
+  - [x] Default invalid or missing scenarios to `single-unit`.
+  - [x] Remove `src/routes/workspace-preview/barbershop-setup/index.tsx` and its preview-shell
+        dependency.
+  - [x] Remove the setup link from the workspace preview landing page.
+- [x] Register normal navigation:
+  - [x] Add `/barbershop-setup` to the module registry.
+  - [x] Add `Barbearia` to secondary navigation.
+  - [x] Add `Configuração da barbearia` breadcrumb metadata.
+  - [x] Cover desktop expanded/collapsed and mobile navigation active states.
+- [x] Remove ordinary test-harness chrome:
+  - [x] Remove scenario selection, scenario descriptions, reset controls, fixture counts, latency,
+        and failure mode.
+  - [x] Replace prototype/presentation/synthetic UI language with normal Brazilian Portuguese
+        product copy.
+  - [x] Map development-only failures to safe product-facing retry messages.
+  - [x] Remove scenario/reset/runtime diagnostics from the module repository port while keeping
+        concrete development helpers available to repository tests.
+- [x] Establish the setup source boundary:
+  - [x] Rename the virtual module to `virtual:studio-barbershop-setup-source`.
+  - [x] Rename the disabled shim and type declaration to source-oriented names.
+  - [x] Add `VITE_BARBERSHOP_SETUP_SOURCE` to centralized Studio env parsing and `.env.example`.
+  - [x] Add `STUDIO__VITE_BARBERSHOP_SETUP_SOURCE` to `env-schema.yaml`.
+  - [x] Explicitly enable memory in the local Studio dev script.
+  - [x] Pass the GitHub Environment variable through develop, homolog, and production build/deploy
+        steps.
+  - [x] Share a tested target guard with Agenda so only `local` and `dev` can compose memory.
+  - [x] Explicitly disable the source in production-boundary and production-preview scripts.
+- [x] Preserve module behavior:
+  - [x] Keep overview, units, professionals, services, and availability.
+  - [x] Keep create, inspect, edit, archive/restore, relationship validation, retry, and rollback.
+  - [x] Keep weekly hours, breaks, closed days, time off, copy-to-weekdays, and filtered conflicts.
+  - [x] Keep clean-draft refresh, active-draft preservation, dependency blocking, and stale-operation
+        invalidation.
+  - [x] Keep drawer entry/exit animation, focus return, and reduced-motion suppression.
+- [x] Update automated coverage:
+  - [x] Update route generation expectations and source-oriented architecture tests.
+  - [x] Update registry, breadcrumb, shell, env, workflow, and source-target tests.
+  - [x] Convert ENG-41 Playwright journeys to the authenticated route with a local session fixture in
+        the browser harness only.
+  - [x] Cover direct route, normal sidebar entry, collapsed navigation, mobile navigation, and
+        absence of preview chrome.
+  - [x] Prove the removed preview route cannot render the module.
+  - [x] Keep CRUD, relationships, availability, axe, responsive, theme, focus, drawer animation,
+        and reduced-motion coverage.
+  - [x] Update production preview to verify the normal route with a disabled source and no fixtures.
+  - [x] Keep the production artifact scan focused on source, fixture, scenario, and mock markers
+        while allowing the real module title and route metadata.
 - [x] Update durable documentation:
-  - [x] Update `apps/studio/README.md`, `docs/studio/component-system.md`, and a
-        dedicated Studio setup-prototype contract.
-  - [x] Document preview route, scenarios, reset behavior, synthetic-data
-        policy, module/adapter boundary, and production exclusion.
-  - [x] Update `apps/studio/AGENTS.md` or a Triad skill only if implementation
-        establishes a reusable convention not already documented.
-  - [x] Explain in the PR why API, IDP, site, persistence, environment, and
-        deployment documentation do not change.
+  - [x] Replace the old preview decision in this PRD/task pair.
+  - [x] Update `apps/studio/README.md`.
+  - [x] Rename the durable setup document to `docs/studio/barbershop-setup.md`.
+  - [x] Update `docs/studio/component-system.md`, `docs/studio/testing.md`, and
+        `docs/studio/deployment.md`.
+  - [x] Keep API, IDP, and site documentation unchanged because their contracts do not change.
+- [x] Verify and deliver:
+  - [x] Run route generation, format, lint, typecheck, full Vitest, full Playwright,
+        production-boundary, build, and Studio check.
+  - [x] Run env/workflow tests and root `bun run check` with at most two equivalent attempts.
+  - [x] Perform browser inspection through normal sidebar entry, direct route, collapsed sidebar,
+        mobile navigation, and absence of preview chrome.
+  - [x] Run senior preflight and `git diff --check`.
+  - [x] Update PR #22 title/body with current evidence.
+  - [x] Commit once with a Conventional Commit message and push fast-forward.
 
 ## Verification Evidence
 
-Record evidence only as tasks are completed. Do not paste fixture payloads,
-auth/session values, private headers, or screenshots that could be mistaken for
-real business data.
+- `bun --filter studio routes:generate`: passed.
+- `bun --filter studio format`: passed; 190 files formatted and the final run fixed one changed
+  file.
+- `bun --filter studio lint`: passed; 195 files checked.
+- `bun --filter studio typecheck`: passed after adding the NodeNext `.js` extension to the local
+  Vite source-boundary import.
+- Focused Vitest: the initial 7 files and 30 tests passed; the final source-boundary review set of
+  5 files and 38 tests also passed.
+- `bun --filter studio test`: 27 files and 154 of 155 tests passed on the second bounded run. The
+  sole failure was the unchanged Agenda test `opens details from a board card and preserves the
+  edit journey`, which exceeded its 5-second jsdom timeout. The first bounded run had the same
+  timeout plus one other timeout in that Agenda file; no Agenda source or test changed.
+- Focused drawer Playwright: 1 Chromium test passed.
+- `bun --filter studio test:e2e`: all 38 Chromium tests passed.
+- `bun --filter studio test:e2e:production`: all 5 production Chromium tests passed.
+- `bun --filter studio test:production-boundary`: the final run passed; 39 output files and 987,479
+  bytes scanned, with fixture markers and every named development scenario rejected.
+- `bun --filter studio build`: passed. An explicit deployed-dev build with target `dev` and both
+  sources set to `memory` also passed; the expected existing chunk-size warning remained.
+- `bun --filter studio check`: generation, Biome, and typecheck passed; its second bounded run then
+  reproduced only the unchanged Agenda timeout above at 154 of 155 tests.
+- `bun run test:ci`: all 19 env/workflow/release tests passed.
+- `bun run check`: API, IDP, and site passed from Turbo cache; Studio reproduced only the same
+  unchanged Agenda timeout at 154 of 155 tests, so the root command exited 1 with 3 of 4 tasks
+  successful.
+- `git diff --check`: passed before preflight.
+- Browser inspection used the authenticated integration with a browser-local session response. It
+  entered from `/overview` through the `Barbearia` sidebar link, inspected the direct route,
+  expanded/collapsed desktop navigation, the mobile navigation dialog and active state, and found
+  no preview/reset/scenario chrome.
+- Browser transition evidence captured a closed mount at `translate: 100%` across the 640-pixel
+  drawer, `opacity: 1`, and `transition-duration: 0.2s`, followed by `transitionrun`,
+  `transitionstart`, and `transitionend` for `translate`. Exit emitted `transitionrun` while
+  `data-ending-style` was present, then removed the drawer and returned focus. Reduced motion used
+  `0.00001s`, emitted no `transitionrun`, removed the drawer, and returned focus.
+- The same closed mount and `transitionrun` were observed from a built `dev` preview with the memory
+  source, proving that neither HMR nor deployed-dev composition mounts the drawer already open.
+- GitHub Environment values were set and read back as `memory` for `dev` and `disabled` for `hml`
+  and `prd` under `STUDIO__VITE_BARBERSHOP_SETUP_SOURCE`.
 
-- Command: `bun --filter studio routes:generate`, `format`, `lint`, `typecheck`, and `test`
-- Result: passed before review fixes; 27 Vitest files and 141 tests passed. Final review-fix counts
-  are recorded below after the post-format verification run.
-- Notes: browser-authoritative Base UI transition, relationship-focus, and availability-draft
-  journeys remain in Playwright to avoid redundant high-cost jsdom rendering.
-- Command: `bun --filter studio test:e2e`
-- Result: passed before review fixes; 31 Chromium tests passed, including five ENG-41 journeys and
-  focused axe WCAG 2.0/2.1/2.2 A/AA coverage. Final review-fix counts are recorded below.
-- Notes: the complete browser suite also verified light, dark, system, computed contrast, visible
-  focus, reduced motion, forced colors, 320 CSS pixels, and 200%-zoom-equivalent behavior.
-- Command: `bun --filter studio test:production-boundary` and `bun --filter studio build`
-- Result: passed; the production scan verified 38 files and rejected all configured setup adapter,
-  fixture, scenario-control, and dense-record markers.
-- Notes: the built route resolves to the null loader and redirects to `/login`.
-- Command: `bun --filter studio check` and `bun run check`
-- Result: passed; the Studio quality gate and all four workspace package checks completed.
-- Notes: API, IDP, and site results were unchanged/cached where applicable. Existing Base UI
-  reset-password test warnings remain outside ENG-41; the new preview link warning was fixed.
-- Command: local Chromium screenshots at 1440×900, 1280×900, and 320×760.
-- Result: visually reviewed light overview, dark dense services, dark availability conflicts, and
-  narrow new-business units. Direct URL counts, translated select values, and Portuguese conflict
-  copy were corrected before the final focused rerun.
-- Notes: VoiceOver/NVDA, a physical coarse-pointer device, OS-native forced-colors visual review,
-  and authenticated deployed `dev` review were not available and remain explicit residual checks.
-  Headless forced-colors, keyboard, focus, axe, reduced-motion, and narrow/zoom-equivalent evidence
-  passed. No temporary server remained running after review.
+## Capacity And Risk Notes
 
-### Review-Fix Evidence
-
-- Final targeted Vitest: ENG-41 repository/page coverage passed 18 tests. Regressions cover
-  invocation-snapshot reads, reset/switch generation invalidation, canonical professional/service
-  synchronization with unit intersection, filtered availability conflicts, destination-specific
-  absences, dependency blocking, atomic copy rollback, reset, and Portuguese numeric validation.
-- The full Chromium run passed all ten ENG-41 journeys. Normal-motion drawer entry still emitted a
-  browser transition with a computed 200 ms duration; reduced motion still computed at no more than
-  1 ms. Exit content remained mounted through `data-ending-style`, then focus returned to the opener.
-- Chromium also verified numeric and relationship-only first-invalid focus/error descriptions,
-  incompatible-professional clearing, visible-week conflict filtering, copy failure rollback
-  followed by visible success, preservation of an actively edited destination draft,
-  linked-service archive blocking, slow-result isolation, and scenario reset behavior. The initial
-  focused browser run exposed only accessible-label/description expectation drift in the new test;
-  the bounded test correction was validated by the final full run.
-- Final package gates: route generation, clean formatting, lint, typecheck, 27-file/149-test Vitest,
-  36-test Chromium, 38-file production-boundary scan, build, and standalone `studio check` passed.
-- Root `bun run check` was intentionally not rerun in this final batch. It remains not passed locally
-  from the earlier review batch, when two bounded exact attempts and one changed-approach isolated
-  Turbo Studio attempt each timed out in the same two pre-existing Agenda jsdom journeys
-  (`announces keyboard drag instructions and cancellation in Portuguese` and `opens details from a
-  board card and preserves the edit journey`). The final 149-test Studio suite passed through both
-  direct `studio test` and standalone `studio check`; no unrelated Agenda source or timeout changed.
-  The local root gate remains explicitly not passed.
-- Physical VoiceOver/NVDA, coarse-pointer hardware, OS-native forced-colors visual inspection, and
-  authenticated deployed-dev validation were not performed in this review-fix batch and remain
-  residual. The availability discard-confirmation and exhaustive every-section/every-state
-  component-test tasks remain unchecked; their broader parent tasks remain unchecked as well.
-
-## Risks And Follow-Ups
-
-- [ ] Presentation-facing fields may be mistaken for backend requirements;
-      future API work must start from a separate accepted domain initiative.
-- [ ] A setup hub may not be the final onboarding experience; product review
-      must decide hub versus guided flow after using the prototype.
-- [ ] Cross-collection reset/rollback can become inconsistent if each section
-      owns an isolated engine; keep one coordinated scenario snapshot or an
-      explicitly atomic orchestration boundary.
-- [ ] Availability can become an inaccessible custom grid; preserve explicit
-      list/form editing and semantic conflict descriptions.
-- [ ] Dense synthetic fixtures validate browser UX only, not API/database
-      pagination, indexes, concurrency, or capacity.
-- [ ] Account-access badges can imply real authorization; label them as
-      synthetic presentation state and perform no IDP mutation.
-- [ ] Production artifacts can accidentally retain fixture/reset markers;
-      production-boundary scans and null-loader behavior are required.
-- [ ] After visual acceptance, create a separate initiative for tenancy,
-      organization/membership, API contracts, persistence, authorization,
-      migrations, operations, and production Studio adapters.
+- The memory fixtures are bounded UX/test inputs and provide no numeric capacity evidence.
+- No network, persistence, polling, realtime, or background load is introduced.
+- The integrated shell may make temporary data feel durable; documentation and the disabled
+  `hml`/`prd` source boundary prevent an operational persistence claim without adding preview chrome
+  back to the UI.
+- A future HTTP adapter requires a separate accepted initiative for API, tenancy, authorization,
+  persistence, observability, migration, and capacity.
+- Physical assistive-technology and hardware checks remain residual unless completed during the
+  final browser inspection; automated axe, keyboard, responsive, forced-colors, and reduced-motion
+  coverage do not replace them.

@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useState } from "react"
 import { describe, expect, it } from "vitest"
+import { resolveBarbershopSetupScenario } from "@/dev/barbershop-setup/entry"
 import { BarbershopSetupMemoryRepository } from "@/dev/barbershop-setup/memory-repository"
 import type { SetupScenarioId, SetupSection } from "@/modules/barbershop-setup/contracts"
 import { serviceFormSchema } from "@/modules/barbershop-setup/entity-drawer"
@@ -12,18 +13,23 @@ import type { BarbershopSetupSearch } from "@/modules/barbershop-setup/search"
 import { validateBarbershopSetupSearch } from "@/modules/barbershop-setup/search"
 import { BarbershopSetupPage } from "@/modules/barbershop-setup/setup-page"
 
-describe("barbershop setup presentation", () => {
+describe("barbershop setup module", () => {
   it("accepts only stable scenario and section identifiers in URL state", () => {
-    expect(validateBarbershopSetupSearch({ scenario: "multi-unit", section: "services" })).toEqual({
-      scenario: "multi-unit",
-      section: "services",
-    })
     expect(
-      validateBarbershopSetupSearch({
-        scenario: "Nome da pessoa",
-        section: "Rua com dados privados",
-        phone: "81999999999",
-      }),
+      validateBarbershopSetupSearch(
+        { scenario: "multi-unit", section: "services" },
+        resolveBarbershopSetupScenario,
+      ),
+    ).toEqual({ scenario: "multi-unit", section: "services" })
+    expect(
+      validateBarbershopSetupSearch(
+        {
+          scenario: "Nome da pessoa",
+          section: "Rua com dados privados",
+          phone: "81999999999",
+        },
+        resolveBarbershopSetupScenario,
+      ),
     ).toEqual({ scenario: "single-unit", section: "overview" })
   })
 
@@ -33,7 +39,7 @@ describe("barbershop setup presentation", () => {
     expect(
       await screen.findByRole("heading", { name: "Visão geral da configuração" }),
     ).toBeVisible()
-    expect(screen.getByText(/4 de 4 etapas visuais completas/)).toBeVisible()
+    expect(screen.getByText(/4 de 4 etapas completas/)).toBeVisible()
     await user.click(screen.getByRole("button", { name: "Serviços" }))
     expect(await screen.findByRole("table", { name: "Serviços da configuração" })).toBeVisible()
     await user.click(screen.getByRole("button", { name: "Disponibilidade" }))

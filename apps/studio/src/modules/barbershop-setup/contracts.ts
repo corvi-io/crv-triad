@@ -8,19 +8,7 @@ export const setupSections = [
 
 export type SetupSection = (typeof setupSections)[number]
 
-export const setupScenarioIds = [
-  "new-business",
-  "incomplete-setup",
-  "single-unit",
-  "multi-unit",
-  "dense-catalogs",
-  "availability-conflicts",
-  "slow",
-  "next-failure",
-  "persistent-error",
-] as const
-
-export type SetupScenarioId = (typeof setupScenarioIds)[number]
+export type SetupScenarioId = string
 export type SetupEntityKind = "professional" | "service" | "unit"
 export type SetupEntityStatus = "active" | "archived"
 export type AccountAccessStatus = "connected" | "invited" | "not-configured"
@@ -83,22 +71,6 @@ export type SetupAvailability = {
 
 export type SetupRecord = SetupAvailability | SetupProfessional | SetupService | SetupUnit
 export type SetupEntity = SetupProfessional | SetupService | SetupUnit
-
-export type SetupScenario = {
-  description: string
-  id: SetupScenarioId
-  label: string
-}
-
-export type SetupRuntimeSnapshot = {
-  failureMode: "always" | "never" | "next"
-  latencyMs: number
-  professionalCount: number
-  recordCount: number
-  scenarioId: SetupScenarioId
-  serviceCount: number
-  unitCount: number
-}
 
 export type SetupListQuery = {
   kind: SetupEntityKind
@@ -171,7 +143,7 @@ export class SetupValidationError extends Error {
 
 export class SetupOperationInvalidatedError extends Error {
   constructor() {
-    super("A operação foi descartada porque o cenário foi restaurado ou alterado.")
+    super("A operação foi descartada porque os dados disponíveis foram atualizados.")
     this.name = "SetupOperationInvalidatedError"
   }
 }
@@ -184,11 +156,7 @@ export interface BarbershopSetupRepository {
   getAvailability(query: AvailabilityQuery): Promise<AvailabilityResult>
   getOverview(scenarioId: SetupScenarioId): Promise<SetupOverview>
   list(query: SetupListQuery): Promise<SetupEntityPage>
-  reset(): Promise<void>
-  scenarios(): readonly SetupScenario[]
-  selectScenario(id: SetupScenarioId): Promise<void>
   setArchived(kind: SetupEntityKind, id: string, archived: boolean): Promise<SetupEntity>
-  snapshot(scenarioId?: SetupScenarioId): SetupRuntimeSnapshot
   update(kind: SetupEntityKind, id: string, input: SetupEntityInput): Promise<SetupEntity>
   updateAvailability(input: SetupAvailability): Promise<SetupAvailability>
 }

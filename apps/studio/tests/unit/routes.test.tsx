@@ -108,4 +108,16 @@ describe("routes", () => {
       "/profile",
     )
   })
+
+  it("renders barbershop setup as a private module inside the workspace shell", async () => {
+    renderRoute("/barbershop-setup?section=services", authenticatedState())
+
+    expect(
+      await screen.findByRole("heading", { name: "Configuração da barbearia" }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Barbearia" })).toHaveAttribute("aria-current", "page")
+    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
+      "Configuração da barbearia",
+    )
+  })
 })

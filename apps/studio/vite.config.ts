@@ -5,6 +5,7 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import react from "@vitejs/plugin-react"
 import { loadEnv } from "vite"
 import { defineConfig } from "vitest/config"
+import { isMemorySourceEnabled } from "./vite-source-boundary.js"
 
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
@@ -13,16 +14,20 @@ export default defineConfig(({ command, mode }) => {
     command === "serve"
       ? "./src/dev/sandbox/entry.ts"
       : "./src/modules/shared/config/development-sandbox-disabled.ts"
-  const schedulingPrototypeEnabled =
-    publicEnv.VITE_SCHEDULING_SOURCE === "memory" &&
-    (publicEnv.VITE_DEPLOY_TARGET === "local" || publicEnv.VITE_DEPLOY_TARGET === "dev")
+  const schedulingPrototypeEnabled = isMemorySourceEnabled(
+    publicEnv.VITE_SCHEDULING_SOURCE,
+    publicEnv.VITE_DEPLOY_TARGET,
+  )
   const schedulingPrototypeEntry = schedulingPrototypeEnabled
     ? "./src/dev/scheduling/entry.ts"
     : "./src/modules/shared/config/scheduling-prototype-disabled.ts"
-  const barbershopSetupPrototypeEntry =
-    command === "serve"
-      ? "./src/dev/barbershop-setup/entry.ts"
-      : "./src/modules/shared/config/barbershop-setup-prototype-disabled.ts"
+  const barbershopSetupSourceEnabled = isMemorySourceEnabled(
+    publicEnv.VITE_BARBERSHOP_SETUP_SOURCE,
+    publicEnv.VITE_DEPLOY_TARGET,
+  )
+  const barbershopSetupSourceEntry = barbershopSetupSourceEnabled
+    ? "./src/dev/barbershop-setup/entry.ts"
+    : "./src/modules/shared/config/barbershop-setup-source-disabled.ts"
 
   return {
     plugins: [
@@ -38,9 +43,9 @@ export default defineConfig(({ command, mode }) => {
         "@": path.resolve(__dirname, "./src"),
         "virtual:studio-development-sandbox": path.resolve(__dirname, developmentSandboxEntry),
         "virtual:studio-scheduling-prototype": path.resolve(__dirname, schedulingPrototypeEntry),
-        "virtual:studio-barbershop-setup-prototype": path.resolve(
+        "virtual:studio-barbershop-setup-source": path.resolve(
           __dirname,
-          barbershopSetupPrototypeEntry,
+          barbershopSetupSourceEntry,
         ),
       },
     },

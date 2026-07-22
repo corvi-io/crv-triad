@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, type Page, type Route, test } from "@playwright/test"
 
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/auth/**", async (route) => {
@@ -30,11 +30,58 @@ test("redirects the schedule preview and excludes synthetic scheduling in produc
   await expect(page.getByText("Unidade sintética Centro")).toHaveCount(0)
 })
 
-test("redirects the setup preview and excludes its scenario controls in production", async ({
-  page,
-}) => {
+test("keeps the removed setup preview route inaccessible in production", async ({ page }) => {
   await page.goto("/workspace-preview/barbershop-setup?scenario=single-unit&section=overview")
-  await expect(page).toHaveURL(/\/login$/)
   await expect(page.getByRole("heading", { name: "Configuração da barbearia" })).toHaveCount(0)
   await expect(page.getByLabel("Cenário de apresentação")).toHaveCount(0)
 })
+
+test("keeps the authenticated setup route but disables its memory source in production", async ({
+  page,
+}) => {
+  await page.unroute("**/api/auth/**")
+  await routeAuthenticatedSession(page)
+  await page.goto("/barbershop-setup?scenario=single-unit&section=overview")
+
+  await expect(page.getByRole("heading", { name: "Configuração da barbearia" })).toBeVisible()
+  await expect(
+    page.getByText("A configuração da barbearia está indisponível neste ambiente."),
+  ).toBeVisible()
+  await expect(page.getByLabel("Cenário de apresentação")).toHaveCount(0)
+  await expect(page.getByText("Unidade Centro")).toHaveCount(0)
+})
+
+async function routeAuthenticatedSession(page: Page) {
+  await page.route("**/api/auth/**", async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ headers: corsHeaders(), status: 204 })
+      return
+    }
+    await fulfillJson(route, {
+      session: { expiresAt: "2099-01-01T00:00:00.000Z", id: "session-fixture" },
+      user: {
+        email: "reviewer@example.invalid",
+        id: "reviewer-fixture",
+        name: "Pessoa Revisora",
+      },
+    })
+  })
+}
+
+async function fulfillJson(route: Route, body: unknown) {
+  await route.fulfill({
+    body: JSON.stringify(body),
+    contentType: "application/json",
+    headers: corsHeaders(),
+    status: 200,
+  })
+}
+
+function corsHeaders() {
+  return {
+    "access-control-allow-credentials": "true",
+    "access-control-allow-headers": "content-type",
+    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-origin": "http://127.0.0.1:4173",
+  }
+}

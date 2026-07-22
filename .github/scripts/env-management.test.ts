@@ -142,6 +142,7 @@ describe("env-management", () => {
         "STUDIO__VITE_AUTH_BASE_URL",
         "STUDIO__VITE_DEPLOY_TARGET",
         "STUDIO__VITE_SCHEDULING_SOURCE",
+        "STUDIO__VITE_BARBERSHOP_SETUP_SOURCE",
       ],
     })
     expect(
@@ -214,7 +215,7 @@ describe("env-management", () => {
     }
   })
 
-  it("propagates fail-closed Studio scheduling inputs through every deployment target", () => {
+  it("propagates fail-closed Studio development sources through every deployment target", () => {
     for (const [path, target] of [
       [".github/workflows/develop-pipeline.yml", "dev"],
       [".github/workflows/homolog-pipeline.yml", "hml"],
@@ -228,6 +229,11 @@ describe("env-management", () => {
       expect(
         content.match(
           /STUDIO__VITE_SCHEDULING_SOURCE: \$\{\{ vars\.STUDIO__VITE_SCHEDULING_SOURCE \}\}/g,
+        ),
+      ).toHaveLength(2)
+      expect(
+        content.match(
+          /STUDIO__VITE_BARBERSHOP_SETUP_SOURCE: \$\{\{ vars\.STUDIO__VITE_BARBERSHOP_SETUP_SOURCE \}\}/g,
         ),
       ).toHaveLength(2)
     }

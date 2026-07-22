@@ -41,14 +41,14 @@ export const unitFormSchema = z.object({
   kind: z.literal("unit"),
   ...baseSchema,
   code: z.string().trim().min(2, "Informe um código curto."),
-  address: z.string().trim().min(5, "Informe um endereço sintético para a apresentação."),
+  address: z.string().trim().min(5, "Informe um endereço válido."),
   businessHours: z.string().trim().min(5, "Informe o resumo dos horários."),
 })
 
 export const professionalFormSchema = z.object({
   kind: z.literal("professional"),
   ...baseSchema,
-  role: z.string().trim().min(2, "Informe a função de apresentação."),
+  role: z.string().trim().min(2, "Informe a função do profissional."),
   accountAccess: z.enum(["connected", "invited", "not-configured"]),
   unitIds: z.array(z.string()).min(1, "Selecione pelo menos uma unidade."),
   serviceIds: z.array(z.string()),
@@ -238,7 +238,7 @@ function EntityForm({
       title={
         entity ? `Editar ${entityLabels[entityKind].singular}` : entityLabels[entityKind].newLabel
       }
-      description="Dados sintéticos e válidos somente nesta apresentação local."
+      description="Preencha os dados da configuração."
       secondaryActions={
         <Button type="button" variant="outline" onClick={onClose}>
           Cancelar
@@ -414,7 +414,7 @@ function ProfessionalFields({ formId, form }: FormFieldsProps) {
       <FormField
         id={`${formId}-access`}
         label="Acesso à conta"
-        description="Estado visual e somente leitura de identidade; não envia convites."
+        description="Situação atual do acesso deste profissional."
       >
         <Controller
           control={form.control}
@@ -429,8 +429,8 @@ function ProfessionalFields({ formId, form }: FormFieldsProps) {
                 <SelectValue>{accessLabels[field.value as AccountAccessStatus]}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="connected">Conectado (visual)</SelectItem>
-                <SelectItem value="invited">Convite pendente (visual)</SelectItem>
+                <SelectItem value="connected">Conectado</SelectItem>
+                <SelectItem value="invited">Convite pendente</SelectItem>
                 <SelectItem value="not-configured">Não configurado</SelectItem>
               </SelectContent>
             </Select>
@@ -576,7 +576,7 @@ function RelationField({
             ) : null}
             <div className="grid gap-2 sm:grid-cols-2">
               {options.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma opção ativa neste cenário.</p>
+                <p className="text-sm text-muted-foreground">Nenhuma opção ativa disponível.</p>
               ) : (
                 options.map((option, index) => {
                   const values = Array.isArray(field.value) ? field.value : []
@@ -665,7 +665,7 @@ function EntityDetails({
       onOpenChangeComplete={onOpenChangeComplete}
       context={entityLabels[entity.kind].plural}
       title="Visualizar"
-      description="Detalhes sintéticos da apresentação."
+      description="Detalhes do registro selecionado."
       secondaryActions={
         <Button variant="outline" onClick={onClose}>
           Fechar
@@ -767,8 +767,8 @@ export const entityLabels = {
 } as const
 
 const accessLabels: Record<AccountAccessStatus, string> = {
-  connected: "Conectado (apresentação)",
-  invited: "Convite pendente (apresentação)",
+  connected: "Conectado",
+  invited: "Convite pendente",
   "not-configured": "Não configurado",
 }
 

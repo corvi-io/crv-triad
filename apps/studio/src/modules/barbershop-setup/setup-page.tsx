@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query"
 import {
   ArchiveIcon,
   Building2Icon,
@@ -8,7 +7,6 @@ import {
   EyeIcon,
   PencilIcon,
   PlusIcon,
-  RotateCcwIcon,
   ScissorsIcon,
   SearchIcon,
   Undo2Icon,
@@ -70,13 +68,17 @@ import type {
   Weekday,
 } from "./contracts"
 import {
+  SetupDependencyError,
+  SetupOperationInvalidatedError,
+  SetupValidationError,
+} from "./contracts"
+import {
   type EntityDrawerState,
   entityLabels,
   formatMoney,
   SetupEntityDrawer,
 } from "./entity-drawer"
 import {
-  resetSetupQueries,
   useCopySetupAvailabilityToWeekdays,
   useCreateSetupEntity,
   useSetSetupEntityArchived,
@@ -86,7 +88,6 @@ import {
   useUpdateSetupAvailability,
   useUpdateSetupEntity,
 } from "./queries"
-import { useBarbershopSetupRepository } from "./repository-context"
 import type { BarbershopSetupSearch } from "./search"
 
 const sectionItems: ReadonlyArray<{ icon: typeof Building2Icon; id: SetupSection; label: string }> =
@@ -105,79 +106,14 @@ export function BarbershopSetupPage({
   onSearchChange: (next: Partial<BarbershopSetupSearch>) => Promise<void> | void
   search: BarbershopSetupSearch
 }) {
-  const repository = useBarbershopSetupRepository()
-  const queryClient = useQueryClient()
-  const [isResetOpen, setResetOpen] = useState(false)
-  const [overlayEpoch, setOverlayEpoch] = useState(0)
-  const [snapshotRevision, setSnapshotRevision] = useState(0)
-  const headingRef = useRef<HTMLHeadingElement>(null)
-  const snapshot = repository.snapshot(search.scenario)
-  void snapshotRevision
-
-  async function switchScenario(scenarioId: SetupScenarioId) {
-    await repository.selectScenario(scenarioId)
-    await resetSetupQueries(queryClient)
-    setOverlayEpoch((value) => value + 1)
-    setSnapshotRevision((value) => value + 1)
-    await onSearchChange({ scenario: scenarioId })
-    headingRef.current?.focus()
-  }
-
-  async function resetScenario() {
-    await repository.reset()
-    await resetSetupQueries(queryClient)
-    setResetOpen(false)
-    setOverlayEpoch((value) => value + 1)
-    setSnapshotRevision((value) => value + 1)
-    toast.success("Cenário restaurado por completo.")
-    headingRef.current?.focus()
-  }
-
-  const activeScenario = repository.scenarios().find(({ id }) => id === search.scenario)
   return (
     <ModuleLayout
       head={
         <div className="flex flex-col gap-3">
           <PageHeader
             title="Configuração da barbearia"
-            description="Protótipo visual local para validar catálogos, vínculos e disponibilidade."
-            actions={
-              <Button type="button" variant="outline" onClick={() => setResetOpen(true)}>
-                <RotateCcwIcon aria-hidden="true" />
-                Restaurar cenário
-              </Button>
-            }
+            description="Gerencie unidades, profissionais, serviços e disponibilidade."
           />
-          <div className="rounded-lg border bg-card p-3">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div className="grid min-w-0 gap-1">
-                <Label htmlFor="setup-scenario">Cenário de apresentação</Label>
-                <Select
-                  value={search.scenario}
-                  onValueChange={(value) => value && switchScenario(value as SetupScenarioId)}
-                >
-                  <SelectTrigger id="setup-scenario" className="w-full sm:w-64">
-                    <SelectValue>{activeScenario?.label}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {repository.scenarios().map((scenario) => (
-                      <SelectItem key={scenario.id} value={scenario.id}>
-                        {scenario.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <p className="max-w-2xl text-sm text-muted-foreground">
-                {activeScenario?.description}
-              </p>
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground" role="status" aria-live="polite">
-              Ferramenta exclusiva de desenvolvimento · {snapshot.unitCount} unidades ·{" "}
-              {snapshot.professionalCount} profissionais · {snapshot.serviceCount} serviços ·
-              latência {snapshot.latencyMs} ms · falha {failureLabel(snapshot.failureMode)}
-            </p>
-          </div>
           <nav aria-label="Seções da configuração" className="overflow-x-auto">
             <ul className="flex min-w-max gap-1 border-b">
               {sectionItems.map(({ icon: Icon, id, label }) => (
@@ -204,24 +140,13 @@ export function BarbershopSetupPage({
       }
       bodyViewportClassName="space-y-4"
     >
-      <h2 ref={headingRef} tabIndex={-1} className="sr-only">
-        {sectionItems.find(({ id }) => id === search.section)?.label}
-      </h2>
-      <div key={`${search.scenario}-${overlayEpoch}`}>
+      <h2 className="sr-only">{sectionItems.find(({ id }) => id === search.section)?.label}</h2>
+      <div key={search.scenario}>
         <SetupSectionContent
           search={search}
           onSectionChange={(section) => onSearchChange({ section })}
         />
       </div>
-      <ConfirmationDialog
-        isOpen={isResetOpen}
-        title="Restaurar todo o cenário?"
-        description="Todas as alterações locais, rascunhos, seleções, falhas pendentes e consultas desta apresentação serão descartadas."
-        cancelLabel="Manter alterações"
-        confirmLabel="Restaurar cenário"
-        onCancel={() => setResetOpen(false)}
-        onConfirm={resetScenario}
-      />
     </ModuleLayout>
   )
 }
@@ -270,8 +195,7 @@ function OverviewSection({
           Visão geral da configuração
         </h2>
         <p className="text-sm text-muted-foreground">
-          {overview.data.completedCount} de {overview.data.totalCount} etapas visuais completas.
-          Isto não representa prontidão de produção.
+          {overview.data.completedCount} de {overview.data.totalCount} etapas completas.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
@@ -395,7 +319,7 @@ function EntitySection({
             {labels.plural}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Gerencie registros sintéticos e seus vínculos somente em memória.
+            Gerencie os registros e vínculos desta configuração.
           </p>
         </div>
         <Button
@@ -469,7 +393,7 @@ function EntitySection({
           description={
             search || status !== "all"
               ? "Altere a busca ou o estado para ver outros registros."
-              : "Crie o primeiro registro sintético para continuar a apresentação."
+              : "Crie o primeiro registro para continuar a configuração."
           }
           action={
             <Button
@@ -636,7 +560,7 @@ function EntitySection({
         description={
           archiveTarget?.status === "active"
             ? "Vínculos ativos bloquearão a ação para evitar registros órfãos."
-            : "O registro voltará a aparecer como ativo nesta apresentação."
+            : "O registro voltará a aparecer como ativo."
         }
         cancelLabel="Cancelar"
         confirmLabel={archiveTarget?.status === "active" ? "Arquivar" : "Restaurar"}
@@ -786,7 +710,7 @@ function AvailabilitySection({ scenarioId }: { scenarioId: SetupScenarioId }) {
         <EmptyState
           icon={CalendarClockIcon}
           title="Nenhuma semana cadastrada"
-          description="Escolha outro vínculo ou restaure o cenário para recuperar a agenda sintética."
+          description="Escolha outro vínculo ou tente novamente."
         />
       ) : (
         <div className="grid gap-3 xl:grid-cols-2">
@@ -879,7 +803,7 @@ function AvailabilityDayCard({
             id={`${record.id}-time-off`}
             value={draft.timeOff}
             disabled={draft.closed}
-            placeholder="Ex.: ausência sintética das 14:00 às 16:00"
+            placeholder="Ex.: ausência das 14:00 às 16:00"
             onChange={(event) =>
               setDraft((current) => ({ ...current, timeOff: event.currentTarget.value }))
             }
@@ -1037,9 +961,7 @@ function ErrorState({ onRetry, title }: { onRetry: () => void; title: string }) 
       <div className="grid max-w-md gap-3">
         <CircleAlertIcon aria-hidden="true" className="mx-auto size-7" />
         <h2 className="font-semibold">{title}</h2>
-        <p className="text-sm">
-          Falha controlada desta apresentação local. Tente novamente ou troque o cenário.
-        </p>
+        <p className="text-sm">Não foi possível obter os dados. Tente novamente.</p>
         <Button type="button" variant="outline" onClick={onRetry}>
           Tentar novamente
         </Button>
@@ -1089,18 +1011,18 @@ function entityRelationships(entity: SetupEntity) {
 
 function accountAccessLabel(value: SetupProfessional["accountAccess"]) {
   return value === "connected"
-    ? "Acesso conectado (visual)"
+    ? "Acesso conectado"
     : value === "invited"
-      ? "Convite pendente (visual)"
+      ? "Convite pendente"
       : "Sem acesso configurado"
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Não foi possível concluir a ação."
-}
-
-function failureLabel(mode: "always" | "never" | "next") {
-  return mode === "always" ? "persistente" : mode === "next" ? "na próxima mutação" : "desativada"
+  return error instanceof SetupDependencyError ||
+    error instanceof SetupValidationError ||
+    error instanceof SetupOperationInvalidatedError
+    ? error.message
+    : "Não foi possível concluir a ação. Tente novamente."
 }
 
 const weekdayLabels: Record<Weekday, string> = {

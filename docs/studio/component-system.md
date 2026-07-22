@@ -136,7 +136,7 @@ building block of a documented composition.
 | `layout/module-tabs.tsx` | Layout/navigation | Internal: requires router context and module-owned tab metadata. |
 | `layout/page-header.tsx` | Layout | Internal: composed by module pages; actions remain module owned. |
 | `layout/section-header.tsx` | Layout | Internal: small structural helper documented through page compositions. |
-| `overlays/action-drawer.tsx` | Overlay | Documented public contract: focus-managed form composition with explicit primary and secondary action slots plus Base UI open-change completion notification for consumers that retain content through exit transitions. |
+| `overlays/action-drawer.tsx` | Overlay | Documented public contract: focus-managed form composition with explicit primary and secondary action slots plus Base UI open-change completion notification for consumers that retain content through full-width entry/exit slide transitions; reduced motion removes the transition. |
 | `overlays/confirmation-dialog.tsx` | Overlay | Documented public contract: Base UI focus-managed confirmation with explicit title/description, configurable Portuguese action labels, and default or destructive confirmation treatment; covered by consuming form and prototype flows. |
 | `overlays/drawer-section.tsx` | Overlay anatomy | Internal: companion anatomy for `ActionDrawer`, not a standalone surface. |
 | `overlays/drawer-tabs.tsx` | Overlay anatomy | Internal: companion tab anatomy requiring a composed drawer. |
@@ -197,12 +197,13 @@ the loader is unavailable. Production-boundary checks scan output for mock engin
 obsolete catalog source, and control markers. The runtime contains no fetch, MSW, Better Auth, or
 `/api/auth` interception and stores nothing across refreshes.
 
-The ENG-41 barbershop setup presentation follows the same replaceable-adapter boundary while keeping
-its presentation contracts, query keys, forms, and UI under `src/modules/barbershop-setup`. One
+The ENG-41 barbershop setup module follows the same replaceable-adapter boundary while keeping its
+presentation contracts, query keys, forms, and UI under `src/modules/barbershop-setup`. One
 development adapter coordinates its related catalog and availability records through the generic
-engine. The adapter is exposed only through a development-serve virtual module and resolves to a
-null shim in builds. See `docs/studio/barbershop-setup-prototype.md` for its scenario, reset,
-component-discovery, privacy, and production-exclusion contract.
+engine. `virtual:studio-barbershop-setup-source` resolves to memory for configured `local`/`dev`
+targets and to a disabled source for `hml`/`prd`. The authenticated `/barbershop-setup` route exposes
+no ordinary scenario or reset controls. See `docs/studio/barbershop-setup.md` for its source,
+test-infrastructure, privacy, and production-exclusion contract.
 
 ## Primary Vendor References
 
