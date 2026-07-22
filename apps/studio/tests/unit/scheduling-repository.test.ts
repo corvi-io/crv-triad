@@ -3,6 +3,7 @@ import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
 import { SCHEDULING_FIXTURE_DATE } from "@/dev/scheduling/scenarios"
 import type { AppointmentInput, ScheduleDayQuery } from "@/modules/scheduling/contracts"
 import { ScheduleConflictError } from "@/modules/scheduling/contracts"
+import { applyAppointmentReschedule } from "@/modules/scheduling/queries"
 
 const query = (scenarioId = "normal", unitId: ScheduleDayQuery["unitId"] = "centro") => ({
   endDate: SCHEDULING_FIXTURE_DATE,
@@ -135,6 +136,65 @@ describe("scheduling memory repository", () => {
       paymentStatus: candidate.paymentStatus,
       status: candidate.status,
     })
+  })
+
+  it("reschedules start and professional without changing status and rebuilds occupancy atomically", async () => {
+    const repository = new SchedulingMemoryRepository()
+    const day = await repository.getDay(query())
+    const candidate = day.appointments.find(({ id }) => id === "kanban-05")
+    expect(candidate).toBeDefined()
+    if (!candidate) return
+
+    const optimistic = applyAppointmentReschedule(day, {
+      appointment: candidate,
+      professionalId: "professional-bruno",
+      start: "14:00",
+    })
+    expect(optimistic.appointments.find(({ id }) => id === candidate.id)).toMatchObject({
+      professionalId: "professional-bruno",
+      start: "14:00",
+      status: candidate.status,
+    })
+    expect(optimistic.occupancies.find(({ id }) => id === candidate.id)).toMatchObject({
+      professionalId: "professional-bruno",
+      start: "14:00",
+    })
+
+    await expect(
+      repository.update(candidate.id, {
+        ...candidate,
+        professionalId: "professional-bruno",
+        start: "14:00",
+      }),
+    ).resolves.toMatchObject({
+      professionalId: "professional-bruno",
+      start: "14:00",
+      status: candidate.status,
+    })
+  })
+
+  it("rejects terminal, ineligible, and out-of-hours allocation changes", async () => {
+    const repository = new SchedulingMemoryRepository()
+    const day = await repository.getDay(query())
+    const terminal = day.appointments.find(({ status }) => status === "completed")
+    const eligible = day.appointments.find(({ id }) => id === "kanban-05")
+    expect(terminal).toBeDefined()
+    expect(eligible).toBeDefined()
+    if (!terminal || !eligible) return
+
+    await expect(repository.update(terminal.id, { ...terminal, start: "14:00" })).rejects.toThrow(
+      "finalizados não podem ser remarcados",
+    )
+    await expect(
+      repository.update(eligible.id, {
+        ...eligible,
+        professionalId: "professional-inexistente",
+        start: "14:00",
+      }),
+    ).rejects.toThrow("não está disponível para este serviço")
+    await expect(repository.update(eligible.id, { ...eligible, start: "17:30" })).rejects.toThrow(
+      "horário dentro do funcionamento",
+    )
   })
 
   it("fails exactly the next transition in the rollback scenario", async () => {

@@ -16,7 +16,7 @@ import {
   primaryStatusForColumn,
   type ScheduleSearch,
 } from "./agenda"
-import { AgendaBoard } from "./agenda-board"
+import { AgendaBoard, type AgendaDropDestination, makeSlots, toMinutes } from "./agenda-board"
 import { AgendaControls } from "./agenda-controls"
 import { AgendaList } from "./agenda-list"
 import { AppointmentDrawer, type DrawerMode } from "./appointment-drawer"
@@ -26,7 +26,13 @@ import type {
   AppointmentTransitionInput,
   ScheduleDayQuery,
 } from "./contracts"
-import { useScenarioActions, useScheduleDay, useTransitionAppointment } from "./queries"
+import { ScheduleConflictError } from "./contracts"
+import {
+  useRescheduleAppointment,
+  useScenarioActions,
+  useScheduleDay,
+  useTransitionAppointment,
+} from "./queries"
 import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
 import { TransitionDialog } from "./transition-dialog"
 
@@ -49,6 +55,7 @@ export function SchedulePage({
   const dayQuery = useScheduleDay(query)
   const scenarios = useScenarioActions()
   const transitionMutation = useTransitionAppointment()
+  const rescheduleMutation = useRescheduleAppointment()
   const [searchText, setSearchText] = useState("")
   const debouncedSearchText = useDebouncedValue(searchText, 250)
   const [announcement, setAnnouncement] = useState("")
@@ -179,6 +186,66 @@ export function SchedulePage({
     })
   }
 
+  async function rescheduleAppointment(
+    appointment: Appointment,
+    destination: AgendaDropDestination,
+  ) {
+    if (rescheduleMutation.isPending) {
+      setAnnouncement("Aguarde a remarcação atual terminar.")
+      return
+    }
+    if (isTerminalAppointmentStatus(appointment.status)) {
+      setAnnouncement("Agendamentos finalizados não podem ser remarcados.")
+      return
+    }
+    if (
+      appointment.professionalId === destination.professionalId &&
+      appointment.start === destination.start
+    ) {
+      setAnnouncement("O agendamento já está nesse horário e barbeiro.")
+      return
+    }
+    const day = dayQuery.data
+    const professional = day?.professionals.find(({ id }) => id === destination.professionalId)
+    const service = day?.services.find(({ id }) => id === appointment.serviceId)
+    const validSlots = day ? makeSlots(day.startTime, day.endTime) : []
+    if (!day || !professional || !service || !validSlots.includes(destination.start)) {
+      setAnnouncement("Destino inválido. O agendamento não foi alterado.")
+      return
+    }
+    if (!service.eligibleProfessionalIds.includes(professional.id)) {
+      setAnnouncement("Esse barbeiro não atende o serviço do agendamento.")
+      return
+    }
+    if (toMinutes(destination.start) + appointment.durationMinutes > toMinutes(day.endTime)) {
+      setAnnouncement("O atendimento terminaria fora do horário de funcionamento.")
+      return
+    }
+
+    setAnnouncement(`Remarcando ${appointment.customerName} para ${destination.start}.`)
+    try {
+      await rescheduleMutation.mutateAsync({ appointment, ...destination })
+      toast.success(`Agendamento remarcado para ${destination.start} com ${professional.name}.`)
+      setAnnouncement(
+        `${appointment.customerName} remarcado para ${destination.start} com ${professional.name}. O status não foi alterado.`,
+      )
+    } catch (error) {
+      const reason =
+        error instanceof ScheduleConflictError
+          ? error.message
+          : "Não foi possível confirmar a remarcação."
+      toast.error(`${reason} O agendamento foi restaurado.`)
+      setAnnouncement(`${reason} O agendamento foi restaurado.`)
+    } finally {
+      requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLElement>(`[data-appointment-id="${appointment.id}"]`)
+          ?.querySelector<HTMLElement>("[data-drag-handle]")
+          ?.focus()
+      })
+    }
+  }
+
   return (
     <ModuleLayout
       bodyViewportClassName="flex h-full flex-col gap-3 pb-2"
@@ -240,7 +307,12 @@ export function SchedulePage({
         ) : search.view === "board" ? (
           <AgendaBoard
             day={boardDay}
+            isReschedulePending={rescheduleMutation.isPending}
+            onAnnouncement={setAnnouncement}
             onAppointment={(appointment) => setDrawer({ appointment, mode: "view" })}
+            onReschedule={(appointment, destination) =>
+              void rescheduleAppointment(appointment, destination)
+            }
             onSlot={(slot) => setDrawer({ mode: "create", slot })}
             onTransitionRequest={requestTransition}
           />

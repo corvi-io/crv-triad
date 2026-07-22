@@ -68,6 +68,26 @@ describe("schedule page", () => {
     expect(container.querySelectorAll("[data-appointment-id]")).toHaveLength(42)
     expect(container.querySelectorAll("[data-slot=avatar]").length).toBeGreaterThan(42)
     expect(screen.queryByText("Resumo da agenda")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Remarcar Carlos Eduardo" })).toBeEnabled()
+    expect(
+      screen.getByRole("button", { name: "Remarcação indisponível para João Vitor" }),
+    ).toBeDisabled()
+  })
+
+  it("announces keyboard drag instructions and cancellation in Portuguese", async () => {
+    const user = userEvent.setup()
+    const originalScrollIntoView = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = vi.fn()
+    renderSchedule(<SchedulePage search={baseSearch} onSearchChange={vi.fn()} />)
+
+    const handle = await screen.findByRole("button", { name: "Remarcar Carlos Eduardo" })
+    handle.focus()
+    await user.keyboard("[Space]")
+    expect(await screen.findByText(/Remarcando Carlos Eduardo\. Use as setas/)).toBeInTheDocument()
+    await user.keyboard("[Escape]")
+    expect(await screen.findByText("Remarcação cancelada.")).toBeInTheDocument()
+    expect(handle).toHaveFocus()
+    Element.prototype.scrollIntoView = originalScrollIntoView
   })
 
   it("opens details from a board card and preserves the edit journey", async () => {

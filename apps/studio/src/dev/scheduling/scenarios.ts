@@ -295,8 +295,8 @@ export const schedulingScenarios: readonly ScenarioDefinition<Appointment>[] = [
   },
   {
     id: "transition-rollback",
-    label: "Rollback de status",
-    description: "A próxima transição falha após o movimento otimista.",
+    label: "Rollback de mutação",
+    description: "A próxima alteração falha após a atualização otimista.",
     records: approvedBoardFixtures,
   },
   {

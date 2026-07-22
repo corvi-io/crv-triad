@@ -58,7 +58,7 @@ const services: readonly Service[] = [
 
 export class SchedulingMemoryRepository implements SchedulingRepository {
   readonly #engine = new MemoryScenarioEngine(schedulingScenarios, "normal")
-  #transitionFailureArmed = false
+  #mutationFailureArmed = false
 
   scenarios() {
     return schedulingScenarios.map(({ description, id, label }) => ({ description, id, label }))
@@ -68,7 +68,7 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
     if (query.scenarioId && query.scenarioId !== this.#engine.snapshot.scenarioId) {
       this.#engine.selectScenario(query.scenarioId)
       if (query.scenarioId === "next-failure") this.#engine.failNext()
-      this.#transitionFailureArmed = query.scenarioId === "transition-rollback"
+      this.#mutationFailureArmed = query.scenarioId === "transition-rollback"
     }
     const scenarioId = this.#engine.snapshot.scenarioId
     const scenarioAppointments = this.#engine.values()
@@ -110,6 +110,10 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   }
 
   async update(id: string, input: AppointmentInput) {
+    if (this.#mutationFailureArmed) {
+      this.#mutationFailureArmed = false
+      this.#engine.failNext()
+    }
     return this.#engine.execute("update", () => {
       const current = this.#engine.get(id)
       if (!current) throw new Error("Agendamento não encontrado.")
@@ -127,6 +131,14 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
         input.serviceId !== current.serviceId ||
         input.start !== current.start ||
         input.unitId !== current.unitId
+      if (
+        allocationChanged &&
+        (current.status === "completed" ||
+          current.status === "canceled" ||
+          current.status === "no-show")
+      ) {
+        throw new ScheduleConflictError("Agendamentos finalizados não podem ser remarcados.")
+      }
       if (allocationChanged) this.#assertValid(input, id)
       const updated = this.#engine.update(id, input)
       if (!updated) throw new Error("Agendamento não encontrado.")
@@ -139,8 +151,8 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   }
 
   async transition(input: AppointmentTransitionInput) {
-    if (this.#transitionFailureArmed) {
-      this.#transitionFailureArmed = false
+    if (this.#mutationFailureArmed) {
+      this.#mutationFailureArmed = false
       this.#engine.failNext()
     }
     return this.#engine.execute("update", () => {
@@ -170,12 +182,12 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   async selectScenario(id: string) {
     this.#engine.selectScenario(id)
     if (id === "next-failure") this.#engine.failNext()
-    this.#transitionFailureArmed = id === "transition-rollback"
+    this.#mutationFailureArmed = id === "transition-rollback"
   }
 
   async reset() {
     this.#engine.reset()
-    this.#transitionFailureArmed = this.#engine.snapshot.scenarioId === "transition-rollback"
+    this.#mutationFailureArmed = this.#engine.snapshot.scenarioId === "transition-rollback"
   }
 
   #assertValid(input: AppointmentInput, ignoredId?: string) {
@@ -183,6 +195,9 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
     const service = services.find(({ id }) => id === input.serviceId)
     if (!professional || !service?.eligibleProfessionalIds.includes(input.professionalId)) {
       throw new ScheduleConflictError("O profissional não está disponível para este serviço.")
+    }
+    if (!/^\d{2}:(?:00|15|30|45)$/.test(input.start)) {
+      throw new ScheduleConflictError("Use horários de 15 em 15 minutos (00, 15, 30 ou 45).")
     }
     const start = minutes(input.start)
     const end = start + input.durationMinutes

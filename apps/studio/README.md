@@ -44,7 +44,9 @@ never calls Google, Resend, or a deployed IDP.
 
 The Agenda prototype uses one canonical `Quadro`/`Lista` selector, a 15-minute time axis with barber
 columns, deterministic session-memory fixtures, button-trigger filters, a date-range calendar,
-non-drag status changes, and atomic optimistic rollback. It is intentionally unavailable in `hml`
+mouse/touch/keyboard allocation drag, drawer-based non-drag rescheduling, non-drag status changes,
+and atomic optimistic rollback. Temporal drag changes start/barber only, never status. It is
+intentionally unavailable in `hml`
 and `prd`; see `docs/studio/schedule-prototype.md` for the visual contract, runtime boundary, and
 residual manual accessibility checks.
 

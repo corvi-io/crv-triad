@@ -46,6 +46,10 @@ may scroll horizontally in compact layouts but must remain a single visual band.
 - An appointment spans the number of time rows implied by its duration.
 - Empty cells are quiet interactive slots for `Novo agendamento`.
 - Appointments hidden by filters remain as anonymous occupied spans.
+- Eligible appointments can be dragged vertically between 15-minute times, horizontally between
+  barber columns, or both. Temporal drag changes allocation only and never status.
+- Each logical grid subdivision is a drop target, including the visual area inside appointment,
+  anonymous occupancy, and blocked-period `rowSpan` cells, so conflicts can be rejected accurately.
 
 ## Appointment Card
 
@@ -59,7 +63,8 @@ Required visible anatomy:
 - contextual action trigger.
 
 Use compact spacing and truncation without removing actions. Terminal status stays readable and
-read-only. On touch/coarse pointers, contextual actions must not depend on hover.
+read-only. Eligible cards expose a named drag handle; terminal handles are visibly disabled. On
+touch/coarse pointers, contextual actions and the drag affordance must not depend on hover.
 
 ## Lista
 
@@ -74,6 +79,10 @@ barber portrait/name, service, status, and actions. Switching views changes pres
 - Provide accessible names for icon-only controls and portraits; portrait fallbacks expose initials.
 - Maintain focus order from the control row into board slots/cards.
 - Support menus, toggles, calendar, drawers, and status decisions without a pointer.
+- Support drag with mouse, touch, and keyboard, Portuguese live instructions/outcomes, focus
+  restoration, and reduced motion.
+- Preserve drawer `Remarcar` as an equivalent click/tap path that does not require dragging (WCAG
+  2.5.7).
 - Never encode status, selection, or availability by color alone.
 
 ## Data And Privacy
@@ -92,3 +101,5 @@ boundary. The prototype does not authorize production identity, payment, or sche
 - [x] `Período` opens a start/end calendar.
 - [x] The lower summary is removed.
 - [x] The normal scenario contains 42 prepopulated synthetic appointments.
+- [x] Eligible cards reschedule by time and/or barber without changing status; terminal cards do not.
+- [x] Drag validation and atomic appointment/occupancy rollback cover every logical grid slot.

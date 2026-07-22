@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type {
+  Appointment,
   AppointmentInput,
   AppointmentTransitionInput,
   CancellationReason,
@@ -87,6 +88,57 @@ export function useTransitionAppointment() {
               start,
             })),
         })
+      }
+      return { snapshots }
+    },
+    onError: (_error, _input, context) => {
+      for (const [key, value] of context?.snapshots ?? []) queryClient.setQueryData(key, value)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: schedulingQueryKeys.all }),
+  })
+}
+
+export type AppointmentRescheduleInput = {
+  appointment: Appointment
+  professionalId: string
+  start: string
+}
+
+export function applyAppointmentReschedule(
+  day: ScheduleDay,
+  { appointment: source, professionalId, start }: AppointmentRescheduleInput,
+): ScheduleDay {
+  const appointments = day.appointments.map((appointment) =>
+    appointment.id === source.id ? { ...appointment, professionalId, start } : appointment,
+  )
+  return {
+    ...day,
+    appointments,
+    occupancies: appointments
+      .filter(({ status }) => status !== "canceled" && status !== "no-show")
+      .map(({ date, durationMinutes, id, professionalId, start }) => ({
+        date,
+        durationMinutes,
+        id,
+        professionalId,
+        start,
+      })),
+  }
+}
+
+export function useRescheduleAppointment() {
+  const repository = useSchedulingRepository()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ appointment, professionalId, start }: AppointmentRescheduleInput) =>
+      repository.update(appointment.id, { ...appointment, professionalId, start }),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: schedulingQueryKeys.all })
+      const snapshots = queryClient.getQueriesData<ScheduleDay>({
+        queryKey: schedulingQueryKeys.all,
+      })
+      for (const [key, day] of snapshots) {
+        if (day) queryClient.setQueryData<ScheduleDay>(key, applyAppointmentReschedule(day, input))
       }
       return { snapshots }
     },

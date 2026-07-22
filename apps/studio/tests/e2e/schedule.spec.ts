@@ -89,6 +89,92 @@ test("opens a portrait card and completes the non-drag status path", async ({ pa
   await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeVisible()
 })
 
+test("reschedules vertically, horizontally, and diagonally without changing status", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 1100, width: 1440 })
+  await page.goto(agendaUrl())
+
+  const card = page.locator('[data-appointment-id="kanban-05"]')
+  await expect(card).toContainText("Confirmado")
+
+  await dragAppointment(page, "kanban-05", "professional-carlos", "13:15")
+  await expect(page.getByText("Agendamento remarcado para 13:15 com Carlos Lima.")).toBeVisible()
+  await expect(card).toContainText("13:15")
+  await expect(card).toContainText("Confirmado")
+
+  await dragAppointment(page, "kanban-05", "professional-bruno", "13:15")
+  await expect(page.getByText("Agendamento remarcado para 13:15 com Bruno Rocha.")).toBeVisible()
+  await expect(card).toContainText("13:15")
+  await expect(card).toContainText("Confirmado")
+
+  await dragAppointment(page, "kanban-05", "professional-ana", "14:00")
+  await expect(page.getByText("Agendamento remarcado para 14:00 com Ana Clara.")).toBeVisible()
+  await expect(card).toContainText("14:00")
+  await expect(card).toContainText("Confirmado")
+})
+
+test("supports keyboard rescheduling with Portuguese live announcements", async ({ page }) => {
+  await page.setViewportSize({ height: 1100, width: 1440 })
+  await page.goto(agendaUrl())
+
+  const card = page.locator('[data-appointment-id="kanban-05"]')
+  const handle = card.getByRole("button", { name: "Remarcar Rafael Costa" })
+  await handle.focus()
+  await page.keyboard.press("Space")
+  await page.keyboard.press("Space")
+  await expect(
+    page.locator("#main-content").getByText("O agendamento já está nesse horário e barbeiro."),
+  ).toBeAttached()
+  await expect(card).toContainText("11:00")
+
+  await handle.focus()
+  await page.keyboard.press("Space")
+  await expect(page.getByText(/Remarcando Rafael Costa\. Use as setas/)).toBeAttached()
+  for (let step = 0; step < 10; step += 1) {
+    await page.keyboard.press("ArrowDown")
+  }
+  await page.keyboard.press("ArrowRight")
+  await expect(page.getByText(/Destino 13:30 com Bruno Rocha/)).toBeAttached()
+  await page.keyboard.press("Space")
+
+  await expect(page.getByText("Agendamento remarcado para 13:30 com Bruno Rocha.")).toBeVisible()
+  await expect(card).toContainText("13:30")
+  await expect(card).toContainText("Confirmado")
+  await expect(handle).toBeFocused()
+})
+
+test("rolls back appointment and hidden occupancy atomically after a conflict", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 900, width: 1440 })
+  await page.goto(`${agendaUrl()}&professional=professional-carlos&client=client-kanban-02`)
+
+  const card = page.locator('[data-appointment-id="kanban-02"]')
+  await expect(card).toContainText("08:45")
+  await expect(page.getByText("Ocupado · 08:00–08:45")).toBeVisible()
+  await dragAppointment(page, "kanban-02", "professional-carlos", "08:00")
+
+  await expect(
+    page.getByLabel("Notifications alt+T").getByText(/não tem espaço suficiente.*restaurado/i),
+  ).toBeVisible()
+  await expect(card).toContainText("08:45")
+  await expect(card).toContainText("Em atendimento")
+  await expect(page.getByText("Ocupado · 08:00–08:45")).toBeVisible()
+})
+
+test("disables drag for terminal appointments while preserving details", async ({ page }) => {
+  await page.goto(agendaUrl())
+
+  const terminal = page.locator('[data-appointment-id="kanban-01"]')
+  await expect(
+    terminal.getByRole("button", { name: "Remarcação indisponível para João Vitor" }),
+  ).toBeDisabled()
+  await terminal.getByRole("button", { name: /^João Vitor/ }).click()
+  await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Remarcar" })).toHaveCount(0)
+})
+
 test("keeps the board bounded on narrow screens and exposes development scenarios", async ({
   page,
 }) => {
@@ -112,3 +198,33 @@ test("keeps the board bounded on narrow screens and exposes development scenario
   await expect(page.getByRole("heading", { name: "Agenda livre no período" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Adicionar agendamento" })).toBeVisible()
 })
+
+async function dragAppointment(
+  page: import("@playwright/test").Page,
+  appointmentId: string,
+  professionalId: string,
+  start: string,
+) {
+  const handle = page
+    .locator(`[data-appointment-id="${appointmentId}"]`)
+    .getByRole("button", { name: /^Remarcar / })
+  const target = page.locator(
+    `[data-drop-professional-id="${professionalId}"][data-drop-start="${start}"]`,
+  )
+  await target.scrollIntoViewIfNeeded()
+  const sourceBox = await handle.boundingBox()
+  const targetBox = await target.boundingBox()
+  expect(sourceBox).not.toBeNull()
+  expect(targetBox).not.toBeNull()
+  if (!sourceBox || !targetBox) return
+
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2 + 8, sourceBox.y + sourceBox.height / 2, {
+    steps: 2,
+  })
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, {
+    steps: 12,
+  })
+  await page.mouse.up()
+}

@@ -36,6 +36,13 @@
 - [x] Keep anonymous occupied spans for filtered-out appointments.
 - [x] Keep open/edit/reschedule/cancel and non-drag status flows.
 - [x] Keep terminal records read-only and optimistic rollback atomic.
+- [x] Register every logical 15-minute grid slot across empty, appointment, occupancy, and blocked
+  `rowSpan` geometry.
+- [x] Add mouse, touch, and keyboard drag handles for eligible cards; update only start/barber and
+  preserve status, card actions, details, and focus.
+- [x] Reject no-op, conflict, blocked, hidden-occupancy, ineligible, out-of-hours, invalid, and
+  terminal destinations with Portuguese live feedback and atomic rollback.
+- [x] Respect reduced motion and retain drawer `Remarcar` as the WCAG 2.5.7 click/tap alternative.
 
 ## Documentation And Component System
 
@@ -52,6 +59,8 @@
   checks.
 - [x] Inspect the rendered 1600 × 900 reference ratio and a narrow viewport in Chromium.
 - [x] Record verification evidence and remaining manual checks on ENG-40.
+- [x] Verify vertical, horizontal/combined, keyboard/announcement, rollback, and terminal-disabled
+  drag behavior with focused Vitest and Playwright.
 
 ## Explicit Non-changes
 
