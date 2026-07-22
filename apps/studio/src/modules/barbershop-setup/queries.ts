@@ -11,6 +11,7 @@ import type {
   SetupListQuery,
   SetupOverview,
   SetupScenarioId,
+  UpdateAvailabilityBatchInput,
 } from "./contracts"
 import { useBarbershopSetupRepository } from "./repository-context"
 
@@ -150,6 +151,38 @@ export function useUpdateSetupAvailability() {
     onError: (_error, _input, context) => {
       if (!context || !isCurrentGeneration(queryClient, context.generation)) return
       for (const [key, value] of context?.snapshots ?? []) queryClient.setQueryData(key, value)
+    },
+    onSettled: (_data, _error, _variables, context) => {
+      if (context && isCurrentGeneration(queryClient, context.generation))
+        return queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all })
+    },
+  })
+}
+
+export function useUpdateSetupAvailabilityBatch() {
+  const repository = useBarbershopSetupRepository()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpdateAvailabilityBatchInput) => repository.updateAvailabilityBatch(input),
+    onMutate: async ({ records }) => {
+      const generation = getQueryGeneration(queryClient)
+      await queryClient.cancelQueries({ queryKey: barbershopSetupQueryKeys.all })
+      const snapshots = queryClient.getQueriesData<AvailabilityResult>({
+        queryKey: barbershopSetupQueryKeys.all,
+      })
+      const updates = new Map(records.map((record) => [record.id, record]))
+      for (const [key, result] of snapshots) {
+        if (!result?.records) continue
+        queryClient.setQueryData<AvailabilityResult>(key, {
+          ...result,
+          records: result.records.map((record) => updates.get(record.id) ?? record),
+        })
+      }
+      return { generation, snapshots }
+    },
+    onError: (_error, _input, context) => {
+      if (!context || !isCurrentGeneration(queryClient, context.generation)) return
+      for (const [key, value] of context.snapshots) queryClient.setQueryData(key, value)
     },
     onSettled: (_data, _error, _variables, context) => {
       if (context && isCurrentGeneration(queryClient, context.generation))

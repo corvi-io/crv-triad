@@ -115,6 +115,7 @@ building block of a documented composition.
 
 | File | Classification | Catalog decision and rationale |
 | --- | --- | --- |
+| `data-display/filter-trigger.tsx` | Data display control | Documented public contract: compact icon-and-label trigger for bounded dropdown/popover filters, with optional active treatment and result/selection count; shared by Agenda and barbershop setup while the owning surface controls menu semantics. |
 | `data-display/data-table/index.tsx` | Data display | Documented public contract: semantic table with controlled sort, scroll, pagination, and contextual row actions available by right-click or `Shift+F10`; covered by sandbox and table tests. |
 | `data-display/metric-card.tsx` | Data display | Internal: inherited specialized composition using theme-aware feedback signal roles; promote to catalog when an accepted module supplies a real metric contract. |
 | `deferred-route-screen.tsx` | Routing helper | Internal: lazy-route implementation detail, not a visual assembly API. |

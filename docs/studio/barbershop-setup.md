@@ -21,20 +21,40 @@ The normal page does not expose preview/prototype terminology, scenario controls
 fixture counts, latency, or failure modes. Loading, errors, retry, validation, confirmation, success,
 and empty states use Brazilian Portuguese product language.
 
-The overview reports configuration progress. Catalog sections support bounded search, status
-filtering, three-state sorting, pagination, inspect, create, edit, archive, and restore. Archive
-commands block active dependencies instead of silently orphaning records. Service
+The overview is an ongoing setup guide rather than a disposable wizard. It explains why each step
+matters, reports visual progress, recommends the next incomplete dependency, and remains available
+for later review after the operation is complete.
+
+Catalog sections use the same compact search and icon/menu filter language as Agenda. Units,
+professionals, and services fill the remaining module body with a shared data table: the header and
+pagination remain fixed while the table viewport owns vertical and horizontal scrolling. They
+support bounded search, status filtering, three-state sorting, pagination, inspect, create, edit,
+archive, and restore. Archive commands block active dependencies instead of silently orphaning
+records. Unit opening hours are a structured composed period with selectable weekdays instead of a
+free-text summary. Service
 `professionalIds` are the canonical professional/service relationship in the memory adapter;
 professional `serviceIds` are synchronized after create, update, archive, restore, scenario
 selection, and reset. A selected professional must serve at least one active unit selected for the
 service.
 
-Availability uses explicit day/time fields, closed-day switches, breaks, time-off feedback,
-conflict descriptions filtered to the visible professional/unit week, and one atomic
-Monday-to-Friday copy command. Dragging is not required. Copy replicates recurring work periods,
-breaks, and closed state. Day-specific absences remain attached to the destination day and are not
-copied. Clean destination cards refresh from committed results while an actively edited destination
-draft is preserved.
+Availability uses a weekly time grid filtered by professional and unit. Available, break/block, and
+absence intervals are separately labeled and keep meaning independent from color. Pointer drag is a
+fast range-selection path; clicking/tapping the grid and the explicit `Adicionar bloco` command open
+the same composed start/end editor, so dragging is never required. Native buttons expose each block
+and every day insertion surface to keyboard and assistive technology.
+
+Weekly recurrence selects weekdays and may include an optional end date to express a month, year,
+or custom operating period. Editing and deletion require explicit selected-day versus entire-series
+scope. The memory adapter gives every interval a block ID and series ID and applies recurrence
+changes atomically through `updateAvailabilityBatch`; simulated mutation failure rolls the whole
+batch back. A linked professional/unit pair can create its first day directly; the memory adapter
+creates the missing day record during the same validated batch instead of requiring pre-seeded
+availability. This is an evaluation contract only. A future dated API must define persisted series,
+exceptions, effective dates, `this and following` behavior, transactions/idempotency, tenancy, and
+authorization independently.
+
+Appointment occupancy is not manually editable in setup. Agenda remains the owner of appointments;
+a future accepted cross-module contract may overlay that information read-only.
 
 Entity drawers retain active content while Base UI observes entry and exit state changes. They
 slide across their full width without fading, the exit transition completes before content
@@ -98,19 +118,23 @@ state, and confirms fixtures are absent. `/workspace-preview/barbershop-setup` n
 ## Component Discovery
 
 The original ENG-41 implementation inspected the existing Base UI/Vite and installed Studio
-components. `DataTable`, `ActionDrawer`, `ConfirmationDialog`, `FormSection`, field primitives,
-`EmptyState`, `StatusBadge`, `Button`, `Card`, `Select`, `Switch`, `Input`, `Textarea`, and `Skeleton`
-cover the module contract. No additional registry item, dependency, token, or shared primitive is
-needed for authenticated integration.
+components. `DataTable`, `FilterTrigger`, `ActionDrawer`, `ConfirmationDialog`, `FormSection`, field
+primitives, `EmptyState`, `StatusBadge`, `Button`, `Card`, `Select`, `Switch`, `Input`, `Textarea`,
+and `Skeleton` cover the module contract. `FilterTrigger` was promoted from Agenda after setup
+became its second concrete consumer. The weekly grid and composed time-range fields remain
+module-owned because their semantics are specific to barbershop configuration. No dependency,
+registry item, or token was added.
 
 ## Verification And Residual Manual Work
 
 Vitest covers URL validation, source targets, scenario isolation, deterministic IDs, dependency
-blocking, failure behavior, stale-operation isolation, relationships, availability, forms, route
-gating, registry, breadcrumbs, and architecture boundaries. Playwright covers direct authenticated
-entry, expanded/collapsed/mobile sidebar navigation, absence of preview chrome, CRUD, retry,
-rollback, relationship validation, availability, drawer motion/focus, axe, 320 CSS-pixel reflow,
-keyboard focus, and dark mode.
+blocking, failure behavior, stale-operation isolation, relationships, atomic availability batches,
+composed opening-hours validation, compact filters, keyboard calendar entry, forms, route gating,
+registry, breadcrumbs, and architecture boundaries. Playwright covers direct authenticated entry,
+expanded/collapsed/mobile sidebar navigation, absence of preview chrome, guided overview,
+fill-height tables, CRUD, retry, rollback, relationship validation, recurrence creation and scope,
+pointer drag, keyboard alternative, drawer motion/focus, focused axe, 320 CSS-pixel reflow, keyboard
+focus, and dark mode.
 
 VoiceOver/NVDA, physical coarse-pointer hardware, and OS-native forced-colors visual inspection
 remain manual residual checks unless later evidence records them as completed.

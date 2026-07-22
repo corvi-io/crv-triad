@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest"
 import { resolveBarbershopSetupScenario } from "@/dev/barbershop-setup/entry"
 import { BarbershopSetupMemoryRepository } from "@/dev/barbershop-setup/memory-repository"
 import type { SetupScenarioId, SetupSection } from "@/modules/barbershop-setup/contracts"
-import { serviceFormSchema } from "@/modules/barbershop-setup/entity-drawer"
+import { serviceFormSchema, unitFormSchema } from "@/modules/barbershop-setup/entity-drawer"
 import { barbershopSetupQueryKeys } from "@/modules/barbershop-setup/queries"
 import { BarbershopSetupRepositoryProvider } from "@/modules/barbershop-setup/repository-context"
 import type { BarbershopSetupSearch } from "@/modules/barbershop-setup/search"
@@ -37,9 +37,11 @@ describe("barbershop setup module", () => {
     const user = userEvent.setup()
     renderSetup("single-unit")
     expect(
-      await screen.findByRole("heading", { name: "Visão geral da configuração" }),
+      await screen.findByRole("heading", { name: "Prepare a barbearia para operar" }),
     ).toBeVisible()
-    expect(screen.getByText(/4 de 4 etapas completas/)).toBeVisible()
+    expect(
+      screen.getByRole("progressbar", { name: "100% da configuração concluída" }),
+    ).toBeVisible()
     await user.click(screen.getByRole("button", { name: "Serviços" }))
     expect(await screen.findByRole("table", { name: "Serviços da configuração" })).toBeVisible()
     await user.click(screen.getByRole("button", { name: "Disponibilidade" }))
@@ -71,8 +73,86 @@ describe("barbershop setup module", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("períodos de trabalho sobrepostos")
     await user.click(screen.getByLabelText("Profissional"))
     await user.click(await screen.findByRole("option", { name: "Profissional Bravo" }))
-    expect(await screen.findByRole("group", { name: "Segunda-feira" })).toBeVisible()
+    expect(
+      await screen.findByRole("button", {
+        name: "Disponível, Segunda-feira, das 09:00 às 18:00",
+      }),
+    ).toBeVisible()
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("uses the compact catalog toolbar and menu-based state filter", async () => {
+    const user = userEvent.setup()
+    renderSetup("single-unit", "services")
+    const search = await screen.findByRole("searchbox", { name: "Buscar serviços" })
+    await user.type(search, "Barba")
+    expect(await screen.findByText("Barba completa")).toBeVisible()
+    expect(screen.queryByText("Corte clássico")).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Filtrar por estado" }))
+    await user.click(await screen.findByRole("menuitemradio", { name: "Arquivados" }))
+    expect(await screen.findByText("Nenhum resultado para os filtros")).toBeVisible()
+  })
+
+  it("opens the same availability editor through the keyboard alternative", async () => {
+    const user = userEvent.setup()
+    renderSetup("single-unit", "availability")
+    const sunday = await screen.findByRole("button", {
+      name: "Adicionar período em Domingo",
+    })
+    sunday.focus()
+    await user.keyboard("{Enter}")
+    expect(
+      await screen.findByRole("dialog", { name: "Disponibilidade / Novo bloco" }),
+    ).toBeVisible()
+    expect(screen.getByLabelText("Início")).toHaveValue("09:00")
+    expect(screen.getByLabelText("Fim")).toHaveValue("10:00")
+  })
+
+  it("creates the first availability block after a professional gains a unit", async () => {
+    const repository = new BarbershopSetupMemoryRepository()
+    await repository.selectScenario("incomplete-setup")
+    const professional = (
+      await repository.list({
+        kind: "professional",
+        page: 1,
+        pageSize: 10,
+        scenarioId: "incomplete-setup",
+        search: "",
+        sort: { direction: "asc", field: "name" },
+        status: "all",
+      })
+    ).items[0]
+    expect(professional?.kind).toBe("professional")
+    if (professional?.kind !== "professional") return
+    await repository.update("professional", professional.id, {
+      accountAccess: professional.accountAccess,
+      name: professional.name,
+      role: professional.role,
+      serviceIds: [],
+      unitIds: ["unit-center"],
+    })
+
+    const user = userEvent.setup()
+    renderSetup("incomplete-setup", "availability", repository)
+    await user.click(await screen.findByRole("button", { name: "Adicionar bloco" }))
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Salvar bloco",
+      }),
+    )
+    expect(
+      await screen.findByRole("button", {
+        name: "Disponível, Segunda-feira, das 09:00 às 10:00",
+      }),
+    ).toBeVisible()
+    await expect(
+      repository.getAvailability({
+        professionalId: professional.id,
+        scenarioId: "incomplete-setup",
+        unitId: "unit-center",
+      }),
+    ).resolves.toMatchObject({ records: [expect.objectContaining({ day: "monday" })] })
   })
 
   it("returns explicit Portuguese errors for empty numeric service fields", () => {
@@ -91,10 +171,26 @@ describe("barbershop setup module", () => {
       "Informe o preço do serviço.",
     ])
   })
+
+  it("validates unit opening hours as one composed period", () => {
+    const result = unitFormSchema.safeParse({
+      address: "Rua válida, 10",
+      businessHours: { days: ["monday"], start: "18:00", end: "09:00" },
+      code: "CTR",
+      kind: "unit",
+      name: "Unidade válida",
+    })
+    expect(result.error?.issues.map(({ message }) => message)).toContain(
+      "O término deve ser posterior ao início.",
+    )
+  })
 })
 
-function renderSetup(scenario: SetupScenarioId, section: SetupSection = "overview") {
-  const repository = new BarbershopSetupMemoryRepository()
+function renderSetup(
+  scenario: SetupScenarioId,
+  section: SetupSection = "overview",
+  repository = new BarbershopSetupMemoryRepository(),
+) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   function Harness() {
     const [search, setSearch] = useState<BarbershopSetupSearch>({ scenario, section })

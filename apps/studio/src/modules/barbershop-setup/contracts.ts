@@ -14,6 +14,13 @@ export type SetupEntityStatus = "active" | "archived"
 export type AccountAccessStatus = "connected" | "invited" | "not-configured"
 
 export type TimeRange = { end: string; start: string }
+export type BusinessHours = TimeRange & { days: readonly Weekday[] }
+export type AvailabilityTimeBlock = TimeRange & {
+  id: string
+  recurrenceUntil?: string
+  seriesId: string
+}
+export type AvailabilityBlockType = "available" | "break" | "absence"
 
 type SetupEntityBase = {
   id: string
@@ -22,7 +29,7 @@ type SetupEntityBase = {
 
 export type SetupUnit = SetupEntityBase & {
   address: string
-  businessHours: string
+  businessHours: BusinessHours
   code: string
   kind: "unit"
   name: string
@@ -58,14 +65,14 @@ export type Weekday =
   | "sunday"
 
 export type SetupAvailability = {
-  breaks: readonly TimeRange[]
+  absences: readonly AvailabilityTimeBlock[]
+  breaks: readonly AvailabilityTimeBlock[]
   closed: boolean
   day: Weekday
   id: string
   kind: "availability"
-  periods: readonly TimeRange[]
+  periods: readonly AvailabilityTimeBlock[]
   professionalId: string
-  timeOff?: string
   unitId: string
 }
 
@@ -127,6 +134,10 @@ export type CopyAvailabilityToWeekdaysInput = {
   targetIds: readonly string[]
 }
 
+export type UpdateAvailabilityBatchInput = {
+  records: readonly SetupAvailability[]
+}
+
 export class SetupDependencyError extends Error {
   constructor(message: string) {
     super(message)
@@ -159,4 +170,7 @@ export interface BarbershopSetupRepository {
   setArchived(kind: SetupEntityKind, id: string, archived: boolean): Promise<SetupEntity>
   update(kind: SetupEntityKind, id: string, input: SetupEntityInput): Promise<SetupEntity>
   updateAvailability(input: SetupAvailability): Promise<SetupAvailability>
+  updateAvailabilityBatch(
+    input: UpdateAvailabilityBatchInput,
+  ): Promise<readonly SetupAvailability[]>
 }

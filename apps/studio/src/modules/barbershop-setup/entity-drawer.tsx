@@ -31,6 +31,7 @@ import type {
   SetupService,
   SetupUnit,
   UnitInput,
+  Weekday,
 } from "./contracts"
 
 const baseSchema = {
@@ -42,7 +43,22 @@ export const unitFormSchema = z.object({
   ...baseSchema,
   code: z.string().trim().min(2, "Informe um código curto."),
   address: z.string().trim().min(5, "Informe um endereço válido."),
-  businessHours: z.string().trim().min(5, "Informe o resumo dos horários."),
+  businessHours: z
+    .object({
+      days: z.array(
+        z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]),
+      ),
+      start: z.string().regex(/^\d{2}:\d{2}$/, "Informe o horário inicial."),
+      end: z.string().regex(/^\d{2}:\d{2}$/, "Informe o horário final."),
+    })
+    .refine(({ days }) => days.length > 0, {
+      message: "Selecione pelo menos um dia de funcionamento.",
+      path: ["days"],
+    })
+    .refine(({ end, start }) => start < end, {
+      message: "O término deve ser posterior ao início.",
+      path: ["end"],
+    }),
 })
 
 export const professionalFormSchema = z.object({
@@ -332,6 +348,17 @@ function EntityForm({
 }
 
 function UnitFields({ formId, form }: FormFieldsProps) {
+  const businessHoursErrors = form.formState.errors as {
+    businessHours?: {
+      days?: { message?: string }
+      end?: { message?: string }
+      start?: { message?: string }
+    }
+  }
+  const businessHoursError =
+    businessHoursErrors.businessHours?.days?.message ??
+    businessHoursErrors.businessHours?.start?.message ??
+    businessHoursErrors.businessHours?.end?.message
   return (
     <>
       <FormField
@@ -370,22 +397,89 @@ function UnitFields({ formId, form }: FormFieldsProps) {
         />
       </FormField>
       <FormField
-        id={`${formId}-business-hours`}
+        id={`${formId}-business-hours-start`}
         label="Funcionamento"
         icon={Clock3Icon}
         required
-        error={fieldMessage(form.formState.errors, "businessHours")}
+        description="Escolha um único período e os dias em que ele se aplica."
+        error={businessHoursError}
       >
-        <Input
-          id={`${formId}-business-hours`}
-          aria-invalid={Boolean(fieldMessage(form.formState.errors, "businessHours"))}
-          aria-describedby={getFieldDescriptionIds(
-            `${formId}-business-hours`,
-            false,
-            Boolean(fieldMessage(form.formState.errors, "businessHours")),
-          )}
-          {...form.register("businessHours")}
-        />
+        <div className="grid gap-2">
+          <fieldset className="grid grid-cols-[1fr_auto_1fr] items-center overflow-hidden rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring">
+            <legend className="sr-only">Período de funcionamento</legend>
+            <label className="grid gap-0.5 px-3 py-1.5" htmlFor={`${formId}-business-hours-start`}>
+              <span className="text-xs text-muted-foreground">Início</span>
+              <input
+                id={`${formId}-business-hours-start`}
+                type="time"
+                step={900}
+                className="min-w-0 bg-transparent text-sm outline-none"
+                aria-invalid={Boolean(businessHoursError)}
+                aria-describedby={getFieldDescriptionIds(
+                  `${formId}-business-hours-start`,
+                  true,
+                  Boolean(businessHoursError),
+                )}
+                {...form.register("businessHours.start")}
+              />
+            </label>
+            <span aria-hidden="true" className="text-muted-foreground">
+              —
+            </span>
+            <label className="grid gap-0.5 px-3 py-1.5" htmlFor={`${formId}-business-hours-end`}>
+              <span className="text-xs text-muted-foreground">Fim</span>
+              <input
+                id={`${formId}-business-hours-end`}
+                type="time"
+                step={900}
+                className="min-w-0 bg-transparent text-sm outline-none"
+                aria-invalid={Boolean(businessHoursError)}
+                aria-describedby={getFieldDescriptionIds(
+                  `${formId}-business-hours-start`,
+                  true,
+                  Boolean(businessHoursError),
+                )}
+                {...form.register("businessHours.end")}
+              />
+            </label>
+          </fieldset>
+          <Controller
+            control={form.control}
+            name="businessHours.days"
+            render={({ field }) => (
+              <fieldset>
+                <legend className="sr-only">Dias de funcionamento</legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {weekdayOptions.map(({ label, value }) => {
+                    const checked = field.value.includes(value)
+                    return (
+                      <label
+                        key={value}
+                        className="cursor-pointer rounded-md border px-2.5 py-1.5 text-xs transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-2 has-focus-visible:ring-ring"
+                      >
+                        <input
+                          className="sr-only"
+                          type="checkbox"
+                          value={value}
+                          checked={checked}
+                          onBlur={field.onBlur}
+                          onChange={(event) =>
+                            field.onChange(
+                              event.currentTarget.checked
+                                ? [...field.value, value]
+                                : field.value.filter((day) => day !== value),
+                            )
+                          }
+                        />
+                        {label}
+                      </label>
+                    )
+                  })}
+                </div>
+              </fieldset>
+            )}
+          />
+        </div>
       </FormField>
     </>
   )
@@ -641,7 +735,7 @@ function EntityDetails({
       ? [
           ["Código", entity.code],
           ["Endereço", entity.address],
-          ["Funcionamento", entity.businessHours],
+          ["Funcionamento", formatBusinessHours(entity.businessHours)],
         ]
       : entity.kind === "professional"
         ? [
@@ -701,7 +795,13 @@ function getDefaultValues(kind: SetupEntityKind, entity?: SetupEntity): SetupEnt
       name: unit?.name ?? "",
       code: unit?.code ?? "",
       address: unit?.address ?? "",
-      businessHours: unit?.businessHours ?? "Seg–Sex, 09:00–18:00",
+      businessHours: unit
+        ? { ...unit.businessHours, days: [...unit.businessHours.days] }
+        : {
+            days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+            start: "09:00",
+            end: "18:00",
+          },
     }
   }
   if (kind === "professional") {
@@ -744,6 +844,23 @@ function namesFor(ids: readonly string[], options: readonly SetupEntity[]) {
 export function formatMoney(cents: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100)
 }
+
+export function formatBusinessHours(hours: SetupUnit["businessHours"]) {
+  const labels = hours.days.map(
+    (day) => weekdayOptions.find(({ value }) => value === day)?.label ?? day,
+  )
+  return `${labels.join(", ")} · ${hours.start}–${hours.end}`
+}
+
+const weekdayOptions: ReadonlyArray<{ label: string; value: Weekday }> = [
+  { label: "Seg", value: "monday" },
+  { label: "Ter", value: "tuesday" },
+  { label: "Qua", value: "wednesday" },
+  { label: "Qui", value: "thursday" },
+  { label: "Sex", value: "friday" },
+  { label: "Sáb", value: "saturday" },
+  { label: "Dom", value: "sunday" },
+]
 
 export const entityLabels = {
   unit: {

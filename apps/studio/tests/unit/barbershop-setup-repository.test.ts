@@ -1,11 +1,22 @@
 import { describe, expect, it } from "vitest"
 import { BarbershopSetupMemoryRepository } from "@/dev/barbershop-setup/memory-repository"
 import { SimulatedMockFailure } from "@/dev/mock-engine"
+import type {
+  BusinessHours,
+  SetupAvailability,
+  Weekday,
+} from "@/modules/barbershop-setup/contracts"
 import {
   SetupDependencyError,
   SetupOperationInvalidatedError,
   SetupValidationError,
 } from "@/modules/barbershop-setup/contracts"
+
+const standardBusinessHours: BusinessHours = {
+  days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+  start: "09:00",
+  end: "18:00",
+}
 
 const listQuery = {
   kind: "unit" as const,
@@ -38,7 +49,7 @@ describe("barbershop setup memory repository", () => {
     await repository.selectScenario("new-business")
     const first = await repository.create("unit", {
       address: "Rua Sintética, 10",
-      businessHours: "Seg–Sex, 09:00–18:00",
+      businessHours: standardBusinessHours,
       code: "SYN",
       name: "Unidade Sintética",
     })
@@ -54,7 +65,7 @@ describe("barbershop setup memory repository", () => {
 
     const recreated = await repository.create("unit", {
       address: "Rua Sintética, 10",
-      businessHours: "Seg–Sex, 09:00–18:00",
+      businessHours: standardBusinessHours,
       code: "SYN",
       name: "Unidade Sintética",
     })
@@ -234,7 +245,7 @@ describe("barbershop setup memory repository", () => {
     await expect(
       repository.update("unit", "unit-center", {
         address: "Avenida Sintética, 200",
-        businessHours: "Seg–Sex, 09:00–18:00",
+        businessHours: standardBusinessHours,
         code: "CTR",
         name: "Unidade Centro revisada",
       }),
@@ -242,7 +253,7 @@ describe("barbershop setup memory repository", () => {
     await expect(
       repository.update("unit", "unit-center", {
         address: "Avenida Sintética, 200",
-        businessHours: "Seg–Sex, 09:00–18:00",
+        businessHours: standardBusinessHours,
         code: "CTR",
         name: "Unidade Centro revisada",
       }),
@@ -290,7 +301,7 @@ describe("barbershop setup memory repository", () => {
     await expect(
       repository.updateAvailability({
         ...monday,
-        periods: [{ start: "18:00", end: "09:00" }],
+        periods: [{ ...monday.periods[0], start: "18:00", end: "09:00" }],
       }),
     ).rejects.toBeInstanceOf(SetupValidationError)
     expect(
@@ -298,8 +309,8 @@ describe("barbershop setup memory repository", () => {
         ({ id }) => id === monday.id,
       )?.periods,
     ).toEqual([
-      { start: "09:00", end: "13:00" },
-      { start: "12:00", end: "18:00" },
+      expect.objectContaining({ start: "09:00", end: "13:00" }),
+      expect.objectContaining({ start: "12:00", end: "18:00" }),
     ])
   })
 
@@ -323,7 +334,7 @@ describe("barbershop setup memory repository", () => {
       .map(({ id }) => id)
     const changedSource = {
       ...source,
-      periods: [{ start: "10:00", end: "17:00" }],
+      periods: [{ ...source.periods[0], start: "10:00", end: "17:00" }],
     }
 
     await expect(
@@ -345,6 +356,135 @@ describe("barbershop setup memory repository", () => {
     ).toBe(true)
   })
 
+  it("updates a recurring availability batch atomically", async () => {
+    const repository = new BarbershopSetupMemoryRepository()
+    await repository.selectScenario("next-failure")
+    const before = await repository.getAvailability({
+      professionalId: "professional-alpha",
+      scenarioId: "next-failure",
+      unitId: "unit-center",
+    })
+    const targets = before.records.filter(({ day }) => day === "monday" || day === "tuesday")
+    const updates = targets.map((record) => ({
+      ...record,
+      breaks: [
+        ...record.breaks,
+        {
+          id: `batch-${record.day}`,
+          seriesId: "batch-series",
+          start: "14:00",
+          end: "15:00",
+        },
+      ],
+    }))
+
+    await expect(repository.updateAvailabilityBatch({ records: updates })).rejects.toBeInstanceOf(
+      SimulatedMockFailure,
+    )
+    expect(
+      (
+        await repository.getAvailability({
+          professionalId: "professional-alpha",
+          scenarioId: "next-failure",
+          unitId: "unit-center",
+        })
+      ).records
+        .flatMap(({ breaks }) => breaks)
+        .some(({ seriesId }) => seriesId === "batch-series"),
+    ).toBe(false)
+
+    await repository.updateAvailabilityBatch({ records: updates })
+    expect(
+      (
+        await repository.getAvailability({
+          professionalId: "professional-alpha",
+          scenarioId: "next-failure",
+          unitId: "unit-center",
+        })
+      ).records
+        .flatMap(({ breaks }) => breaks)
+        .filter(({ seriesId }) => seriesId === "batch-series"),
+    ).toHaveLength(2)
+  })
+
+  it("creates a complete week for a newly linked professional and unit", async () => {
+    const repository = new BarbershopSetupMemoryRepository()
+    await repository.selectScenario("incomplete-setup")
+    const professional = (
+      await repository.list({
+        ...listQuery,
+        kind: "professional",
+        scenarioId: "incomplete-setup",
+      })
+    ).items[0]
+    expect(professional?.kind).toBe("professional")
+    if (professional?.kind !== "professional") return
+    await repository.update("professional", professional.id, {
+      accountAccess: professional.accountAccess,
+      name: professional.name,
+      role: professional.role,
+      serviceIds: [],
+      unitIds: ["unit-center"],
+    })
+
+    const days: readonly Weekday[] = [
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
+    ]
+    const records: SetupAvailability[] = days.map((day) => ({
+      absences: [],
+      breaks: [],
+      closed: day !== "monday",
+      day,
+      id: `availability-draft-${day}`,
+      kind: "availability",
+      periods:
+        day === "monday"
+          ? [
+              {
+                end: "18:00",
+                id: "new-week-monday",
+                seriesId: "new-week",
+                start: "09:00",
+              },
+            ]
+          : [],
+      professionalId: professional.id,
+      unitId: "unit-center",
+    }))
+
+    await expect(
+      repository.updateAvailabilityBatch({
+        records: [records[0], { ...records[0], id: "duplicate-monday" }],
+      }),
+    ).rejects.toThrow("Cada dia do vínculo deve aparecer apenas uma vez.")
+    expect(
+      (
+        await repository.getAvailability({
+          professionalId: professional.id,
+          scenarioId: "incomplete-setup",
+          unitId: "unit-center",
+        })
+      ).records,
+    ).toEqual([])
+
+    await expect(repository.updateAvailabilityBatch({ records })).resolves.toHaveLength(7)
+    const created = await repository.getAvailability({
+      professionalId: professional.id,
+      scenarioId: "incomplete-setup",
+      unitId: "unit-center",
+    })
+    expect(created.records).toHaveLength(7)
+    expect(created.records.find(({ day }) => day === "monday")?.periods).toEqual([
+      expect.objectContaining({ seriesId: "new-week", start: "09:00", end: "18:00" }),
+    ])
+  })
+
   it("keeps destination-specific absences when copying recurring weekday hours", async () => {
     const repository = new BarbershopSetupMemoryRepository()
     const availability = await repository.getAvailability({
@@ -359,10 +499,27 @@ describe("barbershop setup memory repository", () => {
     if (!source || !target) return
     await repository.updateAvailability({
       ...target,
-      timeOff: "Ausência sintética: 14:00–15:00",
+      absences: [
+        {
+          id: "absence-thursday",
+          seriesId: "absence-thursday",
+          start: "14:00",
+          end: "15:00",
+        },
+      ],
     })
     await repository.copyAvailabilityToWeekdays({
-      source: { ...source, timeOff: "Ausência sintética: 15:00–16:00" },
+      source: {
+        ...source,
+        absences: [
+          {
+            id: "absence-monday",
+            seriesId: "absence-monday",
+            start: "15:00",
+            end: "16:00",
+          },
+        ],
+      },
       targetIds: [target.id],
     })
     const copiedTarget = (
@@ -372,7 +529,9 @@ describe("barbershop setup memory repository", () => {
         unitId: "unit-center",
       })
     ).records.find(({ id }) => id === target.id)
-    expect(copiedTarget?.timeOff).toBe("Ausência sintética: 14:00–15:00")
+    expect(copiedTarget?.absences).toEqual([
+      expect.objectContaining({ start: "14:00", end: "15:00" }),
+    ])
   })
 
   it("uses distinct scenario query inputs so a slow result cannot replace the active result", async () => {
@@ -391,7 +550,7 @@ describe("barbershop setup memory repository", () => {
     await repository.selectScenario("slow")
     const delayedAfterReset = repository.update("unit", "unit-center", {
       address: "Rua Sintética, 20",
-      businessHours: "Seg–Sex, 10:00–17:00",
+      businessHours: { ...standardBusinessHours, start: "10:00", end: "17:00" },
       code: "ALT",
       name: "Unidade atrasada",
     })
@@ -403,7 +562,7 @@ describe("barbershop setup memory repository", () => {
 
     const delayedAfterSwitch = repository.update("unit", "unit-center", {
       address: "Rua Sintética, 30",
-      businessHours: "Seg–Sex, 10:00–17:00",
+      businessHours: { ...standardBusinessHours, start: "10:00", end: "17:00" },
       code: "ALT",
       name: "Outra unidade atrasada",
     })

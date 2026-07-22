@@ -52,6 +52,15 @@ Related sources:
   engine from built artifacts.
 - Keep the module repository port replaceable by a future accepted HTTP adapter without changing
   presentation composition prematurely.
+- Turn the overview into an ongoing guided setup journey with progress, dependencies, explanatory
+  copy, and one recommended next action.
+- Standardize units, professionals, and services on the compact Agenda filter trigger and a table
+  that fills the remaining module height while keeping its header and pagination fixed.
+- Replace seven independent availability cards with a weekly time-grid editor that supports
+  pointer selection, an equivalent click/keyboard form path, block types, weekly recurrence, and
+  explicit edit/delete scope.
+- Replace free-text unit opening hours and separate start/end affordances with composed time-range
+  controls that communicate one period.
 
 ## Non-Goals
 
@@ -63,6 +72,14 @@ Related sources:
   backend contracts or capacity evidence.
 - Removing or changing unrelated `/workspace-preview` surfaces, including the sandbox and Agenda.
 - Enabling the memory source in `hml` or `prd`.
+- Treating appointments as manually editable availability blocks. Appointment occupancy remains an
+  Agenda concern and may only be overlaid by a future accepted cross-module contract.
+- Monthly or yearly cadence for ordinary working hours. Weekly recurrence with an optional end date
+  represents a month, year, or bounded operating period without inventing calendar semantics that
+  do not match staff availability.
+- Inventing general-company registration fields before legal identity, contact, branding, tenancy,
+  and API ownership are accepted. The overview may expose the gap, but this iteration does not
+  fabricate a business profile contract.
 
 ## Brainstorm
 
@@ -110,6 +127,35 @@ retain scenario control only on the concrete development repository.
 No new shared visual component is required. Reuse the existing `WorkspaceShell`, `ModuleLayout`,
 `PageHeader`, tables, drawers, forms, dialogs, status feedback, and responsive sidebar.
 
+### July 2026 Product Review Expansion
+
+The current implementation exposes repository structure rather than the manager's workflow:
+catalog search consumes the full toolbar, state filtering uses a select that differs from Agenda,
+tables stop at a minimum height, unit opening hours are free text, and availability requires
+editing each weekday through repeated start/end inputs. Product review accepted the following
+counterproposal:
+
+- Keep setup as an operational hub after onboarding instead of creating a disposable wizard.
+- Present the existing four configured domains as a visual journey, explain why each step matters,
+  and route the primary action to the next incomplete dependency.
+- Reuse Agenda's compact icon/menu filter language for the single bounded status facet. Reserve an
+  `ActionDrawer` for future dense filters; one facet does not justify it.
+- Use a weekly time grid for availability. Pointer drag selects a range quickly; clicking/tapping a
+  day or using the explicit add command opens the same start/end form without dragging.
+- Model availability presentation as available, break/block, and absence blocks. Do not allow a
+  manager to manufacture appointment occupancy in setup.
+- Treat identical weekly blocks selected across weekdays as one recurrence for this evaluation
+  source. Editing or deleting requires an explicit choice between the selected weekday and the
+  whole recurrence. A future dated API must independently define series IDs, exceptions, effective
+  dates, and `this and following` semantics.
+- Keep recurrence bounded to weekly working patterns with selectable weekdays and optional end
+  date. An optional end date expresses “for a month”, “for a year”, or a custom period without
+  pretending that staff hours naturally recur monthly or annually.
+
+The approach remains an evaluation contract, not a backend schema. Batch availability mutation is
+atomic in the memory repository so a failed recurrence change cannot partially update weekdays.
+Future API work must provide equivalent transactional behavior or a documented idempotent command.
+
 ## Experience Contract
 
 ### Route And Navigation
@@ -145,10 +191,10 @@ using Brazilian Portuguese product language.
 
 - Local and deployed `dev` data is synthetic, deterministic, session-memory-only, and reset by a
   new browser runtime; no ordinary reset command is exposed.
-- Create, inspect, edit, archive/restore, relationships, availability editing, copy-to-weekdays,
+- Create, inspect, edit, archive/restore, relationships, typed availability blocks, recurrence,
   conflict feedback, rollback, and retry continue through the module-owned repository port.
-- Day-specific time off remains attached to its destination day when recurring weekday hours are
-  copied.
+- Recurring block changes update the selected weekdays atomically while unrelated blocks remain
+  attached to their original weekday.
 - The default `single-unit` state opens a complete, useful setup rather than an empty harness.
 
 ## Architecture And Boundaries
@@ -198,6 +244,10 @@ using Brazilian Portuguese product language.
   and reduces to the minimum duration for `prefers-reduced-motion`.
 - Preserve 320 CSS-pixel reflow, 200% zoom-equivalent behavior, theme contrast, non-color status,
   and focused axe coverage.
+- Every drag selection has an equivalent single-pointer and keyboard path through the explicit
+  add/edit form. Calendar blocks are native buttons with names that include type, weekday, and time.
+- The weekly grid uses bounded horizontal scrolling on narrow viewports without creating page-level
+  horizontal overflow; focus remains visible above fixed table/footer chrome.
 
 ## Acceptance Criteria
 
@@ -216,6 +266,24 @@ using Brazilian Portuguese product language.
 - [x] Route generation, format, lint, typecheck, full Vitest, full Playwright,
       production-boundary, build, Studio check, env/workflow tests, and root check have recorded
       evidence.
+- [x] The overview presents explanatory guided steps, visible progress, and a deterministic next
+      recommended action while remaining useful after completion.
+- [x] Units, professionals, and services use the compact menu-based status filter and compact search
+      pattern already established by Agenda.
+- [x] Catalog tables fill the remaining available module body, keep header and pagination fixed,
+      and confine vertical/horizontal scrolling to the table content.
+- [x] Unit opening hours use one composed time-range control rather than free text or unrelated
+      start/end fields.
+- [x] Availability renders as a weekly time grid with available, break/block, and absence blocks.
+- [x] Users can create a time range by dragging, clicking/tapping, or using an explicit keyboard
+      operable add command, and all paths open the same block editor.
+- [x] Weekly recurrence supports selected weekdays and an optional end date; editing and deletion
+      require explicit selected-day versus entire-recurrence scope.
+- [x] Batch availability changes are atomic in the memory repository and preserve rollback/retry
+      behavior.
+- [x] Focused unit/component and browser evidence covers table sizing, filter menus, range fields,
+      calendar block operations, recurrence scope, drag alternative, axe, 320px reflow, dark mode,
+      focus, and reduced motion.
 
 ## Verification Plan
 
@@ -240,5 +308,10 @@ using Brazilian Portuguese product language.
 - [x] Backend boundary: no API, persistence, tenancy, or authorization promise.
 - [ ] A future initiative must decide accepted API, persistence, tenancy, authorization,
       observability, and migration contracts before `hml`/`prd` can use real data.
-- [ ] Product review must still decide whether the long-term experience remains a hub, becomes
-      guided onboarding, or combines both.
+- [x] July 2026 product review: combine the ongoing hub with guided next actions.
+- [x] Availability semantics: setup owns available, break/block, and absence; Agenda owns
+      appointment occupancy.
+- [x] Recurrence: weekly weekdays plus optional end date for the evaluation experience; future API
+      work owns dated series/exceptions and `this and following` behavior.
+- [ ] A future initiative must define the general barbershop/company profile fields and ownership;
+      this iteration does not invent legal identity or tenant data.

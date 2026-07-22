@@ -17,6 +17,7 @@ import type {
   SetupService,
   SetupUnit,
   TimeRange,
+  UpdateAvailabilityBatchInput,
 } from "@/modules/barbershop-setup/contracts"
 import {
   SetupDependencyError,
@@ -250,9 +251,15 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
         }
         const update: SetupAvailability = {
           ...target,
-          breaks: structuredClone(input.source.breaks),
+          breaks: input.source.breaks.map((block) => ({
+            ...structuredClone(block),
+            id: `${block.seriesId}-${target.day}-break`,
+          })),
           closed: input.source.closed,
-          periods: structuredClone(input.source.periods),
+          periods: input.source.periods.map((block) => ({
+            ...structuredClone(block),
+            id: `${block.seriesId}-${target.day}-available`,
+          })),
         }
         validateAvailability(update)
         return update
@@ -263,12 +270,64 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
   }
 
   async updateAvailability(input: SetupAvailability) {
+    const [updated] = await this.updateAvailabilityBatch({ records: [input] })
+    return updated
+  }
+
+  async updateAvailabilityBatch(input: UpdateAvailabilityBatchInput) {
     return this.#mutate("update", () => {
-      validateAvailability(input)
-      const updated = this.#engine.update(input.id, input)
-      if (updated?.kind !== "availability")
-        throw new SetupValidationError("Disponibilidade não encontrada.")
-      return updated
+      const records = [...new Map(input.records.map((record) => [record.id, record])).values()]
+      if (records.length === 0)
+        throw new SetupValidationError("Selecione pelo menos um dia para atualizar.")
+      const relationshipDays = records.map(
+        ({ day, professionalId, unitId }) => `${professionalId}:${unitId}:${day}`,
+      )
+      if (new Set(relationshipDays).size !== relationshipDays.length)
+        throw new SetupValidationError("Cada dia do vínculo deve aparecer apenas uma vez.")
+      for (const record of records) {
+        validateAvailability(record)
+        const current = this.#engine.get(record.id)
+        if (current && current.kind !== "availability")
+          throw new SetupValidationError("Disponibilidade não encontrada.")
+        if (
+          current?.kind === "availability" &&
+          (current.professionalId !== record.professionalId || current.unitId !== record.unitId)
+        )
+          throw new SetupValidationError("Disponibilidade não encontrada.")
+        const professional = this.#engine.get(record.professionalId)
+        const unit = this.#engine.get(record.unitId)
+        if (
+          professional?.kind !== "professional" ||
+          professional.status !== "active" ||
+          !professional.unitIds.includes(record.unitId) ||
+          unit?.kind !== "unit" ||
+          unit.status !== "active"
+        )
+          throw new SetupValidationError("Selecione um vínculo ativo entre profissional e unidade.")
+        if (
+          !current &&
+          this.#engine
+            .values()
+            .some(
+              (candidate) =>
+                candidate.kind === "availability" &&
+                candidate.professionalId === record.professionalId &&
+                candidate.unitId === record.unitId &&
+                candidate.day === record.day,
+            )
+        )
+          throw new SetupValidationError("Este dia já possui disponibilidade configurada.")
+      }
+      return records.map((record) => {
+        const current = this.#engine.get(record.id)
+        if (current?.kind === "availability") {
+          const updated = this.#engine.update(record.id, record)
+          if (updated?.kind === "availability") return updated
+          throw new SetupValidationError("Disponibilidade não encontrada.")
+        }
+        const { id: _draftId, ...input } = record
+        return this.#engine.create(input, "availability") as SetupAvailability
+      })
     })
   }
 
@@ -330,6 +389,14 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
       this.#assertActiveRelations("unit", service.unitIds)
       this.#assertActiveRelations("professional", service.professionalIds)
       this.#assertProfessionalsServeUnits(service.professionalIds, service.unitIds)
+    }
+    if (kind === "unit") {
+      const unit = input as SetupUnit
+      if (
+        unit.businessHours.days.length === 0 ||
+        unit.businessHours.start >= unit.businessHours.end
+      )
+        throw new SetupValidationError("Informe dias e um período de funcionamento válido.")
     }
     if (kind === "professional") {
       const professional = input as SetupProfessional
@@ -459,7 +526,10 @@ function entitySearchText(entity: SetupEntity) {
 function validateAvailability(record: SetupAvailability) {
   if (!record.closed && record.periods.length === 0)
     throw new SetupValidationError("Adicione pelo menos um período ou marque o dia como fechado.")
-  for (const range of [...record.periods, ...record.breaks]) {
+  const blocks = [...record.periods, ...record.breaks, ...record.absences]
+  if (new Set(blocks.map(({ id }) => id)).size !== blocks.length)
+    throw new SetupValidationError("Os blocos de disponibilidade devem ser únicos.")
+  for (const range of blocks) {
     if (
       !/^\d{2}:\d{2}$/.test(range.start) ||
       !/^\d{2}:\d{2}$/.test(range.end) ||
@@ -467,6 +537,8 @@ function validateAvailability(record: SetupAvailability) {
     ) {
       throw new SetupValidationError("Informe um intervalo com início anterior ao fim.")
     }
+    if (range.recurrenceUntil && !/^\d{4}-\d{2}-\d{2}$/.test(range.recurrenceUntil))
+      throw new SetupValidationError("Informe uma data final válida para a recorrência.")
   }
   const conflict = findConflicts([record])[0]
   if (conflict) throw new SetupValidationError(conflict)
@@ -475,7 +547,10 @@ function validateAvailability(record: SetupAvailability) {
 function findConflicts(records: readonly SetupAvailability[]) {
   return records.flatMap((record) => {
     const weekday = weekdayLabels[record.day]
-    if (record.closed && (record.periods.length > 0 || record.breaks.length > 0))
+    if (
+      record.closed &&
+      (record.periods.length > 0 || record.breaks.length > 0 || record.absences.length > 0)
+    )
       return [`${weekday}: dia fechado contém horários.`]
     if (record.closed) return []
 
@@ -488,13 +563,11 @@ function findConflicts(records: readonly SetupAvailability[]) {
       conflicts.push(`${weekday}: pausa fora do período de trabalho.`)
     }
 
-    const timeOff = parseTimeOffRange(record.timeOff)
-    if (timeOff) {
-      if (timeOff.start >= timeOff.end) {
-        conflicts.push(`${weekday}: ausência contém intervalo inválido.`)
-      } else if (!record.periods.some((period) => containsRange(period, timeOff))) {
+    if (hasOverlaps(record.absences)) conflicts.push(`${weekday}: ausências sobrepostas.`)
+    for (const absence of record.absences) {
+      if (!record.periods.some((period) => containsRange(period, absence))) {
         conflicts.push(`${weekday}: ausência fora do período de trabalho.`)
-      } else if (record.breaks.some((pause) => rangesOverlap(pause, timeOff))) {
+      } else if (record.breaks.some((pause) => rangesOverlap(pause, absence))) {
         conflicts.push(`${weekday}: ausência sobrepõe uma pausa.`)
       }
     }
@@ -514,11 +587,6 @@ function hasOverlaps(ranges: readonly TimeRange[]) {
 
 function rangesOverlap(left: TimeRange, right: TimeRange) {
   return left.start < right.end && right.start < left.end
-}
-
-function parseTimeOffRange(timeOff?: string): TimeRange | undefined {
-  const match = timeOff?.match(/(\d{2}:\d{2})\s*[–—-]\s*(\d{2}:\d{2})/)
-  return match ? { start: match[1], end: match[2] } : undefined
 }
 
 const weekdayLabels = {

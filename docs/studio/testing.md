@@ -37,14 +37,15 @@ use the real IDP boundary; the preview is local QA tooling and redirects in prod
 
 `tests/e2e/barbershop-setup.spec.ts` covers the authenticated setup module: direct entry, normal
 sidebar navigation, collapsed and mobile active states, stable section URLs, absence of preview
-chrome, overview, catalogs, session-memory create/reload, observable drawer entry/exit with
-reduced-motion suppression and focus restoration, scalar and relationship first-invalid focus,
-one-shot mutation recovery, atomic weekday-copy failure/success with active-draft preservation,
-destination-specific absences, linked-service archive blocking, service-unit eligibility,
-Portuguese numeric errors, persistent load failure, availability conflicts filtered to the visible
-relationship, axe, 320 CSS-pixel reflow, keyboard focus, and dark mode. Production coverage proves
-the removed setup preview route is inaccessible, the normal route resolves a disabled source, and
-the artifact scan rejects adapter, fixture, scenario, and dense-record markers.
+chrome, guided overview, fill-height catalogs, session-memory create/reload, structured opening
+hours, observable drawer entry/exit with reduced-motion suppression and focus restoration, scalar
+and relationship first-invalid focus, one-shot mutation recovery, atomic recurring availability
+failure/retry, series-scoped editing, safe recurring deletion, pointer-drag and keyboard block
+creation, linked-service archive blocking, service-unit eligibility, Portuguese numeric errors,
+persistent load failure, axe, 320 CSS-pixel calendar reflow and keyboard focus, and dark mode.
+Production coverage proves the removed setup preview route is inaccessible, the normal route
+resolves a disabled source, and the artifact scan rejects adapter, fixture, scenario, and
+dense-record markers.
 
 `tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
 the resolved class at the first animation frame, measures browser-computed contrast for core

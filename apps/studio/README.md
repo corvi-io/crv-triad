@@ -51,13 +51,14 @@ intentionally unavailable in `hml`
 and `prd`; see `docs/studio/schedule-prototype.md` for the visual contract, runtime boundary, and
 residual manual accessibility checks.
 
-The authenticated barbershop setup module presents URL-selectable overview, units, professionals,
-services, and availability sections. Local and configured deployed `dev` builds compose a
-deterministic session-memory source for create/edit/archive/restore, relationship validation,
-conflict feedback, retry, atomic weekday copying, and stale-operation invalidation. The normal UI
-does not expose scenario or reset controls. `hml` and `prd` resolve the source as disabled and
-exclude fixtures; no API, persistence, tenancy, or authorization contract is accepted. See
-`docs/studio/barbershop-setup.md`.
+The authenticated barbershop setup module presents a guided overview, fill-height
+unit/professional/service catalogs, structured unit opening hours, and a weekly block-based
+availability calendar. The calendar supports pointer selection plus click/keyboard alternatives,
+weekly recurrence, bounded end dates, explicit selected-day/series scope, conflict feedback, retry,
+and atomic batch rollback. Local and configured deployed `dev` builds compose a deterministic
+session-memory source; the normal UI does not expose scenario or reset controls. `hml` and `prd`
+resolve the source as disabled and exclude fixtures; no API, persistence, tenancy, or authorization
+contract is accepted. See `docs/studio/barbershop-setup.md`.
 
 Component placement, exhaustive inventory, public and internal-only decisions, token layers,
 adapter boundaries, and manual accessibility checks are documented in English at

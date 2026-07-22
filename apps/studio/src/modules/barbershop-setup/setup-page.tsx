@@ -1,5 +1,6 @@
 import {
   ArchiveIcon,
+  ArrowRightIcon,
   Building2Icon,
   CalendarClockIcon,
   CheckCircle2Icon,
@@ -9,10 +10,12 @@ import {
   PlusIcon,
   ScissorsIcon,
   SearchIcon,
+  SlidersHorizontalIcon,
   Undo2Icon,
   UserRoundIcon,
+  XIcon,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { toast } from "sonner"
 import {
   createDataTablePointAnchor,
@@ -27,6 +30,7 @@ import {
   DataTableSortableHeaderCell,
   type DataTableSortState,
 } from "@/modules/shared/components/data-display/data-table"
+import { FilterTrigger } from "@/modules/shared/components/data-display/filter-trigger"
 import { EmptyState } from "@/modules/shared/components/feedback/empty-state"
 import { StatusBadge } from "@/modules/shared/components/feedback/status-badge"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
@@ -40,22 +44,27 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/modules/shared/components/ui/card"
-import { Input } from "@/modules/shared/components/ui/input"
-import { Label } from "@/modules/shared/components/ui/label"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/modules/shared/components/ui/select"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/modules/shared/components/ui/dropdown-menu"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/modules/shared/components/ui/input-group"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
-import { Switch } from "@/modules/shared/components/ui/switch"
 import { cn } from "@/modules/shared/lib/utils"
+import { AvailabilityCalendar } from "./availability-calendar"
 import type {
-  SetupAvailability,
   SetupEntity,
   SetupEntityInput,
   SetupEntityKind,
@@ -64,8 +73,6 @@ import type {
   SetupProfessional,
   SetupScenarioId,
   SetupSection,
-  TimeRange,
-  Weekday,
 } from "./contracts"
 import {
   SetupDependencyError,
@@ -79,13 +86,11 @@ import {
   SetupEntityDrawer,
 } from "./entity-drawer"
 import {
-  useCopySetupAvailabilityToWeekdays,
   useCreateSetupEntity,
   useSetSetupEntityArchived,
   useSetupAvailability,
   useSetupEntities,
   useSetupOverview,
-  useUpdateSetupAvailability,
   useUpdateSetupEntity,
 } from "./queries"
 import type { BarbershopSetupSearch } from "./search"
@@ -138,10 +143,10 @@ export function BarbershopSetupPage({
           </nav>
         </div>
       }
-      bodyViewportClassName="space-y-4"
+      bodyViewportClassName="h-full min-h-0 pb-0"
     >
       <h2 className="sr-only">{sectionItems.find(({ id }) => id === search.section)?.label}</h2>
-      <div key={search.scenario}>
+      <div key={search.scenario} className="h-full min-h-0">
         <SetupSectionContent
           search={search}
           onSectionChange={(section) => onSearchChange({ section })}
@@ -168,7 +173,7 @@ function SetupSectionContent({
     case "services":
       return <EntitySection kind="service" scenarioId={search.scenario} />
     case "availability":
-      return <AvailabilitySection scenarioId={search.scenario} />
+      return <AvailabilityCalendar scenarioId={search.scenario} />
   }
 }
 
@@ -188,38 +193,113 @@ function OverviewSection({
         onRetry={() => overview.refetch()}
       />
     )
+  const nextItem = overview.data.items.find(({ complete }) => !complete) ?? overview.data.items[0]
+  const progress = Math.round((overview.data.completedCount / overview.data.totalCount) * 100)
   return (
-    <section aria-labelledby="overview-title" className="grid gap-4">
+    <section aria-labelledby="overview-title" className="grid gap-5 pb-4">
+      <Card className="overflow-hidden border-primary/20 bg-linear-to-br from-primary/8 via-card to-card">
+        <CardHeader className="gap-3">
+          <div className="grid gap-1">
+            <h2 id="overview-title" className="font-heading text-xl font-medium leading-snug">
+              Prepare a barbearia para operar
+            </h2>
+            <CardDescription className="max-w-2xl">
+              Complete os cadastros na ordem recomendada para conectar unidades, equipe, serviços e
+              horários disponíveis para agendamento.
+            </CardDescription>
+          </div>
+          <CardAction>
+            <StatusBadge tone={progress === 100 ? "success" : "info"}>
+              {`${overview.data.completedCount} de ${overview.data.totalCount}`}
+            </StatusBadge>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          <div
+            aria-label={`${progress}% da configuração concluída`}
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={progress}
+            className="h-2 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-[width] motion-reduce:transition-none"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {progress === 100
+              ? "A configuração principal está completa. Continue revisando sempre que a operação mudar."
+              : `Próxima etapa recomendada: ${nextItem.title}.`}
+          </p>
+        </CardContent>
+        <CardFooter className="justify-end">
+          <Button type="button" onClick={() => onSectionChange(nextItem.section)}>
+            {progress === 100 ? "Revisar configuração" : "Continuar configuração"}
+            <ArrowRightIcon aria-hidden="true" />
+          </Button>
+        </CardFooter>
+      </Card>
+
       <div>
-        <h2 id="overview-title" className="text-lg font-semibold">
-          Visão geral da configuração
-        </h2>
+        <h3 className="text-base font-semibold">Etapas da configuração</h3>
         <p className="text-sm text-muted-foreground">
-          {overview.data.completedCount} de {overview.data.totalCount} etapas completas.
+          Cada etapa explica o que será habilitado na operação.
         </p>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        {overview.data.items.map((item) => (
-          <Card key={item.section}>
-            <CardHeader>
-              <CardTitle>{item.title}</CardTitle>
-              <CardDescription>{item.description}</CardDescription>
-              <CardAction>
-                <StatusBadge tone={item.complete ? "success" : "warning"}>
-                  {item.complete ? "Completa" : "Pendente"}
-                </StatusBadge>
-              </CardAction>
-            </CardHeader>
-            <CardFooter className="justify-end">
-              <Button type="button" variant="outline" onClick={() => onSectionChange(item.section)}>
-                {item.complete ? "Revisar" : "Configurar"}
-              </Button>
-            </CardFooter>
-          </Card>
+      <ol className="grid gap-3 md:grid-cols-2">
+        {overview.data.items.map((item, index) => (
+          <li key={item.section}>
+            <Card className="h-full">
+              <CardHeader>
+                <div className="flex size-9 items-center justify-center rounded-full border bg-muted text-sm font-semibold">
+                  {item.complete ? (
+                    <CheckCircle2Icon
+                      aria-label="Etapa concluída"
+                      className="size-5 text-primary"
+                    />
+                  ) : (
+                    <span>
+                      <span className="sr-only">Etapa </span>
+                      {index + 1}
+                    </span>
+                  )}
+                </div>
+                <h4 className="font-heading text-base font-medium leading-snug">{item.title}</h4>
+                <CardDescription>{item.description}</CardDescription>
+                <CardAction>
+                  <StatusBadge tone={item.complete ? "success" : "warning"}>
+                    {item.complete ? "Completa" : "Pendente"}
+                  </StatusBadge>
+                </CardAction>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                {overviewStepPurpose[item.section]}
+              </CardContent>
+              <CardFooter className="justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onSectionChange(item.section)}
+                >
+                  {item.complete ? "Revisar" : "Configurar"}
+                  <ArrowRightIcon aria-hidden="true" />
+                </Button>
+              </CardFooter>
+            </Card>
+          </li>
         ))}
-      </div>
+      </ol>
     </section>
   )
+}
+
+const overviewStepPurpose: Record<Exclude<SetupSection, "overview">, string> = {
+  units: "Define onde os atendimentos acontecem e os limites de funcionamento.",
+  professionals: "Conecta a equipe às unidades e aos serviços que cada pessoa realiza.",
+  services: "Organiza duração, preço e quem pode executar cada atendimento.",
+  availability: "Determina quando cada profissional pode receber novos agendamentos.",
 }
 
 type RowMenuState = {
@@ -312,7 +392,7 @@ function EntitySection({
   }
   const labels = entityLabels[kind]
   return (
-    <section aria-labelledby={`${kind}-title`} className="grid gap-3">
+    <section aria-labelledby={`${kind}-title`} className="flex h-full min-h-[32rem] flex-col gap-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 id={`${kind}-title`} className="text-lg font-semibold">
@@ -333,48 +413,68 @@ function EntitySection({
           {labels.newLabel}
         </Button>
       </div>
-      <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 sm:flex-row sm:items-end">
-        <div className="grid min-w-0 flex-1 gap-1">
-          <Label htmlFor={`${kind}-search`}>Buscar</Label>
-          <div className="relative">
-            <SearchIcon
-              aria-hidden="true"
-              className="absolute top-3 left-3 size-4 text-muted-foreground"
-            />
-            <Input
-              id={`${kind}-search`}
-              className="pl-9"
-              value={search}
-              placeholder="Nome ou detalhe"
-              onChange={(event) => {
-                setSearch(event.currentTarget.value)
-                setPage(1)
-              }}
-            />
-          </div>
-        </div>
-        <div className="grid gap-1">
-          <Label htmlFor={`${kind}-status`}>Estado</Label>
-          <Select
-            value={status}
-            onValueChange={(value) => {
-              setStatus(value as typeof status)
+      <fieldset className="flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto rounded-lg border bg-card p-2">
+        <legend className="sr-only">
+          Busca e filtros de {labels.plural.toLocaleLowerCase("pt-BR")}
+        </legend>
+        <InputGroup className="w-56 shrink-0 md:w-64">
+          <InputGroupAddon>
+            <SearchIcon aria-hidden="true" />
+          </InputGroupAddon>
+          <InputGroupInput
+            id={`${kind}-search`}
+            aria-label={`Buscar ${labels.plural.toLocaleLowerCase("pt-BR")}`}
+            type="search"
+            value={search}
+            placeholder="Buscar por nome ou detalhe"
+            onChange={(event) => {
+              setSearch(event.currentTarget.value)
               setPage(1)
             }}
-          >
-            <SelectTrigger id={`${kind}-status`} className="w-full sm:w-44">
-              <SelectValue>
-                {status === "all" ? "Todos" : status === "active" ? "Ativos" : "Arquivados"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="active">Ativos</SelectItem>
-              <SelectItem value="archived">Arquivados</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+          />
+        </InputGroup>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <FilterTrigger
+                aria-label="Filtrar por estado"
+                active={status !== "all"}
+                count={status === "all" ? undefined : 1}
+                icon={SlidersHorizontalIcon}
+                id={`${kind}-status`}
+                label="Estado"
+              />
+            }
+          />
+          <DropdownMenuContent align="start" className="min-w-48">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Estado</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={status}
+                onValueChange={(value) => {
+                  setStatus(value as typeof status)
+                  setPage(1)
+                }}
+              >
+                <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="active">Ativos</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="archived">Arquivados</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+            {status !== "all" ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => setStatus("all")}>
+                    <XIcon aria-hidden="true" />
+                    Limpar filtro
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </fieldset>
       {entities.isPending ? (
         <LoadingTable />
       ) : entities.isError ? (
@@ -410,7 +510,7 @@ function EntitySection({
       ) : (
         <DataTable
           aria-label={`${labels.plural} da configuração`}
-          className="min-h-80"
+          className="min-h-80 flex-1"
           footer={
             <DataTablePagination
               page={entities.data.page}
@@ -572,386 +672,6 @@ function EntitySection({
   )
 }
 
-function AvailabilitySection({ scenarioId }: { scenarioId: SetupScenarioId }) {
-  const [professionalId, setProfessionalId] = useState<string>()
-  const [unitId, setUnitId] = useState<string>()
-  const relationships = useSetupAvailability({ scenarioId })
-  const resolvedProfessional =
-    relationships.data?.professionals.find(({ id }) => id === professionalId) ??
-    relationships.data?.professionals[0]
-  const resolvedUnitId =
-    unitId && resolvedProfessional?.unitIds.includes(unitId)
-      ? unitId
-      : (resolvedProfessional?.unitIds[0] ?? relationships.data?.units[0]?.id)
-  const availability = useSetupAvailability({
-    scenarioId,
-    professionalId: resolvedProfessional?.id,
-    unitId: resolvedUnitId,
-  })
-  const copyAvailability = useCopySetupAvailabilityToWeekdays()
-  const updateAvailability = useUpdateSetupAvailability()
-  if (relationships.isPending || availability.isPending)
-    return <LoadingCards label="Carregando disponibilidade…" />
-  if (relationships.isError || availability.isError)
-    return (
-      <ErrorState
-        title="Não foi possível carregar a disponibilidade"
-        onRetry={() => {
-          relationships.refetch()
-          availability.refetch()
-        }}
-      />
-    )
-  if (relationships.data.professionals.length === 0 || relationships.data.units.length === 0)
-    return (
-      <EmptyState
-        icon={CalendarClockIcon}
-        title="Disponibilidade ainda não configurável"
-        description="Adicione uma unidade e um profissional antes de definir horários."
-      />
-    )
-  const selectedProfessional = resolvedProfessional ?? relationships.data.professionals[0]
-  const selectedUnitId = resolvedUnitId ?? relationships.data.units[0].id
-  const records = availability.data.records
-
-  async function save(record: SetupAvailability) {
-    try {
-      await updateAvailability.mutateAsync(record)
-      toast.success("Disponibilidade atualizada.")
-    } catch (error) {
-      toast.error(errorMessage(error))
-    }
-  }
-
-  async function copyWeekdays(source: SetupAvailability) {
-    try {
-      const targets = records.filter(
-        ({ day }) => day !== source.day && day !== "saturday" && day !== "sunday",
-      )
-      await copyAvailability.mutateAsync({
-        source,
-        targetIds: targets.map(({ id }) => id),
-      })
-      toast.success("Horários copiados para os dias úteis.")
-    } catch (error) {
-      toast.error(errorMessage(error))
-    }
-  }
-
-  return (
-    <section aria-labelledby="availability-title" className="grid gap-4">
-      <div>
-        <h2 id="availability-title" className="text-lg font-semibold">
-          Disponibilidade semanal
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Edição por controles explícitos, sem depender de arrastar.
-        </p>
-      </div>
-      <div className="grid gap-3 rounded-lg border bg-card p-3 sm:grid-cols-2">
-        <div className="grid gap-1">
-          <Label htmlFor="availability-professional">Profissional</Label>
-          <Select
-            value={selectedProfessional.id}
-            onValueChange={(value) => {
-              setProfessionalId(value ?? undefined)
-              setUnitId(undefined)
-            }}
-          >
-            <SelectTrigger id="availability-professional">
-              <SelectValue>{selectedProfessional.name}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {relationships.data.professionals.map((professional) => (
-                <SelectItem key={professional.id} value={professional.id}>
-                  {professional.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid gap-1">
-          <Label htmlFor="availability-unit">Unidade</Label>
-          <Select value={selectedUnitId} onValueChange={(value) => setUnitId(value ?? undefined)}>
-            <SelectTrigger id="availability-unit">
-              <SelectValue>
-                {relationships.data.units.find(({ id }) => id === selectedUnitId)?.name}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {relationships.data.units
-                .filter(({ id }) => selectedProfessional.unitIds.includes(id))
-                .map((unit) => (
-                  <SelectItem key={unit.id} value={unit.id}>
-                    {unit.name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      {availability.data.conflicts.length > 0 ? (
-        <div
-          role="alert"
-          className="rounded-lg border border-feedback-destructive-border bg-feedback-destructive p-4 text-feedback-destructive-foreground"
-        >
-          <div className="flex items-center gap-2 font-medium">
-            <CircleAlertIcon aria-hidden="true" className="size-5" />
-            Conflitos encontrados
-          </div>
-          <ul className="mt-2 list-disc pl-5 text-sm">
-            {availability.data.conflicts.map((conflict) => (
-              <li key={conflict}>{conflict}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-      {records.length === 0 ? (
-        <EmptyState
-          icon={CalendarClockIcon}
-          title="Nenhuma semana cadastrada"
-          description="Escolha outro vínculo ou tente novamente."
-        />
-      ) : (
-        <div className="grid gap-3 xl:grid-cols-2">
-          {records.map((record) => (
-            <AvailabilityDayCard
-              key={record.id}
-              record={record}
-              isSaving={updateAvailability.isPending || copyAvailability.isPending}
-              onSave={save}
-              onCopy={copyWeekdays}
-            />
-          ))}
-        </div>
-      )}
-    </section>
-  )
-}
-
-function AvailabilityDayCard({
-  record,
-  isSaving,
-  onCopy,
-  onSave,
-}: {
-  record: SetupAvailability
-  isSaving: boolean
-  onCopy: (record: SetupAvailability) => Promise<void>
-  onSave: (record: SetupAvailability) => Promise<void>
-}) {
-  const [draft, setDraft] = useState(() => availabilityDraft(record))
-  const previousRecordRef = useRef(record)
-
-  useEffect(() => {
-    setDraft((current) => {
-      const previousRecord = previousRecordRef.current
-      previousRecordRef.current = record
-      return availabilityDraftMatches(current, previousRecord) ? availabilityDraft(record) : current
-    })
-  }, [record])
-
-  const next = (): SetupAvailability => ({
-    ...record,
-    closed: draft.closed,
-    periods: draft.closed ? [] : draft.periods,
-    breaks: draft.closed ? [] : draft.breaks,
-    timeOff: draft.timeOff.trim() || undefined,
-  })
-  const titleId = `${record.id}-title`
-  return (
-    <Card role="group" aria-labelledby={titleId}>
-      <CardHeader>
-        <CardTitle id={titleId}>{weekdayLabels[record.day]}</CardTitle>
-        <CardDescription>
-          {draft.timeOff ||
-            (draft.closed
-              ? "Fechado"
-              : `${draft.periods.length} período(s) · ${draft.breaks.length} pausa(s)`)}
-        </CardDescription>
-        <CardAction>
-          <div className="flex items-center gap-2">
-            <Label htmlFor={`${record.id}-closed`}>Fechado</Label>
-            <Switch
-              id={`${record.id}-closed`}
-              checked={draft.closed}
-              onCheckedChange={(closed) => setDraft((current) => ({ ...current, closed }))}
-            />
-          </div>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <RangeEditor
-          id={`${record.id}-period`}
-          label="Períodos de trabalho"
-          ranges={draft.periods}
-          disabled={draft.closed}
-          onChange={(periods) => setDraft((current) => ({ ...current, periods }))}
-          emptyRange={{ start: "09:00", end: "18:00" }}
-        />
-        <RangeEditor
-          id={`${record.id}-break`}
-          label="Pausas"
-          ranges={draft.breaks}
-          disabled={draft.closed}
-          onChange={(breaks) => setDraft((current) => ({ ...current, breaks }))}
-          emptyRange={{ start: "12:00", end: "13:00" }}
-        />
-        <div className="grid gap-1">
-          <Label htmlFor={`${record.id}-time-off`}>Ausência ou observação (opcional)</Label>
-          <Input
-            id={`${record.id}-time-off`}
-            value={draft.timeOff}
-            disabled={draft.closed}
-            placeholder="Ex.: ausência das 14:00 às 16:00"
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, timeOff: event.currentTarget.value }))
-            }
-          />
-        </div>
-      </CardContent>
-      <CardFooter className="flex flex-wrap justify-between gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={record.day === "sunday" || isSaving}
-          onClick={() => onCopy(next())}
-        >
-          Copiar para dias úteis
-        </Button>
-        <Button type="button" isLoading={isSaving} onClick={() => onSave(next())}>
-          Salvar dia
-        </Button>
-      </CardFooter>
-    </Card>
-  )
-}
-
-type AvailabilityDraft = {
-  breaks: readonly TimeRange[]
-  closed: boolean
-  periods: readonly TimeRange[]
-  timeOff: string
-}
-
-function availabilityDraft(record: SetupAvailability): AvailabilityDraft {
-  return {
-    breaks: structuredClone(record.breaks),
-    closed: record.closed,
-    periods: structuredClone(record.periods),
-    timeOff: record.timeOff ?? "",
-  }
-}
-
-function availabilityDraftMatches(draft: AvailabilityDraft, record: SetupAvailability) {
-  return (
-    draft.closed === record.closed &&
-    draft.timeOff === (record.timeOff ?? "") &&
-    JSON.stringify(draft.periods) === JSON.stringify(record.periods) &&
-    JSON.stringify(draft.breaks) === JSON.stringify(record.breaks)
-  )
-}
-
-function RangeEditor({
-  disabled,
-  emptyRange,
-  id,
-  label,
-  onChange,
-  ranges,
-}: {
-  disabled: boolean
-  emptyRange: TimeRange
-  id: string
-  label: string
-  onChange: (ranges: readonly TimeRange[]) => void
-  ranges: readonly TimeRange[]
-}) {
-  return (
-    <fieldset className="grid gap-2" disabled={disabled}>
-      <legend className="text-sm font-medium">{label}</legend>
-      {ranges.map((range, index) => (
-        <div
-          key={`${id}-${range.start}-${range.end}`}
-          className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
-        >
-          <TimeInput
-            id={`${id}-${index}-start`}
-            label="Início"
-            value={range.start}
-            disabled={disabled}
-            onChange={(value) =>
-              onChange(
-                ranges.map((item, itemIndex) =>
-                  itemIndex === index ? { ...item, start: value } : item,
-                ),
-              )
-            }
-          />
-          <TimeInput
-            id={`${id}-${index}-end`}
-            label="Fim"
-            value={range.end}
-            disabled={disabled}
-            onChange={(value) =>
-              onChange(
-                ranges.map((item, itemIndex) =>
-                  itemIndex === index ? { ...item, end: value } : item,
-                ),
-              )
-            }
-          />
-          <Button
-            type="button"
-            variant="outline"
-            disabled={disabled}
-            onClick={() => onChange(ranges.filter((_, itemIndex) => itemIndex !== index))}
-          >
-            Remover
-          </Button>
-        </div>
-      ))}
-      <Button
-        type="button"
-        variant="outline"
-        className="justify-self-start"
-        disabled={disabled}
-        onClick={() => onChange([...ranges, emptyRange])}
-      >
-        Adicionar {label === "Pausas" ? "pausa" : "período"}
-      </Button>
-    </fieldset>
-  )
-}
-
-function TimeInput({
-  disabled,
-  id,
-  label,
-  onChange,
-  value,
-}: {
-  disabled: boolean
-  id: string
-  label: string
-  onChange: (value: string) => void
-  value: string
-}) {
-  return (
-    <div className="grid gap-1">
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        type="time"
-        step={900}
-        disabled={disabled}
-        value={value}
-        onChange={(event) => onChange(event.currentTarget.value)}
-      />
-    </div>
-  )
-}
-
 function ErrorState({ onRetry, title }: { onRetry: () => void; title: string }) {
   return (
     <div
@@ -1023,16 +743,6 @@ function errorMessage(error: unknown) {
     error instanceof SetupOperationInvalidatedError
     ? error.message
     : "Não foi possível concluir a ação. Tente novamente."
-}
-
-const weekdayLabels: Record<Weekday, string> = {
-  monday: "Segunda-feira",
-  tuesday: "Terça-feira",
-  wednesday: "Quarta-feira",
-  thursday: "Quinta-feira",
-  friday: "Sexta-feira",
-  saturday: "Sábado",
-  sunday: "Domingo",
 }
 
 export { sectionItems }

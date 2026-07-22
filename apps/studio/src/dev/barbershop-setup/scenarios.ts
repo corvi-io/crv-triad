@@ -1,6 +1,7 @@
 import type { ScenarioDefinition } from "@/dev/mock-engine"
 import type {
   AccountAccessStatus,
+  AvailabilityTimeBlock,
   SetupAvailability,
   SetupProfessional,
   SetupRecord,
@@ -27,7 +28,11 @@ function unit(id: string, name: string, status: "active" | "archived" = "active"
     name,
     code: id.replace("unit-", "").toUpperCase(),
     address: `Avenida Exemplo, ${100 + id.length} — Bairro Demonstração`,
-    businessHours: "Seg–Sex, 09:00–19:00 · Sáb, 09:00–17:00",
+    businessHours: {
+      days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+      start: "09:00",
+      end: "19:00",
+    },
     status,
   }
 }
@@ -79,6 +84,17 @@ function availability(
 ): SetupAvailability[] {
   return weekdays.map((day, index) => {
     const closed = index === 6 || (conflicts && index === 5)
+    const block = (
+      type: "available" | "break" | "absence",
+      start: string,
+      end: string,
+      suffix = "default",
+    ): AvailabilityTimeBlock => ({
+      id: `block-${professionalId}-${unitId}-${day}-${type}-${suffix}`,
+      seriesId: `series-${professionalId}-${unitId}-${type}-${suffix}`,
+      start,
+      end,
+    })
     return {
       id: `availability-${professionalId}-${day}`,
       kind: "availability" as const,
@@ -91,27 +107,29 @@ function availability(
           ? []
           : conflicts && index === 0
             ? [
-                { start: "09:00", end: "13:00" },
-                { start: "12:00", end: "18:00" },
+                block("available", "09:00", "13:00", "conflict-a"),
+                block("available", "12:00", "18:00", "conflict-b"),
               ]
-            : [{ start: "09:00", end: "18:00" }],
+            : [block("available", "09:00", "18:00")],
       breaks:
         closed && index === 6
           ? []
           : conflicts && index === 1
-            ? [{ start: "17:30", end: "18:30" }]
+            ? [block("break", "17:30", "18:30", "outside")]
             : conflicts && index === 2
               ? [
-                  { start: "12:00", end: "13:00" },
-                  { start: "12:30", end: "13:30" },
+                  block("break", "12:00", "13:00", "conflict-a"),
+                  block("break", "12:30", "13:30", "conflict-b"),
                 ]
-              : [{ start: "12:00", end: "13:00" }],
-      timeOff:
+              : closed
+                ? []
+                : [block("break", "12:00", "13:00")],
+      absences:
         conflicts && index === 3
-          ? "Ausência sintética: 14:00–16:00"
+          ? [block("absence", "14:00", "16:00", "valid")]
           : conflicts && index === 4
-            ? "Ausência sintética: 18:30–19:30"
-            : undefined,
+            ? [block("absence", "18:30", "19:30", "outside")]
+            : [],
     }
   })
 }

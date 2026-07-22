@@ -51,10 +51,32 @@ test("shares stable sections, renders the complete overview, and passes focused 
 }) => {
   await page.goto(setupUrl())
   await expect(page.getByRole("heading", { name: "Configuração da barbearia" })).toBeVisible()
-  await expect(page.getByText("4 de 4 etapas completas.")).toBeVisible()
+  await expect(
+    page.getByRole("progressbar", { name: "100% da configuração concluída" }),
+  ).toBeVisible()
   await page.getByRole("button", { name: "Serviços" }).click()
   await expect(page).toHaveURL(/section=services/)
   await expect(page.getByRole("table", { name: "Serviços da configuração" })).toBeVisible()
+  const tableLayout = await page.locator('[data-slot="data-table"]').evaluate((element) => {
+    const header = element.querySelector("thead")
+    const footer = element.querySelector('[data-slot="data-table-footer"]')
+    const moduleBody = element
+      .closest('[data-slot="module-layout"]')
+      ?.querySelector('[data-slot="module-layout-body"]')
+    const tableBounds = element.getBoundingClientRect()
+    const bodyBounds = moduleBody?.getBoundingClientRect()
+    return {
+      height: tableBounds.height,
+      headerPosition: header ? getComputedStyle(header).position : null,
+      footerVisible: Boolean(footer && footer.getBoundingClientRect().height > 0),
+      remainingBodySpace: bodyBounds ? Math.round(bodyBounds.bottom - tableBounds.bottom) : null,
+    }
+  })
+  expect(tableLayout.height).toBeGreaterThan(350)
+  expect(tableLayout.headerPosition).toBe("sticky")
+  expect(tableLayout.footerVisible).toBe(true)
+  expect(tableLayout.remainingBodySpace).not.toBeNull()
+  expect(tableLayout.remainingBodySpace ?? Number.POSITIVE_INFINITY).toBeLessThan(8)
   const results = await new AxeBuilder({ page })
     .include("#main-content")
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"])
@@ -69,6 +91,11 @@ test("creates a unit in memory and starts clean after a reload", async ({ page }
   await page.getByRole("textbox", { name: "Nome *" }).fill("Unidade Temporária")
   await page.getByLabel("Código").fill("TMP")
   await page.getByLabel("Endereço").fill("Rua Sintética, 10")
+  const operatingHours = page.getByRole("group", { name: "Período de funcionamento" })
+  await expect(operatingHours.getByLabel("Início")).toHaveValue("09:00")
+  await expect(operatingHours.getByLabel("Fim")).toHaveValue("18:00")
+  await operatingHours.getByLabel("Início").fill("08:00")
+  await operatingHours.getByLabel("Fim").fill("20:00")
   await page.getByRole("button", { name: "Salvar" }).click()
   await expect(page.getByText("Registro criado.")).toBeVisible()
   await expect(page.getByText("Unidade Temporária")).toBeVisible()
@@ -129,7 +156,9 @@ test("opens the useful single-unit source by default", async ({ page }) => {
   await page.goto("/barbershop-setup?section=overview")
   await expect(page).toHaveURL(/section=overview/)
   await expect(page.getByText("1 unidade(s) ativa(s).")).toBeVisible()
-  await expect(page.getByText("4 de 4 etapas completas.")).toBeVisible()
+  await expect(
+    page.getByRole("progressbar", { name: "100% da configuração concluída" }),
+  ).toBeVisible()
 })
 
 test("exposes stable relationship errors and focuses each first invalid group", async ({
@@ -232,19 +261,42 @@ test("filters incompatible service professionals and focuses the cleared relatio
   await expect(alpha).toBeFocused()
 })
 
-test("copies weekday drafts atomically and blocks archiving a linked service", async ({ page }) => {
+test("creates a recurring block atomically and blocks archiving a linked service", async ({
+  page,
+}) => {
   await page.goto(setupUrl("next-failure", "availability"))
-  const monday = page.getByRole("group", { name: "Segunda-feira" })
-  const tuesday = page.getByRole("group", { name: "Terça-feira" })
-  const wednesday = page.getByRole("group", { name: "Quarta-feira" })
-  await monday.getByLabel("Início").first().fill("10:00")
-  await wednesday.getByLabel("Início").first().fill("11:00")
-  await monday.getByRole("button", { name: "Copiar para dias úteis" }).click()
-  await expect(tuesday.getByLabel("Início").first()).toHaveValue("09:00")
+  await page.getByRole("button", { name: "Adicionar bloco" }).click()
+  const drawer = page.getByRole("dialog", { name: "Disponibilidade / Novo bloco" })
+  await drawer.getByLabel("Tipo de bloco").click()
+  await page.getByRole("option", { name: "Pausa ou bloqueio" }).click()
+  await drawer.getByLabel("Início").fill("14:00")
+  await drawer.getByLabel("Fim").fill("15:00")
+  await drawer.getByLabel("Repetir semanalmente").click()
+  for (const day of ["Ter", "Qua", "Qui", "Sex"])
+    await drawer.getByText(day, { exact: true }).click()
+  await drawer.getByRole("button", { name: "Salvar bloco" }).click()
   await expect(page.getByText("Não foi possível concluir a ação. Tente novamente.")).toBeVisible()
-  await monday.getByRole("button", { name: "Copiar para dias úteis" }).click()
-  await expect(tuesday.getByLabel("Início").first()).toHaveValue("10:00")
-  await expect(wednesday.getByLabel("Início").first()).toHaveValue("11:00")
+  await expect(
+    page.getByRole("button", { name: /Pausa ou bloqueio, .*das 14:00 às 15:00/ }),
+  ).toHaveCount(0)
+  await drawer.getByRole("button", { name: "Salvar bloco" }).click()
+  await expect(page.getByText("Bloco adicionado.")).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: /Pausa ou bloqueio, .*das 14:00 às 15:00/ }),
+  ).toHaveCount(5)
+  await page
+    .getByRole("button", { name: "Pausa ou bloqueio, Terça-feira, das 14:00 às 15:00" })
+    .click()
+  const editDrawer = page.getByRole("dialog", { name: "Disponibilidade / Editar bloco" })
+  await expect(editDrawer.getByText("Aplicar alteração em")).toBeVisible()
+  await editDrawer.getByText("Toda a recorrência", { exact: true }).click()
+  await editDrawer.getByRole("button", { name: "Excluir" }).click()
+  const deleteDialog = page.getByRole("dialog", { name: "Excluir toda a recorrência?" })
+  await expect(deleteDialog).toBeVisible()
+  await deleteDialog.getByRole("button", { name: "Excluir" }).click()
+  await expect(
+    page.getByRole("button", { name: /Pausa ou bloqueio, .*das 14:00 às 15:00/ }),
+  ).toHaveCount(0)
 
   await page.goto(setupUrl("single-unit", "services"))
   const serviceRow = page.getByRole("row", { name: /Corte clássico/ })
@@ -254,6 +306,42 @@ test("copies weekday drafts atomically and blocks archiving a linked service", a
   await page.getByRole("button", { name: "Arquivar" }).click()
   await expect(page.getByText(/ainda possui vínculos ativos/)).toBeVisible()
   await expect(serviceRow).toContainText("Ativo")
+})
+
+test("selects a calendar range by dragging and preserves the keyboard alternative", async ({
+  page,
+}) => {
+  await page.goto(setupUrl("single-unit", "availability"))
+  await expect(page.getByRole("heading", { name: "Disponibilidade" })).toBeVisible()
+  const accessibility = await new AxeBuilder({ page })
+    .include("#main-content")
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"])
+    .analyze()
+  expect(accessibility.violations).toEqual([])
+  const sunday = page.getByRole("button", { name: "Adicionar período em Domingo" })
+  await sunday.scrollIntoViewIfNeeded()
+  const bounds = await sunday.boundingBox()
+  expect(bounds).not.toBeNull()
+  if (!bounds) return
+
+  const x = bounds.x + bounds.width / 2
+  await page.mouse.move(x, bounds.y + 56)
+  await page.mouse.down()
+  await page.mouse.move(x, bounds.y + 112, { steps: 4 })
+  await page.mouse.up()
+
+  const drawer = page.getByRole("dialog", { name: "Disponibilidade / Novo bloco" })
+  await expect(drawer).toBeVisible()
+  await expect(drawer.getByLabel("Início")).toHaveValue("07:00")
+  await expect(drawer.getByLabel("Fim")).toHaveValue("08:00")
+  await drawer.getByRole("button", { name: "Cancelar" }).click()
+  await expect(drawer).toHaveCount(0)
+
+  await sunday.focus()
+  await page.keyboard.press("Enter")
+  const keyboardDrawer = page.getByRole("dialog", { name: "Disponibilidade / Novo bloco" })
+  await expect(keyboardDrawer.getByLabel("Início")).toHaveValue("09:00")
+  await expect(keyboardDrawer.getByLabel("Fim")).toHaveValue("10:00")
 })
 
 test("recovers from the one-shot mutation failure without losing the form draft", async ({
@@ -281,10 +369,12 @@ test("shows persistent load recovery and explicit availability conflicts", async
 
   await page.goto(setupUrl("availability-conflicts", "availability"))
   await expect(page.getByRole("alert")).toContainText("pausa fora do período de trabalho")
-  await expect(page.getByRole("button", { name: "Copiar para dias úteis" }).first()).toBeVisible()
+  await expect(page.getByRole("button", { name: "Adicionar bloco" })).toBeVisible()
   await page.getByLabel("Profissional").click()
   await page.getByRole("option", { name: "Profissional Bravo" }).click()
-  await expect(page.getByRole("group", { name: "Segunda-feira" })).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Disponível, Segunda-feira, das 09:00 às 18:00" }),
+  ).toBeVisible()
   await expect(page.getByRole("alert")).toHaveCount(0)
 })
 
@@ -305,6 +395,16 @@ test("supports 320px reflow, keyboard focus, dark theme, and reduced motion", as
   expect(metrics.bodyWidth).toBeLessThanOrEqual(metrics.viewportWidth)
   expect(metrics.reduced).toBe(true)
   expect(metrics.dark).toBe(true)
+
+  await sectionButton.click()
+  await expect(page.getByRole("heading", { name: "Disponibilidade semanal" })).toBeVisible()
+  const calendarMetrics = await page.evaluate(() => ({
+    bodyWidth: document.body.scrollWidth,
+    viewportWidth: window.innerWidth,
+  }))
+  expect(calendarMetrics.bodyWidth).toBeLessThanOrEqual(calendarMetrics.viewportWidth)
+  await page.getByRole("button", { name: "Adicionar bloco" }).focus()
+  await expect(page.getByRole("button", { name: "Adicionar bloco" })).toBeFocused()
 })
 
 async function routeAuthenticatedSession(page: Page) {

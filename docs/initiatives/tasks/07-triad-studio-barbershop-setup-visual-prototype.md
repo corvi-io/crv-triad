@@ -22,6 +22,24 @@
 
 ## Tasks
 
+- [x] Apply the July 2026 product-review iteration:
+  - [x] Record the accepted guided overview, compact catalog toolbar, fill-height table, composed
+        range, calendar, block-type, recurrence, and accessibility decisions in the PRD.
+  - [x] Refactor overview into an ongoing guided setup hub with one recommended next action.
+  - [x] Reuse Agenda's compact search and menu-based status filter across units, professionals, and
+        services.
+  - [x] Make catalog tables consume the remaining module height with fixed header/footer and an
+        internally scrolling body.
+  - [x] Replace unit opening-hours free text with a composed time-range field.
+  - [x] Replace weekday availability cards with a weekly time grid and typed blocks.
+  - [x] Provide drag selection plus click/tap and keyboard alternatives that open the same editor.
+  - [x] Add weekly recurrence with selectable weekdays, optional end date, and explicit
+        selected-day versus whole-series edit/delete scope.
+  - [x] Keep batch recurrence mutations atomic and covered in the memory repository.
+  - [x] Update unit/component, Playwright, durable setup, component-system, and testing docs.
+  - [x] Run focused and full Studio verification, inspect the browser experience, and record final
+        evidence without touching the user-owned ENG-08 files.
+
 - [x] Reconfirm direction and boundaries:
   - [x] Read updated ENG-41, PR #22, review threads, PRD/task, applicable instructions, skills, and
         existing implementation.
@@ -62,7 +80,7 @@
 - [x] Preserve module behavior:
   - [x] Keep overview, units, professionals, services, and availability.
   - [x] Keep create, inspect, edit, archive/restore, relationship validation, retry, and rollback.
-  - [x] Keep weekly hours, breaks, closed days, time off, copy-to-weekdays, and filtered conflicts.
+  - [x] Keep weekly hours, breaks, absences, recurrence, and filtered conflicts.
   - [x] Keep clean-draft refresh, active-draft preservation, dependency blocking, and stale-operation
         invalidation.
   - [x] Keep drawer entry/exit animation, focus return, and reduced-motion suppression.
@@ -98,36 +116,26 @@
 
 ## Verification Evidence
 
-- `bun --filter studio routes:generate`: passed.
-- `bun --filter studio format`: passed; 190 files formatted and the final run fixed one changed
-  file.
-- `bun --filter studio lint`: passed; 195 files checked.
-- `bun --filter studio typecheck`: passed after adding the NodeNext `.js` extension to the local
-  Vite source-boundary import.
-- Focused Vitest: the initial 7 files and 30 tests passed; the final source-boundary review set of
-  5 files and 38 tests also passed.
-- `bun --filter studio test`: 27 files and 154 of 155 tests passed on the second bounded run. The
-  sole failure was the unchanged Agenda test `opens details from a board card and preserves the
-  edit journey`, which exceeded its 5-second jsdom timeout. The first bounded run had the same
-  timeout plus one other timeout in that Agenda file; no Agenda source or test changed.
-- Focused drawer Playwright: 1 Chromium test passed.
-- `bun --filter studio test:e2e`: all 38 Chromium tests passed.
-- `bun --filter studio test:e2e:production`: all 5 production Chromium tests passed.
-- `bun --filter studio test:production-boundary`: the final run passed; 39 output files and 987,479
-  bytes scanned, with fixture markers and every named development scenario rejected.
-- `bun --filter studio build`: passed. An explicit deployed-dev build with target `dev` and both
-  sources set to `memory` also passed; the expected existing chunk-size warning remained.
-- `bun --filter studio check`: generation, Biome, and typecheck passed; its second bounded run then
-  reproduced only the unchanged Agenda timeout above at 154 of 155 tests.
+- `bun run --filter studio check`: passed generation, Biome, typecheck, all 28 Vitest files and 162
+  tests, production build, and the production-boundary scan across 39 files and 991,853 bytes.
+- Focused barbershop-setup Vitest: all 24 repository and page tests passed after adding first-block
+  creation for a newly linked professional/unit pair.
+- `bun run --filter studio test:e2e -- tests/e2e/barbershop-setup.spec.ts`: all 13 Chromium tests
+  passed, including the authenticated integration, guided overview, table sizing, composed hours,
+  recurrence rollback/retry, drag/keyboard creation, axe, 320px reflow, drawer animation, dark mode,
+  focus, and reduced motion.
+- `bun run --filter studio test:e2e`: all 39 Chromium tests passed, including the shared Agenda
+  filter behavior after `FilterTrigger` extraction.
+- `bun run --filter studio test:e2e:production`: production built successfully and all 5 Chromium
+  production-boundary journeys passed.
 - `bun run test:ci`: all 19 env/workflow/release tests passed.
-- `bun run check`: API, IDP, and site passed from Turbo cache; Studio reproduced only the same
-  unchanged Agenda timeout at 154 of 155 tests, so the root command exited 1 with 3 of 4 tasks
-  successful.
-- `git diff --check`: passed before preflight.
-- Browser inspection used the authenticated integration with a browser-local session response. It
-  entered from `/overview` through the `Barbearia` sidebar link, inspected the direct route,
-  expanded/collapsed desktop navigation, the mobile navigation dialog and active state, and found
-  no preview/reset/scenario chrome.
+- `bun run check`: all four workspace checks passed; Studio again completed all 162 tests and its
+  production-boundary scan while API, IDP, and site passed from Turbo cache.
+- `git diff --check`: passed after documentation updates.
+- Browser inspection used the authenticated integration with a browser-local session response at
+  1440×900 and 320×800. It reviewed the guided overview, weekly calendar, internal horizontal
+  scrolling, full drawer editor, and intermediate drawer-entry frame without preview chrome or
+  page-level horizontal overflow.
 - Browser transition evidence captured a closed mount at `translate: 100%` across the 640-pixel
   drawer, `opacity: 1`, and `transition-duration: 0.2s`, followed by `transitionrun`,
   `transitionstart`, and `transitionend` for `translate`. Exit emitted `transitionrun` while
