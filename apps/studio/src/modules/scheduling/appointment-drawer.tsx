@@ -104,6 +104,13 @@ export function AppointmentDrawer({
   const isPending = createMutation.isPending || updateMutation.isPending || cancelMutation.isPending
   const title = modeTitle(mode)
 
+  function switchMode(nextMode: Exclude<DrawerMode, "create">) {
+    requestAnimationFrame(() => {
+      onModeChange(nextMode)
+      requestAnimationFrame(() => focusMode(nextMode))
+    })
+  }
+
   async function submit(values: AppointmentFormValues) {
     if (!selectedService) return
     const input: AppointmentInput = {
@@ -161,7 +168,7 @@ export function AppointmentDrawer({
         title={title}
         primaryAction={
           isTerminal ? undefined : (
-            <Button type="button" onClick={() => onModeChange("edit")}>
+            <Button id="appointment-mode-edit" type="button" onClick={() => switchMode("edit")}>
               Editar agendamento
             </Button>
           )
@@ -169,10 +176,20 @@ export function AppointmentDrawer({
         secondaryActions={
           isTerminal ? undefined : (
             <>
-              <Button type="button" variant="outline" onClick={() => onModeChange("reschedule")}>
+              <Button
+                id="appointment-mode-reschedule"
+                type="button"
+                variant="outline"
+                onClick={() => switchMode("reschedule")}
+              >
                 Remarcar
               </Button>
-              <Button type="button" variant="destructive" onClick={() => onModeChange("cancel")}>
+              <Button
+                id="appointment-mode-cancel"
+                type="button"
+                variant="destructive"
+                onClick={() => switchMode("cancel")}
+              >
                 Cancelar agendamento
               </Button>
             </>
@@ -219,7 +236,7 @@ export function AppointmentDrawer({
           </Button>
         }
         secondaryActions={
-          <Button type="button" variant="outline" onClick={() => onModeChange("view")}>
+          <Button type="button" variant="outline" onClick={() => switchMode("view")}>
             Manter agendamento
           </Button>
         }
@@ -279,7 +296,7 @@ export function AppointmentDrawer({
         <Button
           type="button"
           variant="outline"
-          onClick={() => (appointment ? onModeChange("view") : onOpenChange(false))}
+          onClick={() => (appointment ? switchMode("view") : onOpenChange(false))}
         >
           Voltar
         </Button>
@@ -456,6 +473,16 @@ function modeTitle(mode: DrawerMode) {
     reschedule: "Remarcar agendamento",
     view: "Ver agendamento",
   }[mode]
+}
+
+function focusMode(mode: Exclude<DrawerMode, "create">) {
+  const selector = {
+    cancel: 'input[name="drawer-cancellation-reason"]',
+    edit: "#customer-name",
+    reschedule: "#appointment-date",
+    view: "#appointment-mode-edit",
+  }[mode]
+  document.querySelector<HTMLElement>(selector)?.focus()
 }
 
 function formatPrice(value: number) {

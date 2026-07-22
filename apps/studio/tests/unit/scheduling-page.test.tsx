@@ -68,6 +68,26 @@ describe("schedule page", () => {
     expect(screen.getByLabelText(/Nome/)).toHaveValue("João Vitor")
     expect(screen.queryByLabelText("Status inicial")).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Pagamento")).not.toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Voltar" }))
+    expect(
+      await screen.findByRole("dialog", { name: "Agenda / Ver agendamento" }),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Remarcar" }))
+    expect(
+      await screen.findByRole("dialog", { name: "Agenda / Remarcar agendamento" }),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Voltar" }))
+    expect(
+      await screen.findByRole("dialog", { name: "Agenda / Ver agendamento" }),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Cancelar agendamento" }))
+    expect(
+      await screen.findByRole("dialog", { name: "Agenda / Cancelar agendamento" }),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Manter agendamento" }))
+    expect(
+      await screen.findByRole("dialog", { name: "Agenda / Ver agendamento" }),
+    ).toBeInTheDocument()
   })
 
   it("offers the canonical views and completes a non-drag status transition", async () => {

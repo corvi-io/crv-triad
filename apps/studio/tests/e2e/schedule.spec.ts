@@ -221,16 +221,43 @@ test("creates an appointment in the selected unit with a visible initial status"
 test("keeps edits status-neutral and terminal appointments read-only", async ({ page }) => {
   await page.goto(agendaUrl())
   const joaoCard = appointmentCard(page, "kanban-01")
-  await joaoCard.getByRole("button", { name: "Ações de João Vitor" }).click()
-  await page.getByRole("menuitem", { name: "Editar agendamento" }).click()
+  await joaoCard.getByRole("button", { name: "Ver detalhes" }).click()
+  const detailsDrawer = page.getByRole("dialog", { name: "Agenda / Ver agendamento" })
+  await expect(detailsDrawer).toBeVisible()
+  await detailsDrawer.getByRole("button", { name: "Editar agendamento" }).click()
   const editDrawer = page.getByRole("dialog", { name: "Agenda / Editar agendamento" })
   await expect(editDrawer).toBeVisible()
+  await expect(page.getByRole("dialog")).toHaveCount(1)
+  expect(await editDrawer.evaluate((drawer) => drawer.contains(document.activeElement))).toBe(true)
   await expect(editDrawer.getByLabel("Status inicial")).toHaveCount(0)
   await expect(editDrawer.getByLabel("Pagamento")).toHaveCount(0)
   await editDrawer.getByLabel("Observações").fill("Edição neutra a status no navegador.")
   await page.getByRole("button", { name: "Salvar alterações" }).click()
   await expect(page.getByText("Agendamento atualizado.")).toBeVisible()
   await expect(joaoCard).toContainText("Confirmado")
+
+  await joaoCard.getByRole("button", { name: "Ver detalhes" }).click()
+  await expect(detailsDrawer).toBeVisible()
+  await detailsDrawer.getByRole("button", { name: "Remarcar" }).click()
+  const rescheduleDrawer = page.getByRole("dialog", { name: "Agenda / Remarcar agendamento" })
+  await expect(rescheduleDrawer).toBeVisible()
+  await expect(page.getByRole("dialog")).toHaveCount(1)
+  expect(await rescheduleDrawer.evaluate((drawer) => drawer.contains(document.activeElement))).toBe(
+    true,
+  )
+  await rescheduleDrawer.getByRole("button", { name: "Voltar" }).click()
+  await expect(detailsDrawer).toBeVisible()
+
+  await detailsDrawer.getByRole("button", { name: "Cancelar agendamento" }).click()
+  const cancelDrawer = page.getByRole("dialog", { name: "Agenda / Cancelar agendamento" })
+  await expect(cancelDrawer).toBeVisible()
+  await expect(page.getByRole("dialog")).toHaveCount(1)
+  expect(await cancelDrawer.evaluate((drawer) => drawer.contains(document.activeElement))).toBe(
+    true,
+  )
+  await cancelDrawer.getByRole("button", { name: "Manter agendamento" }).click()
+  await expect(detailsDrawer).toBeVisible()
+  await detailsDrawer.getByRole("button", { name: "Fechar" }).click()
 
   const completedCard = appointmentCard(page, "kanban-13")
   await completedCard.getByRole("button", { name: "Ações de Marcos Paulo" }).click()
