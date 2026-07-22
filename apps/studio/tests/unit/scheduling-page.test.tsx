@@ -52,6 +52,8 @@ describe("schedule page", () => {
     expect(card).not.toBeNull()
     if (!card) return
     expect(card).toHaveTextContent("Confirmado")
+    expect(card).not.toHaveAttribute("customername")
+    expect(card).not.toHaveAttribute("customerphone")
     await user.click(within(card as HTMLElement).getByRole("button", { name: "Ver detalhes" }))
     expect(
       await screen.findByRole("dialog", { name: "Agenda / Ver agendamento" }),

@@ -208,14 +208,16 @@ function AppointmentKanbanCard({
       ]
     : undefined
   return (
-    <KanbanCard<KanbanAppointment>
-      {...appointment}
+    <KanbanCard
       aria-label={`${appointment.customerName}, ${appointment.start}, ${presentation.label}`}
       className={cn("gap-3 p-3", disabled && "opacity-60")}
+      column={appointment.column}
       data-appointment-id={appointment.id}
       data-appointment-status={appointment.status}
       dragHandle={<GripVerticalIcon aria-hidden="true" />}
       dragHandleLabel={`Mover agendamento de ${appointment.customerName}`}
+      id={appointment.id}
+      name={appointment.name}
     >
       <div className="flex items-start gap-2">
         <div
