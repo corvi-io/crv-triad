@@ -134,7 +134,7 @@ export function AgendaControls({
   return (
     <fieldset className="flex min-w-0 items-center gap-1.5 overflow-x-auto rounded-lg border bg-card p-2">
       <legend className="sr-only">Pesquisa, filtros e visualização da agenda</legend>
-      <InputGroup className="min-w-64 flex-1">
+      <InputGroup className="w-64 shrink-0 md:w-72">
         <InputGroupAddon>
           <SearchIcon aria-hidden="true" />
         </InputGroupAddon>
