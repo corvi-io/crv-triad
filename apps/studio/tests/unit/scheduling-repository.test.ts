@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest"
 import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
-import { SCHEDULING_FIXTURE_DATE } from "@/dev/scheduling/scenarios"
 import type { AppointmentInput, ScheduleDayQuery } from "@/modules/scheduling/contracts"
 import { ScheduleConflictError } from "@/modules/scheduling/contracts"
 import { applyAppointmentReschedule } from "@/modules/scheduling/queries"
 
+const SELECTED_AGENDA_DATE = "2026-07-22"
+
 const query = (scenarioId = "normal", unitId: ScheduleDayQuery["unitId"] = "centro") => ({
-  endDate: SCHEDULING_FIXTURE_DATE,
+  endDate: SELECTED_AGENDA_DATE,
   scenarioId,
-  startDate: SCHEDULING_FIXTURE_DATE,
+  startDate: SELECTED_AGENDA_DATE,
   unitId,
 })
 
@@ -16,7 +17,7 @@ const input = (overrides: Partial<AppointmentInput> = {}): AppointmentInput => (
   clientId: "client-test",
   customerName: "Cliente Teste",
   customerPhone: "81900000000",
-  date: SCHEDULING_FIXTURE_DATE,
+  date: SELECTED_AGENDA_DATE,
   durationMinutes: 35,
   notes: "",
   origin: "reception",
@@ -49,10 +50,28 @@ describe("scheduling memory repository", () => {
 
     expect(day.occupancies).toHaveLength(30)
     expect(day.occupancies[0]).toEqual(
-      expect.objectContaining({ date: SCHEDULING_FIXTURE_DATE, id: "kanban-01" }),
+      expect.objectContaining({ date: SELECTED_AGENDA_DATE, id: "kanban-01" }),
     )
     expect(day.occupancies[0]).not.toHaveProperty("customerName")
     expect(day.occupancies[0]).not.toHaveProperty("status")
+  })
+
+  it("projects data-bearing scenarios and occupancies onto the selected Agenda date", async () => {
+    const repository = new SchedulingMemoryRepository()
+
+    for (const [scenarioId, expectedCount] of [
+      ["many-professionals", 42],
+      ["all-statuses", 8],
+    ] as const) {
+      const day = await repository.getDay(query(scenarioId))
+      expect(day.appointments).toHaveLength(expectedCount)
+      expect(day.appointments.every(({ date }) => date === SELECTED_AGENDA_DATE)).toBe(true)
+      expect(day.occupancies.every(({ date }) => date === SELECTED_AGENDA_DATE)).toBe(true)
+    }
+
+    const empty = await repository.getDay(query("empty"))
+    expect(empty.appointments).toEqual([])
+    expect(empty.occupancies).toEqual([])
   })
 
   it("keeps scenarios deterministic, resettable, and session-memory-only", async () => {
@@ -258,6 +277,22 @@ describe("scheduling memory repository", () => {
     )
     await expect(repository.getDay(query("next-failure"))).resolves.toMatchObject({
       unitName: "Centro",
+    })
+  })
+
+  it("keeps the persistent error active after date projection until the scenario changes", async () => {
+    const repository = new SchedulingMemoryRepository()
+
+    await expect(repository.getDay(query("persistent-error"))).rejects.toThrow(
+      "Intentional development failure",
+    )
+    await expect(repository.getDay(query("persistent-error"))).rejects.toThrow(
+      "Intentional development failure",
+    )
+    await expect(repository.getDay(query("normal"))).resolves.toMatchObject({
+      appointments: expect.arrayContaining([
+        expect.objectContaining({ date: SELECTED_AGENDA_DATE, id: "kanban-01" }),
+      ]),
     })
   })
 })

@@ -59,6 +59,8 @@ const services: readonly Service[] = [
 export class SchedulingMemoryRepository implements SchedulingRepository {
   readonly #engine = new MemoryScenarioEngine(schedulingScenarios, "normal")
   #mutationFailureArmed = false
+  #projectedDate?: string
+  #projectedScenarioId?: string
 
   scenarios() {
     return schedulingScenarios.map(({ description, id, label }) => ({ description, id, label }))
@@ -71,6 +73,7 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
       this.#mutationFailureArmed = query.scenarioId === "transition-rollback"
     }
     const scenarioId = this.#engine.snapshot.scenarioId
+    this.#projectScenarioAppointments(scenarioId, query.startDate)
     const scenarioAppointments = this.#engine.values()
     const professionals = scenarioId === "many-professionals" ? allProfessionals : baseProfessionals
     return this.#engine.execute("list", () => {
@@ -180,14 +183,36 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   }
 
   async selectScenario(id: string) {
+    const projectedDate = this.#projectedDate
     this.#engine.selectScenario(id)
+    this.#projectedScenarioId = undefined
+    if (projectedDate) this.#projectScenarioAppointments(id, projectedDate)
     if (id === "next-failure") this.#engine.failNext()
     this.#mutationFailureArmed = id === "transition-rollback"
   }
 
   async reset() {
+    const projectedDate = this.#projectedDate
     this.#engine.reset()
+    this.#projectedScenarioId = undefined
+    if (projectedDate) {
+      this.#projectScenarioAppointments(this.#engine.snapshot.scenarioId, projectedDate)
+    }
     this.#mutationFailureArmed = this.#engine.snapshot.scenarioId === "transition-rollback"
+  }
+
+  #projectScenarioAppointments(scenarioId: string, date: string) {
+    if (this.#projectedScenarioId === scenarioId && this.#projectedDate === date) return
+
+    const scenario = schedulingScenarios.find(({ id }) => id === scenarioId)
+    const fixtureIds = new Set(scenario?.records.map(({ id }) => id))
+    for (const appointment of this.#engine.values()) {
+      if (fixtureIds.has(appointment.id) && appointment.date !== date) {
+        this.#engine.update(appointment.id, { date })
+      }
+    }
+    this.#projectedDate = date
+    this.#projectedScenarioId = scenarioId
   }
 
   #assertValid(input: AppointmentInput, ignoredId?: string) {

@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright"
 import { expect, test } from "@playwright/test"
 
 const agendaUrl = (scenario = "normal") =>
-  `/workspace-preview/agenda?date=2026-07-19&scenario=${scenario}`
+  `/workspace-preview/agenda?date=2026-07-22&scenario=${scenario}`
 
 test("renders the reference-aligned temporal board and passes axe", async ({ page }) => {
   await page.setViewportSize({ height: 900, width: 1440 })
@@ -33,7 +33,7 @@ test("renders the reference-aligned temporal board and passes axe", async ({ pag
   for (const label of ["Barbeiro", "Cliente", "Serviço", "Status", "Unidade"]) {
     await expect(filterGroup.getByRole("button", { name: label })).toBeVisible()
   }
-  await expect(filterGroup.getByRole("button", { name: "Período: 19/07" })).toBeVisible()
+  await expect(filterGroup.getByRole("button", { name: "Período: 22/07" })).toBeVisible()
 
   const results = await new AxeBuilder({ page })
     .include("#main-content")
@@ -60,7 +60,7 @@ test("filters from button menus, selects a period, and switches to Lista", async
   await expect(page.locator("[data-appointment-id]")).toHaveCount(1)
   await page.keyboard.press("Escape")
 
-  await page.getByRole("button", { name: "Período: 19/07" }).click()
+  await page.getByRole("button", { name: "Período: 22/07" }).click()
   await expect(page.getByRole("dialog", { name: "Período da agenda" })).toBeVisible()
   await page.getByRole("button", { name: "7 dias" }).click()
   await expect(page).toHaveURL(/period=next-seven-days/)
@@ -192,6 +192,13 @@ test("keeps the board bounded and applies and resets development scenarios", asy
   await page.getByRole("button", { name: "Configurações do protótipo" }).click()
   await expect(page.getByText("Cenário de desenvolvimento")).toBeVisible()
   await expect(page.getByRole("menuitemradio", { name: /Denso/ })).toBeChecked()
+
+  await page.getByRole("menuitemradio", { name: /Muitos profissionais/ }).click()
+  await expect(page).toHaveURL(/scenario=many-professionals/)
+  await expect(board.locator("[data-appointment-id]")).toHaveCount(42)
+  await expect(board.getByRole("columnheader", { name: /Profissional Sintético 7/ })).toBeVisible()
+
+  await page.getByRole("button", { name: "Configurações do protótipo" }).click()
 
   await page.getByRole("menuitemradio", { name: /Vazio/ }).click()
   await expect(page).toHaveURL(/scenario=empty/)
