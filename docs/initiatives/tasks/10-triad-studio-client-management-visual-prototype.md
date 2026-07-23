@@ -170,7 +170,10 @@ Record evidence as tasks are completed:
   test. Evidence includes accessible compact search, single/multi filter selection and clear,
   migrated consumer behavior, and a ModuleLayout viewport with no implicit bottom inset. The
   focused Agenda consumer assertions additionally prove its board and list share a viewport with
-  no `pb-*` class while retaining `flex-1` as usable workspace inside the viewport.
+  no `pb-*` or `space-y-*` class while retaining `flex-1` as usable workspace inside the viewport.
+  Deployed-DOM inspection on `a56432a` found padding at `0px` but exposed a 20px child margin from
+  the former implicit `space-y-5`; the shared owner now removes that spacing and leaves explicit
+  gaps/inset to content owners.
 - Command: `bun --filter studio test:e2e -- tests/e2e/client-management.spec.ts`
 - Result: passed; four focused Chromium tests.
 - Command: `bun --filter studio check`

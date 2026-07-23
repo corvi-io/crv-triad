@@ -58,6 +58,9 @@ describe("schedule page", () => {
     expect(
       moduleViewport?.className.split(/\s+/).some((className) => className.startsWith("pb-")),
     ).toBe(false)
+    expect(
+      moduleViewport?.className.split(/\s+/).some((className) => className.startsWith("space-y-")),
+    ).toBe(false)
     expect(container.querySelector(".agenda-board")).toHaveClass("flex-1")
     for (const name of [
       "Carlos Lima",
@@ -131,6 +134,9 @@ describe("schedule page", () => {
     expect(moduleViewport).not.toBeNull()
     expect(
       moduleViewport?.className.split(/\s+/).some((className) => className.startsWith("pb-")),
+    ).toBe(false)
+    expect(
+      moduleViewport?.className.split(/\s+/).some((className) => className.startsWith("space-y-")),
     ).toBe(false)
     expect(screen.getByRole("button", { name: "Visualizar como lista" })).toHaveAttribute(
       "aria-pressed",

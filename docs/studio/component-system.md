@@ -135,7 +135,7 @@ building block of a documented composition.
 | `forms/quantity-unit-control.tsx` | Form composition | Internal: inherited composition without an active module-owned quantity contract. |
 | `forms/rhf-form-fields.tsx` | Form adapters | Internal: React Hook Form adapters; discover through owning module forms, not as standalone UI. |
 | `kibo-ui/kanban/index.tsx` | Vendor-derived composite | Internal legacy composite: retained for migration compatibility but no longer consumed by the accepted Agenda board. A future workflow must revalidate its DnD and accessibility contract before reuse. |
-| `layout/module-layout.tsx` | Layout | Internal: structural fixed-head/scroll-body shell exercised through composed pages. Its viewport has no implicit bottom padding; content owners add intentional inset locally, and tables/lists end at their pagination boundary. |
+| `layout/module-layout.tsx` | Layout | Internal: structural fixed-head/scroll-body shell exercised through composed pages. Its viewport has no implicit vertical spacing or bottom padding; content owners add intentional gaps/inset locally, and tables/lists end at their pagination boundary. |
 | `layout/module-tabs.tsx` | Layout/navigation | Internal: requires router context and module-owned tab metadata. |
 | `layout/page-header.tsx` | Layout | Internal: composed by module pages; actions remain module owned. |
 | `layout/section-header.tsx` | Layout | Internal: small structural helper documented through page compositions. |

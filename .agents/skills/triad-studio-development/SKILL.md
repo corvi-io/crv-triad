@@ -132,9 +132,9 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
   [last-4] [last-3] [last-2] [last-1] [last]` near the end. Keep cursor-based
   pagination as a separate component and API contract instead of hiding it
   behind the numbered table paginator.
-- Keep the `ModuleLayout` scroll viewport free of implicit bottom padding. Let content owners add
-  explicit inset only when their composition needs it so table/list pagination has no structural
-  empty strip below it.
+- Keep the `ModuleLayout` scroll viewport free of implicit vertical spacing and bottom padding. Let
+  content owners add explicit gaps or inset only when their composition needs them so table/list
+  pagination has no structural empty strip below it.
 - Use `ActionDrawer` for dense filter sets that combine search, multiple
   selectable groups, or future advanced options. Keep the trigger in
   `PageHeader.actions`; do not compress complex filters into dropdown menus.

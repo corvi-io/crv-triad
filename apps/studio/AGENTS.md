@@ -51,9 +51,9 @@
 - Import icon components with the `Icon` suffix, using the library export or an explicit alias.
 - Keep drawer shells, bordered collapsible sections, label/icon/control rows, Base UI/shadcn
   controls, footer action slots, masks, and accessibility behavior in `src/modules/shared`.
-- Keep the `ModuleLayout` scroll viewport free of implicit bottom padding. Content owners add
-  explicit inset where their composition requires it; table/list modules should end at their own
-  table or pagination boundary.
+- Keep the `ModuleLayout` scroll viewport free of implicit vertical spacing and bottom padding.
+  Content owners add explicit gaps or inset where their composition requires it; table/list modules
+  should end at their own table or pagination boundary.
 - Keep field inventories, icon choices, labels, placeholders/copy, RHF/Zod schemas and defaults,
   option catalogs, dependent rules, and submit intents in the owning domain module.
 - Compose domain forms explicitly. Do not build a schema-driven universal renderer, multiply boolean

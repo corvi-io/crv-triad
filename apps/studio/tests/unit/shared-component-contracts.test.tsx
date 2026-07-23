@@ -134,6 +134,9 @@ describe("documented shared component contracts", () => {
 
     const viewport = container.querySelector('[data-slot="scroll-area-viewport"]')
     expect(viewport).not.toHaveClass("pb-4", "pb-2")
+    expect(
+      viewport?.className.split(/\s+/).some((className) => className.startsWith("space-y-")),
+    ).toBe(false)
     expect(screen.getByText("Conteúdo com inset próprio")).toHaveClass("pb-4")
   })
 })
