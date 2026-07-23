@@ -78,6 +78,18 @@ coherence in one repository read. The repository regression then reads the prior
 semantics, both from the same instance and a fresh instance with the same injected anchor, and
 requires identical counts and appointment IDs.
 
+`tests/e2e/service-desk.spec.ts` covers authenticated expanded navigation, scheduled
+Agenda-to-queue-to-called-to-in-service coherence, the equivalent walk-in journey with explicit
+first-available assignment, drawer validation and first-invalid focus, PII-safe URL behavior, exact
+filtered counts, deterministic loading/empty/error states, full Card and shared feedback anatomy,
+1600x900 and 320-CSS-pixel screenshots, dark/system, reduced motion, forced colors, focus return,
+24px targets, and focused axe WCAG 2.2 A/AA. Focused Vitest covers transition allowlists, scheduled
+projection without appointment copies, start-inclusive/end-exclusive time bounds, wait formatting,
+filter/count equivalence, URL allowlists, every form bound, shared scheduling transition identity,
+walk-in isolation, unavailable-professional recovery, one-shot failure/reset, and persistent error.
+Production coverage proves the authenticated route resolves disabled and the built artifact excludes
+the adapter, scenarios, and representative synthetic queue markers.
+
 `tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
 the resolved class at the first animation frame, measures browser-computed contrast for core
 semantic pairs, all four feedback roles, focus, input boundaries, and all eight schedule roles in

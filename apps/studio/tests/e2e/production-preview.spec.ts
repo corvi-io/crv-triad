@@ -83,6 +83,19 @@ test("keeps the Dashboard route but fails closed without scheduling memory in pr
   await expect(page.getByText("Carlos Lima")).toHaveCount(0)
 })
 
+test("keeps Atendimentos fail-closed and excludes queue fixtures in production", async ({
+  page,
+}) => {
+  await page.unroute("**/api/auth/**")
+  await routeAuthenticatedSession(page)
+  await page.goto("/service-desk?scenario=dense")
+
+  await expect(page.getByRole("heading", { name: "Atendimentos" })).toBeVisible()
+  await expect(page.getByText("Atendimentos indisponíveis")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Adicionar à fila" })).toHaveCount(0)
+  await expect(page.getByText("Pessoa Sintética 1")).toHaveCount(0)
+})
+
 async function routeAuthenticatedSession(page: Page) {
   await page.route("**/api/auth/**", async (route) => {
     if (route.request().method() === "OPTIONS") {
