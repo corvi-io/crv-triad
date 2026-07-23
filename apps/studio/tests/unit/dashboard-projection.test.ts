@@ -3,9 +3,14 @@ import { describe, expect, it } from "vitest"
 import { createSchedulingRepository } from "@/dev/scheduling/entry"
 import type { Appointment, ScheduleDay } from "@/modules/scheduling/contracts"
 import { deriveDashboard } from "@/modules/scheduling/dashboard-projection"
-import { dashboardBounds, validateDashboardSearch } from "@/modules/scheduling/dashboard-search"
+import {
+  dashboardBounds,
+  dashboardComparisonBounds,
+  validateDashboardSearch,
+} from "@/modules/scheduling/dashboard-search"
 
 const date = "2026-07-23"
+const previousDate = "2026-07-22"
 const professionals = [
   { id: "professional-one", name: "Profissional Um" },
   { id: "professional-two", name: "Profissional Dois" },
@@ -154,6 +159,10 @@ describe("Dashboard search", () => {
       endDate: "2026-07-31",
       startDate: "2026-07-01",
     })
+    expect(dashboardComparisonBounds({ endDate: "2026-07-26", startDate: "2026-07-20" })).toEqual({
+      endDate: "2026-07-19",
+      startDate: "2026-07-13",
+    })
   })
 })
 
@@ -186,6 +195,53 @@ describe("Dashboard projection", () => {
       pendingCompletedValue: "R$ 50,00",
       scheduledValue: "R$ 230,00",
     })
+  })
+
+  it("compares KPIs with the bounded immediately preceding scheduling period", () => {
+    const compared = deriveDashboard({
+      bounds: { endDate: date, startDate: date },
+      comparisonBounds: { endDate: previousDate, startDate: previousDate },
+      day: {
+        ...day,
+        appointments: [
+          ...appointments,
+          appointment({
+            date: previousDate,
+            id: "previous-paid",
+            paymentStatus: "paid",
+            priceCents: 5_000,
+            status: "completed",
+          }),
+          appointment({
+            clientId: "client-previous",
+            date: previousDate,
+            id: "previous-confirmed",
+            start: "11:00",
+          }),
+        ],
+      },
+      filters: { period: "today", unitId: "centro" },
+      now: new Date(`${date}T11:00:00`),
+      updatedAt: 0,
+    })
+
+    expect(compared.metrics.map(({ comparison }) => comparison)).toEqual([
+      { amount: "+3", direction: "up", percentage: "+150%", periodLabel: "dia anterior" },
+      { amount: "+1", direction: "up", percentage: "+100%", periodLabel: "dia anterior" },
+      {
+        amount: "+R$ 50,00",
+        direction: "up",
+        percentage: "+100%",
+        periodLabel: "dia anterior",
+      },
+      {
+        amount: "+R$ 50,00",
+        direction: "up",
+        percentage: "+100%",
+        periodLabel: "dia anterior",
+      },
+      { amount: "+2 p.p.", direction: "up", percentage: "+18%", periodLabel: "dia anterior" },
+    ])
   })
 
   it("keeps cancellation and client labels factual", () => {
@@ -341,8 +397,8 @@ describe("Dashboard projection", () => {
       now: new Date(`${date}T11:00:00`),
       updatedAt: 0,
     })
-    expect(capped.upcoming).toHaveLength(6)
-    expect(capped.attention).toHaveLength(5)
+    expect(capped.upcoming).toHaveLength(5)
+    expect(capped.attention).toHaveLength(4)
     expect(capped.services).toHaveLength(5)
 
     const empty = deriveDashboard({
@@ -359,6 +415,9 @@ describe("Dashboard projection", () => {
       "Indisponível",
       "0%",
     ])
+    expect(empty.metrics.every(({ comparison }) => comparison.amount === "Base indisponível")).toBe(
+      true,
+    )
     expect(empty.capacity).toMatchObject({
       availableMinutes: 0,
       bookedMinutes: 0,

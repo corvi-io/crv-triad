@@ -124,7 +124,7 @@ const professionalFixtures = [
   },
 ] as const
 
-const fixtureStarts = ["08:00", "08:45", "09:30", "10:15", "11:00", "11:45", "12:30"] as const
+const fixtureStarts = ["08:00", "08:45", "09:30", "10:15", "11:00", "11:45", "16:00"] as const
 const fixtureServices = [
   { durationMinutes: 45, id: "service-hair-beard", priceCents: 6500 },
   { durationMinutes: 35, id: "service-fade", priceCents: 4500 },
@@ -146,7 +146,12 @@ export const approvedBoardFixtures: readonly Appointment[] = professionalFixture
     professional.clients.map((customerName, slotIndex) => {
       const index = professionalIndex * fixtureStarts.length + slotIndex
       const service = fixtureServices[(professionalIndex + slotIndex) % fixtureServices.length]
-      const status = fixtureStatuses[(professionalIndex + slotIndex) % fixtureStatuses.length]
+      const status =
+        slotIndex === fixtureStarts.length - 1
+          ? (["scheduled", "confirmed", "arrived", "waiting", "confirmed", "scheduled"] as const)[
+              professionalIndex
+            ]
+          : fixtureStatuses[(professionalIndex + slotIndex) % fixtureStatuses.length]
       return appointment(
         `kanban-${String(index + 1).padStart(2, "0")}`,
         customerName,
@@ -176,6 +181,20 @@ export const approvedBoardFixtures: readonly Appointment[] = professionalFixture
 // Retained as a compatibility export for focused tests and old development links.
 export const approvedKanbanFixtures = approvedBoardFixtures
 
+const priorNormalFixtures: readonly Appointment[] = approvedBoardFixtures
+  .slice(0, 30)
+  .map((source, index) => ({
+    ...source,
+    clientId: `${source.clientId}-prior`,
+    date: "2026-07-18",
+    id: `normal-prior-${String(index + 1).padStart(2, "0")}`,
+  }))
+
+export const normalSchedulingFixtures: readonly Appointment[] = [
+  ...approvedBoardFixtures,
+  ...priorNormalFixtures,
+]
+
 const dense = Array.from({ length: 72 }, (_, index) => {
   const professionalIndex = index % professionalFixtures.length
   const rowIndex = Math.floor(index / professionalFixtures.length)
@@ -195,8 +214,9 @@ export const schedulingScenarios: readonly ScenarioDefinition<Appointment>[] = [
   {
     id: "normal",
     label: "Quadro preenchido",
-    description: "Seis barbeiros e 42 agendamentos sintéticos para a jornada principal.",
-    records: approvedBoardFixtures,
+    description:
+      "Seis barbeiros, jornada atual preenchida e período anterior comparável para a avaliação principal.",
+    records: normalSchedulingFixtures,
   },
   { id: "empty", label: "Vazio", description: "Período sem agendamentos.", records: [] },
   {
@@ -300,25 +320,25 @@ export const schedulingScenarios: readonly ScenarioDefinition<Appointment>[] = [
     label: "Lento",
     description: "Resposta com atraso controlado.",
     latencyMs: 900,
-    records: approvedBoardFixtures,
+    records: normalSchedulingFixtures,
   },
   {
     id: "next-failure",
     label: "Próxima falha",
     description: "A próxima consulta falha uma vez.",
-    records: approvedBoardFixtures,
+    records: normalSchedulingFixtures,
   },
   {
     id: "transition-rollback",
     label: "Rollback de mutação",
     description: "A próxima alteração falha após a atualização otimista.",
-    records: approvedBoardFixtures,
+    records: normalSchedulingFixtures,
   },
   {
     id: "persistent-error",
     label: "Erro persistente",
     description: "Todas as operações falham até trocar o cenário.",
     persistentFailure: true,
-    records: approvedBoardFixtures,
+    records: normalSchedulingFixtures,
   },
 ]

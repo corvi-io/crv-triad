@@ -147,9 +147,10 @@ domain or a collection of hard-coded KPI examples.
   - The current scheduling repository returns a bounded selected range, not precomputed dashboard
     aggregates. A pure projection is acceptable for local/dev fixtures but is not a production API
     architecture.
-  - Multiple simultaneous current/comparison queries can conflict with a mutable scenario
-    projection. Previous-period comparisons must be omitted unless one stable repository read can
-    provide them without stale cross-query state.
+  - Multiple simultaneous current/comparison queries would conflict with a query-relative mutable
+    scenario projection. The accepted refinement projects the canonical multi-day fixture once
+    against a repository-local date anchor and uses one bounded read containing the current and
+    immediately preceding equal-length periods.
   - The current overview component lives under shared shell ownership. It may consume a typed
     read-model input, but shared code must not import scheduling or development internals.
 - Data/model gaps:
@@ -221,9 +222,10 @@ parallel component system.
 | Faturamento realizado | Completed appointments marked `paid` | Sum of appointment prices labeled as visual paid state, not provider settlement |
 | Ticket médio | Completed appointments marked `paid` | Paid-state value divided by paid completed count; unavailable when count is zero |
 | Ocupação | Appointment durations and available schedule minutes | Non-canceled/non-no-show booked minutes divided by bounded available minutes |
-| Próximos atendimentos | Appointment date/start/status | Next five or six non-terminal records relative to selected/source time |
+| KPI comparison | Current and immediately preceding equal-length scheduling bounds | Direction, absolute delta, relative percentage when defined, and named prior period; otherwise a neutral unavailable baseline |
+| Próximos atendimentos | Appointment date/start/status | Next five non-terminal records relative to selected/source time |
 | Atenção necessária | Supported appointment/status conflicts | Waiting, completed-pending, overlapping occupancy, long-running in-progress, and upcoming scheduled records only when derivable |
-| Fluxo | Existing eight statuses | Current Agenda labels and semantic presentation; `scheduled` may remain a separate factual count |
+| Fluxo | Existing eight statuses | Seven tiles: `scheduled` plus `confirmed` as a truthful pre-arrival total, with the other six statuses separate |
 | Ocupação por profissional | Duration, availability, periods | Booked minutes divided by available minutes per professional; no ranking |
 | Capacidade | Business hours, professionals, blocked/break periods | Available, reserved, and free minutes; grouped into morning/afternoon/evening |
 | Previsto | Non-canceled/non-no-show appointment prices | Scheduled value, not forecast accounting revenue |
@@ -326,8 +328,8 @@ parallel component system.
 - One selected period drives one coherent Dashboard projection. Avoid one repository scan per card.
 - Use memoized pure maps/reductions over the loaded bounded range and stable lookup maps for
   professionals and services.
-- Upcoming appointments are capped at six; attention and top services are capped at five; histories
-  and professional lists stay bounded to the current source.
+- Upcoming appointments are capped at five; attention is capped at four; top services are capped at
+  five; histories and professional lists stay bounded to the current source.
 - Do not add polling, WebSockets, timers that rerender the full page, background refresh, or
   additional network requests.
 - Avoid chart libraries for progress, distributions, or KPIs that existing CSS and semantic markup
@@ -403,7 +405,8 @@ parallel component system.
 - [x] Period, unit, and professional filters update every block coherently and preserve safe
       shareable URL state.
 - [x] The five KPI surfaces render truthful appointment, completion, paid-state value, paid-state
-      average, and minute-based occupancy calculations.
+      average, and minute-based occupancy calculations, with bounded prior-period comparison or an
+      explicit unavailable baseline.
 - [x] Upcoming appointments, actionable supported attention items, appointment flow, professional
       occupancy, capacity, operational finance, services, cancellations/no-show, and clients render
       from current scheduling records.

@@ -1,10 +1,19 @@
 import {
+  ArrowDownIcon,
   ArrowRightIcon,
+  ArrowUpIcon,
+  BadgeDollarSignIcon,
   CalendarDaysIcon,
+  CheckCircle2Icon,
   CircleAlertIcon,
+  CircleMinusIcon,
+  Clock3Icon,
+  GaugeIcon,
+  HandCoinsIcon,
   PlusIcon,
   ScissorsIcon,
   UsersIcon,
+  UsersRoundIcon,
 } from "lucide-react"
 import type { ReactNode } from "react"
 
@@ -71,7 +80,7 @@ export function WorkspaceOverview({
 }: WorkspaceOverviewProps) {
   return (
     <ModuleLayout
-      bodyViewportClassName="flex flex-col gap-4 pb-6"
+      bodyViewportClassName="flex flex-col gap-2 pb-4"
       head={
         <PageHeader
           actions={
@@ -169,7 +178,7 @@ function DashboardReady({
         <h2 className="sr-only" id="dashboard-kpis-title">
           Indicadores principais
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {model.metrics.map((metric) => (
             <MetricSurface
               key={metric.id}
@@ -182,7 +191,10 @@ function DashboardReady({
         </div>
       </section>
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
+      <div
+        className="grid min-w-0 gap-2 xl:grid-cols-[minmax(0,1.65fr)_minmax(19rem,1fr)]"
+        data-dashboard-row="upcoming-attention"
+      >
         <UpcomingCard
           appointments={model.upcoming}
           onNavigateAgenda={onNavigateAgenda}
@@ -195,7 +207,10 @@ function DashboardReady({
         />
       </div>
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(22rem,1fr)_minmax(0,1.35fr)]">
+      <div
+        className="grid min-w-0 gap-2 xl:grid-cols-[minmax(24rem,1.08fr)_minmax(0,1fr)]"
+        data-dashboard-row="flow-professionals"
+      >
         <FlowCard flow={model.flow} onNavigateAgenda={onNavigateAgenda} />
         <ProfessionalsCard
           professionals={model.professionals}
@@ -203,13 +218,16 @@ function DashboardReady({
         />
       </div>
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+      <div
+        className="grid min-w-0 gap-2 lg:grid-cols-2 2xl:grid-cols-3"
+        data-dashboard-row="capacity-finance-services"
+      >
         <CapacityCard capacity={model.capacity} />
         <FinanceCard finance={model.finance} />
         <ServicesCard services={model.services} onNavigateServices={onNavigateServices} />
       </div>
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-2 lg:grid-cols-2" data-dashboard-row="cancellations-clients">
         <CancellationsCard cancellations={model.cancellations} />
         <ClientsCard clients={model.clients} onNavigateClients={onNavigateClients} />
       </div>
@@ -218,15 +236,33 @@ function DashboardReady({
 }
 
 function MetricSurface({ metric, onOpen }: { metric: DashboardMetric; onOpen: () => void }) {
+  const presentation = metricPresentation[metric.id]
+  const MetricIcon = presentation.icon
+  const ComparisonIcon =
+    metric.comparison.direction === "up"
+      ? ArrowUpIcon
+      : metric.comparison.direction === "down"
+        ? ArrowDownIcon
+        : CircleMinusIcon
   return (
-    <Card size="sm" className="min-w-0">
-      <CardHeader>
-        <CardTitle>
-          <h3 className="text-sm text-muted-foreground">{metric.label}</h3>
+    <Card size="sm" className="min-w-0 gap-1 py-2" data-dashboard-metric={metric.id}>
+      <CardHeader className="grid-cols-[auto_1fr_auto] items-center gap-x-2 px-2.5">
+        <span
+          aria-hidden="true"
+          className={cn(
+            "row-span-2 grid size-9 place-items-center rounded-lg border",
+            presentation.iconClassName,
+          )}
+        >
+          <MetricIcon className="size-4" />
+        </span>
+        <CardTitle className="col-start-2">
+          <h3 className="text-xs text-muted-foreground">{metric.label}</h3>
         </CardTitle>
         <CardAction>
           <Button
             aria-label={`Abrir ${metric.label} na Agenda`}
+            className="size-7"
             size="icon-sm"
             type="button"
             variant="ghost"
@@ -236,13 +272,57 @@ function MetricSurface({ metric, onOpen }: { metric: DashboardMetric; onOpen: ()
           </Button>
         </CardAction>
       </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-semibold tracking-tight tabular-nums">{metric.value}</p>
-        <p className="mt-2 text-xs leading-5 text-muted-foreground">{metric.description}</p>
+      <CardContent className="px-2.5">
+        <p className="text-xl font-semibold tracking-tight tabular-nums">{metric.value}</p>
+        <p
+          className={cn(
+            "mt-1 flex items-center gap-1 text-[0.6875rem] leading-4",
+            metric.comparison.direction === "up"
+              ? "text-feedback-success-foreground"
+              : metric.comparison.direction === "down"
+                ? "text-feedback-destructive-foreground"
+                : "text-muted-foreground",
+          )}
+        >
+          <ComparisonIcon aria-hidden="true" className="size-3" />
+          <span className="font-medium tabular-nums">{metric.comparison.amount}</span>
+          {metric.comparison.percentage ? <span>({metric.comparison.percentage})</span> : null}
+          <span className="text-muted-foreground">vs. {metric.comparison.periodLabel}</span>
+        </p>
+        <p className="mt-0.5 truncate text-[0.6875rem] leading-4 text-muted-foreground">
+          {metric.description}
+        </p>
       </CardContent>
     </Card>
   )
 }
+
+const metricPresentation = {
+  appointments: {
+    icon: CalendarDaysIcon,
+    iconClassName:
+      "border-schedule-in-progress-border bg-schedule-in-progress text-schedule-in-progress-foreground",
+  },
+  completed: {
+    icon: CheckCircle2Icon,
+    iconClassName:
+      "border-feedback-success-border bg-feedback-success text-feedback-success-foreground",
+  },
+  occupancy: {
+    icon: GaugeIcon,
+    iconClassName: "border-feedback-info-border bg-feedback-info text-feedback-info-foreground",
+  },
+  "paid-average": {
+    icon: BadgeDollarSignIcon,
+    iconClassName:
+      "border-schedule-arrived-border bg-schedule-arrived text-schedule-arrived-foreground",
+  },
+  "paid-value": {
+    icon: HandCoinsIcon,
+    iconClassName:
+      "border-schedule-scheduled-border bg-schedule-scheduled text-schedule-scheduled-foreground",
+  },
+} as const
 
 function UpcomingCard({
   appointments,
@@ -268,7 +348,11 @@ function UpcomingCard({
           Não há próximos atendimentos neste período.
         </p>
       ) : (
-        <DataTable aria-label="Próximos atendimentos" className="max-h-80 shadow-none">
+        <DataTable
+          aria-label="Próximos atendimentos"
+          className="max-h-44 shadow-none"
+          tableClassName="text-xs [&_td]:py-1 [&_th]:py-1.5"
+        >
           <DataTableHead>
             <tr>
               <DataTableHeaderCell>Horário</DataTableHeaderCell>
@@ -276,13 +360,14 @@ function UpcomingCard({
               <DataTableHeaderCell>Serviço</DataTableHeaderCell>
               <DataTableHeaderCell>Barbeiro</DataTableHeaderCell>
               <DataTableHeaderCell>Status</DataTableHeaderCell>
+              <DataTableHeaderCell>Falta</DataTableHeaderCell>
             </tr>
           </DataTableHead>
           <DataTableBody>
             {appointments.map((appointment) => (
               <DataTableRow key={appointment.id}>
                 <DataTableCell className="whitespace-nowrap tabular-nums">
-                  {appointment.date} · {appointment.start}
+                  {shortDate(appointment.date)} · {appointment.start}
                 </DataTableCell>
                 <DataTableCell>
                   <button
@@ -295,11 +380,19 @@ function UpcomingCard({
                   </button>
                 </DataTableCell>
                 <DataTableCell>{appointment.serviceName}</DataTableCell>
-                <DataTableCell>{appointment.professionalName}</DataTableCell>
+                <DataTableCell>
+                  <span className="inline-flex items-center gap-2">
+                    <DashboardAvatar name={appointment.professionalName} />
+                    {appointment.professionalName}
+                  </span>
+                </DataTableCell>
                 <DataTableCell>
                   <StatusBadge className={appointment.statusClassName}>
                     {appointment.status}
                   </StatusBadge>
+                </DataTableCell>
+                <DataTableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                  {appointment.timeContext}
                 </DataTableCell>
               </DataTableRow>
             ))}
@@ -334,33 +427,43 @@ function AttentionCard({
           Nenhuma situação acionável no período.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-1">
           {attention.map((item) => (
             <li key={item.id}>
               <button
                 type="button"
-                className="flex min-h-11 w-full cursor-pointer items-start gap-3 rounded-lg border p-3 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                className={cn(
+                  "flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-lg border p-1.5 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
+                  item.tone === "danger"
+                    ? "border-feedback-destructive-border/70"
+                    : item.tone === "warning"
+                      ? "border-feedback-warning-border/70"
+                      : "border-feedback-info-border/70",
+                )}
                 onClick={() =>
                   item.appointmentId ? onOpenAppointment(item.appointmentId) : onNavigateAgenda()
                 }
               >
-                <CircleAlertIcon
+                <span
                   aria-hidden="true"
                   className={cn(
-                    "mt-0.5 size-4 shrink-0",
+                    "grid size-8 shrink-0 place-items-center rounded-lg border",
                     item.tone === "danger"
-                      ? "text-destructive"
+                      ? "border-feedback-destructive-border bg-feedback-destructive text-feedback-destructive-foreground"
                       : item.tone === "warning"
-                        ? "text-feedback-warning-foreground"
-                        : "text-feedback-info-foreground",
+                        ? "border-feedback-warning-border bg-feedback-warning text-feedback-warning-foreground"
+                        : "border-feedback-info-border bg-feedback-info text-feedback-info-foreground",
                   )}
-                />
+                >
+                  <CircleAlertIcon className="size-4" />
+                </span>
                 <span className="min-w-0">
-                  <span className="block font-medium">{item.title}</span>
-                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                  <span className="block truncate text-xs font-medium leading-4">{item.title}</span>
+                  <span className="block truncate text-[0.6875rem] leading-4 text-muted-foreground">
                     {item.description}
                   </span>
                 </span>
+                <ArrowRightIcon aria-hidden="true" className="ml-auto size-4 shrink-0" />
               </button>
             </li>
           ))}
@@ -382,18 +485,19 @@ function FlowCard({
       description="Distribuição pelos estados atuais da Agenda."
       title="Fluxo dos atendimentos"
     >
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-7">
         {flow.map((item) => (
           <button
             key={item.id}
             type="button"
-            className="min-h-14 cursor-pointer rounded-lg border p-3 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-            onClick={() => onNavigateAgenda({ status: item.status })}
+            className="min-h-16 cursor-pointer rounded-lg border p-2 text-center outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            onClick={() => onNavigateAgenda(item.status ? { status: item.status } : undefined)}
           >
-            <span className="flex items-center justify-between gap-2">
-              <StatusBadge className={item.statusClassName}>{item.label}</StatusBadge>
-              <span className="font-semibold tabular-nums">{item.count}</span>
+            <FlowIcon status={item.id} statusClassName={item.statusClassName} />
+            <span className="mt-1 block truncate text-[0.6875rem] text-muted-foreground">
+              {item.label}
             </span>
+            <span className="block text-lg font-semibold leading-5 tabular-nums">{item.count}</span>
           </button>
         ))}
       </div>
@@ -413,7 +517,11 @@ function ProfessionalsCard({
       description="Minutos reservados sobre a disponibilidade do período, sem ranking."
       title="Ocupação dos barbeiros"
     >
-      <DataTable aria-label="Ocupação dos barbeiros" className="max-h-96 shadow-none">
+      <DataTable
+        aria-label="Ocupação dos barbeiros"
+        className="max-h-44 shadow-none"
+        tableClassName="text-xs [&_td]:py-1 [&_th]:py-1.5"
+      >
         <DataTableHead>
           <tr>
             <DataTableHeaderCell>Barbeiro</DataTableHeaderCell>
@@ -436,17 +544,23 @@ function ProfessionalsCard({
                   {professional.name}
                 </button>
               </DataTableCell>
-              <DataTableCell>{professional.appointmentCount}</DataTableCell>
-              <DataTableCell className="min-w-48">
-                <Progress value={clampPercent(professional.occupancyPercent)}>
-                  <ProgressLabel>{professional.bookedMinutes} min reservados</ProgressLabel>
-                  <span className="ml-auto text-sm text-muted-foreground tabular-nums">
+              <DataTableCell className="whitespace-nowrap text-xs">
+                {professional.appointmentCount} atendimentos
+              </DataTableCell>
+              <DataTableCell className="min-w-36">
+                <Progress className="gap-1" value={clampPercent(professional.occupancyPercent)}>
+                  <ProgressLabel className="sr-only">
+                    {professional.bookedMinutes} min reservados
+                  </ProgressLabel>
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">
                     {professional.occupancyPercent}%
                   </span>
                 </Progress>
               </DataTableCell>
               <DataTableCell>{professional.paidValue}</DataTableCell>
-              <DataTableCell>{professional.state}</DataTableCell>
+              <DataTableCell>
+                <StatusBadge tone={professional.stateTone}>{professional.state}</StatusBadge>
+              </DataTableCell>
             </DataTableRow>
           ))}
         </DataTableBody>
@@ -461,18 +575,18 @@ function CapacityCard({ capacity }: { capacity: WorkspaceOverviewModel["capacity
       description="Disponibilidade líquida de pausas e bloqueios."
       title="Capacidade do período"
     >
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2.5">
         {capacity.bands.map((band) => (
           <Progress key={band.id} value={clampPercent(band.occupancyPercent)}>
             <ProgressLabel>
               {band.label} <span className="font-normal text-muted-foreground">({band.range})</span>
             </ProgressLabel>
-            <span className="ml-auto text-sm text-muted-foreground tabular-nums">
+            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
               {band.occupancyPercent}%
             </span>
           </Progress>
         ))}
-        <dl className="grid grid-cols-3 gap-2 border-t pt-3 text-xs">
+        <dl className="grid grid-cols-3 gap-1.5 border-t pt-2 text-xs">
           <DurationStat label="Disponível" value={capacity.availableMinutes} />
           <DurationStat label="Reservado" value={capacity.bookedMinutes} />
           <DurationStat label="Livre" value={capacity.freeMinutes} />
@@ -488,15 +602,15 @@ function FinanceCard({ finance }: { finance: WorkspaceOverviewModel["finance"] }
       description="Projeções de preço e estado visual; não representam contabilidade."
       title="Financeiro operacional"
     >
-      <dl className="grid grid-cols-2 gap-3">
+      <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
         <TextStat label="Valor em estado pago" value={finance.paidValue} />
         <TextStat label="Valor agendado" value={finance.scheduledValue} />
         <TextStat label="Concluído pendente" value={finance.pendingCompletedValue} />
         <UnavailableStat label="Descontos" />
       </dl>
-      <div className="mt-4 border-t pt-3">
+      <div className="mt-2 border-t pt-2">
         <h3 className="text-xs font-medium">Formas de pagamento</h3>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-1 text-xs leading-4 text-muted-foreground">
           Indisponível — a fonte atual não informa a forma de pagamento.
         </p>
       </div>
@@ -525,22 +639,30 @@ function ServicesCard({
       {services.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nenhum serviço no período.</p>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {services.map((service) => (
-            <li
-              key={service.id}
-              className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-b pb-3 last:border-b-0 last:pb-0"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{service.name}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Valor agendado {service.scheduledValue} · Valor em estado pago {service.paidValue}
-                </p>
-              </div>
-              <span className="tabular-nums">{service.count}</span>
-            </li>
-          ))}
-        </ul>
+        <DataTable
+          aria-label="Serviços do período"
+          className="max-h-44 shadow-none"
+          tableClassName="text-xs [&_td]:py-1.5 [&_th]:py-1.5"
+        >
+          <DataTableHead>
+            <tr>
+              <DataTableHeaderCell>Serviço</DataTableHeaderCell>
+              <DataTableHeaderCell>Quantidade</DataTableHeaderCell>
+              <DataTableHeaderCell>Agendado</DataTableHeaderCell>
+              <DataTableHeaderCell>Pago</DataTableHeaderCell>
+            </tr>
+          </DataTableHead>
+          <DataTableBody>
+            {services.map((service) => (
+              <DataTableRow key={service.id}>
+                <DataTableCell className="font-medium">{service.name}</DataTableCell>
+                <DataTableCell>{service.count}</DataTableCell>
+                <DataTableCell>{service.scheduledValue}</DataTableCell>
+                <DataTableCell>{service.paidValue}</DataTableCell>
+              </DataTableRow>
+            ))}
+          </DataTableBody>
+        </DataTable>
       )}
     </DashboardCard>
   )
@@ -556,7 +678,7 @@ function CancellationsCard({
       description="Valor potencial dos horários, não receita reconhecida perdida."
       title="Cancelamentos e no-show"
     >
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
         <TextStat label="Cancelamentos" value={String(cancellations.canceledCount)} />
         <TextStat label="No-show" value={String(cancellations.noShowCount)} />
         <TextStat label="Taxa no período" value={cancellations.rate} />
@@ -586,7 +708,7 @@ function ClientsCard({
       description="Atividade observada apenas dentro do período selecionado."
       title="Clientes do período"
     >
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
         <TextStat label="Clientes concluídos únicos" value={String(clients.completedUniqueCount)} />
         <UnavailableStat label="Clientes novos" />
         <TextStat
@@ -594,7 +716,7 @@ function ClientsCard({
           value={String(clients.repeatedInPeriodCount)}
         />
       </dl>
-      <p className="mt-4 text-xs leading-5 text-muted-foreground">
+      <p className="mt-2 text-xs leading-4 text-muted-foreground">
         A fonte atual não comprova primeira visita nem retenção de longo prazo.
       </p>
     </DashboardCard>
@@ -613,12 +735,12 @@ function DashboardCard({
   title: string
 }) {
   return (
-    <Card className="min-w-0">
-      <CardHeader>
+    <Card size="sm" className="min-w-0 gap-2">
+      <CardHeader className="gap-0.5">
         <CardTitle>
           <h2>{title}</h2>
         </CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription className="text-xs leading-4 xl:sr-only">{description}</CardDescription>
         {action ? <CardAction>{action}</CardAction> : null}
       </CardHeader>
       <CardContent>{children}</CardContent>
@@ -636,8 +758,8 @@ function DashboardAvatar({ name }: { name: string }) {
 
 function TextStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-lg bg-muted/50 p-3">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+    <div className="min-w-0 rounded-lg border bg-muted/40 p-2">
+      <dt className="text-[0.6875rem] leading-4 text-muted-foreground">{label}</dt>
       <dd className="mt-1 break-words font-semibold tabular-nums">{value}</dd>
     </div>
   )
@@ -649,7 +771,7 @@ function UnavailableStat({ label }: { label: string }) {
 
 function DurationStat({ label, value }: { label: string; value: number }) {
   return (
-    <div>
+    <div className="rounded-md border bg-muted/40 p-2 text-center">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="mt-1 font-medium tabular-nums">{duration(value)}</dd>
     </div>
@@ -720,4 +842,31 @@ function duration(value: number) {
 
 function clampPercent(value: number) {
   return Math.max(0, Math.min(100, value))
+}
+
+function FlowIcon({ status, statusClassName }: { status: string; statusClassName: string }) {
+  const Icon = flowIcons[status as keyof typeof flowIcons] ?? CircleAlertIcon
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("mx-auto grid size-7 place-items-center rounded-full border", statusClassName)}
+    >
+      <Icon className="size-3.5" />
+    </span>
+  )
+}
+
+const flowIcons = {
+  arrived: UsersRoundIcon,
+  canceled: CircleAlertIcon,
+  completed: CheckCircle2Icon,
+  "in-progress": GaugeIcon,
+  "no-show": CircleMinusIcon,
+  "scheduled-confirmed": CalendarDaysIcon,
+  waiting: Clock3Icon,
+} as const
+
+function shortDate(value: string) {
+  const [year, month, day] = value.split("-")
+  return year && month && day ? `${day}/${month}` : value
 }

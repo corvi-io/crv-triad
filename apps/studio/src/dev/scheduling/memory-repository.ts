@@ -1,3 +1,4 @@
+import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns"
 import { MemoryScenarioEngine } from "@/dev/mock-engine/memory-scenario-engine"
 import type {
   AppointmentInput,
@@ -10,7 +11,7 @@ import type {
   Service,
 } from "@/modules/scheduling/contracts"
 import { ScheduleConflictError } from "@/modules/scheduling/contracts"
-import { schedulingScenarios } from "./scenarios"
+import { SCHEDULING_FIXTURE_DATE, schedulingScenarios } from "./scenarios"
 
 const baseProfessionals: readonly Professional[] = [
   { id: "professional-carlos", name: "Carlos Lima" },
@@ -59,8 +60,12 @@ const services: readonly Service[] = [
 export class SchedulingMemoryRepository implements SchedulingRepository {
   readonly #engine = new MemoryScenarioEngine(schedulingScenarios, "normal")
   #mutationFailureArmed = false
-  #projectedDate?: string
+  readonly #projectionDate: string
   #projectedScenarioId?: string
+
+  constructor(projectionDate = format(new Date(), "yyyy-MM-dd")) {
+    this.#projectionDate = projectionDate
+  }
 
   scenarios() {
     return schedulingScenarios.map(({ description, id, label }) => ({ description, id, label }))
@@ -73,7 +78,7 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
       this.#mutationFailureArmed = query.scenarioId === "transition-rollback"
     }
     const scenarioId = this.#engine.snapshot.scenarioId
-    this.#projectScenarioAppointments(scenarioId, query.startDate)
+    this.#projectScenarioAppointments(scenarioId)
     const scenarioAppointments = this.#engine.values()
     const professionals = scenarioId === "many-professionals" ? allProfessionals : baseProfessionals
     return this.#engine.execute("list", () => {
@@ -85,7 +90,7 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
       )
       return {
         appointments: dayAppointments,
-        date: query.startDate,
+        date: query.focusDate ?? query.startDate,
         endTime: "18:00",
         occupancies: dayAppointments
           .filter((item) => item.status !== "canceled" && item.status !== "no-show")
@@ -183,35 +188,40 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   }
 
   async selectScenario(id: string) {
-    const projectedDate = this.#projectedDate
     this.#engine.selectScenario(id)
     this.#projectedScenarioId = undefined
-    if (projectedDate) this.#projectScenarioAppointments(id, projectedDate)
+    this.#projectScenarioAppointments(id)
     if (id === "next-failure") this.#engine.failNext()
     this.#mutationFailureArmed = id === "transition-rollback"
   }
 
   async reset() {
-    const projectedDate = this.#projectedDate
     this.#engine.reset()
     this.#projectedScenarioId = undefined
-    if (projectedDate) {
-      this.#projectScenarioAppointments(this.#engine.snapshot.scenarioId, projectedDate)
-    }
+    this.#projectScenarioAppointments(this.#engine.snapshot.scenarioId)
     this.#mutationFailureArmed = this.#engine.snapshot.scenarioId === "transition-rollback"
   }
 
-  #projectScenarioAppointments(scenarioId: string, date: string) {
-    if (this.#projectedScenarioId === scenarioId && this.#projectedDate === date) return
+  #projectScenarioAppointments(scenarioId: string) {
+    if (this.#projectedScenarioId === scenarioId) return
 
     const scenario = schedulingScenarios.find(({ id }) => id === scenarioId)
-    const fixtureIds = new Set(scenario?.records.map(({ id }) => id))
+    const fixturesById = new Map(scenario?.records.map((record) => [record.id, record]))
     for (const appointment of this.#engine.values()) {
-      if (fixtureIds.has(appointment.id) && appointment.date !== date) {
-        this.#engine.update(appointment.id, { date })
+      const fixture = fixturesById.get(appointment.id)
+      if (!fixture) continue
+      const dayOffset = differenceInCalendarDays(
+        parseISO(fixture.date),
+        parseISO(SCHEDULING_FIXTURE_DATE),
+      )
+      const projectedFixtureDate = format(
+        addDays(parseISO(this.#projectionDate), dayOffset),
+        "yyyy-MM-dd",
+      )
+      if (appointment.date !== projectedFixtureDate) {
+        this.#engine.update(appointment.id, { date: projectedFixtureDate })
       }
     }
-    this.#projectedDate = date
     this.#projectedScenarioId = scenarioId
   }
 

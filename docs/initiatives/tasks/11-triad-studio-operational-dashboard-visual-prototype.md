@@ -107,7 +107,7 @@
   - [x] Show comparison helpers only when one stable source read actually supplies a comparison.
   - [x] Show query completion time without polling or a realtime claim.
 - [x] Implement operational blocks:
-  - [x] Render the next five or six non-terminal appointments with existing avatars, status
+  - [x] Render the next five non-terminal appointments with existing avatars, status
         presentation, route/action semantics, and contextual actions without an `Ações` column.
   - [x] Render only derivable actionable attention items and cap the list.
   - [x] Render the existing appointment flow vocabulary as keyboard-operable drill-down links.
@@ -190,12 +190,18 @@ tokens, sessions, private headers, real identities, and production screenshots.
   - `tests/unit/dashboard-projection.test.ts`: focused coverage for allowlists, invalid catalog IDs,
     31-day inclusive bounds, relative periods, supported formulas, zero denominators, truthful
     unsupported values, collection ordering/caps, historical current-state unavailability,
-    interleaved-professional conflicts, professional availability, and invalid professional
-    fallback.
+    interleaved-professional conflicts, professional availability, invalid professional fallback,
+    bounded prior-period comparison formulas, and unavailable comparison baselines.
 - Source sharing and Agenda regression:
   - The Dashboard and Agenda compose the same module-scoped local/dev scheduling repository;
     Playwright proves a Dashboard-created appointment appears in Agenda and reload resets it.
   - The standard Studio check includes the complete Agenda unit suite: 11/11 passing.
+  - The normal scheduling scenario retains 42 selected-day Agenda records, adds six legitimate
+    16:00 upcoming records within that total, and owns 30 prior-day comparison records returned by
+    the Dashboard's one bounded current/prior read.
+  - A stable repository-local projection anchor preserves those 30 prior-day IDs across the
+    Dashboard range read, a following Agenda day read, and an independent repository read with the
+    same injected test anchor.
   - Full Playwright passed 55/58. Two deterministic failing Agenda expectations are byte-identical
     to `origin/staging`: one still expects an unfiltered `Barbeiro` count that the accepted unit
     contract explicitly omits, and one drag helper lands at 14:15 while expecting 14:00. A third
@@ -227,9 +233,8 @@ tokens, sessions, private headers, real identities, and production screenshots.
 
 ## Risks And Follow-Ups
 
-- [ ] The current mutable scheduling scenario projection may need a small source-composition
-      correction before concurrent current/comparison reads are safe; omit comparison rather than
-      introducing stale data.
+- [x] Current/prior comparison uses one bounded read over a canonical multi-day fixture projected
+      once against a stable repository-local date anchor; date navigation does not move records.
 - [ ] Shared repository lifetime can leak state between tests unless every test owns explicit reset
       or a fresh test factory; production route composition and test factories must remain separate.
 - [ ] Dense 1600 × 900 matching can tempt sub-AA text and tiny targets; accessibility requirements

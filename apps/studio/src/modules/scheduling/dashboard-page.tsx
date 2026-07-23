@@ -12,6 +12,7 @@ import { deriveDashboard } from "./dashboard-projection"
 import {
   type DashboardSearch,
   dashboardBounds,
+  dashboardComparisonBounds,
   validateDashboardProfessionalId,
 } from "./dashboard-search"
 import { useScheduleDay } from "./queries"
@@ -29,10 +30,14 @@ export function DashboardPage({
 }) {
   const navigate = useNavigate()
   const bounds = dashboardBounds(search)
+  const comparisonBounds = dashboardComparisonBounds(bounds)
+  const comparisonEndDate = comparisonBounds.endDate
+  const comparisonStartDate = comparisonBounds.startDate
   const query: ScheduleDayQuery = {
     endDate: bounds.endDate,
+    focusDate: bounds.startDate,
     scenarioId: search.scenario,
-    startDate: bounds.startDate,
+    startDate: comparisonStartDate,
     unitId: search.unitId,
   }
   const dayQuery = useScheduleDay(query)
@@ -49,6 +54,10 @@ export function DashboardPage({
       dayQuery.data
         ? deriveDashboard({
             bounds: { endDate: bounds.endDate, startDate: bounds.startDate },
+            comparisonBounds: {
+              endDate: comparisonEndDate,
+              startDate: comparisonStartDate,
+            },
             day: dayQuery.data,
             filters: {
               customEnd: search.customEnd,
@@ -64,6 +73,8 @@ export function DashboardPage({
     [
       bounds.endDate,
       bounds.startDate,
+      comparisonEndDate,
+      comparisonStartDate,
       dayQuery.data,
       dayQuery.dataUpdatedAt,
       search.customEnd,

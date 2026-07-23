@@ -13,6 +13,16 @@ reconstructs the selected deterministic scenario. There is no Dashboard fixture,
 source variable, fake HTTP layer, browser persistence, polling, or realtime
 subscription.
 
+The normal scheduling scenario keeps 42 current-day records, including six
+legitimate non-terminal appointments at 16:00, and 30 prior-day records. Agenda
+continues to show only the selected day. Dashboard requests the current bounds
+and the immediately preceding equal-length comparison bounds in one bounded
+repository read. The memory repository projects the complete multi-day scenario
+against one stable local-date anchor when it is constructed; later day or range
+queries never move those records. Dashboard and independent or subsequent
+Agenda reads therefore return the same IDs for the same canonical date and
+reset together.
+
 `hml` and `prd` continue to resolve scheduling as disabled. In those targets the
 Dashboard fails closed with an unavailable state and no synthetic operational
 values. A future production Dashboard needs an authorized, tenant-bounded
@@ -38,6 +48,10 @@ One validated search contract drives every visible block:
 - safe professional identifier, retained only when the loaded source contains it;
 - allowlisted technical scenario identifier in the development source.
 
+The visible period, unit, and professional controls use the shared compact
+`FilterTrigger` plus `SingleSelectListFilter` menu contract. Custom date bounds
+retain the specialized date-picker composition.
+
 Custom ranges contain at most 31 inclusive calendar days. Invalid dates, units,
 periods, professional IDs, and scenarios fall back safely. A syntactically valid
 professional ID absent from the loaded catalog is removed from the URL, and
@@ -58,9 +72,10 @@ import scheduling or development-source internals.
 | Valor em estado pago | Sum of prices for completed appointments marked `paid`; this is not provider settlement. |
 | Média em estado pago | Paid-state completed value divided by paid completed count; unavailable when the denominator is zero. |
 | Ocupação | Duration of all records except `canceled` and `no-show`, divided by available professional minutes. |
-| Próximos atendimentos | Up to six non-terminal records at or after the source/query time, ordered by date and start. |
-| Atenção necessária | Derivable waiting, completed-pending, overrun in-progress, near scheduled, and overlap items, capped at five. |
-| Fluxo | Factual count for each of the existing eight Agenda statuses. |
+| KPI comparison | Current KPI minus the immediately preceding equal-length period, with direction, absolute delta, relative percentage when the prior denominator is non-zero, and the named comparison period. A missing prior record set or invalid paid-average denominator renders a neutral unavailable baseline. |
+| Próximos atendimentos | Up to five non-terminal records at or after the source/query time, ordered by date and start. |
+| Atenção necessária | Derivable waiting, completed-pending, overrun in-progress, near scheduled, and overlap items, capped at four. |
+| Fluxo | Seven compact operational tiles. `scheduled` and `confirmed` are truthfully summed as “Agendados e confirmados”; the other six Agenda statuses remain separate. |
 | Ocupação dos barbeiros | Non-canceled/non-no-show booked minutes divided by each professional's available minutes; never ranked. Current state is shown only when the bounds include today, otherwise it is explicitly unavailable. |
 | Capacidade | Available, reserved, and non-negative free minutes, also projected into 08h–12h, 12h–18h, and 18h–22h bands. |
 | Previsto | Prices for all records except `canceled` and `no-show`; not forecast accounting revenue. |
@@ -112,3 +127,7 @@ medium/tablet layouts, 320-CSS-pixel reflow, keyboard focus, target size,
 light/dark/system, forced colors, reduced motion, progress track/indicator
 contrast, and axe. Actual browser 200% zoom, VoiceOver/NVDA, and physical
 touch-device review remain manual release follow-ups.
+
+The workspace navigation preserves one conceptual order across expanded,
+collapsed, and mobile shells: `Dashboard`, `Agenda`, `Clientes`, followed by
+the existing lower administrative block `Barbearia`, `Configurações`.

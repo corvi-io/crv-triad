@@ -14,6 +14,12 @@ export type DashboardFilterOption = {
 }
 
 export type DashboardMetric = {
+  comparison: {
+    amount: string
+    direction: "down" | "neutral" | "up"
+    percentage?: string
+    periodLabel: string
+  }
   description: string
   id: "appointments" | "completed" | "paid-value" | "paid-average" | "occupancy"
   label: string
@@ -29,6 +35,7 @@ export type DashboardAppointment = {
   start: string
   status: string
   statusClassName: string
+  timeContext: string
 }
 
 export type DashboardAttention = {
@@ -43,7 +50,7 @@ export type DashboardFlowItem = {
   count: number
   id: string
   label: string
-  status: string
+  status?: string
   statusClassName: string
 }
 
@@ -56,6 +63,7 @@ export type DashboardProfessional = {
   occupancyPercent: number
   paidValue: string
   state: string
+  stateTone: "info" | "neutral" | "success" | "warning"
 }
 
 export type DashboardCapacityBand = {

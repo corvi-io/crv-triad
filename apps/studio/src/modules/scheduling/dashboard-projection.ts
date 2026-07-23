@@ -8,6 +8,7 @@ import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./st
 
 type DashboardProjectionInput = {
   bounds: { endDate: string; startDate: string }
+  comparisonBounds?: { endDate: string; startDate: string }
   day: ScheduleDay
   filters: WorkspaceOverviewModel["filters"]
   now: Date
@@ -34,11 +35,13 @@ const capacityBands = [
 
 export function deriveDashboard({
   bounds,
+  comparisonBounds,
   day,
   filters,
   now,
   updatedAt,
 }: DashboardProjectionInput): WorkspaceOverviewModel {
+  const comparisonRange = comparisonBounds ?? { endDate: "", startDate: "" }
   const professionalNames = new Map(day.professionals.map(({ id, name }) => [id, name]))
   const serviceNames = new Map(day.services.map(({ id, name }) => [id, name]))
   const selectedProfessionalId = professionalNames.has(filters.professionalId ?? "")
@@ -52,6 +55,12 @@ export function deriveDashboard({
     ({ date, professionalId }) =>
       date >= bounds.startDate &&
       date <= bounds.endDate &&
+      selectedProfessionalIds.has(professionalId),
+  )
+  const comparisonAppointments = day.appointments.filter(
+    ({ date, professionalId }) =>
+      date >= comparisonRange.startDate &&
+      date <= comparisonRange.endDate &&
       selectedProfessionalIds.has(professionalId),
   )
   const professionalTotals = new Map<string, MutableProfessional>(
@@ -128,6 +137,26 @@ export function deriveDashboard({
     0,
   )
   const occupancyPercent = percent(bookedMinutes, availableMinutes)
+  const comparisonSummary = summarizeComparison(comparisonAppointments)
+  const comparisonDayCount = comparisonBounds
+    ? Math.max(
+        1,
+        differenceInCalendarDays(
+          parseDate(comparisonRange.endDate),
+          parseDate(comparisonRange.startDate),
+        ) + 1,
+      )
+    : dayCount
+  const comparisonAvailableMinutes = selectedProfessionals.reduce(
+    (total, { id }) => total + availableMinutesForProfessional(day, id, comparisonDayCount),
+    0,
+  )
+  const comparisonOccupancyPercent = percent(
+    comparisonSummary.bookedMinutes,
+    comparisonAvailableMinutes,
+  )
+  const comparisonPeriodLabel =
+    comparisonDayCount === 1 ? "dia anterior" : `período anterior (${comparisonDayCount} dias)`
   const currentDate = format(now, "yyyy-MM-dd")
   const hasCurrentDayData = bounds.startDate <= currentDate && bounds.endDate >= currentDate
   const upcoming = appointments
@@ -136,7 +165,7 @@ export function deriveDashboard({
         !isTerminalAppointmentStatus(appointment.status) && appointmentTime(appointment) >= now,
     )
     .toSorted(compareAppointments)
-    .slice(0, 6)
+    .slice(0, 5)
     .map((appointment) => ({
       customerName: appointment.customerName,
       date: appointment.date,
@@ -146,6 +175,7 @@ export function deriveDashboard({
       start: appointment.start,
       status: appointmentStatusPresentation[appointment.status].label,
       statusClassName: appointmentStatusPresentation[appointment.status].badgeClassName,
+      timeContext: upcomingTimeContext(appointment, now),
     }))
 
   return {
@@ -196,33 +226,73 @@ export function deriveDashboard({
       pendingCompletedValue: currency(pendingCompletedValueCents),
       scheduledValue: currency(scheduledValueCents),
     },
-    flow: appointmentStatuses.map((status) => ({
-      count: statusCounts[status],
-      id: status,
-      label: appointmentStatusPresentation[status].label,
-      status,
-      statusClassName: appointmentStatusPresentation[status].badgeClassName,
-    })),
+    flow: [
+      {
+        count: statusCounts.scheduled + statusCounts.confirmed,
+        id: "scheduled-confirmed",
+        label: "Agendados e confirmados",
+        statusClassName: appointmentStatusPresentation.confirmed.badgeClassName,
+      },
+      ...appointmentStatuses
+        .filter((status) => status !== "scheduled" && status !== "confirmed")
+        .map((status) => ({
+          count: statusCounts[status],
+          id: status,
+          label: appointmentStatusPresentation[status].label,
+          status,
+          statusClassName: appointmentStatusPresentation[status].badgeClassName,
+        })),
+    ],
     metrics: [
       {
+        comparison: metricComparison(
+          appointments.length,
+          comparisonSummary.appointmentCount,
+          comparisonAppointments.length > 0,
+          comparisonPeriodLabel,
+          "number",
+        ),
         description: "Todos os agendamentos no período selecionado.",
         id: "appointments",
         label: "Agendamentos",
         value: String(appointments.length),
       },
       {
+        comparison: metricComparison(
+          completedCount,
+          comparisonSummary.completedCount,
+          comparisonAppointments.length > 0,
+          comparisonPeriodLabel,
+          "number",
+        ),
         description: `${percent(completedCount, appointments.length)}% dos agendamentos do período.`,
         id: "completed",
         label: "Concluídos",
         value: String(completedCount),
       },
       {
+        comparison: metricComparison(
+          paidValueCents,
+          comparisonSummary.paidValueCents,
+          comparisonAppointments.length > 0,
+          comparisonPeriodLabel,
+          "currency",
+        ),
         description: "Valor de agendamentos finalizados marcados como pagos na fonte atual.",
         id: "paid-value",
         label: "Valor em estado pago",
         value: currency(paidValueCents),
       },
       {
+        comparison: metricComparison(
+          paidCompletedCount > 0 ? Math.round(paidValueCents / paidCompletedCount) : undefined,
+          comparisonSummary.paidCompletedCount > 0
+            ? Math.round(comparisonSummary.paidValueCents / comparisonSummary.paidCompletedCount)
+            : undefined,
+          comparisonAppointments.length > 0,
+          comparisonPeriodLabel,
+          "currency",
+        ),
         description: "Média dos agendamentos finalizados marcados como pagos.",
         id: "paid-average",
         label: "Média em estado pago",
@@ -232,6 +302,13 @@ export function deriveDashboard({
             : "Indisponível",
       },
       {
+        comparison: metricComparison(
+          occupancyPercent,
+          comparisonOccupancyPercent,
+          comparisonAppointments.length > 0,
+          comparisonPeriodLabel,
+          "percentage-point",
+        ),
         description: `${minutesLabel(bookedMinutes)} reservados de ${minutesLabel(availableMinutes)} disponíveis.`,
         id: "occupancy",
         label: "Ocupação",
@@ -254,9 +331,11 @@ export function deriveDashboard({
         name,
         occupancyPercent: percent(totals.bookedMinutes, professionalAvailableMinutes),
         paidValue: currency(totals.paidValueCents),
-        state: hasCurrentDayData
-          ? professionalState(id, appointments, day.periods, day, now)
-          : "Indisponível — período não inclui hoje",
+        ...professionalStateView(
+          hasCurrentDayData
+            ? professionalState(id, appointments, day.periods, day, now)
+            : "Indisponível — período não inclui hoje",
+        ),
       }
     }),
     services: Array.from(serviceTotals.entries())
@@ -275,6 +354,66 @@ export function deriveDashboard({
     ],
     updatedLabel: `Atualizado às ${format(new Date(updatedAt || now.getTime()), "HH:mm")}`,
     upcoming,
+  }
+}
+
+function summarizeComparison(appointments: readonly Appointment[]) {
+  let bookedMinutes = 0
+  let completedCount = 0
+  let paidCompletedCount = 0
+  let paidValueCents = 0
+  for (const appointment of appointments) {
+    if (appointment.status !== "canceled" && appointment.status !== "no-show") {
+      bookedMinutes += appointment.durationMinutes
+    }
+    if (appointment.status === "completed") {
+      completedCount += 1
+      if (appointment.paymentStatus === "paid") {
+        paidCompletedCount += 1
+        paidValueCents += appointment.priceCents
+      }
+    }
+  }
+  return {
+    appointmentCount: appointments.length,
+    bookedMinutes,
+    completedCount,
+    paidCompletedCount,
+    paidValueCents,
+  }
+}
+
+function metricComparison(
+  current: number | undefined,
+  previous: number | undefined,
+  hasComparisonRecords: boolean,
+  periodLabel: string,
+  formatKind: "currency" | "number" | "percentage-point",
+): WorkspaceOverviewModel["metrics"][number]["comparison"] {
+  if (!hasComparisonRecords || current === undefined || previous === undefined) {
+    return {
+      amount: "Base indisponível",
+      direction: "neutral",
+      periodLabel,
+    }
+  }
+  const delta = current - previous
+  const direction = delta === 0 ? "neutral" : delta > 0 ? "up" : "down"
+  const sign = delta > 0 ? "+" : ""
+  const amount =
+    formatKind === "currency"
+      ? `${delta > 0 ? "+" : delta < 0 ? "−" : ""}${currency(Math.abs(delta))}`
+      : formatKind === "percentage-point"
+        ? `${sign}${delta} p.p.`
+        : `${sign}${delta}`
+  return {
+    amount,
+    direction,
+    percentage:
+      previous === 0
+        ? "sem base percentual"
+        : `${delta > 0 ? "+" : ""}${Math.round((delta / previous) * 100)}%`,
+    periodLabel,
   }
 }
 
@@ -355,7 +494,7 @@ function deriveAttention(
       if (appointmentEnd(current) > activeEnd) active = current
     }
   }
-  return items.slice(0, 5)
+  return items.slice(0, 4)
 }
 
 function appointmentEnd(appointment: Appointment) {
@@ -437,6 +576,29 @@ function professionalState(
     )
     .toSorted(compareAppointments)[0]
   return next ? `Próximo às ${next.start}` : "Disponível"
+}
+
+function professionalStateView(
+  state: string,
+): Pick<WorkspaceOverviewModel["professionals"][number], "state" | "stateTone"> {
+  if (state === "Disponível") return { state, stateTone: "success" }
+  if (state === "Em atendimento") return { state, stateTone: "info" }
+  if (state.startsWith("Próximo às") || state === "Em intervalo") {
+    return { state, stateTone: "warning" }
+  }
+  return { state, stateTone: "neutral" }
+}
+
+function upcomingTimeContext(appointment: Appointment, now: Date) {
+  const minutesUntil = Math.max(
+    0,
+    Math.ceil((appointmentTime(appointment).getTime() - now.getTime()) / 60_000),
+  )
+  if (minutesUntil === 0) return "Agora"
+  if (minutesUntil < 60) return `Em ${minutesUntil} min`
+  const hours = Math.floor(minutesUntil / 60)
+  const minutes = minutesUntil % 60
+  return minutes === 0 ? `Em ${hours}h` : `Em ${hours}h ${minutes}min`
 }
 
 function appointmentOverlap(appointment: Appointment, bandStart: number, bandEnd: number) {

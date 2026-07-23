@@ -1,5 +1,6 @@
 import {
   addDays,
+  differenceInCalendarDays,
   endOfMonth,
   endOfWeek,
   format,
@@ -100,6 +101,16 @@ export function dashboardBounds(search: DashboardSearch) {
     return boundCustomRange(search.customStart, search.customEnd, search.date)
   }
   return { endDate: search.date, startDate: search.date }
+}
+
+export function dashboardComparisonBounds(bounds: { endDate: string; startDate: string }) {
+  const dayCount =
+    differenceInCalendarDays(parseISO(bounds.endDate), parseISO(bounds.startDate)) + 1
+  const comparisonEnd = addDays(parseISO(bounds.startDate), -1)
+  return {
+    endDate: format(comparisonEnd, "yyyy-MM-dd"),
+    startDate: format(addDays(comparisonEnd, -(dayCount - 1)), "yyyy-MM-dd"),
+  }
 }
 
 function boundCustomRange(start: string | undefined, end: string | undefined, fallback: string) {

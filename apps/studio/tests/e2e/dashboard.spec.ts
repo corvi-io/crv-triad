@@ -6,10 +6,12 @@ test.beforeEach(async ({ page }) => routeAuthenticatedSession(page))
 test("renders the accepted operational hierarchy from scheduling data and passes axe", async ({
   page,
 }, testInfo) => {
-  await page.clock.setFixedTime(new Date("2026-07-23T08:00:00-03:00"))
+  await page.clock.setFixedTime(new Date("2026-07-23T15:35:00-03:00"))
+  await page.addInitScript(() => localStorage.setItem("triad-studio-theme", "dark"))
   await page.setViewportSize({ height: 900, width: 1600 })
   await page.goto("/overview?scenario=normal")
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
+  await expect(page.locator("html")).toHaveClass(/dark/)
 
   const expectedHeadings = [
     "Dashboard",
@@ -31,6 +33,22 @@ test("renders the accepted operational hierarchy from scheduling data and passes
   await expect(page.getByText("Indisponível").first()).toBeVisible()
   await expect(page.getByText(/não comprova primeira visita nem retenção/)).toBeVisible()
   await expect(page.getByRole("table", { name: "Próximos atendimentos" })).toBeVisible()
+  await expect(
+    page.getByRole("table", { name: "Próximos atendimentos" }).locator("tbody tr"),
+  ).toHaveCount(5)
+  await expect(page.locator("[data-dashboard-metric]")).toHaveCount(5)
+  await expect(page.getByText(/vs\. dia anterior/)).toHaveCount(5)
+  await expect(
+    page
+      .locator('[data-dashboard-row="flow-professionals"] > [data-slot="card"]')
+      .first()
+      .locator("button"),
+  ).toHaveCount(7)
+  await expect(page.locator('[data-slot="workspace-primary-navigation-item"] a')).toHaveText([
+    "Dashboard",
+    "Agenda",
+    "Clientes",
+  ])
   await expect(page.getByRole("table", { name: "Ocupação dos barbeiros" })).toBeVisible()
   await page.screenshot({
     fullPage: true,
@@ -58,13 +76,17 @@ test("keeps bounded URL filters coherent and drills into existing destinations",
   await page.goto("/overview?scenario=normal")
 
   await page.locator("#dashboard-period").click()
-  await page.getByRole("option", { name: "Personalizado" }).click()
+  const customPeriod = page.getByRole("menuitemradio", { name: "Personalizado" })
+  await customPeriod.click()
   await expect(page).toHaveURL(/period=custom/)
   await expect(page.getByText("O intervalo personalizado é limitado a 31 dias.")).toBeVisible()
+  await expect(customPeriod).toBeHidden()
 
   await page.locator("#dashboard-professional").click()
-  await page.getByRole("option", { name: "Carlos Lima" }).click()
+  const carlos = page.getByRole("menuitemradio", { name: "Carlos Lima" })
+  await carlos.click()
   await expect(page).toHaveURL(/professionalId=professional-carlos/)
+  await expect(carlos).toBeHidden()
   await page.getByRole("button", { name: "Abrir Concluídos na Agenda" }).click()
   await expect(page).toHaveURL(/\/agenda\?/)
   await expect(page).toHaveURL(/professional=professional-carlos/)
@@ -158,6 +180,13 @@ test("preserves 320px reflow, themes, reduced motion, forced colors, focus, and 
   await page.setViewportSize({ height: 720, width: 320 })
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" })
   await page.goto("/overview?scenario=normal")
+  await page.getByRole("button", { name: "Alternar menu de navegação" }).click()
+  const mobileNavigation = page.getByRole("dialog", { name: "Navegação do TRIAD Studio" })
+  await expect(
+    mobileNavigation.locator('[data-slot="workspace-primary-navigation-item"] a'),
+  ).toHaveText(["Dashboard", "Agenda", "Clientes"])
+  await page.keyboard.press("Escape")
+  await expect(mobileNavigation).toBeHidden()
 
   const geometry = await page.evaluate(() => ({
     bodyWidth: document.body.scrollWidth,

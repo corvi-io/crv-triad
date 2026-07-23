@@ -73,8 +73,13 @@ rejected. The drawer `Remarcar` action remains the equivalent click/tap alternat
 
 ## Deterministic Data And Runtime Boundary
 
-The normal scenario contains six synthetic barbers and 42 synthetic appointments between 08:00 and
-the early afternoon. A 72-record dense scenario, empty, filtered-empty, many-professionals,
+The normal scenario contains six synthetic barbers and 42 selected-day synthetic appointments
+between 08:00 and 16:00, including six legitimate non-terminal 16:00 records used by both Agenda
+and Dashboard. It also owns 30 prior-day comparison records that remain outside Agenda's selected
+day and are returned only when a bounded range includes them. The complete multi-day fixture is
+projected once against a stable repository-local date anchor, so navigating between dates does not
+move records and the same date always returns the same appointment IDs. A 72-record dense scenario, empty,
+filtered-empty, many-professionals,
 long-content, conflict, failure, and rollback scenarios remain available from prototype settings.
 Generated SVG portraits are deterministic local data URIs: they require no network, persist no
 biometrics, and do not represent real people.

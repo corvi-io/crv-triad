@@ -9,15 +9,17 @@ import { WorkspaceOverview } from "@/modules/shared/components/workspace-overvie
 const date = "2026-07-23"
 
 async function dashboardModel(scenarioId = "normal") {
-  const repository = new SchedulingMemoryRepository()
+  const repository = new SchedulingMemoryRepository(date)
   const day = await repository.getDay({
     endDate: date,
+    focusDate: date,
     scenarioId,
-    startDate: date,
+    startDate: "2026-07-22",
     unitId: "centro",
   })
   return deriveDashboard({
     bounds: { endDate: date, startDate: date },
+    comparisonBounds: { endDate: "2026-07-22", startDate: "2026-07-22" },
     day,
     filters: { period: "today", unitId: "centro" },
     now: new Date(`${date}T08:00:00`),
@@ -58,7 +60,19 @@ describe("WorkspaceOverview", () => {
       screen.getByText("A fonte atual não comprova primeira visita nem retenção de longo prazo."),
     ).toBeInTheDocument()
     expect(screen.getAllByText(/Valor em estado pago/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/vs\. dia anterior/)).toHaveLength(5)
+    expect(
+      screen.getByRole("table", { name: "Próximos atendimentos" }).querySelectorAll("tbody tr"),
+    ).toHaveLength(5)
     expect(screen.queryByText(/· Pago /)).not.toBeInTheDocument()
+  })
+
+  it("opens the established compact filter menus", async () => {
+    const user = userEvent.setup()
+    render(<WorkspaceOverview {...callbacks()} model={await dashboardModel()} state="ready" />)
+
+    await user.click(screen.getByRole("button", { name: "Período: Hoje" }))
+    expect(await screen.findByRole("menuitemradio", { name: "Personalizado" })).toBeInTheDocument()
   })
 
   it("keeps KPI and creation actions keyboard-operable", async () => {
