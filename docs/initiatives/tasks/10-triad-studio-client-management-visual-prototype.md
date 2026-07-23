@@ -168,7 +168,9 @@ Record evidence as tasks are completed:
   `scheduling-page`, `barbershop-setup-page`, and `component-inventory`.
 - Result: passed; 8 shared contracts, 11 Agenda tests, 14 setup tests, and one exhaustive inventory
   test. Evidence includes accessible compact search, single/multi filter selection and clear,
-  migrated consumer behavior, and a ModuleLayout viewport with no implicit bottom inset.
+  migrated consumer behavior, and a ModuleLayout viewport with no implicit bottom inset. The
+  focused Agenda consumer assertions additionally prove its board and list share a viewport with
+  no `pb-*` class while retaining `flex-1` as usable workspace inside the viewport.
 - Command: `bun --filter studio test:e2e -- tests/e2e/client-management.spec.ts`
 - Result: passed; four focused Chromium tests.
 - Command: `bun --filter studio check`

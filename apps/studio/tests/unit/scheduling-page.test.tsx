@@ -53,6 +53,12 @@ describe("schedule page", () => {
       "true",
     )
     await screen.findByRole("table", { name: /Horários em linhas/ })
+    const moduleViewport = container.querySelector('[data-slot="scroll-area-viewport"]')
+    expect(moduleViewport).not.toBeNull()
+    expect(
+      moduleViewport?.className.split(/\s+/).some((className) => className.startsWith("pb-")),
+    ).toBe(false)
+    expect(container.querySelector(".agenda-board")).toHaveClass("flex-1")
     for (const name of [
       "Carlos Lima",
       "Bruno Rocha",
@@ -114,11 +120,18 @@ describe("schedule page", () => {
 
   it("switches between Quadro and Lista through the canonical icon toggle", async () => {
     const user = userEvent.setup()
-    renderSchedule(<ScheduleHarness initialSearch={baseSearch} />)
+    const { container } = renderSchedule(<ScheduleHarness initialSearch={baseSearch} />)
 
     expect(await screen.findByRole("table", { name: /Horários em linhas/ })).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Visualizar como lista" }))
-    expect(await screen.findByRole("table", { name: /Agendamentos filtrados/ })).toBeInTheDocument()
+    const list = await screen.findByRole("table", { name: /Agendamentos filtrados/ })
+    expect(list).toBeInTheDocument()
+    expect(list.closest("section")).toHaveClass("flex-1")
+    const moduleViewport = container.querySelector('[data-slot="scroll-area-viewport"]')
+    expect(moduleViewport).not.toBeNull()
+    expect(
+      moduleViewport?.className.split(/\s+/).some((className) => className.startsWith("pb-")),
+    ).toBe(false)
     expect(screen.getByRole("button", { name: "Visualizar como lista" })).toHaveAttribute(
       "aria-pressed",
       "true",
