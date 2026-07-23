@@ -1,8 +1,18 @@
 import AxeBuilder from "@axe-core/playwright"
-import { expect, test } from "@playwright/test"
+import { expect, type Page, test } from "@playwright/test"
 
 const agendaUrl = (scenario = "normal") =>
   `/workspace-preview/agenda?date=2026-07-22&scenario=${scenario}`
+const scheduleStates = [
+  ["scheduled", "Agendado"],
+  ["confirmed", "Confirmado"],
+  ["arrived", "Check-in"],
+  ["waiting", "Em espera"],
+  ["in-progress", "Em atendimento"],
+  ["completed", "Finalizado"],
+  ["canceled", "Cancelado"],
+  ["no-show", "No-show"],
+] as const
 
 test("renders the reference-aligned temporal board and passes axe", async ({ page }) => {
   await page.setViewportSize({ height: 900, width: 1440 })
@@ -40,6 +50,237 @@ test("renders the reference-aligned temporal board and passes axe", async ({ pag
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze()
   expect(results.violations).toEqual([])
+})
+
+test("keeps every appointment neutral while status remains textually and visually distinct", async ({
+  page,
+}) => {
+  await page.goto(agendaUrl("all-statuses"))
+
+  for (const theme of ["light", "dark"] as const) {
+    await selectTheme(page, theme)
+    const badgeBackgrounds = new Set<string>()
+
+    for (const [status, label] of scheduleStates) {
+      const card = page.locator(`[data-appointment-status="${status}"]`).first()
+      const badge = card.locator(".agenda-appointment-status-badge")
+      await expect(card).toBeVisible()
+      await expect(badge).toHaveText(label)
+      await expect(
+        card.getByRole("button", {
+          name: new RegExp(`situação ${escapeRegExp(label)}\\. Ver detalhes$`),
+        }),
+      ).toBeVisible()
+
+      const styles = await card.evaluate((element) => {
+        const cardStyle = getComputedStyle(element)
+        const indicator = getComputedStyle(element, "::before")
+        const badge = element.querySelector<HTMLElement>(".agenda-appointment-status-badge")
+        if (!badge) throw new Error("Appointment status badge is missing")
+        const badgeStyle = getComputedStyle(badge)
+        const rootStyle = getComputedStyle(document.documentElement)
+        const sample = document.createElement("span")
+        sample.style.backgroundColor = "var(--card)"
+        sample.style.color = "var(--card-foreground)"
+        document.body.append(sample)
+        const neutralStyle = getComputedStyle(sample)
+        const result = {
+          background: cardStyle.backgroundColor,
+          backgroundImage: cardStyle.backgroundImage,
+          badgeBackground: badgeStyle.backgroundColor,
+          badgeBorder: badgeStyle.borderTopColor,
+          badgeForeground: badgeStyle.color,
+          border: cardStyle.borderTopColor,
+          borderWidth: cardStyle.borderTopWidth,
+          foreground: cardStyle.color,
+          indicator: indicator.backgroundColor,
+          indicatorWidth: indicator.width,
+          neutralBackground: neutralStyle.backgroundColor,
+          neutralForeground: neutralStyle.color,
+          tintStrength: rootStyle.getPropertyValue("--schedule-appointment-tint").trim(),
+        }
+        sample.remove()
+        return result
+      })
+
+      expect(styles.background, `${theme} ${status} surface`).toBe(styles.neutralBackground)
+      expect(styles.foreground, `${theme} ${status} foreground`).toBe(styles.neutralForeground)
+      expect(styles.backgroundImage, `${theme} ${status} tint`).toContain("linear-gradient")
+      expect(styles.borderWidth, `${theme} ${status} boundary`).toBe("1px")
+      expect(styles.indicatorWidth, `${theme} ${status} indicator`).toBe("3px")
+      expect(styles.tintStrength, `${theme} tint bound`).toBe(theme === "dark" ? "12%" : "16%")
+      expect(
+        contrastRatio(styles.foreground, styles.background),
+        `${theme} ${status} card text`,
+      ).toBeGreaterThanOrEqual(4.5)
+      expect(
+        contrastRatio(styles.border, styles.background),
+        `${theme} ${status} card boundary`,
+      ).toBeGreaterThanOrEqual(3)
+      expect(
+        contrastRatio(styles.indicator, styles.background),
+        `${theme} ${status} indicator`,
+      ).toBeGreaterThanOrEqual(3)
+      expect(
+        contrastRatio(styles.badgeForeground, styles.badgeBackground),
+        `${theme} ${status} badge text`,
+      ).toBeGreaterThanOrEqual(4.5)
+      expect(
+        contrastRatio(styles.badgeBorder, styles.badgeBackground),
+        `${theme} ${status} badge boundary`,
+      ).toBeGreaterThanOrEqual(3)
+      badgeBackgrounds.add(styles.badgeBackground)
+    }
+
+    expect(badgeBackgrounds.size, `${theme} status badge surfaces`).toBe(scheduleStates.length)
+  }
+})
+
+test("keeps focus stronger than hover and uses restrained drag and drop treatments", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 1100, width: 1440 })
+  await page.goto(agendaUrl())
+
+  const card = page.locator('[data-appointment-id="kanban-05"]')
+  await card.hover()
+  const hover = await card.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return { boxShadow: style.boxShadow, transform: style.transform }
+  })
+  expect(hover.boxShadow).not.toBe("none")
+  expect(hover.transform).not.toBe("none")
+
+  const details = card.getByRole("button", { name: /^Rafael Costa/ })
+  await details.focus()
+  await expect(details).toBeFocused()
+  const focused = await card.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      borderColor: style.borderColor,
+      boxShadow: style.boxShadow,
+      transform: style.transform,
+    }
+  })
+  expect(focused.boxShadow).not.toBe(hover.boxShadow)
+  expect(focused.boxShadow).toContain("0px 0px 0px 2px")
+  expect(focused.transform).toBe("none")
+
+  const handle = card.getByRole("button", { name: "Remarcar Rafael Costa" })
+  const target = page.locator(
+    '[data-drop-professional-id="professional-bruno"][data-drop-start="13:15"]',
+  )
+  await target.scrollIntoViewIfNeeded()
+  await beginPointerDrag(page, handle, target)
+
+  const preview = page.locator(".agenda-appointment-drag-preview")
+  await expect(preview).toBeVisible()
+  await expect(card).toHaveAttribute("data-dragging", "true")
+  await expect(target).toHaveAttribute("data-over", "true")
+  const dragStyles = await preview.evaluate((element) => {
+    const style = getComputedStyle(element)
+    const indicator = getComputedStyle(element, "::before")
+    return {
+      background: style.backgroundColor,
+      border: style.borderColor,
+      boxShadow: style.boxShadow,
+      indicator: indicator.backgroundColor,
+      transform: style.transform,
+    }
+  })
+  const dropStyles = await target.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return { background: style.backgroundColor, boxShadow: style.boxShadow }
+  })
+  expect(dragStyles.boxShadow).not.toBe("none")
+  expect(dragStyles.border).toBe(dragStyles.indicator)
+  expect(dragStyles.transform).not.toBe("none")
+  expect(dropStyles.background).not.toBe("rgba(0, 0, 0, 0)")
+  expect(dropStyles.boxShadow).not.toBe("none")
+
+  await page.keyboard.press("Escape")
+  await page.mouse.up()
+  await expect(preview).toBeHidden()
+  await expect(handle).toBeFocused()
+})
+
+test("removes visual movement for reduced motion and preserves forced-color structure", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(agendaUrl("all-statuses"))
+  const card = page.locator('[data-appointment-status="confirmed"]').first()
+  await card.hover()
+  await expect(card).toHaveCSS("transform", "none")
+  const transitionDurationSeconds = await card.evaluate((element) => {
+    const duration = getComputedStyle(element).transitionDuration
+    return duration.endsWith("ms")
+      ? Number.parseFloat(duration) / 1000
+      : Number.parseFloat(duration)
+  })
+  expect(transitionDurationSeconds).toBeLessThanOrEqual(0.00001)
+
+  await page.emulateMedia({ forcedColors: "active", reducedMotion: "reduce" })
+  await page.reload()
+  for (const [status, label] of scheduleStates) {
+    const forcedCard = page.locator(`[data-appointment-status="${status}"]`).first()
+    await expect(forcedCard).toContainText(label)
+    await expect(forcedCard).toHaveCSS("background-image", "none")
+    await expect(forcedCard).toHaveCSS("border-top-style", "solid")
+    const indicator = await forcedCard.evaluate(
+      (element) => getComputedStyle(element, "::before").backgroundColor,
+    )
+    expect(indicator).not.toBe("rgba(0, 0, 0, 0)")
+  }
+})
+
+test("preserves system theme, narrow/zoom reflow, sticky axes, and coarse-pointer actions", async ({
+  browser,
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" })
+  await page.addInitScript(() => window.localStorage.setItem("triad-studio-theme", "system"))
+  await page.setViewportSize({ height: 720, width: 320 })
+  await page.goto(agendaUrl("dense"))
+  await expect(page.locator("html")).toHaveClass(/dark/)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+
+  const timeHeader = page.getByRole("columnheader", { exact: true, name: "Horário" })
+  const timeCell = page.getByRole("rowheader", { exact: true, name: "08:00" })
+  await expect(timeHeader).toHaveCSS("position", "sticky")
+  await expect(timeCell).toHaveCSS("position", "sticky")
+
+  await page.setViewportSize({ height: 900, width: 640 })
+  await page.evaluate(() => {
+    document.body.style.zoom = "200%"
+  })
+  await expect(page.getByRole("heading", { exact: true, name: "Agenda" })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(640)
+
+  const coarseContext = await browser.newContext({
+    colorScheme: "dark",
+    hasTouch: true,
+    isMobile: true,
+    viewport: { height: 812, width: 375 },
+  })
+  await coarseContext.addInitScript(() => {
+    window.localStorage.setItem("triad-studio-theme", "system")
+  })
+  const coarsePage = await coarseContext.newPage()
+  await coarsePage.goto(agendaUrl())
+  expect(await coarsePage.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true)
+  const coarseCard = coarsePage.locator('[data-appointment-id="kanban-05"]')
+  const coarseActions = coarseCard.getByRole("button", { name: "Ações de Rafael Costa" })
+  const coarseDragHandle = coarseCard.getByRole("button", { name: "Remarcar Rafael Costa" })
+  await expect(coarseActions).toBeVisible()
+  await expect(coarseDragHandle).toBeVisible()
+  for (const control of [coarseActions, coarseDragHandle]) {
+    const bounds = await control.boundingBox()
+    expect(bounds).not.toBeNull()
+    expect(bounds?.width).toBeGreaterThanOrEqual(24)
+    expect(bounds?.height).toBeGreaterThanOrEqual(24)
+  }
+  await coarseContext.close()
 })
 
 test("keeps the sticky time axis above cards after horizontal scrolling", async ({ page }) => {
@@ -154,6 +395,12 @@ test("contains short appointment cards within proportional 15-minute rows", asyn
     await expect(card).toHaveAttribute("data-duration-minutes", String(item.duration))
     await expect(card.getByRole("button", { name: /^Ações de / })).toBeAttached()
     await expect(card.getByRole("button", { name: /^Remarcar / })).toBeAttached()
+    if (item.layout === "compact") {
+      await expect(card.locator(".agenda-compact-status-symbol")).not.toBeEmpty()
+      await expect(card.locator(".agenda-appointment-status-badge")).toHaveCount(0)
+    } else {
+      await expect(card.locator(".agenda-appointment-status-badge")).toBeVisible()
+    }
 
     const measurement = await card.evaluate((element) => {
       const bounds = element.getBoundingClientRect()
@@ -332,6 +579,61 @@ test("keeps the board bounded and applies and resets development scenarios", asy
   await page.getByRole("menuitem", { name: "Restaurar cenário" }).click()
   await expect(confirmed).toContainText("Confirmado")
 })
+
+async function selectTheme(page: Page, theme: "light" | "dark") {
+  await page.evaluate((nextTheme) => {
+    localStorage.setItem("triad-studio-theme", nextTheme)
+  }, theme)
+  await page.reload()
+  await expect(page.locator("html")).toHaveClass(theme === "dark" ? /dark/ : /^$/)
+}
+
+async function beginPointerDrag(
+  page: Page,
+  handle: import("@playwright/test").Locator,
+  target: import("@playwright/test").Locator,
+) {
+  const sourceBox = await handle.boundingBox()
+  const targetBox = await target.boundingBox()
+  expect(sourceBox).not.toBeNull()
+  expect(targetBox).not.toBeNull()
+  if (!sourceBox || !targetBox) return
+
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2 + 8, sourceBox.y + sourceBox.height / 2, {
+    steps: 2,
+  })
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, {
+    steps: 12,
+  })
+}
+
+function contrastRatio(foreground: string, background: string) {
+  const luminances = [relativeLuminance(foreground), relativeLuminance(background)].sort(
+    (left, right) => right - left,
+  )
+  return (luminances[0] + 0.05) / (luminances[1] + 0.05)
+}
+
+function relativeLuminance(color: string) {
+  const channels = color
+    .match(/[\d.]+/g)
+    ?.slice(0, 3)
+    .map(Number)
+  if (!channels || channels.length < 3) {
+    throw new Error(`Unsupported computed color: ${color}`)
+  }
+  const linear = channels.map((channel) => {
+    const value = channel / 255
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  })
+  return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
 
 async function dragAppointment(
   page: import("@playwright/test").Page,

@@ -82,8 +82,8 @@ details apply. The inventory test fails when a component source is missing from 
    anchors. They change rarely.
 2. Semantic tokens (`--background`, `--primary`, `--muted`, `--ring`, and peers) assign meaning and
    are overridden by `.dark`.
-3. Component tokens (`--workspace-*` and future responsibility-specific names) define component
-   geometry and state using semantic or primitive references.
+3. Component tokens (`--workspace-*`, `--schedule-*`, and future responsibility-specific names)
+   define component geometry and state using semantic or primitive references.
 
 Tailwind CSS v4 consumes the semantic and component layers through `@theme inline`. Components use
 Tailwind utilities backed by those variables. Add a raw value only when no suitable token exists;
@@ -121,7 +121,7 @@ building block of a documented composition.
 | `deferred-route-screen.tsx` | Routing helper | Internal: lazy-route implementation detail, not a visual assembly API. |
 | `feedback/empty-state.tsx` | Feedback | Documented public contract: default, optional action, long-content, and compact viewport states; heading and description remain semantic. |
 | `feedback/page-status.tsx` | Feedback | Internal: full-route auth/loading implementation; exercised by route tests rather than isolated composition. |
-| `feedback/status-badge.tsx` | Feedback | Documented public contract: neutral plus success, warning, info, and destructive semantic tones with explicit theme-aware backgrounds, foregrounds, and borders; text carries meaning independently of color. |
+| `feedback/status-badge.tsx` | Feedback | Documented public contract: neutral plus success, warning, info, and destructive semantic tones with explicit theme-aware backgrounds, foregrounds, and borders; accepts a final `className` override so an owning module can map a narrower accepted semantic role without forking the badge. Text remains required and carries meaning independently of color. |
 | `forms/combobox-input.tsx` | Form control | Internal: inherited composite pending a real module option/free-text contract. |
 | `forms/date-picker.tsx` | Form control | Internal: canonical date-only helper covered by form foundation tests; catalog when a real field consumes it. |
 | `forms/date-range-selector.tsx` | Form control | Internal: inherited high-complexity selector without an accepted active module contract. |
@@ -147,7 +147,7 @@ building block of a documented composition.
 | `workspace-shell/content.tsx` | Shell companion | Internal: content inset implementation private to the shell folder. |
 | `workspace-shell/header.tsx` | Shell companion | Internal: header/sidebar trigger implementation private to the shell folder. |
 | `workspace-shell/index.tsx` | Shell layout | Internal catalog: folder-root `WorkspaceShell` and `WorkspacePreviewShell` are exercised by route, shell, and sandbox tests. |
-| `workspace-shell/sidebar-primary-navigation.tsx` | Shell companion | Internal: registry-driven primary navigation private to the shell folder. |
+| `workspace-shell/sidebar-primary-navigation.tsx` | Shell companion | Internal: registry-driven primary navigation private to the shell folder; active state uses shared selected surface/text plus a 2px logical leading indicator instead of a complete outline, preserving collapse/mobile geometry and semantic focus. |
 | `workspace-shell/sidebar-secondary-navigation.tsx` | Shell companion | Internal: registry-driven secondary navigation private to the shell folder. |
 | `workspace-shell/sidebar-user-menu.tsx` | Shell companion | Internal: session/sign-out composition private to the shell folder. |
 | `workspace-shell/sidebar.tsx` | Shell companion | Internal: sidebar assembly private to the shell folder. |

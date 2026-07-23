@@ -108,25 +108,65 @@ test("meets computed contrast for global feedback, focus, inputs, and every sche
       `${theme} input boundary`,
     ).toBeGreaterThanOrEqual(3)
 
+    const neutralCardColors = await computedTokenColors(
+      page,
+      "--card-foreground",
+      "--card",
+      "--schedule-appointment-border",
+    )
+
     for (const [status, label] of scheduleStates) {
       const card = page.locator(`[data-appointment-status="${status}"]`).first()
       await expect(card).toBeVisible()
       await expect(card).toContainText(label)
+      await expect(
+        card.getByRole("button", { name: new RegExp(`situação ${label}`) }),
+      ).toBeVisible()
       const colors = await card.evaluate((element) => {
         const computed = getComputedStyle(element)
+        const indicator = getComputedStyle(element, "::before")
+        const badge = element.querySelector<HTMLElement>(".agenda-appointment-status-badge")
+        if (!badge) throw new Error("Appointment status badge is missing")
+        const badgeStyle = getComputedStyle(badge)
         return {
           background: computed.backgroundColor,
+          backgroundImage: computed.backgroundImage,
+          badgeBackground: badgeStyle.backgroundColor,
+          badgeBorder: badgeStyle.borderTopColor,
+          badgeForeground: badgeStyle.color,
           border: computed.borderTopColor,
           foreground: computed.color,
+          indicator: indicator.backgroundColor,
+          indicatorWidth: indicator.width,
         }
       })
+      expect(colors.background, `${theme} ${status} neutral surface`).toBe(
+        neutralCardColors.background,
+      )
+      expect(colors.foreground, `${theme} ${status} neutral foreground`).toBe(
+        neutralCardColors.foreground,
+      )
+      expect(colors.backgroundImage, `${theme} ${status} bounded tint`).not.toBe("none")
+      expect(Number.parseFloat(colors.indicatorWidth), `${theme} ${status} indicator`).toBe(3)
       expect(
         contrastRatio(colors.foreground, colors.background),
-        `${theme} ${status} text`,
+        `${theme} ${status} card text`,
       ).toBeGreaterThanOrEqual(4.5)
       expect(
         contrastRatio(colors.border, colors.background),
-        `${theme} ${status} border`,
+        `${theme} ${status} card boundary`,
+      ).toBeGreaterThanOrEqual(3)
+      expect(
+        contrastRatio(colors.indicator, colors.background),
+        `${theme} ${status} indicator`,
+      ).toBeGreaterThanOrEqual(3)
+      expect(
+        contrastRatio(colors.badgeForeground, colors.badgeBackground),
+        `${theme} ${status} badge text`,
+      ).toBeGreaterThanOrEqual(4.5)
+      expect(
+        contrastRatio(colors.badgeBorder, colors.badgeBackground),
+        `${theme} ${status} badge boundary`,
       ).toBeGreaterThanOrEqual(3)
     }
   }

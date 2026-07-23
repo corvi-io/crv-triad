@@ -90,7 +90,10 @@ export function AgendaList({
                 </td>
                 <td className="px-4 py-3">{service?.name ?? "Serviço sintético"}</td>
                 <td className="px-4 py-3">
-                  <StatusBadge tone={toneForStatus(appointment.status)}>
+                  <StatusBadge
+                    className={presentation.badgeClassName}
+                    tone={toneForStatus(appointment.status)}
+                  >
                     {presentation.label}
                   </StatusBadge>
                 </td>

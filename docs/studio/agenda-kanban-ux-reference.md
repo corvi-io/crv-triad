@@ -45,6 +45,9 @@ may scroll horizontally in compact layouts but must remain a single visual band.
   João Vitor, Diego Rodrigues, and Marcos Paulo.
 - An appointment spans the number of time rows implied by its duration.
 - Empty cells are quiet interactive slots for `Novo agendamento`.
+- The grid surface sits between the page and cards; grid lines are quieter than
+  card boundaries, while sticky time and barber axes retain distinct neutral
+  surfaces.
 - Appointments hidden by filters remain as anonymous occupied spans.
 - Eligible appointments can be dragged vertically between 15-minute times, horizontally between
   barber columns, or both. Temporal drag changes allocation only and never status.
@@ -62,9 +65,28 @@ Required visible anatomy:
 - textual status badge;
 - contextual action trigger.
 
-Use compact spacing and truncation without removing actions. Terminal status stays readable and
-read-only. Eligible cards expose a named drag handle; terminal handles are visibly disabled. On
-touch/coarse pointers, contextual actions and the drag affordance must not depend on hover.
+Every appointment container is a neutral semantic card in light and dark themes.
+Status appears through a 3px logical leading indicator, low-intensity leading
+tint, status badge, text, and the existing status symbol/icon vocabulary; status
+colors never fill the complete container or recolor its body text. Canceled,
+completed, no-show, waiting, and in-progress therefore remain part of one TRIAD
+surface family.
+
+Use compact spacing and truncation without removing actions. Medium and full
+cards retain the textual status badge. A 15-minute compact card retains
+time/customer geometry and shows the existing status symbol while its accessible
+name includes the complete status. Terminal status stays readable and read-only.
+Eligible cards expose a named drag handle; terminal handles are visibly
+disabled. On touch/coarse pointers, contextual actions and the drag affordance
+must not depend on hover.
+
+Hover adds restrained elevation and at most one pixel of movement without
+strengthening the status tint. Focus cancels that movement and applies the more
+prominent semantic ring around the card. The drag source and overlay remain
+neutral with a bounded status outline; an active drop target uses a low-intensity
+primary inset boundary. Reduced motion removes transforms, and forced colors
+removes the tint while retaining card, indicator, badge, focus, and drop
+boundaries.
 
 ## Lista
 
@@ -103,3 +125,7 @@ boundary. The prototype does not authorize production identity, payment, or sche
 - [x] The normal scenario contains 42 prepopulated synthetic appointments.
 - [x] Eligible cards reschedule by time and/or barber without changing status; terminal cards do not.
 - [x] Drag validation and atomic appointment/occupancy rollback cover every logical grid slot.
+- [x] Appointment containers are neutral in light and dark; no status supplies a full-card fill.
+- [x] All eight statuses retain text, badge/symbol, indicator, and complete accessible names.
+- [x] Compact, medium, and full geometry remains unchanged.
+- [x] Focus is stronger than hover; drag/drop, reduced-motion, and forced-color treatments are bounded.

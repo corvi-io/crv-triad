@@ -72,9 +72,12 @@ function SidebarPrimaryNavigationItem({
       {isActive ? (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 rounded-[var(--workspace-nav-selected-radius)] border-solid border-workspace-sidebar-selected-border"
+          className="pointer-events-none absolute top-1 bottom-1 rounded-full bg-workspace-sidebar-selected-border"
           data-slot="workspace-active-indicator"
-          style={{ borderWidth: "var(--workspace-nav-selected-border-width)" }}
+          style={{
+            insetInlineStart: 0,
+            width: "var(--workspace-nav-selected-indicator-width)",
+          }}
         />
       ) : null}
     </SidebarMenuItem>

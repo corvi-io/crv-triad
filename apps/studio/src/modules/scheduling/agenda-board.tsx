@@ -178,12 +178,12 @@ export function AgendaBoard({
     >
       <section
         aria-label={`Quadro da agenda de ${day.date}`}
-        className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-card"
+        className="agenda-board min-h-0 flex-1 overflow-hidden rounded-lg border"
         data-testid="agenda-board"
       >
         <div className="h-full max-h-[calc(100vh-13rem)] overflow-auto">
           <table
-            className="w-full table-fixed border-collapse text-sm"
+            className="agenda-grid w-full table-fixed border-collapse text-sm"
             style={{ minWidth: `${80 + day.professionals.length * 196}px` }}
           >
             <caption className="sr-only">
@@ -195,9 +195,9 @@ export function AgendaBoard({
                 <col className="w-[12.25rem]" key={professional.id} />
               ))}
             </colgroup>
-            <thead className="sticky top-0 z-50 bg-card">
+            <thead className="agenda-barber-header sticky top-0 z-50">
               <tr>
-                <th className="sticky left-0 z-30 min-w-20 border-r border-b bg-card px-3 py-4 text-left text-xs font-medium text-muted-foreground">
+                <th className="agenda-grid-line agenda-time-cell sticky left-0 z-30 min-w-20 border-r border-b px-3 py-4 text-left text-xs font-medium text-muted-foreground">
                   Horário
                 </th>
                 {day.professionals.map((professional) => (
@@ -218,7 +218,7 @@ export function AgendaBoard({
               {slots.map((slot, slotIndex) => (
                 <tr className="h-9" key={slot}>
                   <th
-                    className="sticky left-0 z-40 h-9 border-r border-b bg-card px-3 text-left text-xs font-medium tabular-nums text-muted-foreground"
+                    className="agenda-grid-line agenda-time-cell sticky left-0 z-40 h-9 border-r border-b px-3 text-left text-xs font-medium tabular-nums text-muted-foreground"
                     scope="row"
                   >
                     {slot}
@@ -268,7 +268,10 @@ function ProfessionalHeading({
   unitName: string
 }) {
   return (
-    <th className="border-r border-b bg-card px-3 py-2 text-left" scope="col">
+    <th
+      className="agenda-barber-header agenda-grid-line border-r border-b px-3 py-2 text-left"
+      scope="col"
+    >
       <div className="flex items-center gap-2">
         <AgendaAvatar name={professional.name} size="lg" />
         <div className="min-w-0">
@@ -347,7 +350,7 @@ function ScheduleCell({
   if (appointment) {
     const rowSpan = Math.ceil(appointment.durationMinutes / 15)
     return (
-      <td className="border-r border-b p-1 align-top" rowSpan={rowSpan}>
+      <td className="agenda-grid-line border-r border-b p-1 align-top" rowSpan={rowSpan}>
         <div className="relative" style={{ height: spannedContentHeight(rowSpan) }}>
           <SpannedDropTargets
             professional={professional}
@@ -373,7 +376,7 @@ function ScheduleCell({
   if (occupancy) {
     const rowSpan = Math.ceil(occupancy.durationMinutes / 15)
     return (
-      <td className="border-r border-b p-1 align-top" rowSpan={rowSpan}>
+      <td className="agenda-grid-line border-r border-b p-1 align-top" rowSpan={rowSpan}>
         <div className="relative" style={{ height: spannedContentHeight(rowSpan) }}>
           <SpannedDropTargets
             professional={professional}
@@ -393,7 +396,7 @@ function ScheduleCell({
   if (period) {
     const rowSpan = Math.ceil((toMinutes(period.end) - toMinutes(period.start)) / 15)
     return (
-      <td className="border-r border-b p-1 align-top" rowSpan={rowSpan}>
+      <td className="agenda-grid-line border-r border-b p-1 align-top" rowSpan={rowSpan}>
         <div className="relative" style={{ height: spannedContentHeight(rowSpan) }}>
           <SpannedDropTargets
             professional={professional}
@@ -460,16 +463,15 @@ function AppointmentCard({
   return (
     <div
       className={cn(
-        "group relative z-10 flex h-full overflow-hidden rounded-md border-2",
+        "agenda-appointment-card group relative z-10 flex h-full overflow-hidden rounded-md border",
         layout === "compact" && "items-center",
         layout === "medium" && "items-start gap-1 p-1 pr-8",
         layout === "full" && "items-start gap-2 p-2 pr-8",
-        presentation.className,
-        isDragging && "opacity-35",
       )}
       data-appointment-id={appointment.id}
       data-appointment-status={appointment.status}
       data-card-layout={layout}
+      data-dragging={isDragging ? "true" : undefined}
       data-duration-minutes={appointment.durationMinutes}
       ref={setNodeRef}
     >
@@ -491,6 +493,12 @@ function AppointmentCard({
       >
         {layout === "compact" ? (
           <>
+            <span
+              aria-hidden="true"
+              className="agenda-compact-status-symbol shrink-0 font-semibold"
+            >
+              {presentation.symbol}
+            </span>
             <span className="shrink-0 text-[0.68rem] tabular-nums">{appointment.start}</span>
             <span className="truncate font-semibold">{appointment.customerName}</span>
           </>
@@ -506,7 +514,10 @@ function AppointmentCard({
               <span className="mt-0.5 block truncate text-xs text-current/75">{serviceName}</span>
             ) : null}
             <span className="mt-1 flex">
-              <StatusBadge tone={toneForStatus(appointment.status)}>
+              <StatusBadge
+                className={cn("agenda-appointment-status-badge", presentation.badgeClassName)}
+                tone={toneForStatus(appointment.status)}
+              >
                 {presentation.label}
               </StatusBadge>
             </span>
@@ -558,7 +569,10 @@ function AppointmentDragPreview({
   service?: Service
 }) {
   return (
-    <div className="w-48 rounded-md border-2 border-primary bg-card p-3 text-card-foreground shadow-lg">
+    <div
+      className="agenda-appointment-drag-preview w-48 rounded-md border bg-card p-3 text-card-foreground"
+      data-appointment-status={appointment.status}
+    >
       <p className="truncate font-semibold text-sm">{appointment.customerName}</p>
       <p className="mt-1 text-xs text-muted-foreground">
         {appointment.start} · {professionalName ?? "Barbeiro"}
@@ -586,15 +600,13 @@ function DroppableSlotButton({
   const data = slotDropData(professional, professionalIndex, slot, slotIndex)
   const { isOver, setNodeRef } = useDroppable({ data, id: slotTargetId(data) })
   return (
-    <td className="h-9 border-r border-b p-0.5">
+    <td className="agenda-grid-line h-9 border-r border-b p-0.5">
       <button
         aria-label={`Novo agendamento às ${slot} com ${professional.name}`}
-        className={cn(
-          "size-full min-h-8 rounded-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50",
-          isOver && "bg-primary/15 ring-2 ring-primary ring-inset",
-        )}
+        className="agenda-drop-target size-full min-h-8 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         data-drop-professional-id={professional.id}
         data-drop-start={slot}
+        data-over={isOver ? "true" : undefined}
         ref={setNodeRef}
         type="button"
         onClick={() => onSlot({ professionalId: professional.id, start: slot })}
@@ -642,12 +654,10 @@ function SpannedDropTarget({
   const { isOver, setNodeRef } = useDroppable({ data, id: slotTargetId(data) })
   return (
     <div
-      className={cn(
-        "absolute right-0 left-0 ring-inset",
-        isOver && "bg-primary/15 ring-2 ring-primary",
-      )}
+      className={cn("agenda-drop-target absolute right-0 left-0 ring-inset")}
       data-drop-professional-id={data.professionalId}
       data-drop-start={data.start}
+      data-over={isOver ? "true" : undefined}
       ref={setNodeRef}
       style={{ height: `${100 / count}%`, top: `${(index * 100) / count}%` }}
     />
