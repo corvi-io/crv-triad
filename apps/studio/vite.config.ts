@@ -21,6 +21,9 @@ export default defineConfig(({ command, mode }) => {
   const schedulingPrototypeEntry = schedulingPrototypeEnabled
     ? "./src/dev/scheduling/entry.ts"
     : "./src/modules/shared/config/scheduling-prototype-disabled.ts"
+  const serviceDeskSourceEntry = schedulingPrototypeEnabled
+    ? "./src/dev/service-desk/entry.ts"
+    : "./src/modules/shared/config/service-desk-source-disabled.ts"
   const barbershopSetupSourceEnabled = isMemorySourceEnabled(
     publicEnv.VITE_BARBERSHOP_SETUP_SOURCE,
     publicEnv.VITE_DEPLOY_TARGET,
@@ -50,6 +53,7 @@ export default defineConfig(({ command, mode }) => {
         "@": path.resolve(__dirname, "./src"),
         "virtual:studio-development-sandbox": path.resolve(__dirname, developmentSandboxEntry),
         "virtual:studio-scheduling-prototype": path.resolve(__dirname, schedulingPrototypeEntry),
+        "virtual:studio-service-desk-source": path.resolve(__dirname, serviceDeskSourceEntry),
         "virtual:studio-barbershop-setup-source": path.resolve(
           __dirname,
           barbershopSetupSourceEntry,

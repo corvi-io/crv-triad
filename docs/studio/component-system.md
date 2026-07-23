@@ -157,12 +157,15 @@ building block of a documented composition.
 | `workspace-shell/sidebar.tsx` | Shell companion | Internal: sidebar assembly private to the shell folder. |
 | `workspace-shell/workspace-brand.tsx` | Shell companion | Internal: Studio brand composition private to the shell folder. |
 | `ui/avatar.tsx` | Primitive | Internal: Base UI/shadcn building block, documented through shell composition. |
+| `ui/alert.tsx` | Feedback primitive | Documented public contract: official shadcn neutral/destructive alert anatomy with required textual title/description and optional action; Service Desk uses the neutral recoverable and fail-closed states. |
+| `ui/badge.tsx` | Data display primitive | Documented public contract: official shadcn bounded semantic label with Base UI `render` support and existing theme roles; Service Desk uses outline/secondary variants while text remains the state carrier. |
 | `ui/breadcrumb.tsx` | Primitive | Internal: building block documented through workspace breadcrumbs. |
 | `ui/button.tsx` | Primitive | Documented public contract: explicit variants, disabled/loading states, stable long labels, and keyboard activation. Agenda adds quiet `filter` and brand-selected `filter-active` variants for menu/popover triggers; state remains textual and exposed through the owning primitive. |
 | `ui/calendar.tsx` | Primitive | Internal: implementation detail of the shared date picker. |
 | `ui/card.tsx` | Primitive | Internal: structural primitive documented through consuming composites. |
 | `ui/collapsible.tsx` | Primitive | Internal: implementation detail of drawer/form sections. |
 | `ui/dropdown-menu.tsx` | Primitive | Internal: implementation detail of menus and table controls. |
+| `ui/empty.tsx` | Feedback primitive | Documented public contract: official shadcn Empty anatomy with header, media, title, description, and optional content; Service Desk distinguishes source-empty and filtered-empty copy without custom empty markup. |
 | `ui/field.tsx` | Primitive | Internal: form anatomy documented through explicit module forms. |
 | `ui/input.tsx` | Primitive | Internal: cataloged through drawer/form compositions. |
 | `ui/input-group.tsx` | Primitive composition | Documented public contract: official shadcn-style grouped input with leading/trailing addons and a single focus boundary; shared list-search compositions own its product usage. |
@@ -230,6 +233,12 @@ deterministic scenarios and the session-memory adapter live under `src/dev/clien
 `virtual:studio-client-management-source` resolves to memory only for configured `local`/`dev` and
 to a disabled shim for `hml`/`prd`. It composes the existing table, drawer, tabs, confirmation,
 mask, form, status, and feedback contracts. See `docs/studio/client-management.md`.
+
+ENG-46 adds the service-desk module through `virtual:studio-service-desk-source`. Its development
+coordinator receives the existing module-scoped scheduling repository, projects scheduled arrivals,
+stores only walk-ins and the `called` overlay, and transitions scheduled starts through the public
+scheduling contract. Availability follows the scheduling memory boundary, so `hml`/`prd` resolve
+disabled without a new environment variable. See `docs/studio/service-desk.md`.
 
 ## Primary Vendor References
 

@@ -96,6 +96,13 @@ repository. Mutations made through the existing appointment drawer are therefore
 selected fixture. This composition change does not alter Agenda presentation, filters, rules, URL
 state, drag-and-drop, status transitions, or mutation behavior.
 
+ENG-46 composes that same repository into the development-only Service Desk coordinator.
+`arrived`/`waiting` appointments are projected into `/service-desk`; reception-owned `called` state
+does not extend Agenda status vocabulary; starting a scheduled service calls the existing
+`transition` contract with `in-progress`. Agenda and Dashboard then observe the original appointment
+change through their existing query keys. This integration does not change Agenda presentation,
+drag-and-drop, filters, drawer, cards, allocation, or transition rules.
+
 ## Accessibility, Responsive, And Performance
 
 - The board uses a semantic table with column and row headers; the time axis remains available to

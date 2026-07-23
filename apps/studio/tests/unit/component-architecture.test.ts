@@ -72,6 +72,17 @@ describe("Studio component dependency model", () => {
     )
     expect(`${clientRoute}\n${clientShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
     expect(clientRoute).toContain('from "virtual:studio-client-management-source"')
+
+    const serviceDeskRoute = await readFile(
+      path.resolve(process.cwd(), "src/routes/_authenticated/service-desk/index.tsx"),
+      "utf8",
+    )
+    const serviceDeskShim = await readFile(
+      path.resolve(process.cwd(), "src/modules/shared/config/service-desk-source-disabled.ts"),
+      "utf8",
+    )
+    expect(`${serviceDeskRoute}\n${serviceDeskShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
+    expect(serviceDeskRoute).toContain('from "virtual:studio-service-desk-source"')
   })
 
   it("has no shared mega-barrel", async () => {

@@ -20,6 +20,7 @@ Routes:
 - `/workspace-preview/sandbox` (development-only neutral component/data sandbox)
 - `/workspace-preview/agenda` (development-only Agenda board/list interaction and QA surface)
 - `/agenda` (authenticated Agenda visual prototype with default temporal board and alternate list)
+- `/service-desk` (authenticated queue/check-in evaluation through service start)
 - `/barbershop-setup` (authenticated barbershop setup module)
 - `/overview` (authenticated operational Dashboard derived from the scheduling source)
 - `/profile`
@@ -62,6 +63,13 @@ professional occupancy, capacity, supported finance, services, cancellations/no-
 completed-client counts from the same local/dev scheduling repository used by Agenda. Unsupported
 financial and client facts remain explicit unavailable states, and `hml`/`prd` fail closed. See
 `docs/studio/dashboard.md` for formulas, URL safety, accessibility, and future API boundaries.
+
+The front-desk evaluation module at `/service-desk` projects scheduled arrivals from the same
+session-memory scheduling repository, keeps `called` as reception-only state, and transitions the
+original appointment to `in-progress` when service starts. Walk-ins remain temporary queue
+snapshots, require human assignment for `Primeiro disponível`, and create neither Clients nor
+Agenda appointments. It follows the scheduling source boundary, fails closed in `hml`/`prd`, and
+adds no environment variable. See `docs/studio/service-desk.md`.
 
 The authenticated barbershop setup module presents a guided overview, fill-height
 unit/professional/service catalogs, structured unit opening hours, and a dated block-based

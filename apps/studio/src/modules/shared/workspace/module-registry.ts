@@ -2,6 +2,7 @@ import type { LucideIcon as LucideIconType } from "lucide-react"
 import {
   Building2Icon,
   CalendarDaysIcon,
+  ClipboardListIcon,
   ContactRoundIcon,
   HomeIcon,
   Settings2Icon,
@@ -9,7 +10,12 @@ import {
   UserRoundIcon,
 } from "lucide-react"
 
-export type WorkspaceModulePath = "/agenda" | "/barbershop-setup" | "/clients" | "/overview"
+export type WorkspaceModulePath =
+  | "/agenda"
+  | "/barbershop-setup"
+  | "/clients"
+  | "/overview"
+  | "/service-desk"
 export type WorkspaceRoutePath = WorkspaceModulePath | "/profile" | "/preferences"
 
 type WorkspaceRoute = {
@@ -53,6 +59,14 @@ export const workspacePrimaryNavigation = [
     status: "active",
   },
   {
+    id: "service-desk",
+    label: "Atendimentos",
+    description: "Fila, chamadas e início de atendimentos.",
+    icon: ClipboardListIcon,
+    path: "/service-desk",
+    status: "active",
+  },
+  {
     id: "clients",
     label: "Clientes",
     description: "Diretório e histórico de clientes.",
@@ -82,6 +96,15 @@ export const workspaceSecondaryNavigation = [
 ] as const satisfies readonly WorkspaceNavigationItem[]
 
 export const workspaceModules = [
+  {
+    id: "service-desk",
+    label: "Atendimentos",
+    path: "/service-desk",
+    icon: ClipboardListIcon,
+    breadcrumbLabel: "Atendimentos",
+    description: "Acompanhe chegadas, chamadas e serviços iniciados.",
+    commandKeywords: ["atendimento", "fila", "chegada", "chamar", "recepção"],
+  },
   {
     id: "clients",
     label: "Clientes",

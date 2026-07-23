@@ -35,6 +35,11 @@ const forbiddenMarkers = [
   "client-management-source",
   "duplicate-candidates",
   "incomplete-contact",
+  "ServiceDeskMemoryRepository",
+  "walk-in-dense-",
+  "Pessoa Sintética",
+  "walk-in-unavailable",
+  "service-desk-source",
   ".stories.",
 ]
 

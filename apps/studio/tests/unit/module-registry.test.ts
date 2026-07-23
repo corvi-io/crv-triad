@@ -12,6 +12,7 @@ describe("workspace module registry", () => {
     expect(workspacePrimaryNavigation.map((item) => [item.label, item.path])).toEqual([
       ["Dashboard", "/overview"],
       ["Agenda", "/agenda"],
+      ["Atendimentos", "/service-desk"],
       ["Clientes", "/clients"],
     ])
     expect(workspaceSecondaryNavigation.map((item) => [item.label, item.path])).toEqual([
@@ -22,10 +23,11 @@ describe("workspace module registry", () => {
 
   it("derives active navigation and breadcrumbs from the neutral route registry", () => {
     expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[0], "/overview")).toBe(true)
-    expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[2], "/overview")).toBe(false)
+    expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[3], "/overview")).toBe(false)
     expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[0], "/profile")).toBe(false)
     expect(getWorkspaceRouteByPath("/agenda")?.breadcrumbLabel).toBe("Agenda")
     expect(getWorkspaceRouteByPath("/clients")?.breadcrumbLabel).toBe("Clientes")
+    expect(getWorkspaceRouteByPath("/service-desk")?.breadcrumbLabel).toBe("Atendimentos")
     expect(getWorkspaceRouteByPath("/barbershop-setup")?.breadcrumbLabel).toBe(
       "Configuração da barbearia",
     )

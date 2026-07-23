@@ -47,6 +47,7 @@ test("renders the accepted operational hierarchy from scheduling data and passes
   await expect(page.locator('[data-slot="workspace-primary-navigation-item"] a')).toHaveText([
     "Dashboard",
     "Agenda",
+    "Atendimentos",
     "Clientes",
   ])
   await expect(page.getByRole("table", { name: "Ocupação dos barbeiros" })).toBeVisible()
@@ -192,7 +193,7 @@ test("preserves 320px reflow, themes, reduced motion, forced colors, focus, and 
   const mobileNavigation = page.getByRole("dialog", { name: "Navegação do TRIAD Studio" })
   await expect(
     mobileNavigation.locator('[data-slot="workspace-primary-navigation-item"] a'),
-  ).toHaveText(["Dashboard", "Agenda", "Clientes"])
+  ).toHaveText(["Dashboard", "Agenda", "Atendimentos", "Clientes"])
   await page.keyboard.press("Escape")
   await expect(mobileNavigation).toBeHidden()
 
