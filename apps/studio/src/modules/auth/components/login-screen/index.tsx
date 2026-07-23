@@ -9,7 +9,6 @@ import {
   resendVerificationEmail,
   signInWithEmail,
   signInWithGoogle,
-  signUpWithEmail,
 } from "@/modules/auth/services/auth-client"
 import { useAuth } from "@/modules/auth/services/auth-provider"
 import { Button } from "@/modules/shared/components/ui/button"
@@ -64,31 +63,6 @@ export function LoginScreen({ error, verified }: LoginScreenProps) {
       }
     } catch {
       setLocalError("Não foi possível entrar agora. Tente novamente.")
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  async function handleInviteSignUp(values: LoginCredentialsFormValues) {
-    if (isSubmitting) return
-
-    setIsSubmitting(true)
-    setLocalError(null)
-    try {
-      const result = await signUpWithEmail({
-        email: values.email,
-        name: values.email.split("@")[0] || values.email,
-        password: values.password,
-      })
-
-      if (result?.error) {
-        setLocalError("Não foi possível criar o acesso. Confirme se há um convite ativo.")
-        return
-      }
-
-      setVerificationEmail(values.email)
-    } catch {
-      setLocalError("Não foi possível criar o acesso agora. Tente novamente.")
     } finally {
       setIsSubmitting(false)
     }
@@ -177,7 +151,6 @@ export function LoginScreen({ error, verified }: LoginScreenProps) {
         error={localError ?? routeError}
         isSubmitting={isSubmitting}
         onGoogleSignIn={handleGoogleSignIn}
-        onInviteSignUp={handleInviteSignUp}
         onSignIn={handleEmailSignIn}
       />
     </AuthShell>

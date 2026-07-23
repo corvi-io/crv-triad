@@ -1,6 +1,6 @@
 export type IdpRole = "admin" | "member"
 export type IdpUserStatus = "active" | "disabled"
-export type InvitationStatus = "pending" | "accepted" | "expired" | "revoked"
+export type InvitationStatus = "pending" | "accepted" | "expired" | "revoked" | "superseded"
 
 export type AccessPolicyUser = {
   id: string

@@ -14,6 +14,7 @@ import { Route as WorkspacePreviewIndexRouteImport } from './routes/workspace-pr
 import { Route as ResetPasswordIndexRouteImport } from './routes/reset-password/index'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as ForgotPasswordIndexRouteImport } from './routes/forgot-password/index'
+import { Route as AcceptInvitationIndexRouteImport } from './routes/accept-invitation/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as WorkspacePreviewSandboxIndexRouteImport } from './routes/workspace-preview/sandbox/index'
 import { Route as WorkspacePreviewAgendaIndexRouteImport } from './routes/workspace-preview/agenda/index'
@@ -45,6 +46,11 @@ const LoginIndexRoute = LoginIndexRouteImport.update({
 const ForgotPasswordIndexRoute = ForgotPasswordIndexRouteImport.update({
   id: '/forgot-password/',
   path: '/forgot-password/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcceptInvitationIndexRoute = AcceptInvitationIndexRouteImport.update({
+  id: '/accept-invitation/',
+  path: '/accept-invitation/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
@@ -97,6 +103,7 @@ const AuthenticatedAgendaIndexRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/accept-invitation/': typeof AcceptInvitationIndexRoute
   '/forgot-password/': typeof ForgotPasswordIndexRoute
   '/login/': typeof LoginIndexRoute
   '/reset-password/': typeof ResetPasswordIndexRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
+  '/accept-invitation': typeof AcceptInvitationIndexRoute
   '/forgot-password': typeof ForgotPasswordIndexRoute
   '/login': typeof LoginIndexRoute
   '/reset-password': typeof ResetPasswordIndexRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/accept-invitation/': typeof AcceptInvitationIndexRoute
   '/forgot-password/': typeof ForgotPasswordIndexRoute
   '/login/': typeof LoginIndexRoute
   '/reset-password/': typeof ResetPasswordIndexRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accept-invitation/'
     | '/forgot-password/'
     | '/login/'
     | '/reset-password/'
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accept-invitation'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authenticated'
     | '/_authenticated/'
+    | '/accept-invitation/'
     | '/forgot-password/'
     | '/login/'
     | '/reset-password/'
@@ -187,6 +199,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AcceptInvitationIndexRoute: typeof AcceptInvitationIndexRoute
   ForgotPasswordIndexRoute: typeof ForgotPasswordIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
   ResetPasswordIndexRoute: typeof ResetPasswordIndexRoute
@@ -230,6 +243,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password/'
       preLoaderRoute: typeof ForgotPasswordIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accept-invitation/': {
+      id: '/accept-invitation/'
+      path: '/accept-invitation'
+      fullPath: '/accept-invitation/'
+      preLoaderRoute: typeof AcceptInvitationIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/': {
@@ -315,6 +335,7 @@ const AuthenticatedRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AcceptInvitationIndexRoute: AcceptInvitationIndexRoute,
   ForgotPasswordIndexRoute: ForgotPasswordIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
   ResetPasswordIndexRoute: ResetPasswordIndexRoute,

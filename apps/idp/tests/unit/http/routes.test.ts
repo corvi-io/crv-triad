@@ -10,6 +10,7 @@ import { createHealthRoutes } from "../../../src/http/routes/health.js"
 import { createInvitationRoutes } from "../../../src/http/routes/invitations.js"
 import { createReadyRoutes } from "../../../src/http/routes/ready.js"
 import { createUserRoutes } from "../../../src/http/routes/users.js"
+import { createInvitationSecret } from "../../../src/identity/invitations.js"
 
 const baseEnv = {
   NODE_ENV: "production",
@@ -21,7 +22,7 @@ const baseEnv = {
   BETTER_AUTH_URL: "http://idp.test",
   AUTH_TRUSTED_ORIGINS: [],
   AUTH_SESSION_EXPIRES_IN_SECONDS: 2_592_000,
-  AUTH_PASSWORD_MIN_LENGTH: 12,
+  AUTH_PASSWORD_MIN_LENGTH: 15,
   AUTH_PASSWORD_MAX_LENGTH: 256,
   AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS: 3_600,
 } as const
@@ -404,11 +405,12 @@ describe("custom routes", () => {
       "2026-07-12T12:00:00.000Z",
     )
     expect(deliveredEmails).toEqual([
-      {
+      expect.objectContaining({
         email: "invite@example.com",
         expiresAt: new Date("2026-07-12T12:00:00.000Z"),
         role: "admin",
-      },
+        token: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
+      }),
     ])
     await expect(response.json()).resolves.toMatchObject({
       emailDelivery: "sent",
@@ -422,6 +424,63 @@ describe("custom routes", () => {
     })
     expect(calls.executeCount).toBe(1)
     expect(calls.transactionCount).toBe(1)
+  })
+
+  it("resolves only minimal invitation state with privacy headers and a bounded rate limit", async () => {
+    const secret = createInvitationSecret()
+    const resolutionRow = {
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      role: "member",
+      status: "pending",
+      tokenIssuedAt: new Date("2026-07-01T00:00:00Z"),
+    }
+    const { db } = createInvitationRouteDatabase(Array.from({ length: 10 }, () => [resolutionRow]))
+    const app = new Elysia().use(createInvitationRoutes({} as never, db as never))
+
+    const request = () =>
+      app.handle(
+        new Request("http://idp.test/invitations/resolve", {
+          body: JSON.stringify({ token: secret.token }),
+          method: "POST",
+        }),
+      )
+    const first = await request()
+    const payload = await first.json()
+
+    expect(first.headers.get("cache-control")).toBe("no-store")
+    expect(first.headers.get("referrer-policy")).toBe("no-referrer")
+    expect(payload).toEqual({
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      role: "member",
+      state: "valid",
+    })
+    expect(JSON.stringify(payload)).not.toContain(secret.token)
+    for (let index = 1; index < 10; index += 1) expect((await request()).status).toBe(200)
+    await expect(request()).resolves.toMatchObject({ status: 429 })
+  })
+
+  it("globally bounds resolve attempts that rotate through distinct well-formed proofs", async () => {
+    const resolutionRow = {
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      role: "member",
+      status: "pending",
+      tokenIssuedAt: new Date("2026-07-01T00:00:00Z"),
+    }
+    const { db } = createInvitationRouteDatabase(Array.from({ length: 20 }, () => [resolutionRow]))
+    const app = new Elysia().use(createInvitationRoutes({} as never, db as never))
+
+    const request = () =>
+      app.handle(
+        new Request("http://idp.test/invitations/resolve", {
+          body: JSON.stringify({ token: createInvitationSecret().token }),
+          method: "POST",
+        }),
+      )
+
+    for (let index = 0; index < 20; index += 1) {
+      expect((await request()).status).toBe(200)
+    }
+    await expect(request()).resolves.toMatchObject({ status: 429 })
   })
 
   it("lists users with admin access", async () => {

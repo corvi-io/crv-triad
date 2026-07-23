@@ -1,6 +1,6 @@
 import { type BetterAuthOptions, betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
-import { APIError } from "better-auth/api"
+import { APIError, createAuthMiddleware } from "better-auth/api"
 import { eq } from "drizzle-orm"
 
 import type { IdpEnv } from "../config/env.js"
@@ -9,7 +9,14 @@ import * as schema from "../database/schema.js"
 import { user } from "../database/schema.js"
 import { createId } from "../infra/ids.js"
 import { decideIdentityAccess, normalizeEmail } from "./access-policy.js"
+import {
+  consumeInvitationProof,
+  invitationProofPlugin,
+  readInvitationToken,
+  resolveInvitationProof,
+} from "./invitation-proof.js"
 import { acceptInvitationForUser, findPendingInvitationByEmail } from "./invitations.js"
+import { evaluatePassword } from "./password-policy.js"
 import {
   type AuthEmailSender,
   assertAuthEmailSent,
@@ -21,6 +28,13 @@ type BetterAuthUserCreateInput = {
   email: string
   emailVerified?: boolean
   name?: string
+  [key: string]: unknown
+}
+
+type BetterAuthAccountCreateInput = {
+  accountId: string
+  providerId: string
+  userId: string
   [key: string]: unknown
 }
 
@@ -97,13 +111,39 @@ export function createAuthOptions(
         session: schema.session,
         account: schema.account,
         verification: schema.verification,
+        invitation: schema.invitation,
       },
     }),
+    plugins: [invitationProofPlugin()],
+    logger: { disabled: true },
+    hooks: {
+      before: createAuthMiddleware(async (context) => {
+        const password = getProposedPassword(context.path, context.body)
+        if (password === null) return
+
+        const result = evaluatePassword(password)
+        if (!result.accepted) {
+          throw new APIError("BAD_REQUEST", {
+            code: "PASSWORD_POLICY_REJECTED",
+            message: "Password does not meet policy.",
+          })
+        }
+      }),
+      after: createAuthMiddleware(async (context) => {
+        if (
+          context.path === "/sign-up/email" &&
+          context.context.returned &&
+          !(context.context.returned instanceof APIError)
+        ) {
+          return context.json({ status: true })
+        }
+      }),
+    },
     emailVerification: {
       autoSignInAfterVerification: false,
       expiresIn: 3_600,
       sendOnSignIn: true,
-      sendOnSignUp: true,
+      sendOnSignUp: false,
       sendVerificationEmail: async ({ user: verificationUser, token }) => {
         const delivery = await authEmailSender.sendVerification({
           email: verificationUser.email,
@@ -116,7 +156,7 @@ export function createAuthOptions(
       enabled: true,
       requireEmailVerification: true,
       minPasswordLength: env.AUTH_PASSWORD_MIN_LENGTH,
-      maxPasswordLength: env.AUTH_PASSWORD_MAX_LENGTH,
+      maxPasswordLength: env.AUTH_PASSWORD_MAX_LENGTH * 2,
       resetPasswordTokenExpiresIn: env.AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user: resetUser, token }) => {
@@ -209,6 +249,24 @@ export function createAuthOptions(
         create: {
           before: async (incomingUser, context) => {
             const candidate = incomingUser as BetterAuthUserCreateInput
+            if (context?.path === "/sign-up/email") {
+              const token = readInvitationToken(context as never)
+              const proof = token ? await resolveInvitationProof(context as never, token) : null
+
+              if (!proof) throwInvalidInvitationProof()
+
+              return {
+                data: {
+                  ...candidate,
+                  email: proof.email,
+                  emailVerified: true,
+                  name: "Usuário TRIAD",
+                  role: proof.role,
+                  status: "active",
+                },
+              }
+            }
+
             if (context?.path === "/callback/google" && candidate.emailVerified !== true) {
               throw new APIError("FORBIDDEN", {
                 message: "Google email must be verified.",
@@ -249,8 +307,25 @@ export function createAuthOptions(
 
             return { data: { ...candidate, email } }
           },
-          after: async (createdUser) => {
-            await acceptInvitationForUser(db, createdUser.email, createdUser.id)
+          after: async (createdUser, context) => {
+            if (context?.path === "/callback/google") {
+              await acceptInvitationForUser(db, createdUser.email, createdUser.id)
+            }
+          },
+        },
+      },
+      account: {
+        create: {
+          before: async (incomingAccount, context) => {
+            const candidate = incomingAccount as BetterAuthAccountCreateInput
+            if (context?.path !== "/sign-up/email" || candidate.providerId !== "credential") return
+
+            const token = readInvitationToken(context as never)
+            const consumed = token
+              ? await consumeInvitationProof(context as never, token, candidate.userId)
+              : false
+
+            if (!consumed) throwInvalidInvitationProof()
           },
         },
       },
@@ -274,6 +349,25 @@ export function createAuthOptions(
       },
     },
   }
+}
+
+function getProposedPassword(path: string, body: unknown): string | null {
+  if (!body || typeof body !== "object") return null
+  const input = body as Record<string, unknown>
+
+  if (path === "/sign-up/email") return typeof input.password === "string" ? input.password : null
+  if (path === "/reset-password" || path === "/change-password") {
+    return typeof input.newPassword === "string" ? input.newPassword : null
+  }
+
+  return null
+}
+
+function throwInvalidInvitationProof(): never {
+  throw new APIError("FORBIDDEN", {
+    code: "INVALID_INVITATION_PROOF",
+    message: "Invitation proof is invalid or unavailable.",
+  })
 }
 
 function safelyObserveAuthEmailDeliveryFailure(observer: AuthEmailDeliveryFailureObserver): void {

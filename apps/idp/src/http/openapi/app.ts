@@ -60,7 +60,10 @@ export function createOpenApiDocument(baseUrl: string): OpenAPIObject {
               in: "query",
               schema: {
                 type: "array",
-                items: { type: "string", enum: ["pending", "accepted", "expired", "revoked"] },
+                items: {
+                  type: "string",
+                  enum: ["pending", "accepted", "expired", "revoked", "superseded"],
+                },
               },
             },
             {
@@ -128,6 +131,51 @@ export function createOpenApiDocument(baseUrl: string): OpenAPIObject {
             "401": { description: "Missing or invalid session" },
             "403": { description: "Admin role required" },
             "404": { description: "Pending invitation not found" },
+          },
+        },
+      },
+      "/invitations/{invitationId}/resend": {
+        post: {
+          tags: ["Invitations"],
+          summary: "Rotate and resend a pending invitation",
+          parameters: [
+            {
+              name: "invitationId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": { description: "Invitation token rotated and delivery attempted" },
+            "401": { description: "Missing or invalid session" },
+            "403": { description: "Admin role required" },
+            "404": { description: "Pending invitation not found" },
+            "429": { description: "Resend rate limit exceeded" },
+          },
+        },
+      },
+      "/invitations/resolve": {
+        post: {
+          tags: ["Invitations"],
+          summary: "Resolve an opaque invitation proof",
+          description:
+            "Returns only a bounded lifecycle state and minimal presentation data. The token is write-only and never returned.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["token"],
+                  properties: { token: { type: "string", writeOnly: true } },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Invitation lifecycle state" },
+            "429": { description: "Resolution rate limit exceeded" },
           },
         },
       },

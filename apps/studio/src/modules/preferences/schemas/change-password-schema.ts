@@ -1,12 +1,11 @@
 import { z } from "zod"
 
+import { newPasswordSchema } from "@/modules/auth/schemas/password-policy"
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Informe a senha atual."),
-    newPassword: z
-      .string()
-      .min(12, "Use pelo menos 12 caracteres.")
-      .max(256, "Use no máximo 256 caracteres."),
+    newPassword: newPasswordSchema,
     newPasswordConfirmation: z.string().min(1, "Confirme a nova senha."),
   })
   .refine((values) => values.newPassword === values.newPasswordConfirmation, {

@@ -4,6 +4,7 @@ import { KeyRoundIcon, LinkIcon, UnlinkIcon } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 
+import { PasswordGuidance } from "@/modules/auth/components/password-guidance"
 import { PasswordInput } from "@/modules/auth/components/password-input"
 import {
   changePassword,
@@ -39,6 +40,9 @@ export function SecurityAccessSection({ googleResult }: SecurityAccessSectionPro
     handleSubmit,
     register,
     reset,
+    setError,
+    setFocus,
+    watch,
   } = useForm<ChangePasswordFormValues>({
     defaultValues: {
       currentPassword: "",
@@ -47,6 +51,8 @@ export function SecurityAccessSection({ googleResult }: SecurityAccessSectionPro
     },
     resolver: zodResolver(changePasswordSchema),
   })
+  const newPassword = watch("newPassword")
+  const newPasswordConfirmation = watch("newPasswordConfirmation")
 
   const accountsQuery = useQuery({
     queryKey: accountsQueryKey,
@@ -90,9 +96,20 @@ export function SecurityAccessSection({ googleResult }: SecurityAccessSectionPro
         currentPassword: values.currentPassword,
         newPassword: values.newPassword,
       })
-      if (response.error) throw new Error("Password change unavailable.")
+      if (response.error?.code === "PASSWORD_POLICY_REJECTED") {
+        throw new Error("password_policy")
+      }
+      if (response.error) throw new Error("password_change_unavailable")
     },
-    onError: () => {
+    onError: (error) => {
+      if (error.message === "password_policy") {
+        setError("newPassword", {
+          message: "Escolha uma senha menos comum ou previsível.",
+          type: "server",
+        })
+        setFocus("newPassword")
+        return
+      }
       setActionMessage({
         text: "Não foi possível alterar a senha. Confira a senha atual e tente novamente.",
         tone: "error",
@@ -300,15 +317,17 @@ export function SecurityAccessSection({ googleResult }: SecurityAccessSectionPro
                 <Field data-invalid={!!errors.newPassword}>
                   <FieldLabel htmlFor="preference-new-password">Nova senha</FieldLabel>
                   <PasswordInput
-                    aria-describedby="preference-new-password-help preference-new-password-error"
+                    aria-describedby="preference-new-password-guidance preference-new-password-error"
                     aria-invalid={!!errors.newPassword}
                     autoComplete="new-password"
                     id="preference-new-password"
                     {...register("newPassword")}
                   />
-                  <p className="text-sm text-muted-foreground" id="preference-new-password-help">
-                    Use entre 12 e 256 caracteres.
-                  </p>
+                  <PasswordGuidance
+                    confirmation={newPasswordConfirmation}
+                    id="preference-new-password-guidance"
+                    password={newPassword}
+                  />
                   <FieldError errors={[errors.newPassword]} id="preference-new-password-error" />
                 </Field>
                 <Field data-invalid={!!errors.newPasswordConfirmation}>

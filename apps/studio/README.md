@@ -13,6 +13,7 @@ bun --filter studio build
 Routes:
 
 - `/login`
+- `/accept-invitation` (one-time invite validation and native credential creation)
 - `/forgot-password`
 - `/reset-password` (consumes Better Auth's native query-token contract)
 - `/workspace-preview` (development-only visual shell preview; no login required)
@@ -28,12 +29,17 @@ TRIAD Studio intentionally exposes only the authenticated shell and account-loca
 Identity administration remains outside the Studio surface. New business domains require an
 accepted initiative and explicit authorization, API, and persistence contracts.
 
-Authentication remains IDP-owned. Studio delegates email/password sign-in, invite-gated first
+Authentication remains IDP-owned. Studio delegates email/password sign-in, token-proven first
 access, Google sign-in, verification resend, forgot/reset/change password, account listing,
 Google linking/unlinking, session resolution, and sign-out directly to the Better Auth browser
 client at `VITE_AUTH_BASE_URL`. `/preferences` exposes the bounded `Segurança e acesso` controls;
 it does not expose identity administration. See `docs/studio/authentication.md` for safe redirects,
 UI states, provider-error handling, accessibility, and test boundaries.
+
+Invitation acceptance removes the opaque query proof from browser history before form entry,
+uses a no-referrer policy, never accepts editable identity or role data, prevents duplicate submit,
+and returns to normal login without creating a session. Invitation, reset, and preference password
+forms share the same 15–256-character Portuguese guidance while the IDP remains authoritative.
 
 The preview and sandbox redirect to `/login` in production. The sandbox is deterministic and
 resettable, persists nothing, and never mocks authentication. Verify it with

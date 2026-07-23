@@ -12,10 +12,10 @@ const env = {
 
 describe("transactional authentication email", () => {
   it("sends invitation email through the shared transport", async () => {
-    const requests: Array<{ body: string; url: string }> = []
+    const requests: Array<{ body: string; signal?: AbortSignal | null; url: string }> = []
     const sender = createAuthEmailSender(env, {
       fetch: async (input, init) => {
-        requests.push({ body: String(init?.body), url: String(input) })
+        requests.push({ body: String(init?.body), signal: init?.signal, url: String(input) })
         return new Response(null, { status: 202 })
       },
     })
@@ -25,12 +25,18 @@ describe("transactional authentication email", () => {
         email: "recipient@example.invalid",
         expiresAt: new Date("2026-07-22T12:00:00Z"),
         role: "member",
+        token: "synthetic-invitation-proof",
       }),
     ).resolves.toBe("sent")
     expect(requests).toHaveLength(1)
     expect(requests[0]?.url).toBe("https://email-provider.example.test/emails")
-    expect(requests[0]?.body).toContain("https://studio.example.test/login")
+    expect(requests[0]?.body).toContain("https://studio.example.test/accept-invitation")
     expect(requests[0]?.body).toContain("Você recebeu um convite")
+    expect(requests[0]?.body).toContain('"html"')
+    expect(requests[0]?.body).toContain('"text"')
+    expect(requests[0]?.body).not.toContain("unsubscribe")
+    expect(requests[0]?.body).not.toContain("tracking")
+    expect(requests[0]?.signal).toBeInstanceOf(AbortSignal)
   })
 
   it("does not retry a permanent provider rejection", async () => {

@@ -90,9 +90,13 @@ export const invitation = pgTable(
     role: text("role", { enum: ["admin", "member"] })
       .default("member")
       .notNull(),
-    status: text("status", { enum: ["pending", "accepted", "expired", "revoked"] })
+    status: text("status", {
+      enum: ["pending", "accepted", "expired", "revoked", "superseded"],
+    })
       .default("pending")
       .notNull(),
+    tokenDigest: text("token_digest"),
+    tokenIssuedAt: timestamp("token_issued_at", { withTimezone: true }),
     invitedByUserId: text("invited_by_user_id").references(() => user.id),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
@@ -106,6 +110,7 @@ export const invitation = pgTable(
   (table) => [
     index("idp_invitations_email_status_idx").on(table.email, table.status),
     index("idp_invitations_invited_by_user_id_idx").on(table.invitedByUserId),
+    uniqueIndex("idp_invitations_token_digest_unique").on(table.tokenDigest),
   ],
 )
 

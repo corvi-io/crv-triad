@@ -112,6 +112,27 @@ describe("security and access preferences", () => {
     expect(await screen.findByText(/As outras sessões foram encerradas/)).toBeInTheDocument()
   })
 
+  it("maps a server password-policy rejection to the new-password field and focus", async () => {
+    authMocks.changePassword.mockResolvedValueOnce({
+      error: { code: "PASSWORD_POLICY_REJECTED" },
+    })
+    const user = userEvent.setup()
+    renderPreferences()
+
+    await user.type(await screen.findByLabelText("Senha atual"), "old-password-123")
+    const newPasswordInput = screen.getByLabelText("Nova senha")
+    await user.type(newPasswordInput, "new-password-123")
+    await user.type(screen.getByLabelText("Confirmar nova senha"), "new-password-123")
+    await user.click(screen.getByRole("button", { name: "Alterar senha" }))
+
+    expect(await screen.findByText("Escolha uma senha menos comum ou previsível.")).toBeVisible()
+    expect(newPasswordInput).toHaveFocus()
+    expect(newPasswordInput).toHaveAttribute(
+      "aria-describedby",
+      expect.stringContaining("preference-new-password-error"),
+    )
+  })
+
   it("prevents a Google-only account from removing its last method and offers recovery", async () => {
     authMocks.listAccounts.mockResolvedValueOnce({ data: [{ providerId: "google" }] })
     const user = userEvent.setup()

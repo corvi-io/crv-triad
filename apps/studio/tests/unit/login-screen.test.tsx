@@ -10,13 +10,11 @@ import { routeTree } from "@/routeTree.gen"
 const resendVerificationEmail = vi.fn()
 const signInWithEmail = vi.fn()
 const signInWithGoogle = vi.fn()
-const signUpWithEmail = vi.fn()
 
 vi.mock("@/modules/auth/services/auth-client", () => ({
   resendVerificationEmail: (email: string) => resendVerificationEmail(email),
   signInWithEmail: (values: unknown) => signInWithEmail(values),
   signInWithGoogle: () => signInWithGoogle(),
-  signUpWithEmail: (values: unknown) => signUpWithEmail(values),
 }))
 
 function renderLogin(path = "/login") {
@@ -51,11 +49,9 @@ describe("login screen", () => {
     signInWithEmail.mockResolvedValue({ error: { message: "Invalid credentials" } })
     signInWithGoogle.mockReset()
     signInWithGoogle.mockResolvedValue({})
-    signUpWithEmail.mockReset()
-    signUpWithEmail.mockResolvedValue({ error: { message: "Invite required" } })
   })
 
-  it("shows email/password login and first-access action", async () => {
+  it("shows email/password login and directs first access to the secure invitation link", async () => {
     const user = userEvent.setup()
     renderLogin()
 
@@ -72,7 +68,12 @@ describe("login screen", () => {
       "/forgot-password",
     )
     expect(screen.getByRole("button", { name: "Continuar com Google" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Criar acesso com convite" })).toBeInTheDocument()
+    expect(
+      screen.getByText("Primeiro acesso? Use o link seguro enviado no convite."),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Criar acesso com convite" }),
+    ).not.toBeInTheDocument()
 
     await user.type(screen.getByLabelText("E-mail"), "test-user@example.invalid")
     await user.type(screen.getByLabelText("Senha"), "password-123")
@@ -107,14 +108,14 @@ describe("login screen", () => {
     expect(signInWithGoogle).toHaveBeenCalledOnce()
   })
 
-  it("shows a verification notice after invite-gated first access and resends safely", async () => {
+  it("shows a verification notice for an existing unverified credential and resends safely", async () => {
     const user = userEvent.setup()
-    signUpWithEmail.mockResolvedValueOnce({})
+    signInWithEmail.mockResolvedValueOnce({ error: { code: "EMAIL_NOT_VERIFIED" } })
     renderLogin()
 
     await user.type(await screen.findByLabelText("E-mail"), "test-user@example.invalid")
     await user.type(screen.getByLabelText("Senha"), "password-123")
-    await user.click(screen.getByRole("button", { name: "Criar acesso com convite" }))
+    await user.click(screen.getByRole("button", { name: "Entrar" }))
 
     expect(await screen.findByText(/Verifique sua caixa de entrada/)).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Reenviar verificação" }))
