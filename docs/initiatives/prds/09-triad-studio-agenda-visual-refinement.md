@@ -44,6 +44,7 @@ than pasting the supplied CSS or replacing the accepted Studio theme globally.
   - This prevents the current full-status-surface card treatment from becoming
     a repeated pattern in future operational modules.
 - Related sources:
+  - [Execution plan](../tasks/09-triad-studio-agenda-visual-refinement.md)
   - [Linear initiative: TRIAD Studio Agenda Visual Refinement](https://linear.app/corvi-io/initiative/triad-studio-agenda-visual-refinement-d54c129f1ebb)
   - [ENG-43: Refine TRIAD Studio Agenda visual hierarchy and appointment cards](https://linear.app/corvi-io/issue/ENG-43/refine-triad-studio-agenda-visual-hierarchy-and-appointment-cards)
   - [Linear document: complete verbatim design handoff](https://linear.app/corvi-io/document/triad-studio-agenda-visual-refinement-verbatim-design-handoff-90e76e4aba45)
