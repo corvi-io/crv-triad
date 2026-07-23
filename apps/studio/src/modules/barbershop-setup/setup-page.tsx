@@ -9,11 +9,9 @@ import {
   PencilIcon,
   PlusIcon,
   ScissorsIcon,
-  SearchIcon,
   SlidersHorizontalIcon,
   Undo2Icon,
   UserRoundIcon,
-  XIcon,
 } from "lucide-react"
 import { useRef, useState } from "react"
 import { toast } from "sonner"
@@ -30,7 +28,8 @@ import {
   DataTableSortableHeaderCell,
   type DataTableSortState,
 } from "@/modules/shared/components/data-display/data-table"
-import { FilterTrigger } from "@/modules/shared/components/data-display/filter-trigger"
+import { SingleSelectListFilter } from "@/modules/shared/components/data-display/list-filter"
+import { ListSearchField } from "@/modules/shared/components/data-display/list-search-field"
 import { EmptyState } from "@/modules/shared/components/feedback/empty-state"
 import { StatusBadge } from "@/modules/shared/components/feedback/status-badge"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
@@ -45,22 +44,6 @@ import {
   CardFooter,
   CardHeader,
 } from "@/modules/shared/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/modules/shared/components/ui/dropdown-menu"
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/modules/shared/components/ui/input-group"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import { cn } from "@/modules/shared/lib/utils"
 import { AvailabilityCalendar } from "./availability-calendar"
@@ -143,7 +126,7 @@ export function BarbershopSetupPage({
           </nav>
         </div>
       }
-      bodyViewportClassName="h-full min-h-0 pb-0"
+      bodyViewportClassName="h-full min-h-0"
     >
       <h2 className="sr-only">{sectionItems.find(({ id }) => id === search.section)?.label}</h2>
       <div key={search.scenario} className="h-full min-h-0">
@@ -427,63 +410,32 @@ function EntitySection({
         <legend className="sr-only">
           Busca e filtros de {labels.plural.toLocaleLowerCase("pt-BR")}
         </legend>
-        <InputGroup className="w-56 shrink-0 md:w-64">
-          <InputGroupAddon>
-            <SearchIcon aria-hidden="true" />
-          </InputGroupAddon>
-          <InputGroupInput
-            id={`${kind}-search`}
-            aria-label={`Buscar ${labels.plural.toLocaleLowerCase("pt-BR")}`}
-            type="search"
-            value={search}
-            placeholder="Buscar por nome ou detalhe"
-            onChange={(event) => {
-              setSearch(event.currentTarget.value)
-              setPage(1)
-            }}
-          />
-        </InputGroup>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <FilterTrigger
-                aria-label="Filtrar por estado"
-                active={status !== "all"}
-                count={status === "all" ? undefined : 1}
-                icon={SlidersHorizontalIcon}
-                id={`${kind}-status`}
-                label="Estado"
-              />
-            }
-          />
-          <DropdownMenuContent align="start" className="min-w-48">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Estado</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={status}
-                onValueChange={(value) => {
-                  setStatus(value as typeof status)
-                  setPage(1)
-                }}
-              >
-                <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="active">Ativos</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="archived">Arquivados</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuGroup>
-            {status !== "all" ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => setStatus("all")}>
-                    <XIcon aria-hidden="true" />
-                    Limpar filtro
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <ListSearchField
+          id={`${kind}-search`}
+          aria-label={`Buscar ${labels.plural.toLocaleLowerCase("pt-BR")}`}
+          value={search}
+          placeholder="Buscar por nome ou detalhe"
+          onChange={(event) => {
+            setSearch(event.currentTarget.value)
+            setPage(1)
+          }}
+        />
+        <SingleSelectListFilter
+          icon={SlidersHorizontalIcon}
+          id={`${kind}-status`}
+          inactiveValue="all"
+          label="Estado"
+          options={[
+            { label: "Todos", value: "all" },
+            { label: "Ativos", value: "active" },
+            { label: "Arquivados", value: "archived" },
+          ]}
+          value={status}
+          onValueChange={(value) => {
+            setStatus(value)
+            setPage(1)
+          }}
+        />
       </fieldset>
       {entities.isPending ? (
         <LoadingTable />

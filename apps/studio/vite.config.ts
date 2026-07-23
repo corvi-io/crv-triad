@@ -28,6 +28,13 @@ export default defineConfig(({ command, mode }) => {
   const barbershopSetupSourceEntry = barbershopSetupSourceEnabled
     ? "./src/dev/barbershop-setup/entry.ts"
     : "./src/modules/shared/config/barbershop-setup-source-disabled.ts"
+  const clientManagementSourceEnabled = isMemorySourceEnabled(
+    publicEnv.VITE_CLIENT_MANAGEMENT_SOURCE,
+    publicEnv.VITE_DEPLOY_TARGET,
+  )
+  const clientManagementSourceEntry = clientManagementSourceEnabled
+    ? "./src/dev/clients/entry.ts"
+    : "./src/modules/shared/config/client-management-source-disabled.ts"
 
   return {
     plugins: [
@@ -46,6 +53,10 @@ export default defineConfig(({ command, mode }) => {
         "virtual:studio-barbershop-setup-source": path.resolve(
           __dirname,
           barbershopSetupSourceEntry,
+        ),
+        "virtual:studio-client-management-source": path.resolve(
+          __dirname,
+          clientManagementSourceEntry,
         ),
       },
     },

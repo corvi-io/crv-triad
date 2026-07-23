@@ -9,6 +9,9 @@ describe("public env", () => {
     expect(env.barbershopSetupSource).toBe(
       import.meta.env.VITE_BARBERSHOP_SETUP_SOURCE ?? "disabled",
     )
+    expect(env.clientManagementSource).toBe(
+      import.meta.env.VITE_CLIENT_MANAGEMENT_SOURCE ?? "disabled",
+    )
     expect(env.deployTarget).toBe(import.meta.env.VITE_DEPLOY_TARGET ?? "local")
     expect(env.schedulingSource).toBe(import.meta.env.VITE_SCHEDULING_SOURCE ?? "disabled")
   })

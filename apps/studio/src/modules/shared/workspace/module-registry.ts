@@ -2,13 +2,14 @@ import type { LucideIcon as LucideIconType } from "lucide-react"
 import {
   Building2Icon,
   CalendarDaysIcon,
+  ContactRoundIcon,
   HomeIcon,
   Settings2Icon,
   SettingsIcon,
   UserRoundIcon,
 } from "lucide-react"
 
-export type WorkspaceModulePath = "/agenda" | "/barbershop-setup" | "/overview"
+export type WorkspaceModulePath = "/agenda" | "/barbershop-setup" | "/clients" | "/overview"
 export type WorkspaceRoutePath = WorkspaceModulePath | "/profile" | "/preferences"
 
 type WorkspaceRoute = {
@@ -35,6 +36,14 @@ export type WorkspaceNavigationItem = {
 }
 
 export const workspacePrimaryNavigation = [
+  {
+    id: "clients",
+    label: "Clientes",
+    description: "Diretório e histórico de clientes.",
+    icon: ContactRoundIcon,
+    path: "/clients",
+    status: "active",
+  },
   {
     id: "schedule",
     label: "Agenda",
@@ -73,6 +82,15 @@ export const workspaceSecondaryNavigation = [
 ] as const satisfies readonly WorkspaceNavigationItem[]
 
 export const workspaceModules = [
+  {
+    id: "clients",
+    label: "Clientes",
+    path: "/clients",
+    icon: ContactRoundIcon,
+    breadcrumbLabel: "Clientes",
+    description: "Encontre clientes e consulte o histórico de atendimento.",
+    commandKeywords: ["cliente", "clientes", "contato", "histórico", "nota"],
+  },
   {
     id: "schedule",
     label: "Agenda",

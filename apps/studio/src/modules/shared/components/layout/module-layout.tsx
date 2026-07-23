@@ -36,7 +36,7 @@ export function ModuleLayout({
       <ScrollArea
         data-slot="module-layout-body"
         className={cn("min-h-0 flex-1", bodyClassName)}
-        viewportClassName={cn("space-y-5 pb-4", bodyViewportClassName)}
+        viewportClassName={bodyViewportClassName}
       >
         {children}
       </ScrollArea>

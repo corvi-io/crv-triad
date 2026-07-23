@@ -143,6 +143,7 @@ describe("env-management", () => {
         "STUDIO__VITE_DEPLOY_TARGET",
         "STUDIO__VITE_SCHEDULING_SOURCE",
         "STUDIO__VITE_BARBERSHOP_SETUP_SOURCE",
+        "STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE",
       ],
     })
     expect(
@@ -234,6 +235,11 @@ describe("env-management", () => {
       expect(
         content.match(
           /STUDIO__VITE_BARBERSHOP_SETUP_SOURCE: \$\{\{ vars\.STUDIO__VITE_BARBERSHOP_SETUP_SOURCE \}\}/g,
+        ),
+      ).toHaveLength(2)
+      expect(
+        content.match(
+          /STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE: \$\{\{ vars\.STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE \}\}/g,
         ),
       ).toHaveLength(2)
     }

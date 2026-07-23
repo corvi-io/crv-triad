@@ -27,6 +27,9 @@
   meaning independent from color. Use brand gradients only through named tokens on explicitly
   accepted bounded surfaces. Follow `docs/studio/theme-system.md` for the TRIAD navy/gold direction.
 - Import shared components from their owning file/folder. Do not add a shared mega-barrel.
+- Build product-list searches with the shared compact `ListSearchField` and list filters with the
+  shared single/multi-select filter compositions. Keep raw `Select` for data-entry selection in
+  forms, not list filtering.
 - Document every active shared component in the exhaustive textual inventory at
   `docs/studio/component-system.md`, including its public contract or an internal-only rationale.
 - Keep component documentation in English Markdown and verify behavior with focused Vitest
@@ -48,6 +51,9 @@
 - Import icon components with the `Icon` suffix, using the library export or an explicit alias.
 - Keep drawer shells, bordered collapsible sections, label/icon/control rows, Base UI/shadcn
   controls, footer action slots, masks, and accessibility behavior in `src/modules/shared`.
+- Keep the `ModuleLayout` scroll viewport free of implicit vertical spacing and bottom padding.
+  Content owners add explicit gaps or inset where their composition requires it; table/list modules
+  should end at their own table or pagination boundary.
 - Keep field inventories, icon choices, labels, placeholders/copy, RHF/Zod schemas and defaults,
   option catalogs, dependent rules, and submit intents in the owning domain module.
 - Compose domain forms explicitly. Do not build a schema-driven universal renderer, multiply boolean

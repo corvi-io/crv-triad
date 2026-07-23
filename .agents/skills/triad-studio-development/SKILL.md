@@ -119,6 +119,9 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
   browser. Persist shareable
   list state such as filters, search, sorting, pagination, and view mode in URL
   query parameters when it is useful for collaboration or handoff.
+- Compose product-list searches with the shared compact `ListSearchField` and list filters with the
+  shared single/multi-select filter components. Preserve raw `Select` for form data entry rather
+  than list filtering.
 - Use `DataTablePagination` for offset/page-number pagination in administrative
   tables. It should show the page-size selector on the left as
   `Registros por página`, then the page summary and navigation on the right as
@@ -129,6 +132,9 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
   [last-4] [last-3] [last-2] [last-1] [last]` near the end. Keep cursor-based
   pagination as a separate component and API contract instead of hiding it
   behind the numbered table paginator.
+- Keep the `ModuleLayout` scroll viewport free of implicit vertical spacing and bottom padding. Let
+  content owners add explicit gaps or inset only when their composition needs them so table/list
+  pagination has no structural empty strip below it.
 - Use `ActionDrawer` for dense filter sets that combine search, multiple
   selectable groups, or future advanced options. Keep the trigger in
   `PageHeader.actions`; do not compress complex filters into dropdown menus.

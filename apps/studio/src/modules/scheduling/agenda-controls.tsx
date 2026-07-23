@@ -1,5 +1,4 @@
 import { format } from "date-fns"
-import type { LucideIcon } from "lucide-react"
 import {
   BriefcaseBusinessIcon,
   CalendarRangeIcon,
@@ -8,7 +7,6 @@ import {
   MapPinIcon,
   RotateCcwIcon,
   ScissorsIcon,
-  SearchIcon,
   Settings2Icon,
   SlidersHorizontalIcon,
   UsersIcon,
@@ -17,13 +15,17 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { DateRange } from "react-day-picker"
 import { ptBR } from "react-day-picker/locale"
-import { FilterTrigger } from "@/modules/shared/components/data-display/filter-trigger"
+import {
+  type ListFilterOption,
+  MultiSelectListFilter,
+  SingleSelectListFilter,
+} from "@/modules/shared/components/data-display/list-filter"
+import { ListSearchField } from "@/modules/shared/components/data-display/list-search-field"
 import { formatDateOnly, parseDateOnly } from "@/modules/shared/components/forms/date-picker"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Calendar } from "@/modules/shared/components/ui/calendar"
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -33,11 +35,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/modules/shared/components/ui/dropdown-menu"
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/modules/shared/components/ui/input-group"
 import {
   Popover,
   PopoverContent,
@@ -58,9 +55,7 @@ import type {
 } from "./contracts"
 import { appointmentStatusPresentation } from "./status"
 
-type Option = { label: string; value: string }
-
-const statusOptions: readonly Option[] = [
+const statusOptions: readonly ListFilterOption<AppointmentStatus>[] = [
   ["scheduled", "Agendado"],
   ["confirmed", "Confirmado"],
   ["arrived", "Check-in"],
@@ -69,7 +64,11 @@ const statusOptions: readonly Option[] = [
   ["completed", "Finalizado"],
   ["canceled", "Cancelado"],
   ["no-show", "No-show"],
-].map(([value, label]) => ({ label, value }))
+].map(([value, label]) => ({
+  icon: appointmentStatusPresentation[value as AppointmentStatus].icon,
+  label,
+  value: value as AppointmentStatus,
+}))
 
 export function AgendaControls({
   appointments,
@@ -100,7 +99,7 @@ export function AgendaControls({
   const professionalIds = parseIdList(search.professional)
   const clientIds = parseIdList(search.client)
   const serviceIds = parseIdList(search.service)
-  const statusIds = parseIdList(search.status)
+  const statusIds = parseIdList(search.status) as AppointmentStatus[]
   const clients = useMemo(
     () =>
       Array.from(
@@ -134,45 +133,35 @@ export function AgendaControls({
   return (
     <fieldset className="flex min-w-0 items-center gap-1.5 overflow-x-auto rounded-lg border bg-card p-2">
       <legend className="sr-only">Pesquisa, filtros e visualização da agenda</legend>
-      <InputGroup className="w-64 shrink-0 md:w-72">
-        <InputGroupAddon>
-          <SearchIcon aria-hidden="true" />
-        </InputGroupAddon>
-        <InputGroupInput
-          ref={searchRef}
-          aria-label="Buscar na agenda"
-          placeholder="Buscar cliente, barbeiro, serviço..."
-          type="search"
-          value={searchText}
-          onChange={(event) => onSearchTextChange(event.currentTarget.value)}
-        />
-        <InputGroupAddon align="inline-end">
-          <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[0.65rem]">⌘K</kbd>
-        </InputGroupAddon>
-      </InputGroup>
+      <ListSearchField
+        ref={searchRef}
+        aria-label="Buscar na agenda"
+        placeholder="Buscar cliente, barbeiro, serviço..."
+        value={searchText}
+        onChange={(event) => onSearchTextChange(event.currentTarget.value)}
+      >
+        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[0.65rem]">⌘K</kbd>
+      </ListSearchField>
 
-      <MultiSelectFilter
-        searchable
-        count={professionalIds.length || professionals.length}
+      <MultiSelectListFilter
         icon={BriefcaseBusinessIcon}
         id="professional-filter"
         label="Barbeiro"
         options={professionals.map(({ id, name }) => ({ label: name, value: id }))}
+        search={{ label: "Pesquisar barbeiro" }}
         values={professionalIds}
         onValuesChange={(values) => onSearchChange({ professional: serializeIdList(values) })}
       />
-      <MultiSelectFilter
-        searchable
-        count={clientIds.length || clients.length}
+      <MultiSelectListFilter
         icon={UsersIcon}
         id="client-filter"
         label="Cliente"
         options={clients}
+        search={{ label: "Pesquisar cliente" }}
         values={clientIds}
         onValuesChange={(values) => onSearchChange({ client: serializeIdList(values) })}
       />
-      <MultiSelectFilter
-        count={serviceIds.length || services.length}
+      <MultiSelectListFilter
         icon={ScissorsIcon}
         id="service-filter"
         label="Serviço"
@@ -180,12 +169,27 @@ export function AgendaControls({
         values={serviceIds}
         onValuesChange={(values) => onSearchChange({ service: serializeIdList(values) })}
       />
-      <StatusFilter
+      <MultiSelectListFilter
+        icon={SlidersHorizontalIcon}
+        id="status-filter"
+        label="Status"
+        options={statusOptions}
         values={statusIds}
         onValuesChange={(values) => onSearchChange({ status: serializeIdList(values) })}
       />
       <PeriodFilter search={search} onSearchChange={onSearchChange} />
-      <UnitFilter search={search} onSearchChange={onSearchChange} />
+      <SingleSelectListFilter
+        icon={MapPinIcon}
+        id="unit-filter"
+        inactiveValue="centro"
+        label="Unidade"
+        options={[
+          { label: "Centro", value: "centro" },
+          { label: "Artesão", value: "artesao" },
+        ]}
+        value={search.unit}
+        onValueChange={(unit) => onSearchChange({ unit })}
+      />
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <ToggleGroup
@@ -218,156 +222,6 @@ export function AgendaControls({
         />
       </div>
     </fieldset>
-  )
-}
-
-function MultiSelectFilter({
-  count,
-  icon,
-  id,
-  label,
-  onValuesChange,
-  options,
-  searchable = false,
-  values,
-}: {
-  count: number
-  icon: LucideIcon
-  id: string
-  label: string
-  onValuesChange: (values: readonly string[]) => void
-  options: readonly Option[]
-  searchable?: boolean
-  values: readonly string[]
-}) {
-  const [query, setQuery] = useState("")
-  const visibleOptions = options.filter(({ label: optionLabel }) =>
-    normalize(optionLabel).includes(normalize(query)),
-  )
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <FilterTrigger
-            active={values.length > 0}
-            count={count}
-            icon={icon}
-            id={id}
-            label={label}
-          />
-        }
-      />
-      <DropdownMenuContent align="start" className="min-w-64">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>{label}</DropdownMenuLabel>
-          {searchable ? (
-            <div className="p-1">
-              <InputGroup>
-                <InputGroupAddon>
-                  <SearchIcon aria-hidden="true" />
-                </InputGroupAddon>
-                <InputGroupInput
-                  aria-label={`Pesquisar ${label.toLocaleLowerCase("pt-BR")}`}
-                  placeholder="Pesquisar"
-                  value={query}
-                  onChange={(event) => setQuery(event.currentTarget.value)}
-                  onKeyDown={(event) => event.stopPropagation()}
-                />
-              </InputGroup>
-            </div>
-          ) : null}
-          {visibleOptions.map((option) => (
-            <DropdownMenuCheckboxItem
-              checked={values.includes(option.value)}
-              key={option.value}
-              onCheckedChange={(checked) =>
-                onValuesChange(
-                  checked
-                    ? [...values, option.value]
-                    : values.filter((value) => value !== option.value),
-                )
-              }
-            >
-              {option.label}
-            </DropdownMenuCheckboxItem>
-          ))}
-          {visibleOptions.length === 0 ? (
-            <p className="p-2 text-sm text-muted-foreground">Nenhuma opção encontrada.</p>
-          ) : null}
-        </DropdownMenuGroup>
-        {values.length > 0 ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => onValuesChange([])}>
-                <XIcon aria-hidden="true" />
-                Limpar filtro
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-function StatusFilter({
-  onValuesChange,
-  values,
-}: {
-  onValuesChange: (values: readonly string[]) => void
-  values: readonly string[]
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <FilterTrigger
-            active={values.length > 0}
-            count={values.length || statusOptions.length}
-            icon={SlidersHorizontalIcon}
-            id="status-filter"
-            label="Status"
-          />
-        }
-      />
-      <DropdownMenuContent align="start" className="min-w-56">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Status</DropdownMenuLabel>
-          {statusOptions.map((option) => {
-            const presentation = appointmentStatusPresentation[option.value as AppointmentStatus]
-            const StatusIcon = presentation.icon
-            return (
-              <DropdownMenuCheckboxItem
-                checked={values.includes(option.value)}
-                key={option.value}
-                onCheckedChange={(checked) =>
-                  onValuesChange(
-                    checked
-                      ? [...values, option.value]
-                      : values.filter((value) => value !== option.value),
-                  )
-                }
-              >
-                <StatusIcon aria-hidden="true" />
-                {option.label}
-              </DropdownMenuCheckboxItem>
-            )
-          })}
-        </DropdownMenuGroup>
-        {values.length > 0 ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => onValuesChange([])}>
-                <XIcon aria-hidden="true" />
-                Limpar filtro
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
   )
 }
 
@@ -469,41 +323,6 @@ function PeriodFilter({
   )
 }
 
-function UnitFilter({
-  onSearchChange,
-  search,
-}: {
-  onSearchChange: (next: Partial<ScheduleSearch>) => void
-  search: ScheduleSearch
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <FilterTrigger
-            active={search.unit !== "centro"}
-            icon={MapPinIcon}
-            id="unit-filter"
-            label="Unidade"
-          />
-        }
-      />
-      <DropdownMenuContent align="start" className="min-w-48">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Unidade</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={search.unit}
-            onValueChange={(unit) => onSearchChange({ unit: unit as ScheduleSearch["unit"] })}
-          >
-            <DropdownMenuRadioItem value="centro">Centro</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="artesao">Artesão</DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 function DevelopmentMenu({
   hasActiveFilters,
   onClearFilters,
@@ -587,12 +406,4 @@ function draftLabel(range?: DateRange) {
 function formatDate(value: string) {
   const parsed = parseDateOnly(value)
   return parsed ? format(parsed, "dd/MM", { locale: ptBR }) : value
-}
-
-function normalize(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR")
-    .trim()
 }

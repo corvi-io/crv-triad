@@ -10,6 +10,7 @@ import {
 describe("workspace module registry", () => {
   it("exposes active business modules and the Studio home", () => {
     expect(workspacePrimaryNavigation.map((item) => [item.label, item.path])).toEqual([
+      ["Clientes", "/clients"],
       ["Agenda", "/agenda"],
       ["Dashboard", "/overview"],
     ])
@@ -21,9 +22,10 @@ describe("workspace module registry", () => {
 
   it("derives active navigation and breadcrumbs from the neutral route registry", () => {
     expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[0], "/overview")).toBe(false)
-    expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[1], "/overview")).toBe(true)
+    expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[2], "/overview")).toBe(true)
     expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[0], "/profile")).toBe(false)
     expect(getWorkspaceRouteByPath("/agenda")?.breadcrumbLabel).toBe("Agenda")
+    expect(getWorkspaceRouteByPath("/clients")?.breadcrumbLabel).toBe("Clientes")
     expect(getWorkspaceRouteByPath("/barbershop-setup")?.breadcrumbLabel).toBe(
       "Configuração da barbearia",
     )
