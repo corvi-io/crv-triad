@@ -231,6 +231,7 @@ export function deriveDashboard({
         count: statusCounts.scheduled + statusCounts.confirmed,
         id: "scheduled-confirmed",
         label: "Agendados e confirmados",
+        status: "scheduled,confirmed",
         statusClassName: appointmentStatusPresentation.confirmed.badgeClassName,
       },
       ...appointmentStatuses

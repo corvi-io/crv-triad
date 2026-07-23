@@ -83,6 +83,14 @@ describe("WorkspaceOverview", () => {
     await user.click(screen.getByRole("button", { name: "Abrir Concluídos na Agenda" }))
     expect(handlers.onNavigateAgenda).toHaveBeenCalledWith({ status: "completed" })
 
+    await user.click(screen.getByRole("button", { name: /Agendados e confirmados/ }))
+    expect(handlers.onNavigateAgenda).toHaveBeenLastCalledWith({
+      status: "scheduled,confirmed",
+    })
+
+    await user.click(screen.getByRole("button", { name: /Check-in/ }))
+    expect(handlers.onNavigateAgenda).toHaveBeenLastCalledWith({ status: "arrived" })
+
     await user.click(screen.getByRole("button", { name: "Novo agendamento" }))
     expect(handlers.onNewAppointment).toHaveBeenCalled()
   })

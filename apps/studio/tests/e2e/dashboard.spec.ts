@@ -101,6 +101,14 @@ test("keeps bounded URL filters coherent and drills into existing destinations",
   await expect(page).not.toHaveURL(/professional=/)
 
   await page.goto("/overview?scenario=normal")
+  await page.getByRole("button", { name: /Agendados e confirmados/ }).click()
+  await expect(page).toHaveURL(/\/agenda\?/)
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("status"))
+    .toBe("confirmed,scheduled")
+  await expect(page.getByRole("button", { name: "Status: 2 selecionado(s)" })).toBeVisible()
+
+  await page.goto("/overview?scenario=normal")
   await page.getByRole("button", { name: "Ver serviços" }).click()
   await expect(page).toHaveURL(/\/barbershop-setup\?/)
   await expect(page).toHaveURL(/section=services/)
