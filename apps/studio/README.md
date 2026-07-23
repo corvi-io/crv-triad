@@ -83,10 +83,12 @@ Runtime env:
 - `VITE_APP_NAME`
 - `VITE_AUTH_BASE_URL`
 - `VITE_BARBERSHOP_SETUP_SOURCE` (`disabled` or `memory`; defaults to `disabled`)
+- `VITE_CLIENT_MANAGEMENT_SOURCE` (`disabled` or `memory`; defaults to `disabled`)
 - `VITE_DEPLOY_TARGET` (`local`, `dev`, `hml`, or `prd`; defaults to `local`)
 - `VITE_SCHEDULING_SOURCE` (`disabled` or `memory`; defaults to `disabled`)
 
-`bun --filter studio dev` explicitly composes memory scheduling and barbershop setup for local UX
+`bun --filter studio dev` explicitly composes memory scheduling, barbershop setup, and client
+management for local UX
 work. Remote `dev` builds require `VITE_DEPLOY_TARGET=dev` plus `memory` in the relevant source
 variable. The composition boundary ignores memory for `hml` and `prd`, and production checks reject
 synthetic markers.

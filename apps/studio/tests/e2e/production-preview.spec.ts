@@ -51,6 +51,21 @@ test("keeps the authenticated setup route but disables its memory source in prod
   await expect(page.getByText("Unidade Centro")).toHaveCount(0)
 })
 
+test("keeps the authenticated clients route but excludes its memory source in production", async ({
+  page,
+}) => {
+  await page.unroute("**/api/auth/**")
+  await routeAuthenticatedSession(page)
+  await page.goto("/clients?scenario=dense")
+
+  await expect(page.getByRole("heading", { name: "Clientes" })).toBeVisible()
+  await expect(
+    page.getByText("O gerenciamento de clientes está indisponível neste ambiente."),
+  ).toBeVisible()
+  await expect(page.getByRole("button", { name: "Novo cliente" })).toHaveCount(0)
+  await expect(page.getByText("Cliente Sintético 01")).toHaveCount(0)
+})
+
 async function routeAuthenticatedSession(page: Page) {
   await page.route("**/api/auth/**", async (route) => {
     if (route.request().method() === "OPTIONS") {

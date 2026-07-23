@@ -206,6 +206,13 @@ targets and to a disabled source for `hml`/`prd`. The authenticated `/barbershop
 no ordinary scenario or reset controls. See `docs/studio/barbershop-setup.md` for its source,
 test-infrastructure, privacy, and production-exclusion contract.
 
+The ENG-44 client-management module uses the same replaceable boundary without changing a shared
+component contract. Presentation and repository vocabulary live under `src/modules/clients`;
+deterministic scenarios and the session-memory adapter live under `src/dev/clients`.
+`virtual:studio-client-management-source` resolves to memory only for configured `local`/`dev` and
+to a disabled shim for `hml`/`prd`. It composes the existing table, drawer, tabs, confirmation,
+mask, form, status, and feedback contracts. See `docs/studio/client-management.md`.
+
 ## Primary Vendor References
 
 - [React: You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect)

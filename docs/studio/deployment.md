@@ -17,6 +17,7 @@ GitHub Environment sources mapped to required public runtime values:
 - `STUDIO__VITE_DEPLOY_TARGET` -> `VITE_DEPLOY_TARGET` (optional target guard)
 - `STUDIO__VITE_SCHEDULING_SOURCE` -> `VITE_SCHEDULING_SOURCE` (optional prototype source)
 - `STUDIO__VITE_BARBERSHOP_SETUP_SOURCE` -> `VITE_BARBERSHOP_SETUP_SOURCE` (optional setup source)
+- `STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE` -> `VITE_CLIENT_MANAGEMENT_SOURCE` (optional client evaluation source)
 
 `VITE_APP_NAME` keeps its application default and is not a deployment source. All Vite values are browser-visible; do not place secrets in them. Local `.env.example` names remain runtime-shaped.
 

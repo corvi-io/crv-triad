@@ -30,6 +30,11 @@ const forbiddenMarkers = [
   "availability-conflicts",
   "next-failure",
   "persistent-error",
+  "ClientMemoryRepository",
+  "Cliente Sintético Aurora",
+  "client-management-source",
+  "duplicate-candidates",
+  "incomplete-contact",
   ".stories.",
 ]
 

@@ -61,6 +61,17 @@ describe("Studio component dependency model", () => {
     )
     expect(`${setupRoute}\n${setupShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
     expect(setupRoute).toContain('from "virtual:studio-barbershop-setup-source"')
+
+    const clientRoute = await readFile(
+      path.resolve(process.cwd(), "src/routes/_authenticated/clients/index.tsx"),
+      "utf8",
+    )
+    const clientShim = await readFile(
+      path.resolve(process.cwd(), "src/modules/shared/config/client-management-source-disabled.ts"),
+      "utf8",
+    )
+    expect(`${clientRoute}\n${clientShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
+    expect(clientRoute).toContain('from "virtual:studio-client-management-source"')
   })
 
   it("has no shared mega-barrel", async () => {

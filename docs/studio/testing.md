@@ -52,6 +52,14 @@ Production coverage proves the removed setup preview route is inaccessible, the 
 resolves a disabled source, and the artifact scan rejects adapter, fixture, scenario, and
 dense-record markers.
 
+`tests/e2e/client-management.spec.ts` covers authenticated expanded, collapsed, and mobile
+navigation; safe URL state; empty and dense lists; bounded overflow; keyboard row actions; exact
+duplicate inspection without merge; create/edit/archive/restore and note CRUD; validation and
+first-invalid focus; full-reload reset; drawer focus return; axe; dark theme; reduced motion; and
+320 CSS-pixel reflow. Focused Vitest verifies bounds, normalized duplicates, mutation behavior,
+one-shot rollback/retry, persistent failure, deterministic reset, and delayed-operation isolation.
+Production-boundary tests reject the client memory source and representative scenario markers.
+
 `tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
 the resolved class at the first animation frame, measures browser-computed contrast for core
 semantic pairs, all four feedback roles, focus, input boundaries, and all eight schedule roles in

@@ -179,3 +179,7 @@ apps:
         runtime: VITE_BARBERSHOP_SETUP_SOURCE
         github: variable
         required: false
+      - source: STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE
+        runtime: VITE_CLIENT_MANAGEMENT_SOURCE
+        github: variable
+        required: false
