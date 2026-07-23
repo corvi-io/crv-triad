@@ -60,6 +60,15 @@ first-invalid focus; full-reload reset; drawer focus return; axe; dark theme; re
 one-shot rollback/retry, persistent failure, deterministic reset, and delayed-operation isolation.
 Production-boundary tests reject the client memory source and representative scenario markers.
 
+`tests/e2e/dashboard.spec.ts` covers the authenticated operational Dashboard hierarchy at
+1600 × 900, bounded URL filters, safe drill-down destinations, existing appointment-drawer reuse,
+Dashboard-to-Agenda session-memory coherence, full-reload reset, delay/error/empty scenarios,
+light/dark, reduced motion, forced colors, computed contrast, visible focus, 24px targets,
+320-CSS-pixel/200%-equivalent reflow, page overflow, and axe. Focused Vitest covers URL allowlists
+and bounds, every accepted projection formula, ordering/caps, unsupported values, invalid
+professionals, shared repository identity, presentation actions, and loading/error/empty/disabled
+states. Production coverage proves `/overview` fails closed when scheduling is disabled.
+
 `tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
 the resolved class at the first animation frame, measures browser-computed contrast for core
 semantic pairs, all four feedback roles, focus, input boundaries, and all eight schedule roles in

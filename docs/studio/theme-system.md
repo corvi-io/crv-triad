@@ -215,6 +215,21 @@ the light page action and drawer input. Dark measurements are 6.71:1 on the
 selected sidebar link, 8.80:1 on the page action, and 8.48:1 on the drawer
 input. Active input boundaries measure 5.27:1 in light and 4.86:1 in dark.
 
+## Dashboard Semantic Surface Contract
+
+ENG-45 adds no palette, semantic, component, gradient, or elevation tokens. The
+operational Dashboard composes the existing background, card, foreground,
+muted, border, input, ring, primary, feedback, and eight schedule-status roles.
+Cards stay neutral, gold remains restrained to accepted actions/selection, and
+status meaning always retains text. Occupancy and capacity use the official
+progress primitive with the existing primary/background roles rather than
+introducing chart colors.
+
+Browser coverage inspects representative light/dark text, muted text, status,
+focus, progress, and meaningful boundaries, plus forced colors and reduced
+motion. The supplied ENG-45 visual reference affected hierarchy and relative
+weight only; its raw colors and pixels are not theme inputs.
+
 ## Gradient And Elevation Intent
 
 The handoff supplied three effects:

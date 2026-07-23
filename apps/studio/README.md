@@ -21,7 +21,7 @@ Routes:
 - `/workspace-preview/agenda` (development-only Agenda board/list interaction and QA surface)
 - `/agenda` (authenticated Agenda visual prototype with default temporal board and alternate list)
 - `/barbershop-setup` (authenticated barbershop setup module)
-- `/overview`
+- `/overview` (authenticated operational Dashboard derived from the scheduling source)
 - `/profile`
 - `/preferences`
 
@@ -56,6 +56,12 @@ and atomic optimistic rollback. Temporal drag changes start/barber only, never s
 intentionally unavailable in `hml`
 and `prd`; see `docs/studio/schedule-prototype.md` for the visual contract, runtime boundary, and
 residual manual accessibility checks.
+
+The operational Dashboard at `/overview` derives filters, KPIs, upcoming work, attention, flow,
+professional occupancy, capacity, supported finance, services, cancellations/no-show, and
+completed-client counts from the same local/dev scheduling repository used by Agenda. Unsupported
+financial and client facts remain explicit unavailable states, and `hml`/`prd` fail closed. See
+`docs/studio/dashboard.md` for formulas, URL safety, accessibility, and future API boundaries.
 
 The authenticated barbershop setup module presents a guided overview, fill-height
 unit/professional/service catalogs, structured unit opening hours, and a dated block-based

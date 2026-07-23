@@ -85,6 +85,12 @@ HTTP service. Vite exposes the memory implementation only for `local` or explici
 `dev`; `hml` and `prd` resolve the null implementation. Better Auth remains the real identity
 boundary.
 
+Agenda and the ENG-45 operational Dashboard resolve one module-scoped local/dev scheduling
+repository. Mutations made through the existing appointment drawer are therefore coherent across
+`/agenda` and `/overview` during the browser session, while a full reload still reconstructs the
+selected fixture. This composition change does not alter Agenda presentation, filters, rules, URL
+state, drag-and-drop, status transitions, or mutation behavior.
+
 ## Accessibility, Responsive, And Performance
 
 - The board uses a semantic table with column and row headers; the time axis remains available to

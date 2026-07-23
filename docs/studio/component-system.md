@@ -144,7 +144,9 @@ building block of a documented composition.
 | `overlays/drawer-section.tsx` | Overlay anatomy | Internal: companion anatomy for `ActionDrawer`, not a standalone surface. |
 | `overlays/drawer-tabs.tsx` | Overlay anatomy | Internal: companion tab anatomy requiring a composed drawer. |
 | `reference-creation-page.tsx` | Legacy page helper | Internal: retained only for migration compatibility; do not use for new generic CRUD pages. |
-| `workspace-overview/index.tsx` | Shell content | Internal: authenticated shell overview composition, covered by route/shell tests. |
+| `workspace-overview/dashboard-filters.tsx` | Shell content | Internal: controlled Dashboard period, date, unit, and professional filter composition with polite completion status; covered by Dashboard component/browser tests. |
+| `workspace-overview/index.tsx` | Shell content | Internal: typed operational Dashboard presentation over an injected read-only model; owns the accepted semantic hierarchy, responsive card/table composition, and loading/error/empty/disabled states without importing scheduling. |
+| `workspace-overview/model.ts` | Presentation contract | Internal: scheduling-independent read-only Dashboard view model shared only across the projection/presentation boundary. |
 | `workspace-shell/breadcrumbs.tsx` | Shell companion | Internal: route-aware breadcrumb implementation private to the shell folder. |
 | `workspace-shell/content.tsx` | Shell companion | Internal: content inset implementation private to the shell folder. |
 | `workspace-shell/header.tsx` | Shell companion | Internal: header/sidebar trigger implementation private to the shell folder. |
@@ -167,6 +169,7 @@ building block of a documented composition.
 | `ui/label.tsx` | Primitive | Internal: cataloged with its associated form controls. |
 | `ui/pagination.tsx` | Primitive | Internal: lower-level anatomy cataloged through `DataTable`. |
 | `ui/popover.tsx` | Primitive | Internal: implementation detail of date/combobox controls. |
+| `ui/progress.tsx` | Primitive | Internal: official shadcn/Base UI progress anatomy used by Dashboard occupancy and capacity; its indicator transition is suppressed under reduced motion. |
 | `ui/scroll-area.tsx` | Primitive | Internal: scroll wrapper documented through table, drawer, and module layouts; consumers may request overflow-measured scrollbar mounting when an idle painted track would misrepresent scrollability. |
 | `ui/select.tsx` | Primitive | Internal: cataloged through composed sandbox/filter forms. |
 | `ui/separator.tsx` | Primitive | Internal: non-interactive structural primitive. |
