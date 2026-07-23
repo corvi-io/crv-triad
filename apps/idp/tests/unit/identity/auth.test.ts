@@ -10,6 +10,7 @@ import {
   getDefaultCookieAttributes,
   handleBackgroundTask,
 } from "../../../src/identity/auth.js"
+import { createInvitationSecret } from "../../../src/identity/invitations.js"
 
 const idpBaseUrl = "https://idp.example.com"
 const localIdpBaseUrl = "http://localhost:8001"
@@ -364,7 +365,7 @@ describe("createAuthOptions", () => {
     BETTER_AUTH_URL: "http://127.0.0.1:8001",
     AUTH_TRUSTED_ORIGINS: ["http://localhost:3000"],
     AUTH_SESSION_EXPIRES_IN_SECONDS: 2_592_000,
-    AUTH_PASSWORD_MIN_LENGTH: 12,
+    AUTH_PASSWORD_MIN_LENGTH: 15,
     AUTH_PASSWORD_MAX_LENGTH: 256,
     AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS: 3_600,
     AUTH_GOOGLE_CLIENT_ID: "google-client-id-placeholder",
@@ -589,7 +590,7 @@ describe("createAuthOptions", () => {
     expect(options.emailVerification).toMatchObject({
       autoSignInAfterVerification: false,
       sendOnSignIn: true,
-      sendOnSignUp: true,
+      sendOnSignUp: false,
     })
     expect(options.socialProviders?.google).toMatchObject({
       disableDefaultScope: true,
@@ -610,7 +611,78 @@ describe("createAuthOptions", () => {
     expect(options.rateLimit).toMatchObject({ enabled: true, storage: "memory" })
     expect(options.advanced?.backgroundTasks?.handler).toBeTypeOf("function")
     expect(options.databaseHooks?.user?.create?.before).toBeTypeOf("function")
+    expect(options.databaseHooks?.account?.create?.before).toBeTypeOf("function")
     expect(options.databaseHooks?.session?.create?.before).toBeTypeOf("function")
+  })
+
+  it("accepts one invitation and rejects replay through native credential creation without a session", async () => {
+    const secret = createInvitationSecret()
+    const now = new Date()
+    const memoryDb: Record<string, Array<Record<string, unknown>>> = {
+      account: [],
+      invitation: [
+        {
+          acceptedAt: null,
+          acceptedByUserId: null,
+          createdAt: now,
+          email: "invited-user@example.invalid",
+          expiresAt: new Date(now.getTime() + 60_000),
+          id: "invitation-id",
+          invitedByUserId: null,
+          role: "member",
+          status: "pending",
+          tokenDigest: secret.digest,
+          tokenIssuedAt: now,
+          updatedAt: now,
+        },
+      ],
+      session: [],
+      user: [],
+      verification: [],
+    }
+    const options = createAuthOptions(env as never, {} as never, emailSender)
+    const auth = betterAuth({
+      ...options,
+      database: memoryAdapter(memoryDb),
+      logger: { disabled: true },
+      rateLimit: { enabled: false },
+    })
+    const firstClient = createSessionTestClient(
+      (request) => auth.handler(request),
+      env.BETTER_AUTH_URL,
+    )
+    const secondClient = createSessionTestClient(
+      (request) => auth.handler(request),
+      env.BETTER_AUTH_URL,
+    )
+    const body = {
+      email: "invitation-proof@invalid.example",
+      invitationToken: secret.token,
+      name: "Usuário TRIAD",
+      password: "uma frase longa e exclusiva",
+      rememberMe: false,
+    }
+
+    const responses = [
+      await firstClient.request("/sign-up/email", { body }),
+      await secondClient.request("/sign-up/email", { body }),
+    ]
+
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 403])
+    expect(memoryDb.user).toHaveLength(1)
+    expect(memoryDb.user[0]).toMatchObject({
+      email: "invited-user@example.invalid",
+      emailVerified: true,
+      role: "member",
+      status: "active",
+    })
+    expect(memoryDb.account).toHaveLength(1)
+    expect(memoryDb.account[0]).toMatchObject({ providerId: "credential" })
+    expect(memoryDb.session).toHaveLength(0)
+    expect(memoryDb.invitation[0]).toMatchObject({
+      acceptedByUserId: memoryDb.user[0]?.id,
+      status: "accepted",
+    })
   })
 
   it("rejects a Google user-create callback without a verified email claim", async () => {

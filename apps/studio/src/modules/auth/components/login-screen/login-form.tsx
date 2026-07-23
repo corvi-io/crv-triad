@@ -24,17 +24,10 @@ type LoginFormProps = {
   error?: string | null
   isSubmitting: boolean
   onGoogleSignIn: () => void
-  onInviteSignUp: (values: LoginCredentialsFormValues) => void
   onSignIn: (values: LoginCredentialsFormValues) => void
 }
 
-export function LoginForm({
-  error,
-  isSubmitting,
-  onGoogleSignIn,
-  onInviteSignUp,
-  onSignIn,
-}: LoginFormProps) {
+export function LoginForm({ error, isSubmitting, onGoogleSignIn, onSignIn }: LoginFormProps) {
   const [credentialsError, setCredentialsError] = useState<string | null>(null)
   const {
     formState: { errors },
@@ -114,22 +107,9 @@ export function LoginForm({
           </Button>
         </Field>
 
-        <FieldSeparator>primeiro acesso</FieldSeparator>
-
-        <Field>
-          <Button
-            variant="outline"
-            type="button"
-            disabled={isSubmitting}
-            onClick={handleSubmit(onInviteSignUp)}
-            size="lg"
-          >
-            Criar acesso com convite
-          </Button>
-          <FieldDescription className="text-center">
-            O cadastro só é concluído para e-mails com convite ativo.
-          </FieldDescription>
-        </Field>
+        <FieldDescription className="text-center">
+          Primeiro acesso? Use o link seguro enviado no convite.
+        </FieldDescription>
       </FieldGroup>
     </form>
   )

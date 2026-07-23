@@ -1,15 +1,14 @@
 import { z } from "zod"
 
+import { newPasswordSchema } from "@/modules/auth/schemas/password-policy"
+
 export const emailRecoverySchema = z.object({
   email: z.string().trim().min(1, "Informe o e-mail.").email("Informe um e-mail válido."),
 })
 
 export const passwordResetSchema = z
   .object({
-    password: z
-      .string()
-      .min(12, "Use pelo menos 12 caracteres.")
-      .max(256, "Use no máximo 256 caracteres."),
+    password: newPasswordSchema,
     passwordConfirmation: z.string().min(1, "Confirme a nova senha."),
   })
   .refine((values) => values.password === values.passwordConfirmation, {

@@ -95,6 +95,55 @@ test("maps verification failures without contradictory success and consumes the 
   await expect(page).not.toHaveURL(/verified=/)
 })
 
+test("accepts one invitation without creating a session and rejects its replay", async ({
+  page,
+}) => {
+  let accepted = false
+  let acceptanceRequests = 0
+  await page.setViewportSize({ height: 720, width: 320 })
+  await page.route("**/invitations/resolve", async (route) => {
+    if (await fulfillPreflight(route)) return
+    await fulfillJson(
+      route,
+      accepted
+        ? { state: "accepted" }
+        : { expiresAt: "2099-01-01T00:00:00.000Z", role: "member", state: "valid" },
+    )
+  })
+  await page.route("**/api/auth/**", async (route) => {
+    if (await fulfillPreflight(route)) return
+    const pathname = new URL(route.request().url()).pathname
+    if (pathname.endsWith("/sign-up/email")) {
+      acceptanceRequests += 1
+      accepted = true
+      await fulfillJson(route, { status: true })
+      return
+    }
+    await fulfillJson(route, null)
+  })
+
+  await page.goto("/accept-invitation?token=opaque-test-proof")
+  await expect(page).toHaveURL(/\/accept-invitation$/)
+  await expect(page.getByText(/Convite válido para o perfil de membro/)).toBeVisible()
+  await page.getByLabel("Nova senha", { exact: true }).fill("uma frase longa e exclusiva")
+  await page.getByLabel("Confirmar nova senha").fill("uma frase longa e exclusiva")
+  await page.getByRole("button", { name: "Criar senha" }).dblclick()
+
+  await expect(page.getByRole("status")).toContainText("Entre normalmente")
+  expect(acceptanceRequests).toBe(1)
+  await expect(page.getByRole("link", { name: "Ir para entrar" })).toBeVisible()
+  const accessibility = await new AxeBuilder({ page })
+    .include("#main-content")
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze()
+  expect(accessibility.violations).toEqual([])
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+
+  await page.goto("/accept-invitation?token=opaque-test-proof")
+  await expect(page.getByRole("alert")).toContainText("já foi usado")
+  await expect(page.getByLabel("Nova senha", { exact: true })).toHaveCount(0)
+})
+
 test("keeps a Google-only user from removing the last access method", async ({ page }) => {
   await page.route("**/api/auth/**", async (route) => {
     if (await fulfillPreflight(route)) return

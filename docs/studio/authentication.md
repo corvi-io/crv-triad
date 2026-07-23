@@ -6,8 +6,12 @@ provider credentials, account-linking decisions, or persistence.
 
 ## Routes And Journeys
 
-- `/login` owns email/password sign-in, invite-gated first access, Google initiation, verification
+- `/login` owns email/password sign-in, Google initiation, verification
   notice/resend, verified-email confirmation, and safe provider callback errors.
+- `/accept-invitation` reads only an opaque query proof, removes it from browser history, resolves
+  the lifecycle through the IDP, and offers password creation only for a valid result. It renders
+  explicit validating, invalid, expired, revoked, used, superseded, network, submitting, and success
+  states. Success returns to login without a session.
 - `/forgot-password` validates an email and always uses enumeration-safe result copy. Its native
   `requestPasswordReset` call sets `redirectTo` to the fixed browser-origin
   `/reset-password` route.
@@ -27,7 +31,7 @@ environment variables.
 | Studio operation          | Better Auth client method | Fixed target or guard                                      |
 | ------------------------- | ------------------------- | ---------------------------------------------------------- |
 | Email/password sign-in    | `signIn.email`            | `/overview`                                                |
-| Invite-gated first access | `signUp.email`            | IDP database hook remains the gate                         |
+| Token-proven first access | `signUp.email`            | Opaque write-only proof; IDP owns email, role, and gate    |
 | Google sign-in            | `signIn.social`           | Google only; `/overview`; safe `/login` error target       |
 | Verification resend       | `sendVerificationEmail`   | `/login?verified=true`                                     |
 | Forgot password           | `requestPasswordReset`    | `/reset-password`                                          |
@@ -48,11 +52,16 @@ profile preservation, session revocation, and unlink-all rejection.
 
 ## UI And Accessibility Contract
 
-The three public routes reuse one auth-specific responsive shell. Headings receive programmatic
+The four public routes reuse one auth-specific responsive shell. Headings receive programmatic
 focus on route entry, React Hook Form focuses the first invalid field, dynamic errors use alerts,
 and non-urgent delivery or success results use polite status regions. Password inputs preserve
 paste, autofill, and password-manager semantics and provide named show/hide controls. Buttons keep
 stable labels and expose loading through the shared `Button` busy state.
+
+Invitation, reset, and preference forms share module-owned password guidance. It marks the
+15-character minimum and confirmation match with icon and text, keeps common-value advice
+non-binary, allows spaces and Unicode, and does not announce every keystroke. The IDP remains final
+authority for the 256-character maximum and whole-password blocklist.
 
 Method status is written as text and never depends on color. Controls use native buttons/links,
 existing visible focus styles, minimum 40px system-control height, responsive wrapping, and the
@@ -65,7 +74,7 @@ must not be inferred from automated tests.
 
 The implementation reuses Studio's existing `Button`, `Input`, `Field`, `StatusBadge`, theme,
 shell, and feedback tokens. No registry dependency or shared component was added. The auth shell,
-auth feedback, and password-input composition are module-owned because their API and copy are
+auth feedback, password input, and password-guidance compositions are module-owned because their API and copy are
 specific to these identity journeys; the existing shadcn/Base UI primitives already provide their
 interactive foundation. The shared component inventory therefore does not change.
 

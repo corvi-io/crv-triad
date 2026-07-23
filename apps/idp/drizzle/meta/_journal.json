@@ -15,6 +15,13 @@
       "when": 1784662274541,
       "tag": "0001_blushing_lily_hollister",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784767845846,
+      "tag": "0002_kind_giant_man",
+      "breakpoints": true
     }
   ]
 }

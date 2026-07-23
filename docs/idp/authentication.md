@@ -8,9 +8,9 @@ no package change is required while the resolved version remains aligned.
 
 | ENG-38 operation                        | Better Auth `1.6.23` owner                                                                                                             | TRIAD seam                                                                                                                                                                                                                                                                                     |
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Email/password first access and sign-in | `signUp.email`, `signIn.email`, `emailAndPassword`                                                                                     | `databaseHooks.user.create.before` applies the active-user or valid-pending-invitation policy and preserves the invitation role.                                                                                                                                                               |
+| Email/password first access and sign-in | `signUp.email`, `signIn.email`, `emailAndPassword`                                                                                     | Native signup accepts a write-only request proof. Transaction-scoped database hooks resolve and conditionally consume the bound invitation before native credential-account insertion. Sign-in remains unchanged.                                                                              |
 | Email verification and resend           | `emailVerification.sendVerificationEmail`, `sendOnSignUp`, `sendOnSignIn`, `/send-verification-email`                                  | The shared IDP email sender renders the Portuguese message and builds the link from configured IDP/Studio origins. Better Auth defers automatic sends through its background handler, but `1.6.23` awaits the sender in the manual resend endpoint; ENG-39 owns future durable queue delivery. |
-| Forgot/reset password                   | `/request-password-reset`, `/reset-password/:token`, `/reset-password`, `resetPasswordTokenExpiresIn`, `revokeSessionsOnPasswordReset` | The shared IDP email sender renders the reset message; Better Auth owns tokens, expiry, single use, and session revocation.                                                                                                                                                                    |
+| Forgot/reset password                   | `/request-password-reset`, `/reset-password/:token`, `/reset-password`, `resetPasswordTokenExpiresIn`, `revokeSessionsOnPasswordReset` | React Email renders the reset message; Better Auth still owns tokens, expiry, single use, native hashing, and session revocation.                                                                                                                                                              |
 | Authenticated password change           | `changePassword` with current-password proof and `revokeOtherSessions`                                                                 | Studio will choose the native request option in Phase B; IDP adds no endpoint.                                                                                                                                                                                                                 |
 | Google sign-in                          | `socialProviders.google`, `/sign-in/social`, `/callback/google`                                                                        | Required server-only runtime credentials and the existing access hooks. Callback URI derives from `BETTER_AUTH_URL`.                                                                                                                                                                           |
 | Same-email linking                      | `account.accountLinking`, implicit verified-email linking, `linkSocial`                                                                | Google is the only configured social/linking provider. A provider-verified exact normalized email may link to an existing active user even when the matching local email starts unverified; Better Auth promotes it to verified before session creation. Different-email linking remains disabled.                                                            |
@@ -35,12 +35,56 @@ provider-latency/failure dependent. ENG-39, `Add durable queue for IDP transacti
 emails`, is the Backlog follow-up for durable, provider-independent asynchronous invitation,
 verification, and reset delivery.
 
+## Invitation proof and migration
+
+- Each email/password invitation receives 32 random bytes encoded as a URL-safe opaque value. Only
+  its SHA-256 digest, issuance time, expiry, and lifecycle metadata are stored. The raw value exists
+  only at the immediate render/send boundary and is never returned by administrative routes.
+- `POST /invitations/resolve` accepts the proof in a no-store request body and returns only a
+  lifecycle category plus valid-role presentation data. Malformed, expired, revoked, accepted,
+  superseded, and unknown values cannot reach the password form as valid proof.
+- Native `/api/auth/sign-up/email` accepts the proof as a request-only extension. Better Auth's
+  `user.create.before` hook resolves it through the public current transaction adapter. The native
+  credential `account.create.before` hook performs one conditional update over digest, pending
+  status, non-null issuance, and future expiry. A zero-row update aborts and rolls back the native
+  user/account transaction. The native hash is unchanged and successful acceptance returns no
+  session.
+- Resend marks the old invitation `superseded`, creates a new UUIDv7 invitation and digest, and
+  attempts delivery. Provider failure never returns the raw value and the older link remains
+  unusable.
+- Migration `0002_kind_giant_man.sql` adds the nullable digest/issuance fields and unique digest
+  index, then expires legacy pending rows that cannot have a secure proof. Operations must reissue
+  those invitations; the migration must be applied only through the authorized deployment process.
+
+## Password and authentication-email policy
+
+The IDP counts Unicode code points and accepts 15 through 256 characters without trimming,
+composition rules, or a remote check. Signup, reset, and change-password hooks share the same
+whole-value policy before Better Auth performs its native hash. A bounded set loads once per
+process from the first 10,000 ranked entries in `@zxcvbn-ts/language-common@4.1.3` plus TRIAD-specific
+expected values. That MIT-licensed source is reviewed when the Bun dependency is updated; changes
+require policy tests and a release-note review. Comparison uses the complete NFKC/case-folded value,
+never substrings.
+
+`AuthEmailLayout` and focused invitation, verification, and reset templates render semantic HTML
+and plain text from trusted props. Action URLs must use configured allowlisted origins. Templates
+have no remote images, tracking, marketing, social, or unsubscribe content. `email:preview` uses only
+fixed synthetic data. Resend transport timeout, retry, idempotency, and sanitized-failure behavior
+remain unchanged; ENG-39 still owns durable queueing, workers, shutdown recovery, metrics, and
+alerts.
+
+The visual hierarchy was informed by React Email's official Studio welcome reference and its
+official render examples. TRIAD did not copy template source: the IDP layout, Portuguese copy,
+literal styles, and three flow templates are original scoped implementations, so no copied-source
+attribution is required. Recheck the upstream examples and package licenses when React Email is
+updated.
+
 ## Access and linking policy
 
-- Unknown emails without a valid pending invitation cannot create a user.
+- Unknown emails without valid one-time proof cannot create an email/password user.
 - Disabled users cannot create a session, even if an invitation exists.
-- Session creation requires an active user whose local email is verified. Credential-created users
-  must complete email verification before password sign-in can create a session.
+- Session creation requires an active user whose local email is verified. Successful invitation
+  consumption itself proves mailbox possession, but does not create a session.
 - A provider-verified Google identity may implicitly link only to an existing active user with the
   exact same normalized email. The matching local email does not need to be verified beforehand:
   Better Auth `1.6.23` promotes it to verified before the retained session gate runs. Google does

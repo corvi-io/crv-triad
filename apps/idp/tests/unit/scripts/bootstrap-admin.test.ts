@@ -4,6 +4,7 @@ import { bootstrapAdmin, parseBootstrapAdminArgs } from "../../../src/scripts/bo
 
 function createFakeDb(existingUser: unknown = null, existingInvitation: unknown = null) {
   const inserted: unknown[] = []
+  const updated: unknown[] = []
   const selectRows = [
     existingUser ? [existingUser] : [],
     existingInvitation ? [existingInvitation] : [],
@@ -11,6 +12,7 @@ function createFakeDb(existingUser: unknown = null, existingInvitation: unknown 
 
   return {
     inserted,
+    updated,
     db: {
       select: () => ({
         from: () => ({
@@ -26,6 +28,12 @@ function createFakeDb(existingUser: unknown = null, existingInvitation: unknown 
             return [value]
           },
         }),
+      }),
+      update: () => ({
+        set: (value: unknown) => {
+          updated.push(value)
+          return { where: async () => undefined }
+        },
       }),
     },
   }
@@ -57,7 +65,10 @@ describe("bootstrap admin", () => {
       role: "admin",
       status: "pending",
       invitedByUserId: null,
+      tokenDigest: expect.any(String),
+      tokenIssuedAt: expect.any(Date),
     })
+    expect(fake.inserted[0]).not.toHaveProperty("token")
   })
 
   it("is idempotent for an existing active admin", async () => {
@@ -73,7 +84,12 @@ describe("bootstrap admin", () => {
   })
 
   it("is idempotent for an existing pending admin invitation", async () => {
-    const fake = createFakeDb(null, { id: "invitation-1", role: "admin", status: "pending" })
+    const fake = createFakeDb(null, {
+      id: "invitation-1",
+      role: "admin",
+      status: "pending",
+      tokenDigest: "synthetic-digest",
+    })
 
     await expect(
       bootstrapAdmin(fake.db as never, {
@@ -82,5 +98,22 @@ describe("bootstrap admin", () => {
         expiresInDays: 7,
       }),
     ).resolves.toEqual({ created: false, invitationId: "invitation-1" })
+  })
+
+  it("revokes an undelivered bootstrap invitation so a later run can reissue it", async () => {
+    const fake = createFakeDb()
+
+    await expect(
+      bootstrapAdmin(
+        fake.db as never,
+        {
+          email: "admin@example.com",
+          name: "Admin Name",
+          expiresInDays: 7,
+        },
+        { sendInvitation: async () => "failed" },
+      ),
+    ).rejects.toThrow("Transactional authentication email delivery failed.")
+    expect(fake.updated).toContainEqual(expect.objectContaining({ status: "revoked" }))
   })
 })

@@ -10,7 +10,6 @@ const authMocks = vi.hoisted(() => ({
   signInEmail: vi.fn(),
   signInSocial: vi.fn(),
   signOut: vi.fn(),
-  signUpEmail: vi.fn(),
   unlinkAccount: vi.fn(),
 }))
 
@@ -27,34 +26,32 @@ vi.mock("better-auth/react", () => ({
       social: authMocks.signInSocial,
     },
     signOut: authMocks.signOut,
-    signUp: {
-      email: authMocks.signUpEmail,
-    },
     unlinkAccount: authMocks.unlinkAccount,
   })),
 }))
 
 import {
+  acceptInvitation,
   changePassword,
   linkGoogle,
   listAccounts,
   requestPasswordReset,
   resendVerificationEmail,
   resetPassword,
+  resolveInvitation,
   signInWithEmail,
   signInWithGoogle,
-  signUpWithEmail,
   unlinkGoogle,
 } from "@/modules/auth/services/auth-client"
 
 describe("auth client", () => {
   beforeEach(() => {
+    vi.unstubAllGlobals()
     authMocks.requestPasswordReset.mockReset()
     authMocks.resetPassword.mockReset()
     authMocks.sendVerificationEmail.mockReset()
     authMocks.signInEmail.mockReset()
     authMocks.signInSocial.mockReset()
-    authMocks.signUpEmail.mockReset()
     authMocks.changePassword.mockReset()
     authMocks.linkSocial.mockReset()
     authMocks.listAccounts.mockReset()
@@ -71,19 +68,32 @@ describe("auth client", () => {
     })
   })
 
-  it("creates invited accounts with email and password", async () => {
-    await signUpWithEmail({
-      email: "maria@example.com",
-      name: "Maria",
-      password: "password-123",
-    })
+  it("resolves and accepts invitations through token-only browser contracts", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ state: "valid", role: "member" }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: true }), { status: 200 }))
+    vi.stubGlobal("fetch", fetchMock)
 
-    expect(authMocks.signUpEmail).toHaveBeenCalledWith({
-      callbackURL: "http://localhost:3000/overview",
-      email: "maria@example.com",
-      name: "Maria",
-      password: "password-123",
+    await expect(resolveInvitation("synthetic-invitation-proof")).resolves.toMatchObject({
+      state: "valid",
     })
+    await expect(
+      acceptInvitation({
+        password: "uma frase longa e exclusiva",
+        token: "synthetic-invitation-proof",
+      }),
+    ).resolves.toEqual({ status: true })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const resolveRequest = fetchMock.mock.calls[0]
+    const acceptanceRequest = fetchMock.mock.calls[1]
+    expect(resolveRequest?.[0]).toBe("http://localhost:8001/invitations/resolve")
+    expect(resolveRequest?.[1]).toMatchObject({ method: "POST", referrerPolicy: "no-referrer" })
+    expect(acceptanceRequest?.[0]).toBe("http://localhost:8001/api/auth/sign-up/email")
+    expect(acceptanceRequest?.[1]).toMatchObject({ method: "POST", referrerPolicy: "no-referrer" })
   })
 
   it("requests password reset with an absolute redirect URL", async () => {

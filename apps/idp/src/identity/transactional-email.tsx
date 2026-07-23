@@ -1,6 +1,15 @@
 import type { IdpEnv } from "../config/env.js"
 import { createId } from "../infra/ids.js"
 import type { IdpRole } from "./access-policy.js"
+import { renderAuthEmail } from "./emails/render.js"
+import {
+  InvitationEmailTemplate,
+  invitationEmailSubject,
+  PasswordResetEmailTemplate,
+  passwordResetEmailSubject,
+  VerificationEmailTemplate,
+  verificationEmailSubject,
+} from "./emails/templates.js"
 
 export type AuthEmailDelivery = "failed" | "sent" | "skipped"
 
@@ -8,6 +17,7 @@ export type InvitationEmailInput = {
   email: string
   expiresAt: Date
   role: IdpRole
+  token: string
 }
 
 export type VerificationEmailInput = {
@@ -55,11 +65,12 @@ export function createAuthEmailSender(
   const fetchEmail = dependencies.fetch ?? fetch
 
   return {
-    sendInvitation: (input) => deliverEmail(env, fetchEmail, buildInvitationMessage(env, input)),
-    sendPasswordReset: (input) =>
-      deliverEmail(env, fetchEmail, buildPasswordResetMessage(env, input)),
-    sendVerification: (input) =>
-      deliverEmail(env, fetchEmail, buildVerificationMessage(env, input)),
+    sendInvitation: async (input) =>
+      deliverEmail(env, fetchEmail, await buildInvitationMessage(env, input)),
+    sendPasswordReset: async (input) =>
+      deliverEmail(env, fetchEmail, await buildPasswordResetMessage(env, input)),
+    sendVerification: async (input) =>
+      deliverEmail(env, fetchEmail, await buildVerificationMessage(env, input)),
   }
 }
 
@@ -106,59 +117,60 @@ async function deliverEmail(
   return "failed"
 }
 
-function buildInvitationMessage(env: IdpEnv, input: InvitationEmailInput): EmailMessage {
-  const loginUrl = new URL("/login", env.IDP_STUDIO_URL)
-  const roleLabel = input.role === "admin" ? "administrador" : "membro"
+export async function buildInvitationMessage(
+  env: IdpEnv,
+  input: InvitationEmailInput,
+): Promise<EmailMessage> {
+  const actionUrl = new URL("/accept-invitation", env.IDP_STUDIO_URL)
+  actionUrl.searchParams.set("token", input.token)
   const expiresAt = new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
     timeZone: "America/Recife",
   }).format(input.expiresAt)
+  const rendered = await renderAuthEmail(
+    <InvitationEmailTemplate
+      actionUrl={actionUrl.toString()}
+      expiresAtLabel={expiresAt}
+      invitationRole={input.role}
+    />,
+    invitationEmailSubject,
+    actionUrl.toString(),
+    [new URL(env.IDP_STUDIO_URL).origin],
+  )
 
   return {
-    html: [
-      "<p>Você recebeu um convite para acessar o CRV Triad.</p>",
-      `<p>Permissão: <strong>${escapeHtml(roleLabel)}</strong></p>`,
-      `<p>O convite expira em <strong>${escapeHtml(expiresAt)}</strong>.</p>`,
-      `<p><a href="${escapeHtml(loginUrl.toString())}">Entrar no CRV Triad</a></p>`,
-      "<p>Use este mesmo e-mail para criar sua senha ou acessar sua conta.</p>",
-    ].join(""),
-    subject: "Convite para o CRV Triad",
-    text: [
-      "Você recebeu um convite para acessar o CRV Triad.",
-      `Permissão: ${roleLabel}.`,
-      `O convite expira em ${expiresAt}.`,
-      `Entrar: ${loginUrl.toString()}`,
-      "Use este mesmo e-mail para criar sua senha ou acessar sua conta.",
-    ].join("\n"),
+    ...rendered,
     to: input.email,
   }
 }
 
-function buildVerificationMessage(env: IdpEnv, input: VerificationEmailInput): EmailMessage {
+export async function buildVerificationMessage(
+  env: IdpEnv,
+  input: VerificationEmailInput,
+): Promise<EmailMessage> {
   const verificationUrl = new URL("/api/auth/verify-email", env.BETTER_AUTH_URL)
   const verifiedLoginUrl = new URL("/login", env.IDP_STUDIO_URL)
   verifiedLoginUrl.searchParams.set("verified", "true")
   verificationUrl.searchParams.set("token", input.token)
   verificationUrl.searchParams.set("callbackURL", verifiedLoginUrl.toString())
+  const rendered = await renderAuthEmail(
+    <VerificationEmailTemplate actionUrl={verificationUrl.toString()} />,
+    verificationEmailSubject,
+    verificationUrl.toString(),
+    [new URL(env.BETTER_AUTH_URL).origin],
+  )
 
   return {
-    html: [
-      "<p>Confirme seu e-mail para acessar o CRV Triad.</p>",
-      `<p><a href="${escapeHtml(verificationUrl.toString())}">Confirmar e-mail</a></p>`,
-      "<p>Se você não solicitou esta confirmação, ignore este e-mail.</p>",
-    ].join(""),
-    subject: "Confirme seu e-mail no CRV Triad",
-    text: [
-      "Confirme seu e-mail para acessar o CRV Triad.",
-      `Confirmar e-mail: ${verificationUrl.toString()}`,
-      "Se você não solicitou esta confirmação, ignore este e-mail.",
-    ].join("\n"),
+    ...rendered,
     to: input.email,
   }
 }
 
-function buildPasswordResetMessage(env: IdpEnv, input: PasswordResetEmailInput): EmailMessage {
+export async function buildPasswordResetMessage(
+  env: IdpEnv,
+  input: PasswordResetEmailInput,
+): Promise<EmailMessage> {
   const resetUrl = new URL(
     `/api/auth/reset-password/${encodeURIComponent(input.token)}`,
     env.BETTER_AUTH_URL,
@@ -167,32 +179,19 @@ function buildPasswordResetMessage(env: IdpEnv, input: PasswordResetEmailInput):
     "callbackURL",
     new URL("/reset-password", env.IDP_STUDIO_URL).toString(),
   )
+  const rendered = await renderAuthEmail(
+    <PasswordResetEmailTemplate actionUrl={resetUrl.toString()} />,
+    passwordResetEmailSubject,
+    resetUrl.toString(),
+    [new URL(env.BETTER_AUTH_URL).origin],
+  )
 
   return {
-    html: [
-      "<p>Recebemos uma solicitação para redefinir sua senha no CRV Triad.</p>",
-      `<p><a href="${escapeHtml(resetUrl.toString())}">Redefinir senha</a></p>`,
-      "<p>Se você não solicitou essa alteração, ignore este e-mail.</p>",
-    ].join(""),
-    subject: "Redefinição de senha do CRV Triad",
-    text: [
-      "Recebemos uma solicitação para redefinir sua senha no CRV Triad.",
-      `Redefinir senha: ${resetUrl.toString()}`,
-      "Se você não solicitou essa alteração, ignore este e-mail.",
-    ].join("\n"),
+    ...rendered,
     to: input.email,
   }
 }
 
 function isRetryableStatus(status: number): boolean {
   return status === 429 || status >= 500
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;")
 }
