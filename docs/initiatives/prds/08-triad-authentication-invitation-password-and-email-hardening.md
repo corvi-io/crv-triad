@@ -510,4 +510,7 @@ component input and keep the current transport/provider boundary unchanged.
       conditional invitation consumption, native user creation, native hashing,
       and credential-account insertion share one rollback boundary. The full
       evidence and rejected endpoint-hook alternative are recorded in the
-      execution plan.
+      execution plan. Local deterministic tests prove Better Auth rollback after
+      post-consumption failure, but a simultaneous-acceptance run against real
+      Drizzle/PostgreSQL remains blocked until a credential-free isolated test
+      database or repository-owned container harness is available.

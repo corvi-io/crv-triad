@@ -37,7 +37,7 @@ export class PendingInvitationAlreadyExistsError extends Error {
   }
 }
 
-async function lockPendingInvitationEmail(db: IdpDatabase, email: string) {
+export async function lockPendingInvitationEmail(db: IdpDatabase, email: string) {
   await db.execute(
     sql`select pg_advisory_xact_lock(hashtext('idp_invitations_pending_email'), hashtext(${email}))`,
   )

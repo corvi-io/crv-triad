@@ -685,6 +685,75 @@ describe("createAuthOptions", () => {
     })
   })
 
+  it("rolls back invitation consumption and native identity writes after credential failure", async () => {
+    const secret = createInvitationSecret()
+    const now = new Date()
+    const memoryDb: Record<string, Array<Record<string, unknown>>> = {
+      account: [],
+      invitation: [
+        {
+          acceptedAt: null,
+          acceptedByUserId: null,
+          createdAt: now,
+          email: "rollback-user@example.invalid",
+          expiresAt: new Date(now.getTime() + 60_000),
+          id: "rollback-invitation-id",
+          invitedByUserId: null,
+          role: "member",
+          status: "pending",
+          tokenDigest: secret.digest,
+          tokenIssuedAt: now,
+          updatedAt: now,
+        },
+      ],
+      session: [],
+      user: [],
+      verification: [],
+    }
+    const options = createAuthOptions(env as never, {} as never, emailSender)
+    const accountCreateBefore = options.databaseHooks?.account?.create?.before
+    if (!accountCreateBefore) throw new Error("Expected the credential proof hook.")
+
+    const auth = betterAuth({
+      ...options,
+      database: memoryAdapter(memoryDb),
+      databaseHooks: {
+        ...options.databaseHooks,
+        account: {
+          create: {
+            ...options.databaseHooks?.account?.create,
+            before: async (incomingAccount: unknown, context: unknown) => {
+              await accountCreateBefore(incomingAccount as never, context as never)
+              throw new Error("Injected credential persistence failure.")
+            },
+          },
+        },
+      },
+      logger: { disabled: true },
+      rateLimit: { enabled: false },
+    })
+    const client = createSessionTestClient((request) => auth.handler(request), env.BETTER_AUTH_URL)
+
+    const response = await client.request("/sign-up/email", {
+      body: {
+        email: "untrusted-input@example.invalid",
+        invitationToken: secret.token,
+        name: "Usuário TRIAD",
+        password: "uma frase longa e exclusiva",
+        rememberMe: false,
+      },
+    })
+
+    expect(response.status).toBe(500)
+    expect(memoryDb.user).toHaveLength(0)
+    expect(memoryDb.account).toHaveLength(0)
+    expect(memoryDb.invitation[0]).toMatchObject({
+      acceptedAt: null,
+      acceptedByUserId: null,
+      status: "pending",
+    })
+  })
+
   it("rejects a Google user-create callback without a verified email claim", async () => {
     const options = createAuthOptions(env as never, {} as never, emailSender)
 

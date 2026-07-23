@@ -459,6 +459,30 @@ describe("custom routes", () => {
     await expect(request()).resolves.toMatchObject({ status: 429 })
   })
 
+  it("globally bounds resolve attempts that rotate through distinct well-formed proofs", async () => {
+    const resolutionRow = {
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      role: "member",
+      status: "pending",
+      tokenIssuedAt: new Date("2026-07-01T00:00:00Z"),
+    }
+    const { db } = createInvitationRouteDatabase(Array.from({ length: 20 }, () => [resolutionRow]))
+    const app = new Elysia().use(createInvitationRoutes({} as never, db as never))
+
+    const request = () =>
+      app.handle(
+        new Request("http://idp.test/invitations/resolve", {
+          body: JSON.stringify({ token: createInvitationSecret().token }),
+          method: "POST",
+        }),
+      )
+
+    for (let index = 0; index < 20; index += 1) {
+      expect((await request()).status).toBe(200)
+    }
+    await expect(request()).resolves.toMatchObject({ status: 429 })
+  })
+
   it("lists users with admin access", async () => {
     const auth = { api: { getSession: async () => ({ user: { id: "admin-1" } }) } }
     const createdAt = new Date("2026-07-10T10:00:00Z")

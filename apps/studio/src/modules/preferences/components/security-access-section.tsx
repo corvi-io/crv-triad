@@ -40,6 +40,8 @@ export function SecurityAccessSection({ googleResult }: SecurityAccessSectionPro
     handleSubmit,
     register,
     reset,
+    setError,
+    setFocus,
     watch,
   } = useForm<ChangePasswordFormValues>({
     defaultValues: {
@@ -100,11 +102,16 @@ export function SecurityAccessSection({ googleResult }: SecurityAccessSectionPro
       if (response.error) throw new Error("password_change_unavailable")
     },
     onError: (error) => {
+      if (error.message === "password_policy") {
+        setError("newPassword", {
+          message: "Escolha uma senha menos comum ou previsível.",
+          type: "server",
+        })
+        setFocus("newPassword")
+        return
+      }
       setActionMessage({
-        text:
-          error.message === "password_policy"
-            ? "Escolha uma senha menos comum ou previsível."
-            : "Não foi possível alterar a senha. Confira a senha atual e tente novamente.",
+        text: "Não foi possível alterar a senha. Confira a senha atual e tente novamente.",
         tone: "error",
       })
     },

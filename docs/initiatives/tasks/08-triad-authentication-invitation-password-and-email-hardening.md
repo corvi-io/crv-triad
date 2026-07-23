@@ -283,11 +283,26 @@ headers, and rendered message bodies.
   `0002_kind_giant_man.sql`. SQL and Drizzle snapshot/journal were reviewed; the migration adds
   digest/issuance columns, expires legacy pending rows, and creates the unique digest index. It was
   not applied or schema-pushed.
+- Review-fix transaction evidence: bootstrap now shares the per-email PostgreSQL advisory-lock
+  contract, selects only non-expired pending admin proof with a digest, serializes concurrent runs,
+  and commits failed delivery as revoked before a waiting run may reissue. Deterministic tests cover
+  invitation history, concurrent bootstrap calls, and failure/reissue. Better Auth's transactional
+  memory adapter proves rollback to a pending invitation with no partial native identity/account
+  after an injected post-consumption failure; its documented non-serializing behavior means it
+  cannot prove simultaneous acceptance. The Docker CLI and `psql` were present locally, but the
+  Docker daemon was unavailable and the repository provides no credential-free PostgreSQL test
+  database or container harness. No shared database or real migration was touched. The remaining
+  unblocking condition is an isolated PostgreSQL harness where the generated schema can be applied
+  and simultaneous native signup transactions can be observed.
+- Review-fix abuse/accessibility evidence: proof resolution now combines bounded per-proof and
+  process-wide buckets without trusting forwarded headers; distinct well-formed proofs reach 429 in
+  focused tests. Studio maps server password-policy rejection to the new-password field, preserves
+  its described-by relationship, and moves focus there under test.
 - IDP tests/check/build: `bun --filter idp check`, `bun --filter idp build`, and
-  `bun --filter idp test` passed; Vitest reported 13 files and 93 tests passing.
+  `bun --filter idp test` passed; Vitest reported 13 files and 97 tests passing.
 - Studio tests/check/build: `bun --filter studio routes:generate`, `bun --filter studio check`,
   `bun --filter studio build`, and `bun --filter studio test:production-boundary` passed; Vitest
-  reported 30 files and 180 tests passing after rebasing onto the current `staging` base.
+  reported 30 files and 181 tests passing on the current `staging` base.
 - Playwright: `bun --filter studio test:e2e -- tests/e2e/auth-lifecycle.spec.ts` passed 6 Chromium
   tests, including valid acceptance, replay rejection, reset, verified-Google regressions, and
   no-session success behavior.

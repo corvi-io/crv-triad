@@ -1,8 +1,7 @@
 # IDP Authentication Lifecycle
 
 The IDP uses Better Auth `1.6.23` as the authentication engine. Both `apps/idp` and
-`apps/studio` resolve that version through `bun.lock`; their declared compatible ranges differ, but
-no package change is required while the resolved version remains aligned.
+`apps/studio` pin that reviewed version, and `bun.lock` resolves the same graph for both consumers.
 
 ## Native capability map
 
@@ -52,6 +51,11 @@ verification, and reset delivery.
 - Resend marks the old invitation `superseded`, creates a new UUIDv7 invitation and digest, and
   attempts delivery. Provider failure never returns the raw value and the older link remains
   unusable.
+- Bootstrap acquires the same PostgreSQL transaction-scoped advisory lock used by invitation
+  creation before checking identity and invitation state. It reuses only a non-expired pending
+  admin invitation with a digest, ignoring historical/member rows. Delivery completes while the
+  lock is held; a failed delivery is committed as revoked before the lock is released so a waiting
+  or later bootstrap can safely reissue exactly one invitation.
 - Migration `0002_kind_giant_man.sql` adds the nullable digest/issuance fields and unique digest
   index, then expires legacy pending rows that cannot have a secure proof. Operations must reissue
   those invitations; the migration must be applied only through the authorized deployment process.
@@ -72,6 +76,11 @@ have no remote images, tracking, marketing, social, or unsubscribe content. `ema
 fixed synthetic data. Resend transport timeout, retry, idempotency, and sanitized-failure behavior
 remain unchanged; ENG-39 still owns durable queueing, workers, shutdown recovery, metrics, and
 alerts.
+
+Invitation proof resolution uses both a bounded per-proof bucket and a bounded process-wide bucket.
+The global bucket intentionally avoids client-address headers because the current deployment contract
+does not establish a trusted proxy normalization boundary for them; distinct well-formed proofs
+therefore cannot bypass throttling by varying proof values or spoofing forwarded headers.
 
 The visual hierarchy was informed by React Email's official Studio welcome reference and its
 official render examples. TRIAD did not copy template source: the IDP layout, Portuguese copy,

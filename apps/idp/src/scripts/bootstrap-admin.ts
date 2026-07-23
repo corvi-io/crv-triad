@@ -1,11 +1,11 @@
-import { and, eq } from "drizzle-orm"
+import { and, desc, eq, gt, isNotNull } from "drizzle-orm"
 import { z } from "zod"
 
 import { loadEnv } from "../config/env.js"
 import { createDatabase, type IdpDatabase } from "../database/client.js"
 import { invitation, user } from "../database/schema.js"
 import { normalizeEmail } from "../identity/access-policy.js"
-import { createInvitationSecret } from "../identity/invitations.js"
+import { createInvitationSecret, lockPendingInvitationEmail } from "../identity/invitations.js"
 import {
   type AuthEmailSender,
   assertAuthEmailSent,
@@ -38,62 +38,77 @@ export async function bootstrapAdmin(
   authEmailSender?: Pick<AuthEmailSender, "sendInvitation">,
 ) {
   const email = normalizeEmail(input.email)
-  const [existingUser] = await db.select().from(user).where(eq(user.email, email)).limit(1)
+  const outcome = await db.transaction(async (transaction) => {
+    const tx = transaction as unknown as IdpDatabase
+    await lockPendingInvitationEmail(tx, email)
+    const now = new Date()
 
-  if (existingUser) {
-    if (existingUser.role === "admin" && existingUser.status === "active") {
-      return { created: false, userId: existingUser.id }
+    const [existingUser] = await tx.select().from(user).where(eq(user.email, email)).limit(1)
+    if (existingUser) {
+      if (existingUser.role === "admin" && existingUser.status === "active") {
+        return { result: { created: false as const, userId: existingUser.id } }
+      }
+
+      throw new Error("A non-active-admin user already exists for this email.")
     }
 
-    throw new Error("A non-active-admin user already exists for this email.")
-  }
+    const [existingInvitation] = await tx
+      .select()
+      .from(invitation)
+      .where(
+        and(
+          eq(invitation.email, email),
+          eq(invitation.role, "admin"),
+          eq(invitation.status, "pending"),
+          gt(invitation.expiresAt, now),
+          isNotNull(invitation.tokenDigest),
+        ),
+      )
+      .orderBy(desc(invitation.createdAt), desc(invitation.id))
+      .limit(1)
 
-  const [existingInvitation] = await db
-    .select()
-    .from(invitation)
-    .where(eq(invitation.email, email))
-    .limit(1)
+    if (existingInvitation) {
+      return { result: { created: false as const, invitationId: existingInvitation.id } }
+    }
 
-  if (existingInvitation?.status === "pending" && existingInvitation.tokenDigest) {
-    return { created: false, invitationId: existingInvitation.id }
-  }
-
-  const id = createId()
-  const now = new Date()
-  const secret = createInvitationSecret()
-  const [created] = await db
-    .insert(invitation)
-    .values({
-      id,
-      email,
-      role: "admin",
-      status: "pending",
-      invitedByUserId: null,
-      expiresAt: new Date(Date.now() + input.expiresInDays * 24 * 60 * 60 * 1000),
-      tokenDigest: secret.digest,
-      tokenIssuedAt: now,
-    })
-    .returning()
-
-  if (authEmailSender) {
-    try {
-      const delivery = await authEmailSender.sendInvitation({
-        email: created.email,
-        expiresAt: created.expiresAt,
-        role: created.role,
-        token: secret.token,
+    const secret = createInvitationSecret()
+    const [created] = await tx
+      .insert(invitation)
+      .values({
+        id: createId(),
+        email,
+        role: "admin",
+        status: "pending",
+        invitedByUserId: null,
+        expiresAt: new Date(now.getTime() + input.expiresInDays * 24 * 60 * 60 * 1000),
+        tokenDigest: secret.digest,
+        tokenIssuedAt: now,
       })
-      assertAuthEmailSent(delivery)
-    } catch (error) {
-      await db
-        .update(invitation)
-        .set({ status: "revoked", updatedAt: new Date() })
-        .where(and(eq(invitation.id, created.id), eq(invitation.status, "pending")))
-      throw error
-    }
-  }
+      .returning()
 
-  return { created: true, invitationId: created.id }
+    if (authEmailSender) {
+      try {
+        const delivery = await authEmailSender.sendInvitation({
+          email: created.email,
+          expiresAt: created.expiresAt,
+          role: created.role,
+          token: secret.token,
+        })
+        assertAuthEmailSent(delivery)
+      } catch (error) {
+        await tx
+          .update(invitation)
+          .set({ status: "revoked", updatedAt: new Date() })
+          .where(and(eq(invitation.id, created.id), eq(invitation.status, "pending")))
+        return { deliveryError: error }
+      }
+    }
+
+    return { result: { created: true as const, invitationId: created.id } }
+  })
+
+  if ("deliveryError" in outcome) throw outcome.deliveryError
+  return outcome.result
 }
 
 async function main() {

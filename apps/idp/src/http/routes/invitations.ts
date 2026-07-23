@@ -20,6 +20,7 @@ import { buildPageMeta, getRepeatedQueryValues, parsePaginationQuery } from "../
 
 const INVITATION_EXPIRATION_MS = 24 * 60 * 60 * 1000
 const RATE_LIMIT_WINDOW_MS = 60_000
+const RESOLVE_GLOBAL_RATE_LIMIT = 20
 
 const createInvitationSchema = z.object({
   email: z.email(),
@@ -42,7 +43,12 @@ export function createInvitationRoutes(
   db: IdpDatabase,
   authEmailSender?: Pick<AuthEmailSender, "sendInvitation">,
 ) {
-  const resolveLimiter = createBoundedRateLimiter(10, RATE_LIMIT_WINDOW_MS)
+  const resolveGlobalLimiter = createBoundedRateLimiter(
+    RESOLVE_GLOBAL_RATE_LIMIT,
+    RATE_LIMIT_WINDOW_MS,
+    1,
+  )
+  const resolveTokenLimiter = createBoundedRateLimiter(10, RATE_LIMIT_WINDOW_MS)
   const resendLimiter = createBoundedRateLimiter(5, RATE_LIMIT_WINDOW_MS)
 
   return new Elysia({ name: "invitation-routes" })
@@ -56,7 +62,7 @@ export function createInvitationRoutes(
           ? body.token
           : ""
       const rateLimitKey = digestInvitationToken(token) ?? "malformed"
-      if (!resolveLimiter.accept(rateLimitKey)) {
+      if (!resolveGlobalLimiter.accept("global") || !resolveTokenLimiter.accept(rateLimitKey)) {
         return status(429, { state: "invalid" as const })
       }
 
