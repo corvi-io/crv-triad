@@ -4,10 +4,9 @@ import {
 } from "virtual:studio-client-management-source"
 import { createFileRoute } from "@tanstack/react-router"
 import { ClientDirectoryPage } from "@/modules/clients/client-directory-page"
+import { ClientManagementUnavailableState } from "@/modules/clients/client-management-unavailable-state"
 import { ClientRepositoryProvider } from "@/modules/clients/repository-context"
 import { type ClientSearch, validateClientSearch } from "@/modules/clients/search"
-import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
-import { PageHeader } from "@/modules/shared/components/layout/page-header"
 
 const repository = createClientRepository?.()
 
@@ -22,23 +21,7 @@ function ClientRoute() {
   const navigate = Route.useNavigate()
 
   if (!repository) {
-    return (
-      <ModuleLayout
-        head={
-          <PageHeader
-            title="Clientes"
-            description="Encontre clientes e consulte o histórico de atendimento."
-          />
-        }
-      >
-        <div
-          role="status"
-          className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground"
-        >
-          O gerenciamento de clientes está indisponível neste ambiente.
-        </div>
-      </ModuleLayout>
-    )
+    return <ClientManagementUnavailableState />
   }
 
   return (

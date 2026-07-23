@@ -1,17 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { type ReactNode, useEffect, useState } from "react"
 import { describe, expect, it, vi } from "vitest"
 import { ClientMemoryRepository } from "@/dev/clients/memory-repository"
-import { type AuthState, AuthStateProvider } from "@/modules/auth/services/auth-provider"
 import { ClientDirectoryPage } from "@/modules/clients/client-directory-page"
+import { ClientManagementUnavailableState } from "@/modules/clients/client-management-unavailable-state"
 import type { ClientRepository, ClientScenarioId } from "@/modules/clients/contracts"
 import { ClientRepositoryProvider } from "@/modules/clients/repository-context"
 import type { ClientSearch } from "@/modules/clients/search"
-import { ThemeProvider } from "@/modules/shared/theme/theme-provider"
-import { routeTree } from "@/routeTree.gen"
 
 const defaultSearch: ClientSearch = {
   contact: "all",
@@ -90,12 +87,13 @@ describe("client management pages", () => {
     expect(screen.queryByRole("table", { name: "Diretório de clientes" })).not.toBeInTheDocument()
   })
 
-  it("renders the disabled-source state at the authenticated route boundary", async () => {
-    renderClientRoute("/clients", authenticatedState())
+  it("renders the disabled-source presentation with its module context", () => {
+    render(<ClientManagementUnavailableState />)
 
     expect(
-      await screen.findByText("O gerenciamento de clientes está indisponível neste ambiente."),
+      screen.getByText("O gerenciamento de clientes está indisponível neste ambiente."),
     ).toHaveAttribute("role", "status")
+    expect(screen.getByRole("heading", { name: "Clientes" })).toBeVisible()
   })
 
   it("opens a profile and exposes summary, appointments, notes, and duplicate meaning", async () => {
@@ -239,24 +237,6 @@ function renderDirectory({
   return render(<Harness />)
 }
 
-function renderClientRoute(path: string, authState: AuthState) {
-  const queryClient = createQueryClient()
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [path] }),
-  })
-
-  return render(
-    <IsolatedQueryClientProvider queryClient={queryClient}>
-      <ThemeProvider>
-        <AuthStateProvider value={authState}>
-          <RouterProvider router={router} />
-        </AuthStateProvider>
-      </ThemeProvider>
-    </IsolatedQueryClientProvider>,
-  )
-}
-
 function IsolatedQueryClientProvider({
   children,
   queryClient,
@@ -275,18 +255,4 @@ function createQueryClient() {
       queries: { retry: false },
     },
   })
-}
-
-function authenticatedState(): AuthState {
-  return {
-    error: null,
-    isPending: false,
-    refetch: vi.fn(),
-    session: {
-      user: {
-        email: "reviewer@example.invalid",
-        name: "Pessoa Revisora",
-      },
-    },
-  }
 }

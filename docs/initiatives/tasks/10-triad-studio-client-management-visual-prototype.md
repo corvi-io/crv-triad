@@ -161,7 +161,9 @@ Record evidence as tasks are completed:
 - Result: passed; 15 focused client-management contract and repository tests.
 - Command: `bun --filter studio test -- tests/unit/client-management-page.test.tsx`
 - Result: passed; nine focused React Testing Library component tests rendering the directory,
-  profile drawer, disabled route boundary, and URL/page-reset list-filter callbacks.
+  profile drawer, lightweight disabled-source presentation, and URL/page-reset list-filter
+  callbacks. The production Playwright suite retains authenticated `/clients` route-level
+  disabled-source integration evidence.
 - Command: focused shared/migrated-consumer Vitest for `shared-component-contracts`,
   `scheduling-page`, `barbershop-setup-page`, and `component-inventory`.
 - Result: passed; 8 shared contracts, 11 Agenda tests, 14 setup tests, and one exhaustive inventory
@@ -174,6 +176,21 @@ Record evidence as tasks are completed:
   Vitest files and 209/214 tests before the same five parallel Agenda/setup timeouts stopped the
   command; those two files passed separately at 11/11 and 14/14. Build and production-boundary
   phases that the stopped command did not reach were run separately and passed.
+- CI evidence: Develop Pipeline
+  [30015806062](https://github.com/corvi-io/crv-triad/actions/runs/30015806062) on `15485c2`
+  passed 214/215 Studio tests, then timed out at five seconds while the disabled-source unit test
+  constructed the full generated route tree and authenticated provider stack. The deterministic
+  repair extracts the unchanged presentation into `ClientManagementUnavailableState`, tests it
+  directly without router/auth/theme/query setup or a higher timeout, and preserves production
+  Playwright route integration coverage.
+- Deterministic repair verification: the direct disabled-source test passed 1/1 in 103ms, the full
+  client page suite passed 9/9, and production Playwright passed 6/6 including authenticated
+  `/clients` with its source disabled. One full Studio check and its single bounded retry passed the
+  repaired test but stopped at 212/215 and 208/215 tests respectively due to the known unrelated
+  parallel timeout class in Agenda/setup; those affected files passed separately at 11/11 and
+  14/14. The normal pre-push hook automatically attempted the root check once more: API, IDP, and
+  Site passed, while Studio stopped at 206/215 under the same parallel saturation; the repaired
+  disabled-source test passed there in 176ms.
 - Command: `bun --filter studio build` and `bun --filter studio test:production-boundary`
 - Result: passed; production boundary verified across 44 files (1,016,404 bytes).
 - Command:
