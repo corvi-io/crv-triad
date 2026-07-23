@@ -17,7 +17,7 @@ import {
   type InvitationResolution,
   resolveInvitation,
 } from "@/modules/auth/services/auth-client"
-import { Button } from "@/modules/shared/components/ui/button"
+import { Button, buttonVariants } from "@/modules/shared/components/ui/button"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/modules/shared/components/ui/field"
 
 type AcceptInvitationScreenProps = {
@@ -112,9 +112,9 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
           <AuthFeedback tone="success">
             Sua senha foi criada. Entre normalmente para iniciar uma sessão.
           </AuthFeedback>
-          <Button className="w-full" render={<Link to="/login" />} size="lg">
+          <Link className={buttonVariants({ className: "w-full", size: "lg" })} to="/login">
             Ir para entrar
-          </Button>
+          </Link>
         </div>
       ) : null}
 
@@ -142,9 +142,9 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
       {!succeeded && isTerminalState(screenState) ? (
         <div className="space-y-5">
           <AuthFeedback tone="error">{terminalStateCopy[screenState]}</AuthFeedback>
-          <Button className="w-full" render={<Link to="/login" />} variant="outline">
+          <Link className={buttonVariants({ className: "w-full", variant: "outline" })} to="/login">
             Voltar para entrar
-          </Button>
+          </Link>
         </div>
       ) : null}
 

@@ -12,7 +12,7 @@ import {
   passwordResetSchema,
 } from "@/modules/auth/schemas/recovery-schema"
 import { resetPassword } from "@/modules/auth/services/auth-client"
-import { Button } from "@/modules/shared/components/ui/button"
+import { Button, buttonVariants } from "@/modules/shared/components/ui/button"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/modules/shared/components/ui/field"
 
 type ResetPasswordScreenProps = {
@@ -70,9 +70,12 @@ export function ResetPasswordScreen({ invalidToken, token }: ResetPasswordScreen
           <AuthFeedback tone="error">
             Este link é inválido, expirou ou já foi usado. Solicite uma nova redefinição.
           </AuthFeedback>
-          <Button render={<Link to="/forgot-password" />} className="w-full" size="lg">
+          <Link
+            className={buttonVariants({ className: "w-full", size: "lg" })}
+            to="/forgot-password"
+          >
             Solicitar novo link
-          </Button>
+          </Link>
         </div>
       ) : null}
 
@@ -81,9 +84,9 @@ export function ResetPasswordScreen({ invalidToken, token }: ResetPasswordScreen
           <AuthFeedback tone="success">
             Sua senha foi redefinida. As sessões anteriores foram encerradas.
           </AuthFeedback>
-          <Button render={<Link to="/login" />} className="w-full" size="lg">
+          <Link className={buttonVariants({ className: "w-full", size: "lg" })} to="/login">
             Voltar para entrar
-          </Button>
+          </Link>
         </div>
       ) : null}
 
