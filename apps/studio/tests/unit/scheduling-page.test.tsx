@@ -289,7 +289,7 @@ function renderSchedule(ui: ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <SchedulingRepositoryProvider repository={new SchedulingMemoryRepository()}>
+      <SchedulingRepositoryProvider repository={new SchedulingMemoryRepository(baseSearch.date)}>
         {ui}
       </SchedulingRepositoryProvider>
     </QueryClientProvider>,

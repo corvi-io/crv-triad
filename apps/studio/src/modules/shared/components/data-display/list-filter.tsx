@@ -30,6 +30,7 @@ type SingleSelectListFilterProps<Value extends string> = {
   label: string
   onValueChange: (value: Value) => void
   options: readonly ListFilterOption<Value>[]
+  showSelectedLabel?: boolean
   value: Value
 }
 
@@ -40,6 +41,7 @@ export function SingleSelectListFilter<Value extends string>({
   label,
   onValueChange,
   options,
+  showSelectedLabel = false,
   value,
 }: SingleSelectListFilterProps<Value>) {
   const active = value !== inactiveValue
@@ -55,7 +57,7 @@ export function SingleSelectListFilter<Value extends string>({
             count={active ? 1 : undefined}
             icon={icon}
             id={id}
-            label={label}
+            label={showSelectedLabel && selectedLabel ? selectedLabel : label}
           />
         }
       />
@@ -69,7 +71,7 @@ export function SingleSelectListFilter<Value extends string>({
             {options.map((option) => {
               const OptionIcon = option.icon
               return (
-                <DropdownMenuRadioItem key={option.value} value={option.value}>
+                <DropdownMenuRadioItem closeOnClick key={option.value} value={option.value}>
                   {OptionIcon ? <OptionIcon aria-hidden="true" /> : null}
                   {option.label}
                 </DropdownMenuRadioItem>

@@ -37,11 +37,11 @@ export type WorkspaceNavigationItem = {
 
 export const workspacePrimaryNavigation = [
   {
-    id: "clients",
-    label: "Clientes",
-    description: "Diretório e histórico de clientes.",
-    icon: ContactRoundIcon,
-    path: "/clients",
+    id: "dashboard",
+    label: "Dashboard",
+    description: "Entrada principal do TRIAD Studio.",
+    icon: HomeIcon,
+    path: "/overview",
     status: "active",
   },
   {
@@ -53,11 +53,11 @@ export const workspacePrimaryNavigation = [
     status: "active",
   },
   {
-    id: "dashboard",
-    label: "Dashboard",
-    description: "Entrada principal do TRIAD Studio.",
-    icon: HomeIcon,
-    path: "/overview",
+    id: "clients",
+    label: "Clientes",
+    description: "Diretório e histórico de clientes.",
+    icon: ContactRoundIcon,
+    path: "/clients",
     status: "active",
   },
 ] as const satisfies readonly WorkspaceNavigationItem[]

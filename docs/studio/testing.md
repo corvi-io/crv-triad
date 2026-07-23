@@ -60,6 +60,24 @@ first-invalid focus; full-reload reset; drawer focus return; axe; dark theme; re
 one-shot rollback/retry, persistent failure, deterministic reset, and delayed-operation isolation.
 Production-boundary tests reject the client memory source and representative scenario markers.
 
+`tests/e2e/dashboard.spec.ts` covers the authenticated operational Dashboard hierarchy at
+1600 × 900, shared compact filter menus, KPI semantic icons and bounded prior-period comparisons,
+five populated upcoming rows, seven operational flow tiles, workspace navigation order, bounded URL
+filters, invalid-professional URL normalization, safe drill-down
+destinations, existing appointment-drawer reuse, Dashboard-to-Agenda session-memory coherence,
+full-reload reset, delay/error/empty scenarios, historical current-state unavailability,
+light/dark/system, reduced motion, forced colors, computed progress track/indicator contrast,
+visible focus, 24px targets, medium/tablet/320-CSS-pixel reflow, page overflow, and axe. Focused
+Vitest covers URL allowlists and bounds, every accepted projection formula, zero denominators,
+collection caps, interleaved-professional conflicts, unsupported values, invalid professionals,
+shared repository identity, presentation actions, and loading/error/empty/disabled states.
+Production coverage proves `/overview` fails closed when scheduling is disabled. Actual browser
+200% zoom, VoiceOver/NVDA, and physical touch-device review remain manual. Focused unit coverage
+also proves comparison bounds/formulas/unavailable baselines and current/prior scheduling-scenario
+coherence in one repository read. The repository regression then reads the prior day with Agenda
+semantics, both from the same instance and a fresh instance with the same injected anchor, and
+requires identical counts and appointment IDs.
+
 `tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
 the resolved class at the first animation frame, measures browser-computed contrast for core
 semantic pairs, all four feedback roles, focus, input boundaries, and all eight schedule roles in

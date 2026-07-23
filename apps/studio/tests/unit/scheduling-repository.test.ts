@@ -5,6 +5,7 @@ import { ScheduleConflictError } from "@/modules/scheduling/contracts"
 import { applyAppointmentReschedule } from "@/modules/scheduling/queries"
 
 const SELECTED_AGENDA_DATE = "2026-07-22"
+const createRepository = () => new SchedulingMemoryRepository(SELECTED_AGENDA_DATE)
 
 const query = (scenarioId = "normal", unitId: ScheduleDayQuery["unitId"] = "centro") => ({
   endDate: SELECTED_AGENDA_DATE,
@@ -34,7 +35,7 @@ const input = (overrides: Partial<AppointmentInput> = {}): AppointmentInput => (
 
 describe("scheduling memory repository", () => {
   it("returns the approved bounded fixture set and isolates units", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     const centro = await repository.getDay(query())
     const artesao = await repository.getDay(query("normal", "artesao"))
 
@@ -45,10 +46,10 @@ describe("scheduling memory repository", () => {
   })
 
   it("keeps occupancy privacy-safe and excludes canceled/no-show", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     const day = await repository.getDay(query())
 
-    expect(day.occupancies).toHaveLength(30)
+    expect(day.occupancies).toHaveLength(31)
     expect(day.occupancies[0]).toEqual(
       expect.objectContaining({ date: SELECTED_AGENDA_DATE, id: "kanban-01" }),
     )
@@ -56,8 +57,62 @@ describe("scheduling memory repository", () => {
     expect(day.occupancies[0]).not.toHaveProperty("status")
   })
 
+  it("keeps the prior canonical day identical across Dashboard and subsequent Agenda reads", async () => {
+    const repository = createRepository()
+    const day = await repository.getDay({
+      endDate: SELECTED_AGENDA_DATE,
+      focusDate: SELECTED_AGENDA_DATE,
+      scenarioId: "normal",
+      startDate: "2026-07-21",
+      unitId: "centro",
+    })
+    const dashboardPriorIds = day.appointments
+      .filter(({ date }) => date === "2026-07-21")
+      .map(({ id }) => id)
+      .toSorted()
+    const agendaPrior = await repository.getDay({
+      endDate: "2026-07-21",
+      scenarioId: "normal",
+      startDate: "2026-07-21",
+      unitId: "centro",
+    })
+    const independentAgendaPrior = await createRepository().getDay({
+      endDate: "2026-07-21",
+      scenarioId: "normal",
+      startDate: "2026-07-21",
+      unitId: "centro",
+    })
+    const incorrectlyShiftedDay = await repository.getDay({
+      endDate: "2026-07-20",
+      scenarioId: "normal",
+      startDate: "2026-07-20",
+      unitId: "centro",
+    })
+    const currentAgain = await repository.getDay(query())
+
+    expect(day.appointments.filter(({ date }) => date === SELECTED_AGENDA_DATE)).toHaveLength(42)
+    expect(dashboardPriorIds).toHaveLength(30)
+    expect(agendaPrior.appointments.map(({ id }) => id).toSorted()).toEqual(dashboardPriorIds)
+    expect(independentAgendaPrior.appointments.map(({ id }) => id).toSorted()).toEqual(
+      dashboardPriorIds,
+    )
+    expect(incorrectlyShiftedDay.appointments).toEqual([])
+    expect(currentAgain.appointments).toHaveLength(42)
+    expect(currentAgain.appointments.map(({ id }) => id).toSorted()).toEqual(
+      day.appointments
+        .filter(({ date }) => date === SELECTED_AGENDA_DATE)
+        .map(({ id }) => id)
+        .toSorted(),
+    )
+    expect(
+      day.appointments.filter(
+        ({ date, start }) => date === SELECTED_AGENDA_DATE && start === "16:00",
+      ),
+    ).toHaveLength(6)
+  })
+
   it("projects data-bearing scenarios and occupancies onto the selected Agenda date", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
 
     for (const [scenarioId, expectedCount] of [
       ["many-professionals", 42],
@@ -75,7 +130,7 @@ describe("scheduling memory repository", () => {
   })
 
   it("keeps scenarios deterministic, resettable, and session-memory-only", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     const before = await repository.getDay(query())
     await repository.cancel(before.appointments[0].id, "client")
     await repository.reset()
@@ -103,7 +158,7 @@ describe("scheduling memory repository", () => {
   })
 
   it("requires cancellation and unpaid-completion decisions", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     const day = await repository.getDay(query())
     const pending = day.appointments.find(({ paymentStatus }) => paymentStatus === "pending")
     expect(pending).toBeDefined()
@@ -125,7 +180,7 @@ describe("scheduling memory repository", () => {
   })
 
   it("updates status and payment atomically", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     const day = await repository.getDay(query())
     const candidate = day.appointments.find(({ status }) => status === "confirmed")
     expect(candidate).toBeDefined()
@@ -137,7 +192,7 @@ describe("scheduling memory repository", () => {
   })
 
   it("keeps generic edits status-neutral and reserves state changes for transitions", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     const day = await repository.getDay(query())
     const candidate = day.appointments.find(({ status }) => status === "confirmed")
     expect(candidate).toBeDefined()
@@ -159,7 +214,7 @@ describe("scheduling memory repository", () => {
   })
 
   it("reschedules start and professional without changing status and rebuilds occupancy atomically", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     const day = await repository.getDay(query())
     const candidate = day.appointments.find(({ id }) => id === "kanban-05")
     expect(candidate).toBeDefined()
@@ -194,7 +249,7 @@ describe("scheduling memory repository", () => {
   })
 
   it("rejects terminal, ineligible, and out-of-hours allocation changes", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     const day = await repository.getDay(query())
     const terminal = day.appointments.find(({ status }) => status === "completed")
     const eligible = day.appointments.find(({ id }) => id === "kanban-05")
@@ -218,7 +273,7 @@ describe("scheduling memory repository", () => {
   })
 
   it("fails exactly the next transition in the rollback scenario", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     const day = await repository.getDay(query("transition-rollback"))
 
     await expect(
@@ -230,7 +285,7 @@ describe("scheduling memory repository", () => {
   })
 
   it("isolates a delayed result from a later scenario selection", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     const slowRequest = repository.getDay(query("slow"))
     const empty = await repository.getDay(query("empty"))
     const slow = await slowRequest
@@ -240,7 +295,7 @@ describe("scheduling memory repository", () => {
   })
 
   it("allows the default service to save an extra-professional slot", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     const day = await repository.getDay(query("many-professionals"))
     const service = day.services.find(({ id }) => id === "service-hair-beard")
     expect(service?.eligibleProfessionalIds).toContain("professional-extra-7")
@@ -258,7 +313,7 @@ describe("scheduling memory repository", () => {
   })
 
   it("rejects conflicts, unavailable periods, and off-grid starts", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     await repository.getDay(query("conflict"))
     await expect(repository.create(input({ start: "10:15" }))).rejects.toBeInstanceOf(
       ScheduleConflictError,
@@ -272,7 +327,7 @@ describe("scheduling memory repository", () => {
   })
 
   it("fails once and then recovers in the next-failure scenario", async () => {
-    const repository = new SchedulingMemoryRepository()
+    const repository = createRepository()
     await expect(repository.getDay(query("next-failure"))).rejects.toThrow(
       "Intentional development failure",
     )
@@ -281,8 +336,8 @@ describe("scheduling memory repository", () => {
     })
   })
 
-  it("keeps the persistent error active after date projection until the scenario changes", async () => {
-    const repository = new SchedulingMemoryRepository()
+  it("keeps the persistent error active after scenario projection until the scenario changes", async () => {
+    const repository = createRepository()
 
     await expect(repository.getDay(query("persistent-error"))).rejects.toThrow(
       "Intentional development failure",

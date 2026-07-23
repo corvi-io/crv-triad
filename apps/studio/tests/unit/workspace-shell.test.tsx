@@ -1,6 +1,8 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router"
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { type ReactNode, useEffect } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { type AuthState, AuthStateProvider } from "@/modules/auth/services/auth-provider"
@@ -28,20 +30,40 @@ const authenticatedState: AuthState = {
 }
 
 function renderWorkspace(path = "/overview") {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      mutations: { retry: false },
+      queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+    },
+  })
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
   })
 
   const result = render(
-    <ThemeProvider>
-      <AuthStateProvider value={authenticatedState}>
-        <RouterProvider router={router} />
-      </AuthStateProvider>
-    </ThemeProvider>,
+    <IsolatedQueryClientProvider queryClient={queryClient}>
+      <ThemeProvider>
+        <AuthStateProvider value={authenticatedState}>
+          <RouterProvider router={router} />
+        </AuthStateProvider>
+      </ThemeProvider>
+    </IsolatedQueryClientProvider>,
   )
 
   return { ...result, router }
+}
+
+function IsolatedQueryClientProvider({
+  children,
+  queryClient,
+}: {
+  children: ReactNode
+  queryClient: QueryClient
+}) {
+  useEffect(() => () => queryClient.clear(), [queryClient])
+
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 }
 
 describe("authenticated workspace shell", () => {

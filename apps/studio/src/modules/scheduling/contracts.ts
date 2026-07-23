@@ -71,6 +71,7 @@ export type ScheduleOccupancy = Pick<
 
 export type ScheduleDayQuery = {
   endDate: string
+  focusDate?: string
   scenarioId?: string
   startDate: string
   unitId: SchedulingUnitId

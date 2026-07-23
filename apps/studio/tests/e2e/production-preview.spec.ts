@@ -66,6 +66,23 @@ test("keeps the authenticated clients route but excludes its memory source in pr
   await expect(page.getByText("Cliente Sintético 01")).toHaveCount(0)
 })
 
+test("keeps the Dashboard route but fails closed without scheduling memory in production", async ({
+  page,
+}) => {
+  await page.unroute("**/api/auth/**")
+  await routeAuthenticatedSession(page)
+  await page.goto("/overview?scenario=normal")
+
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
+  await expect(
+    page.getByText(
+      "O Dashboard operacional está desativado neste ambiente porque a fonte de agendamentos não está disponível.",
+    ),
+  ).toBeVisible()
+  await expect(page.getByRole("button", { name: "Novo agendamento" })).toHaveCount(0)
+  await expect(page.getByText("Carlos Lima")).toHaveCount(0)
+})
+
 async function routeAuthenticatedSession(page: Page) {
   await page.route("**/api/auth/**", async (route) => {
     if (route.request().method() === "OPTIONS") {

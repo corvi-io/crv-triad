@@ -1,11 +1,82 @@
+import { createSchedulingRepository } from "virtual:studio-scheduling-prototype"
 import { createFileRoute } from "@tanstack/react-router"
 
+import { DashboardPage } from "@/modules/scheduling/dashboard-page"
+import {
+  type DashboardSearch,
+  validateDashboardSearch,
+} from "@/modules/scheduling/dashboard-search"
+import { SchedulingRepositoryProvider } from "@/modules/scheduling/repository-context"
+import { formatDateOnly } from "@/modules/shared/components/forms/date-picker"
 import { WorkspaceOverview } from "@/modules/shared/components/workspace-overview"
+
+const repository = createSchedulingRepository?.()
 
 export const Route = createFileRoute("/_authenticated/overview/")({
   component: OverviewRoute,
+  validateSearch: (search: Record<string, unknown>): Partial<DashboardSearch> =>
+    validateDashboardSearch(
+      search,
+      formatDateOnly(new Date()),
+      repository?.scenarios().map(({ id }) => id),
+    ),
 })
 
 function OverviewRoute() {
-  return <WorkspaceOverview />
+  const search = validateDashboardSearch(
+    Route.useSearch(),
+    formatDateOnly(new Date()),
+    repository?.scenarios().map(({ id }) => id),
+  )
+  const navigate = Route.useNavigate()
+  if (!repository) {
+    return (
+      <WorkspaceOverview
+        state="disabled"
+        onFiltersChange={() => undefined}
+        onNavigateAgenda={() => undefined}
+        onNavigateServices={() => undefined}
+        onNewAppointment={() => undefined}
+        onOpenAppointment={() => undefined}
+        onRetry={() => undefined}
+      />
+    )
+  }
+  return (
+    <SchedulingRepositoryProvider repository={repository}>
+      <DashboardPage
+        search={search}
+        onNavigateClients={() =>
+          navigate({
+            search: {
+              contact: "all",
+              duplicate: "all",
+              page: 1,
+              pageSize: 10,
+              scenario: "typical",
+              sortDirection: "asc",
+              sortField: "name",
+              status: "active",
+              tag: "",
+            },
+            to: "/clients",
+          })
+        }
+        onNavigateServices={() =>
+          navigate({
+            search: {
+              availabilityDate: search.date,
+              availabilityView: "week",
+              scenario: "single-unit",
+              section: "services",
+            },
+            to: "/barbershop-setup",
+          })
+        }
+        onSearchChange={(next) =>
+          navigate({ replace: true, search: (previous) => ({ ...previous, ...next }) })
+        }
+      />
+    </SchedulingRepositoryProvider>
+  )
 }
