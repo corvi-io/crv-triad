@@ -248,7 +248,7 @@ export function SchedulePage({
 
   return (
     <ModuleLayout
-      bodyViewportClassName="flex h-full flex-col gap-3 pb-2"
+      bodyViewportClassName="flex h-full flex-col gap-3"
       head={
         <>
           <PageHeader

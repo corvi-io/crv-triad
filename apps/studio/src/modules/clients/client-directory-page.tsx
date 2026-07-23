@@ -1,4 +1,14 @@
-import { ArchiveIcon, EyeIcon, PlusIcon, RotateCcwIcon, SearchIcon, UsersIcon } from "lucide-react"
+import {
+  ArchiveIcon,
+  ContactIcon,
+  CopyCheckIcon,
+  EyeIcon,
+  PlusIcon,
+  RotateCcwIcon,
+  SlidersHorizontalIcon,
+  TagsIcon,
+  UsersIcon,
+} from "lucide-react"
 import { useDeferredValue, useState } from "react"
 import { toast } from "sonner"
 import {
@@ -14,6 +24,8 @@ import {
   DataTableSortableHeaderCell,
   type DataTableSortState,
 } from "@/modules/shared/components/data-display/data-table"
+import { SingleSelectListFilter } from "@/modules/shared/components/data-display/list-filter"
+import { ListSearchField } from "@/modules/shared/components/data-display/list-search-field"
 import { EmptyState } from "@/modules/shared/components/feedback/empty-state"
 import { StatusBadge } from "@/modules/shared/components/feedback/status-badge"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
@@ -21,14 +33,6 @@ import { PageHeader } from "@/modules/shared/components/layout/page-header"
 import { ActionDrawer } from "@/modules/shared/components/overlays/action-drawer"
 import { ConfirmationDialog } from "@/modules/shared/components/overlays/confirmation-dialog"
 import { Button } from "@/modules/shared/components/ui/button"
-import { Input } from "@/modules/shared/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/modules/shared/components/ui/select"
 import { applyInputMask } from "@/modules/shared/lib/input-masks"
 import { ClientForm } from "./client-form"
 import { ClientProfileDrawer } from "./client-profile-drawer"
@@ -91,7 +95,11 @@ export function ClientDirectoryPage({
   }
 
   const hasFilters =
-    search.contact !== "all" || search.duplicate !== "all" || Boolean(search.tag) || searchText
+    search.status !== "active" ||
+    search.contact !== "all" ||
+    search.duplicate !== "all" ||
+    Boolean(search.tag) ||
+    searchText
   const page = query.data
 
   return (
@@ -109,69 +117,69 @@ export function ClientDirectoryPage({
                 </Button>
               }
             />
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(16rem,1fr)_repeat(4,minmax(9rem,auto))]">
-              <label className="relative block" htmlFor="client-directory-search">
-                <span className="sr-only">Buscar clientes</span>
-                <SearchIcon
-                  aria-hidden="true"
-                  className="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground"
-                />
-                <Input
-                  id="client-directory-search"
-                  className="pl-9"
-                  placeholder="Buscar por nome, telefone ou e-mail"
-                  value={searchText}
-                  onChange={(event) => setSearchText(event.currentTarget.value)}
-                />
-              </label>
-              <ClientSelect
+            <fieldset className="flex min-w-0 items-center gap-1.5 overflow-x-auto rounded-lg border bg-card p-2">
+              <legend className="sr-only">Busca e filtros de clientes</legend>
+              <ListSearchField
+                id="client-directory-search"
+                aria-label="Buscar clientes"
+                placeholder="Buscar por nome, telefone ou e-mail"
+                value={searchText}
+                onChange={(event) => setSearchText(event.currentTarget.value)}
+              />
+              <SingleSelectListFilter
+                icon={SlidersHorizontalIcon}
+                id="client-status-filter"
+                inactiveValue="active"
                 label="Estado"
                 value={search.status}
-                onValueChange={(value) =>
-                  onSearchChange({ page: 1, status: value as ClientSearch["status"] })
-                }
+                onValueChange={(value) => onSearchChange({ page: 1, status: value })}
                 options={[
-                  ["active", "Ativos"],
-                  ["archived", "Arquivados"],
+                  { label: "Ativos", value: "active" },
+                  { label: "Arquivados", value: "archived" },
                 ]}
               />
-              <ClientSelect
+              <SingleSelectListFilter
+                icon={ContactIcon}
+                id="client-contact-filter"
+                inactiveValue="all"
                 label="Contato"
                 value={search.contact}
-                onValueChange={(value) =>
-                  onSearchChange({ contact: value as ClientSearch["contact"], page: 1 })
-                }
+                onValueChange={(value) => onSearchChange({ contact: value, page: 1 })}
                 options={[
-                  ["all", "Todos os contatos"],
-                  ["complete", "Contato completo"],
-                  ["incomplete", "Contato incompleto"],
+                  { label: "Todos os contatos", value: "all" },
+                  { label: "Contato completo", value: "complete" },
+                  { label: "Contato incompleto", value: "incomplete" },
                 ]}
               />
-              <ClientSelect
+              <SingleSelectListFilter
+                icon={CopyCheckIcon}
+                id="client-duplicate-filter"
+                inactiveValue="all"
                 label="Duplicidade"
                 value={search.duplicate}
-                onValueChange={(value) =>
-                  onSearchChange({ duplicate: value as ClientSearch["duplicate"], page: 1 })
-                }
+                onValueChange={(value) => onSearchChange({ duplicate: value, page: 1 })}
                 options={[
-                  ["all", "Todos"],
-                  ["possible", "Possível duplicidade"],
+                  { label: "Todos", value: "all" },
+                  { label: "Possível duplicidade", value: "possible" },
                 ]}
               />
-              <ClientSelect
+              <SingleSelectListFilter
+                icon={TagsIcon}
+                id="client-tag-filter"
+                inactiveValue="all"
                 label="Tag"
                 value={search.tag || "all"}
                 onValueChange={(value) =>
                   onSearchChange({ page: 1, tag: value === "all" ? "" : value })
                 }
                 options={[
-                  ["all", "Todas as tags"],
-                  ["frequente", "Frequente"],
-                  ["manha", "Manhã"],
-                  ["barba", "Barba"],
+                  { label: "Todas as tags", value: "all" },
+                  { label: "Frequente", value: "frequente" },
+                  { label: "Manhã", value: "manha" },
+                  { label: "Barba", value: "barba" },
                 ]}
               />
-            </div>
+            </fieldset>
           </>
         }
         bodyClassName="min-h-0"
@@ -403,33 +411,6 @@ function ClientRow({
         </StatusBadge>
       </DataTableCell>
     </DataTableRow>
-  )
-}
-
-function ClientSelect({
-  label,
-  onValueChange,
-  options,
-  value,
-}: {
-  label: string
-  onValueChange: (value: string) => void
-  options: readonly (readonly [string, string])[]
-  value: string
-}) {
-  return (
-    <Select value={value} onValueChange={(next) => onValueChange(String(next))}>
-      <SelectTrigger aria-label={label}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map(([option, text]) => (
-          <SelectItem key={option} value={option}>
-            {text}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   )
 }
 

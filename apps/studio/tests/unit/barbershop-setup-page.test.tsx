@@ -109,7 +109,7 @@ describe("barbershop setup module", () => {
     expect(await screen.findByText("Barba completa")).toBeVisible()
     expect(screen.queryByText("Corte clássico")).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole("button", { name: "Filtrar por estado" }))
+    await user.click(screen.getByRole("button", { name: "Estado: Todos" }))
     await user.click(await screen.findByRole("menuitemradio", { name: "Arquivados" }))
     expect(await screen.findByText("Nenhum resultado para os filtros")).toBeVisible()
   })

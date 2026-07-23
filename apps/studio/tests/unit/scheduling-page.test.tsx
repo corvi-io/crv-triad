@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { type ReactElement, useState } from "react"
 import { describe, expect, it, vi } from "vitest"
@@ -144,17 +144,19 @@ describe("schedule page", () => {
     renderSchedule(<ScheduleHarness initialSearch={baseSearch} />)
 
     const barberFilter = await screen.findByRole("button", { name: "Barbeiro" })
-    await waitFor(() => expect(barberFilter).toHaveTextContent("6"))
+    expect(barberFilter).not.toHaveTextContent("6")
     await user.click(barberFilter)
     fireEvent.change(await screen.findByLabelText("Pesquisar barbeiro"), {
       target: { value: "Carlos" },
     })
     await user.click(await screen.findByRole("menuitemcheckbox", { name: "Carlos Lima" }))
-    expect(screen.getByRole("button", { name: "Barbeiro" })).toHaveTextContent("1")
+    expect(screen.getByRole("button", { name: "Barbeiro: 1 selecionado(s)" })).toHaveTextContent(
+      "1",
+    )
 
     await user.click(screen.getByRole("button", { name: "Status" }))
     await user.click(await screen.findByRole("menuitemcheckbox", { name: "Confirmado" }))
-    expect(screen.getByRole("button", { name: "Status" })).toHaveTextContent("1")
+    expect(screen.getByRole("button", { name: "Status: 1 selecionado(s)" })).toHaveTextContent("1")
   })
 
   it("opens a calendar range from the period trigger and keeps scenarios in settings", async () => {

@@ -152,20 +152,30 @@
 Record evidence as tasks are completed:
 
 - Command: `bun --filter studio format`
-- Result: passed; 217 files checked with no formatting fixes.
+- Result: passed; 219 files checked with no formatting fixes on the final pass.
 - Command: `bun --filter studio lint`
-- Result: passed; 222 files checked with no lint fixes.
+- Result: passed; 224 files checked with no lint fixes.
 - Command: `bun --filter studio typecheck`
 - Result: passed, including TanStack route generation.
 - Command: `bun --filter studio test -- tests/unit/client-management.test.ts`
 - Result: passed; 15 focused client-management contract and repository tests.
 - Command: `bun --filter studio test -- tests/unit/client-management-page.test.tsx`
-- Result: passed; eight focused React Testing Library component tests rendering the directory,
-  profile drawer, and disabled route boundary.
+- Result: passed; nine focused React Testing Library component tests rendering the directory,
+  profile drawer, disabled route boundary, and URL/page-reset list-filter callbacks.
+- Command: focused shared/migrated-consumer Vitest for `shared-component-contracts`,
+  `scheduling-page`, `barbershop-setup-page`, and `component-inventory`.
+- Result: passed; 8 shared contracts, 11 Agenda tests, 14 setup tests, and one exhaustive inventory
+  test. Evidence includes accessible compact search, single/multi filter selection and clear,
+  migrated consumer behavior, and a ModuleLayout viewport with no implicit bottom inset.
 - Command: `bun --filter studio test:e2e -- tests/e2e/client-management.spec.ts`
 - Result: passed; four focused Chromium tests.
 - Command: `bun --filter studio check`
-- Result: passed; 32 Vitest files and 209 tests, typecheck, Biome, build, and production boundary.
+- Result: Biome and typecheck passed. Both the initial run and one bounded retry reached 30/32
+  Vitest files and 209/214 tests before the same five parallel Agenda/setup timeouts stopped the
+  command; those two files passed separately at 11/11 and 14/14. Build and production-boundary
+  phases that the stopped command did not reach were run separately and passed.
+- Command: `bun --filter studio build` and `bun --filter studio test:production-boundary`
+- Result: passed; production boundary verified across 44 files (1,016,404 bytes).
 - Command:
   `VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=memory bun --filter studio build`
   followed by `bun apps/studio/scripts/assert-production-boundary.ts`

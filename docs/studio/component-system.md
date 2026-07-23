@@ -116,6 +116,8 @@ building block of a documented composition.
 | File | Classification | Catalog decision and rationale |
 | --- | --- | --- |
 | `data-display/filter-trigger.tsx` | Data display control | Documented public contract: compact icon-and-label trigger for bounded dropdown/popover filters, with optional active treatment and result/selection count; shared by Agenda and barbershop setup while the owning surface controls menu semantics. |
+| `data-display/list-filter.tsx` | Data display control | Documented public contract: typed single- and multi-selection list-filter compositions built from `FilterTrigger` and grouped Base UI dropdown items. They own active counts, selected-value labels, optional option search, and clear behavior while consumers own URL/query state. |
+| `data-display/list-search-field.tsx` | Data display control | Documented public contract: `ListSearchField` owns the search icon, required accessible label, `InputGroup` composition, and compact `w-full sm:w-64` responsive width; the explicit `FilterOptionSearchField` variant serves bounded option menus without the list-toolbar width. |
 | `data-display/data-table/index.tsx` | Data display | Documented public contract: semantic table with controlled sort, body-only vertical/horizontal scrolling, overflow-aware scrollbar visibility, fixed sticky header/external pagination, and contextual row actions available by right-click or `Shift+F10`; covered by unit and browser table tests. |
 | `data-display/metric-card.tsx` | Data display | Internal: inherited specialized composition using theme-aware feedback signal roles; promote to catalog when an accepted module supplies a real metric contract. |
 | `deferred-route-screen.tsx` | Routing helper | Internal: lazy-route implementation detail, not a visual assembly API. |
@@ -133,7 +135,7 @@ building block of a documented composition.
 | `forms/quantity-unit-control.tsx` | Form composition | Internal: inherited composition without an active module-owned quantity contract. |
 | `forms/rhf-form-fields.tsx` | Form adapters | Internal: React Hook Form adapters; discover through owning module forms, not as standalone UI. |
 | `kibo-ui/kanban/index.tsx` | Vendor-derived composite | Internal legacy composite: retained for migration compatibility but no longer consumed by the accepted Agenda board. A future workflow must revalidate its DnD and accessibility contract before reuse. |
-| `layout/module-layout.tsx` | Layout | Internal: structural fixed-head/scroll-body shell exercised through composed pages. |
+| `layout/module-layout.tsx` | Layout | Internal: structural fixed-head/scroll-body shell exercised through composed pages. Its viewport has no implicit bottom padding; content owners add intentional inset locally, and tables/lists end at their pagination boundary. |
 | `layout/module-tabs.tsx` | Layout/navigation | Internal: requires router context and module-owned tab metadata. |
 | `layout/page-header.tsx` | Layout | Internal: composed by module pages; actions remain module owned. |
 | `layout/section-header.tsx` | Layout | Internal: small structural helper documented through page compositions. |
@@ -161,7 +163,7 @@ building block of a documented composition.
 | `ui/dropdown-menu.tsx` | Primitive | Internal: implementation detail of menus and table controls. |
 | `ui/field.tsx` | Primitive | Internal: form anatomy documented through explicit module forms. |
 | `ui/input.tsx` | Primitive | Internal: cataloged through drawer/form compositions. |
-| `ui/input-group.tsx` | Primitive composition | Documented public contract: official shadcn-style grouped input with leading/trailing addons and a single focus boundary; Agenda uses it for global and in-menu search. |
+| `ui/input-group.tsx` | Primitive composition | Documented public contract: official shadcn-style grouped input with leading/trailing addons and a single focus boundary; shared list-search compositions own its product usage. |
 | `ui/label.tsx` | Primitive | Internal: cataloged with its associated form controls. |
 | `ui/pagination.tsx` | Primitive | Internal: lower-level anatomy cataloged through `DataTable`. |
 | `ui/popover.tsx` | Primitive | Internal: implementation detail of date/combobox controls. |
@@ -178,6 +180,19 @@ building block of a documented composition.
 | `ui/toggle-group.tsx` | Primitive composition | Documented public contract: Base UI controlled single/multiple selection composition; Agenda uses one controlled selection for the `Lista`/`Quadro` icon toggle. |
 | `ui/toggle.tsx` | Primitive | Internal companion to `ToggleGroup`; the `brand` variant exposes selected state with semantic brand tokens and visible `aria-pressed` state. |
 | `ui/tri-state-toggle.tsx` | Primitive | Internal: only for an accepted tri-state group composition. |
+
+## Product List-Control Inventory
+
+- Clients, Agenda, and Barbershop Setup catalogs use `ListSearchField`; Agenda option menus use the
+  explicit `FilterOptionSearchField` variant.
+- Their compatible exclusive and multi-selection list filters use `SingleSelectListFilter` and
+  `MultiSelectListFilter`. Agenda's date-range popover remains specialized because it owns calendar
+  draft/apply semantics rather than a selectable menu.
+- `Select` remains correct for data entry and relationship choice in setup availability, setup
+  entity drawers, and shared form controls. These controls choose values for a record or editor;
+  they do not filter a product list.
+- `src/dev/sandbox/sandbox-page.tsx` remains a dev-only component laboratory with its local search
+  and state selector. It is excluded from the product-list convention and is not a product consumer.
 
 ## Development Runtime And Replaceable Adapter
 

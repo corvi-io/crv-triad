@@ -34,6 +34,29 @@ describe("client management pages", () => {
     expect(screen.getAllByText("Ativo").length).toBeGreaterThan(0)
   })
 
+  it("resets the URL-backed page when each shared list filter changes", async () => {
+    const user = userEvent.setup()
+    const onSearchChange = vi.fn()
+    renderDirectory({ onSearchChange })
+
+    await screen.findByRole("table", { name: "Diretório de clientes" })
+    await user.click(screen.getByRole("button", { name: "Estado: Ativos" }))
+    await user.click(await screen.findByRole("menuitemradio", { name: "Arquivados" }))
+    expect(onSearchChange).toHaveBeenCalledWith({ page: 1, status: "archived" })
+
+    await user.click(screen.getByRole("button", { name: "Contato: Todos os contatos" }))
+    await user.click(await screen.findByRole("menuitemradio", { name: "Contato completo" }))
+    expect(onSearchChange).toHaveBeenCalledWith({ contact: "complete", page: 1 })
+
+    await user.click(screen.getByRole("button", { name: "Duplicidade: Todos" }))
+    await user.click(await screen.findByRole("menuitemradio", { name: "Possível duplicidade" }))
+    expect(onSearchChange).toHaveBeenCalledWith({ duplicate: "possible", page: 1 })
+
+    await user.click(screen.getByRole("button", { name: "Tag: Todas as tags" }))
+    await user.click(await screen.findByRole("menuitemradio", { name: "Frequente" }))
+    expect(onSearchChange).toHaveBeenCalledWith({ page: 1, tag: "frequente" })
+  })
+
   it("renders slow loading, empty, and filtered-empty directory states", async () => {
     const slow = renderDirectory({ scenario: "slow" })
     expect(screen.getByRole("status")).toHaveTextContent("Carregando clientes…")
@@ -180,10 +203,12 @@ describe("client management pages", () => {
 })
 
 function renderDirectory({
+  onSearchChange,
   repository = new ClientMemoryRepository(),
   scenario = "typical",
   search,
 }: {
+  onSearchChange?: (search: Partial<ClientSearch>) => void
   repository?: ClientRepository
   scenario?: ClientScenarioId
   search?: Partial<ClientSearch>
@@ -201,7 +226,10 @@ function renderDirectory({
         <ClientRepositoryProvider repository={repository}>
           <ClientDirectoryPage
             search={currentSearch}
-            onSearchChange={(next) => setCurrentSearch((previous) => ({ ...previous, ...next }))}
+            onSearchChange={(next) => {
+              onSearchChange?.(next)
+              setCurrentSearch((previous) => ({ ...previous, ...next }))
+            }}
           />
         </ClientRepositoryProvider>
       </IsolatedQueryClientProvider>

@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { CirclePlusIcon, SaveIcon } from "lucide-react"
+import { CirclePlusIcon, SaveIcon, SlidersHorizontalIcon } from "lucide-react"
 import { useState } from "react"
 import { describe, expect, it, vi } from "vitest"
 
@@ -14,8 +14,14 @@ import {
   DataTableSortableHeaderCell,
   type DataTableSortState,
 } from "@/modules/shared/components/data-display/data-table"
+import {
+  MultiSelectListFilter,
+  SingleSelectListFilter,
+} from "@/modules/shared/components/data-display/list-filter"
+import { ListSearchField } from "@/modules/shared/components/data-display/list-search-field"
 import { EmptyState } from "@/modules/shared/components/feedback/empty-state"
 import { StatusBadge } from "@/modules/shared/components/feedback/status-badge"
+import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
 import { Button } from "@/modules/shared/components/ui/button"
 
 describe("documented shared component contracts", () => {
@@ -76,7 +82,97 @@ describe("documented shared component contracts", () => {
     await user.click(screen.getByRole("button", { name: "Ir para página 2" }))
     expect(screen.getByText((_, element) => element?.textContent === "Página 2 de 3")).toBeVisible()
   })
+
+  it("owns the accessible compact responsive contract for list search", () => {
+    render(<ListSearchField aria-label="Buscar registros" placeholder="Buscar" />)
+
+    const search = screen.getByRole("searchbox", { name: "Buscar registros" })
+    const group = search.closest('[data-slot="list-search-field"]')
+    expect(group).toHaveClass("w-full", "shrink-0", "sm:w-64")
+    expect(group?.querySelector("svg")).toBeInTheDocument()
+  })
+
+  it("selects with the shared single-selection list filter", async () => {
+    const user = userEvent.setup()
+    render(<ControlledListFilters />)
+
+    await user.click(screen.getByRole("button", { name: "Estado: Todos" }))
+    await user.click(await screen.findByRole("menuitemradio", { name: "Arquivados" }))
+    expect(screen.getByRole("button", { name: "Estado: Arquivados" })).toHaveTextContent("1")
+  })
+
+  it("selects with the shared multi-selection list filter", async () => {
+    const user = userEvent.setup()
+    render(<ControlledListFilters />)
+
+    await user.click(screen.getByRole("button", { name: "Status" }))
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Confirmado" }))
+    expect(screen.getByRole("button", { name: "Status: 1 selecionado(s)" })).toHaveTextContent("1")
+  })
+
+  it("clears active shared list filters", async () => {
+    const user = userEvent.setup()
+    const single = render(<ControlledListFilters initialState="archived" />)
+
+    await user.click(screen.getByRole("button", { name: "Estado: Arquivados" }))
+    await user.click(await screen.findByRole("menuitem", { name: "Limpar filtro" }))
+    expect(screen.getByRole("button", { name: "Estado: Todos" })).not.toHaveTextContent("1")
+    single.unmount()
+
+    render(<ControlledListFilters initialStatuses={["confirmed"]} />)
+    await user.click(screen.getByRole("button", { name: "Status: 1 selecionado(s)" }))
+    await user.click(await screen.findByRole("menuitem", { name: "Limpar filtro" }))
+    expect(screen.getByRole("button", { name: "Status" })).not.toHaveTextContent("1")
+  })
+
+  it("keeps the module scroll viewport free of implicit bottom padding", () => {
+    const { container } = render(
+      <ModuleLayout>
+        <div className="pb-4">Conteúdo com inset próprio</div>
+      </ModuleLayout>,
+    )
+
+    const viewport = container.querySelector('[data-slot="scroll-area-viewport"]')
+    expect(viewport).not.toHaveClass("pb-4", "pb-2")
+    expect(screen.getByText("Conteúdo com inset próprio")).toHaveClass("pb-4")
+  })
 })
+
+function ControlledListFilters({
+  initialState = "all",
+  initialStatuses = [],
+}: {
+  initialState?: "all" | "archived"
+  initialStatuses?: readonly string[]
+}) {
+  const [state, setState] = useState<"all" | "archived">(initialState)
+  const [statuses, setStatuses] = useState<readonly string[]>(initialStatuses)
+
+  return (
+    <>
+      <SingleSelectListFilter
+        icon={SlidersHorizontalIcon}
+        id="state-filter"
+        inactiveValue="all"
+        label="Estado"
+        options={[
+          { label: "Todos", value: "all" },
+          { label: "Arquivados", value: "archived" },
+        ]}
+        value={state}
+        onValueChange={setState}
+      />
+      <MultiSelectListFilter
+        icon={SlidersHorizontalIcon}
+        id="status-filter"
+        label="Status"
+        options={[{ label: "Confirmado", value: "confirmed" }]}
+        values={statuses}
+        onValuesChange={setStatuses}
+      />
+    </>
+  )
+}
 
 function ControlledTable() {
   const [sort, setSort] = useState<DataTableSortState<"title">>({
