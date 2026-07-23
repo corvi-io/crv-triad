@@ -4,5 +4,12 @@
     "rootDir": "src"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["dist", "node_modules", "tests", "vitest.config.ts", "drizzle.config.ts"]
+  "exclude": [
+    "dist",
+    "node_modules",
+    "tests",
+    "src/scripts/preview-auth-emails.tsx",
+    "vitest.config.ts",
+    "drizzle.config.ts"
+  ]
 }

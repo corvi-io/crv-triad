@@ -296,15 +296,18 @@ headers, and rendered message bodies.
   descriptions, stable loading text, paste, reveal controls, and `autocomplete="new-password"`.
   VoiceOver or another real screen reader, 200-percent browser zoom, and an actual password-manager
   extension were unavailable locally and remain manual QA checks.
-- Email preview/client checks: the synthetic-only React Email preview server started successfully
-  and returned HTTP 200 at its local index without sending. Semantic HTML/plain-text, escaping,
+- Email preview/client checks: the synthetic-only IDP-owned Bun preview server started successfully
+  and returned HTTP 200 for its index and all three template routes without sending. Semantic HTML/plain-text, escaping,
   allowlisted URLs, fallback text, retry, timeout, and idempotency have automated coverage. Gmail,
   Outlook, and Apple Mail rendering were unavailable locally and remain manual release checks.
 - Token/log/analytics redaction inspection: focused tests verify no-referrer/no-store headers, query
   removal before form display, minimal resolve/signup responses, digest-only persistence, and
   sanitized observer behavior. A scoped source/diff scan found no ENG-41 changes or new sensitive
   logging; `git diff --check` passed.
-- Environment verification: `bun run test:ci` passed 19 tests with 240 expectations. No
+- Dependency security: a canonical Bun-generated lockfile passes frozen installation; the
+  preview-only UI dependency graph was removed, Better Auth remains pinned to the reviewed
+  `1.6.23` seam, and `bun audit` reports no vulnerabilities.
+- Environment verification: `bun run test:ci` passed 19 tests with 255 expectations. No
   deployment-target mapping changed.
 - Documentation review: IDP/Studio app READMEs, durable authentication docs, PRD, and this plan are
   updated. The password-guidance composition remains auth-module-owned, so the shared Studio
