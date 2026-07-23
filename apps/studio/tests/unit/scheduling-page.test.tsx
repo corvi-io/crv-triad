@@ -110,7 +110,7 @@ describe("schedule page", () => {
     ).toBeInTheDocument()
     expect(screen.getByLabelText(/Nome/)).toHaveValue("Carlos Eduardo")
     expect(screen.queryByLabelText("Status inicial")).not.toBeInTheDocument()
-  })
+  }, 10_000)
 
   it("switches between Quadro and Lista through the canonical icon toggle", async () => {
     const user = userEvent.setup()

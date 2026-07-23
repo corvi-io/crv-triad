@@ -52,6 +52,96 @@ test("renders the reference-aligned temporal board and passes axe", async ({ pag
   expect(results.violations).toEqual([])
 })
 
+test.describe("current-time marker", () => {
+  test.use({ timezoneId: "America/Recife" })
+
+  test("shows the labeled local time within the working range and keeps horizontal bounds", async ({
+    page,
+  }) => {
+    await page.clock.setFixedTime(new Date("2026-07-22T14:37:00-03:00"))
+    await page.setViewportSize({ height: 900, width: 1440 })
+    await page.goto(agendaUrl())
+
+    const board = page.getByTestId("agenda-board")
+    const marker = board.getByTestId("agenda-current-time-marker")
+    const label = marker.getByText("Agora 14:37")
+    await expect(label).toBeVisible()
+    await expect(board.locator("caption")).toContainText("Horário atual: 14:37.")
+
+    const bounds = await marker.evaluate((element) => {
+      const board = element.closest<HTMLElement>('[data-testid="agenda-board"]')
+      const timeCell = element.parentElement
+      if (!board || !timeCell) throw new Error("Current-time marker bounds are unavailable")
+
+      const boardBounds = board.getBoundingClientRect()
+      const markerBounds = element.getBoundingClientRect()
+      const timeBounds = timeCell.getBoundingClientRect()
+      return {
+        boardLeft: boardBounds.left,
+        boardOverflow: getComputedStyle(board).overflow,
+        boardRight: boardBounds.right,
+        markerLeft: markerBounds.left,
+        markerPointerEvents: getComputedStyle(element).pointerEvents,
+        markerRight: markerBounds.right,
+        markerTop: markerBounds.top,
+        timeBottom: timeBounds.bottom,
+        timeHeight: timeBounds.height,
+        timeRight: timeBounds.right,
+        timeTop: timeBounds.top,
+        timeWidth: timeBounds.width,
+      }
+    })
+    expect(bounds.timeWidth).toBe(80)
+    expect(Math.abs(bounds.markerLeft - bounds.timeRight)).toBeLessThanOrEqual(1)
+    expect(bounds.markerLeft).toBeGreaterThan(bounds.boardLeft)
+    expect(bounds.markerRight).toBeLessThanOrEqual(bounds.boardRight)
+    expect(bounds.boardOverflow).toBe("hidden")
+    expect(bounds.markerPointerEvents).toBe("none")
+    expect(
+      Math.abs(
+        bounds.markerTop - (bounds.timeTop + (7 / 15) * (bounds.timeBottom - bounds.timeTop)),
+      ),
+    ).toBeLessThanOrEqual(1)
+
+    for (const theme of ["light", "dark"] as const) {
+      await selectTheme(page, theme)
+      await expect(label).toBeVisible()
+      const colors = await label.evaluate((element) => {
+        const style = getComputedStyle(element)
+        return { background: style.backgroundColor, foreground: style.color }
+      })
+      expect(
+        contrastRatio(colors.foreground, colors.background),
+        `${theme} marker label`,
+      ).toBeGreaterThanOrEqual(4.5)
+    }
+
+    const results = await new AxeBuilder({ page })
+      .include('[data-testid="agenda-board"]')
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+      .analyze()
+    expect(results.violations).toEqual([])
+
+    await page.emulateMedia({ forcedColors: "active" })
+    await page.reload()
+    await expect(label).toBeVisible()
+    await expect(marker).toHaveCSS("pointer-events", "none")
+    expect(await marker.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(
+      "rgba(0, 0, 0, 0)",
+    )
+  })
+
+  test("hides the marker on another date and outside the working range", async ({ page }) => {
+    await page.clock.setFixedTime(new Date("2026-07-22T14:37:00-03:00"))
+    await page.goto("/workspace-preview/agenda?date=2026-07-23&scenario=normal")
+    await expect(page.getByTestId("agenda-current-time-marker")).toHaveCount(0)
+
+    await page.clock.setFixedTime(new Date("2026-07-22T07:59:00-03:00"))
+    await page.goto(agendaUrl())
+    await expect(page.getByTestId("agenda-current-time-marker")).toHaveCount(0)
+  })
+})
+
 test("keeps every appointment neutral while status remains textually and visually distinct", async ({
   page,
 }) => {
@@ -302,7 +392,7 @@ test("keeps the sticky time axis above cards after horizontal scrolling", async 
 
   const stacking = await timeCell.evaluate((element) => {
     const appointment = document.querySelector<HTMLElement>('[data-appointment-id="kanban-01"]')
-    const scrollContainer = element.closest("table")?.parentElement
+    const scrollContainer = element.closest<HTMLElement>(".agenda-grid-scroll")
     if (!appointment || !scrollContainer) return null
 
     const timeBounds = element.getBoundingClientRect()

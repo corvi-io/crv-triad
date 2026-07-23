@@ -11,6 +11,9 @@ development-only QA route.
 - `Quadro` is the default and canonical temporal view.
 - `Lista` is the alternate view; the selector uses icon buttons and one controlled URL value.
 - The board has a sticky `Horário` column with 15-minute rows and sticky barber headings.
+- On the selected local calendar day, a labeled `Agora HH:mm` line marks the current minute only
+  while it falls within the configured working interval. It starts after the sticky 80px time
+  column, spans the visible professional grid, and remains clipped by the Agenda surface.
 - Each barber heading includes a deterministic portrait, name, unit, active marker, and appointment
   count.
 - Each appointment card includes a deterministic client portrait, client name, time range, service,
@@ -92,6 +95,9 @@ boundary.
   each arrow press advances exactly one time row or barber column. Portuguese live announcements,
   restored handle focus, and reduced-motion behavior remain part of the interaction.
 - Filter state, status, and selection do not depend on color alone.
+- The current-time cue combines its tokenized line with a visible Portuguese time label, exposes the
+  same current time in the semantic table caption, ignores pointer input, and updates on the next
+  minute boundary with subscription cleanup. It is absent on other dates and outside working hours.
 - Menus and calendar use Base UI/shadcn focus management; card actions remain visible on coarse
   pointers.
 - The filter row and board own their horizontal overflow so narrow layouts do not widen the page.
@@ -106,7 +112,8 @@ all eight rendered status contracts, compact/medium/full geometry, browser
 contrast, pointer and keyboard drag, overlay/drop styling, announcements,
 rollback, terminal state, menus, period, view switch, state transition,
 light/dark/system, forced colors, reduced motion, coarse pointer, narrow/zoom
-overflow, sticky axes, scenarios, and axe WCAG 2.2 A/AA checks. Real-device
+overflow, sticky axes, current-time date/range/position/bounds, scenarios, and
+axe WCAG 2.2 A/AA checks. Real-device
 touch, VoiceOver/NVDA, and authenticated deployed `dev` review remain manual
 follow-ups.
 

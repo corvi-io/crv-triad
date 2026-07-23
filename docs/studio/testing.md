@@ -33,8 +33,9 @@ category.
 preview without intercepting Better Auth. It covers view, create, reschedule, cancel, URL scenarios
 and filters, conflict recovery, all eight neutral card/status contracts, compact/medium/full
 geometry, hover/focus/drag/drop computed styles, browser contrast, light/dark/system, forced colors,
-320 CSS-pixel and 200%-zoom-equivalent reflow, coarse pointer, sticky axes, reduced motion, focus
-return, long content, horizontal density, and a focused axe scan. The authenticated `/agenda` route
+320 CSS-pixel and 200%-zoom-equivalent reflow, coarse pointer, sticky axes, current-time
+date/range/position/horizontal bounds, reduced motion, focus return, long content, horizontal
+density, and a focused axe scan. The authenticated `/agenda` route
 continues to use the real IDP boundary; the preview is local QA tooling and redirects in production.
 
 `tests/e2e/barbershop-setup.spec.ts` covers the authenticated setup module: direct entry, normal

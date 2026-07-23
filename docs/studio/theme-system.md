@@ -155,6 +155,7 @@ The Agenda component layer in `src/index.css` owns:
 | Status signal | `--schedule-appointment-indicator-width`, `--schedule-appointment-tint` |
 | Elevation | `--schedule-appointment-shadow`, `--schedule-appointment-hover-shadow`, `--schedule-appointment-drag-shadow` |
 | Drop feedback | `--schedule-drop-target-surface`, `--schedule-drop-target-border` |
+| Current time | `--schedule-current-time-line`, `--schedule-current-time-label-surface`, `--schedule-current-time-label-foreground` |
 
 `data-appointment-status` maps each card to the existing schedule surface,
 foreground, and border roles. The container never consumes the status surface
@@ -167,6 +168,11 @@ Focus replaces hover movement and adds the semantic ring around the full card.
 Reduced motion removes card and overlay transforms. Forced colors removes the
 tint, restores Canvas/CanvasText surfaces and structural borders, and uses
 Highlight for leading/focus/drop signals.
+
+The current-time marker reuses the semantic primary surface and foreground
+through Agenda component tokens. Its visible `Agora HH:mm` label prevents a
+color-only cue; forced colors maps the line and label to
+`Highlight`/`HighlightText`.
 
 ## Implemented Contrast Evidence
 

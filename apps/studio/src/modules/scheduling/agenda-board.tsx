@@ -34,6 +34,7 @@ import {
 import { cn } from "@/modules/shared/lib/utils"
 import type { AgendaColumnId } from "./agenda"
 import { AgendaAvatar } from "./agenda-avatar"
+import { type AgendaCurrentTimeMarker, resolveAgendaCurrentTimeMarker } from "./agenda-current-time"
 import type { Appointment, Professional, ScheduleDay, Service } from "./contracts"
 import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
 
@@ -86,6 +87,13 @@ export function AgendaBoard({
   )
   const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null)
   const reduceMotion = useReducedMotion()
+  const currentMinute = useCurrentMinute()
+  const currentTimeMarker = resolveAgendaCurrentTimeMarker({
+    endTime: day.endTime,
+    now: new Date(currentMinute),
+    selectedDate: day.date,
+    startTime: day.startTime,
+  })
   const keyboardCursorRef = useRef<AgendaKeyboardCursor | null>(null)
   const keyboardCoordinateGetter = useMemo(
     () => createAgendaKeyboardCoordinates(keyboardCursorRef),
@@ -181,68 +189,74 @@ export function AgendaBoard({
         className="agenda-board min-h-0 flex-1 overflow-hidden rounded-lg border"
         data-testid="agenda-board"
       >
-        <div className="h-full max-h-[calc(100vh-13rem)] overflow-auto">
-          <table
-            className="agenda-grid w-full table-fixed border-collapse text-sm"
+        <div className="agenda-grid-scroll h-full max-h-[calc(100vh-13rem)] overflow-auto">
+          <div
+            className="agenda-grid-container relative min-w-full"
             style={{ minWidth: `${80 + day.professionals.length * 196}px` }}
           >
-            <caption className="sr-only">
-              Horários em linhas e barbeiros em colunas, em intervalos de quinze minutos.
-            </caption>
-            <colgroup>
-              <col className="w-20" />
-              {day.professionals.map((professional) => (
-                <col className="w-[12.25rem]" key={professional.id} />
-              ))}
-            </colgroup>
-            <thead className="agenda-barber-header sticky top-0 z-50">
-              <tr>
-                <th className="agenda-grid-line agenda-time-cell sticky left-0 z-30 min-w-20 border-r border-b px-3 py-4 text-left text-xs font-medium text-muted-foreground">
-                  Horário
-                </th>
+            <table className="agenda-grid w-full table-fixed border-collapse text-sm">
+              <caption className="sr-only">
+                Horários em linhas e barbeiros em colunas, em intervalos de quinze minutos.
+                {currentTimeMarker ? ` Horário atual: ${currentTimeMarker.time}.` : null}
+              </caption>
+              <colgroup>
+                <col className="w-20" />
                 {day.professionals.map((professional) => (
-                  <ProfessionalHeading
-                    appointmentCount={
-                      day.appointments.filter(
-                        ({ professionalId }) => professionalId === professional.id,
-                      ).length
-                    }
-                    key={professional.id}
-                    professional={professional}
-                    unitName={day.unitName}
-                  />
+                  <col className="w-[12.25rem]" key={professional.id} />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {slots.map((slot, slotIndex) => (
-                <tr className="h-9" key={slot}>
-                  <th
-                    className="agenda-grid-line agenda-time-cell sticky left-0 z-40 h-9 border-r border-b px-3 text-left text-xs font-medium tabular-nums text-muted-foreground"
-                    scope="row"
-                  >
-                    {slot}
+              </colgroup>
+              <thead className="agenda-barber-header sticky top-0 z-50">
+                <tr>
+                  <th className="agenda-grid-line agenda-time-cell sticky left-0 z-30 min-w-20 border-r border-b px-3 py-4 text-left text-xs font-medium text-muted-foreground">
+                    Horário
                   </th>
-                  {day.professionals.map((professional, professionalIndex) => (
-                    <ScheduleCell
-                      day={day}
-                      isReschedulePending={isReschedulePending}
+                  {day.professionals.map((professional) => (
+                    <ProfessionalHeading
+                      appointmentCount={
+                        day.appointments.filter(
+                          ({ professionalId }) => professionalId === professional.id,
+                        ).length
+                      }
                       key={professional.id}
                       professional={professional}
-                      professionalIndex={professionalIndex}
-                      service={services}
-                      slot={slot}
-                      slotIndex={slotIndex}
-                      slots={slots}
-                      onAppointment={onAppointment}
-                      onSlot={onSlot}
-                      onTransitionRequest={onTransitionRequest}
+                      unitName={day.unitName}
                     />
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {slots.map((slot, slotIndex) => (
+                  <tr className="h-9" key={slot}>
+                    <th
+                      className="agenda-grid-line agenda-time-cell sticky left-0 z-40 h-9 border-r border-b px-3 text-left text-xs font-medium tabular-nums text-muted-foreground"
+                      scope="row"
+                    >
+                      {slot}
+                      {currentTimeMarker?.rowIndex === slotIndex ? (
+                        <CurrentTimeMarker marker={currentTimeMarker} />
+                      ) : null}
+                    </th>
+                    {day.professionals.map((professional, professionalIndex) => (
+                      <ScheduleCell
+                        day={day}
+                        isReschedulePending={isReschedulePending}
+                        key={professional.id}
+                        professional={professional}
+                        professionalIndex={professionalIndex}
+                        service={services}
+                        slot={slot}
+                        slotIndex={slotIndex}
+                        slots={slots}
+                        onAppointment={onAppointment}
+                        onSlot={onSlot}
+                        onTransitionRequest={onTransitionRequest}
+                      />
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
       <DragOverlay dropAnimation={reduceMotion ? null : undefined}>
@@ -255,6 +269,22 @@ export function AgendaBoard({
         ) : null}
       </DragOverlay>
     </DndContext>
+  )
+}
+
+function CurrentTimeMarker({ marker }: { marker: AgendaCurrentTimeMarker }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="agenda-current-time-marker pointer-events-none absolute left-full"
+      data-label-placement={
+        marker.rowProgress < 0.3 ? "after" : marker.rowProgress > 0.7 ? "before" : "center"
+      }
+      data-testid="agenda-current-time-marker"
+      style={{ top: `${marker.rowProgress * 100}%` }}
+    >
+      <span className="agenda-current-time-label">{marker.label}</span>
+    </span>
   )
 }
 
@@ -829,6 +859,7 @@ function appointmentFromDragData(data: Record<string, unknown> | undefined) {
 }
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
+const MINUTE_MS = 60_000
 
 function useReducedMotion() {
   return useSyncExternalStore(
@@ -840,6 +871,33 @@ function useReducedMotion() {
     () => window.matchMedia(REDUCED_MOTION_QUERY).matches,
     () => false,
   )
+}
+
+function useCurrentMinute() {
+  return useSyncExternalStore(
+    subscribeToCurrentMinute,
+    currentMinuteSnapshot,
+    currentMinuteSnapshot,
+  )
+}
+
+function subscribeToCurrentMinute(onStoreChange: () => void) {
+  let timeoutId: number
+
+  function scheduleNextMinute() {
+    const delay = MINUTE_MS - (Date.now() % MINUTE_MS)
+    timeoutId = window.setTimeout(() => {
+      onStoreChange()
+      scheduleNextMinute()
+    }, delay)
+  }
+
+  scheduleNextMinute()
+  return () => window.clearTimeout(timeoutId)
+}
+
+function currentMinuteSnapshot() {
+  return Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS
 }
 
 export function toneForStatus(status: Appointment["status"]) {

@@ -69,6 +69,16 @@ describe("TRIAD brand theme contract", () => {
     expect(agendaBoardSource).not.toContain("presentation.className")
   })
 
+  it("keeps the labeled current-time marker tokenized, bounded, and non-interactive", () => {
+    expect(styles).toContain("--schedule-current-time-line: var(--primary)")
+    expect(styles).toContain("--schedule-current-time-label-surface: var(--primary)")
+    expect(styles).toContain("--schedule-current-time-label-foreground: var(--primary-foreground)")
+    expect(styles).toContain("width: calc(100cqi - 5rem)")
+    expect(styles).toContain(".agenda-current-time-label")
+    expect(agendaBoardSource).toContain("agenda-current-time-marker pointer-events-none")
+    expect(agendaBoardSource).toContain('data-testid="agenda-current-time-marker"')
+  })
+
   it("resolves the saved or system preference before the application module", () => {
     expect(themeInitSource).toContain('const storageKey = "triad-studio-theme"')
     expect(themeInitSource).toContain('preference === "system" ? systemTheme : preference')

@@ -39,6 +39,9 @@ may scroll horizontally in compact layouts but must remain a single visual band.
 ## Temporal Board
 
 - The first sticky column is `Horário` and lists 15-minute intervals.
+- For the selected local day, a horizontal current-time marker begins after the 80px `Horário`
+  column and spans only the visible professional grid. It shows the compact Portuguese label
+  `Agora HH:mm`, is clipped by the board, and appears only within configured working hours.
 - Each following column represents one barber and starts with portrait, name, `Unidade Centro`,
   availability marker, and appointment count.
 - The accepted normal data set shows six barber columns: Carlos Lima, Bruno Rocha, Ana Clara,
@@ -96,6 +99,8 @@ barber portrait/name, service, status, and actions. Switching views changes pres
 ## Responsive And Accessibility Contract
 
 - Preserve the fixed time axis and barber identity while the board scrolls horizontally.
+- Keep the current-time marker non-interactive and bounded by the professional grid so it never
+  covers the sticky time axis or escapes the Agenda surface.
 - Keep page-level width bounded at 320 CSS pixels and 200% zoom-equivalent layouts.
 - Use semantic table headers for the time/barber relationship.
 - Provide accessible names for icon-only controls and portraits; portrait fallbacks expose initials.
@@ -118,6 +123,7 @@ boundary. The prototype does not authorize production identity, payment, or sche
 - [x] `Quadro` is the default and `Lista` is the alternate canonical label.
 - [x] Six barber headers include portraits, identity, unit, and counts.
 - [x] The left time column exposes 15-minute rows.
+- [x] The selected local day exposes a labeled, bounded current-time marker during working hours.
 - [x] Cards include client portraits, time, service, and status.
 - [x] Filters are trigger buttons in one row, not visible select fields.
 - [x] `Período` opens a start/end calendar.

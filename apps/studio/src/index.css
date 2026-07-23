@@ -312,6 +312,9 @@
   --schedule-appointment-drag-shadow: var(--primitive-shadow-schedule-drag);
   --schedule-drop-target-surface: color-mix(in srgb, var(--primary) 6%, transparent);
   --schedule-drop-target-border: var(--primary);
+  --schedule-current-time-line: var(--primary);
+  --schedule-current-time-label-surface: var(--primary);
+  --schedule-current-time-label-foreground: var(--primary-foreground);
   --selection-radius: var(--primitive-radius-xs);
 
   /* Workspace component tokens: authenticated shell geometry and state styling. */
@@ -462,6 +465,10 @@
     background: var(--schedule-grid-surface);
   }
 
+  .agenda-grid-scroll {
+    container-type: inline-size;
+  }
+
   .agenda-grid-line {
     border-color: var(--schedule-grid-line);
   }
@@ -472,6 +479,42 @@
 
   .agenda-barber-header {
     background: var(--schedule-barber-header-surface);
+  }
+
+  .agenda-current-time-marker {
+    z-index: 45;
+    display: block;
+    width: calc(100cqi - 5rem);
+    height: 2px;
+    background: var(--schedule-current-time-line);
+  }
+
+  .agenda-current-time-label {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: var(--primitive-space-1);
+    display: inline-flex;
+    min-height: 1.25rem;
+    align-items: center;
+    border-radius: var(--primitive-radius-full);
+    background: var(--schedule-current-time-label-surface);
+    color: var(--schedule-current-time-label-foreground);
+    font-size: 0.6875rem;
+    font-weight: var(--primitive-font-weight-semibold);
+    line-height: 1;
+    padding-inline: var(--primitive-space-1-5);
+    transform: translateY(-50%);
+    white-space: nowrap;
+  }
+
+  .agenda-current-time-marker[data-label-placement="after"] .agenda-current-time-label {
+    transform: none;
+  }
+
+  .agenda-current-time-marker[data-label-placement="before"] .agenda-current-time-label {
+    inset-block-start: auto;
+    inset-block-end: 50%;
+    transform: none;
   }
 
   [data-appointment-status="scheduled"] {
@@ -725,8 +768,15 @@
 
   .agenda-appointment-card::before,
   .agenda-appointment-drag-preview::before,
+  .agenda-current-time-marker,
   [data-slot="workspace-active-indicator"] {
     background: Highlight;
+  }
+
+  .agenda-current-time-label {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
   }
 
   .agenda-appointment-status-badge {
