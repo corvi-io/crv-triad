@@ -152,17 +152,20 @@
 Record evidence as tasks are completed:
 
 - Command: `bun --filter studio format`
-- Result: passed; 216 files formatted and one changed file normalized.
+- Result: passed; 217 files checked with no formatting fixes.
 - Command: `bun --filter studio lint`
-- Result: passed; 221 files checked with no lint fixes.
+- Result: passed; 222 files checked with no lint fixes.
 - Command: `bun --filter studio typecheck`
 - Result: passed, including TanStack route generation.
 - Command: `bun --filter studio test -- tests/unit/client-management.test.ts`
-- Result: passed; 14 focused client-management tests.
+- Result: passed; 15 focused client-management contract and repository tests.
+- Command: `bun --filter studio test -- tests/unit/client-management-page.test.tsx`
+- Result: passed; eight focused React Testing Library component tests rendering the directory,
+  profile drawer, and disabled route boundary.
 - Command: `bun --filter studio test:e2e -- tests/e2e/client-management.spec.ts`
 - Result: passed; four focused Chromium tests.
 - Command: `bun --filter studio check`
-- Result: passed; 31 Vitest files and 200 tests, typecheck, Biome, build, and production boundary.
+- Result: passed; 32 Vitest files and 209 tests, typecheck, Biome, build, and production boundary.
 - Command:
   `VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=memory bun --filter studio build`
   followed by `bun apps/studio/scripts/assert-production-boundary.ts`
