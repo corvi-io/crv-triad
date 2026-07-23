@@ -43,6 +43,7 @@ import {
   signInWithGoogle,
   unlinkGoogle,
 } from "@/modules/auth/services/auth-client"
+import { env } from "@/modules/shared/config/env"
 
 describe("auth client", () => {
   beforeEach(() => {
@@ -90,9 +91,11 @@ describe("auth client", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
     const resolveRequest = fetchMock.mock.calls[0]
     const acceptanceRequest = fetchMock.mock.calls[1]
-    expect(resolveRequest?.[0]).toBe("http://localhost:8001/invitations/resolve")
+    expect(resolveRequest?.[0]).toBe(new URL("/invitations/resolve", env.authBaseUrl).toString())
     expect(resolveRequest?.[1]).toMatchObject({ method: "POST", referrerPolicy: "no-referrer" })
-    expect(acceptanceRequest?.[0]).toBe("http://localhost:8001/api/auth/sign-up/email")
+    expect(acceptanceRequest?.[0]).toBe(
+      new URL("/api/auth/sign-up/email", env.authBaseUrl).toString(),
+    )
     expect(acceptanceRequest?.[1]).toMatchObject({ method: "POST", referrerPolicy: "no-referrer" })
   })
 
