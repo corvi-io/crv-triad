@@ -40,6 +40,9 @@ describe("workspace token contract", () => {
     )
     expect(styles).toContain("--workspace-nav-selected-radius: var(--selection-radius)")
     expect(styles).toContain(
+      "--workspace-nav-selected-indicator-width: calc(var(--primitive-space-px) * 2)",
+    )
+    expect(styles).toContain(
       "--workspace-nav-selected-padding-inline-start: var(--primitive-space-2)",
     )
     expect(styles).toContain(
@@ -49,6 +52,11 @@ describe("workspace token contract", () => {
       "md:pl-(--workspace-nav-selected-padding-inline-start)",
     )
     expect(primaryNavigationSource).toContain("md:pr-(--workspace-nav-selected-padding-inline-end)")
+    expect(primaryNavigationSource).toContain(
+      'width: "var(--workspace-nav-selected-indicator-width)"',
+    )
+    expect(primaryNavigationSource).not.toContain("borderWidth")
+    expect(primaryNavigationSource).not.toContain("absolute inset-0")
     expect(styles).toContain(
       "--color-workspace-sidebar-selected: var(--workspace-sidebar-selected-background)",
     )

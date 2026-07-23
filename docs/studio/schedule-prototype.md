@@ -11,6 +11,9 @@ development-only QA route.
 - `Quadro` is the default and canonical temporal view.
 - `Lista` is the alternate view; the selector uses icon buttons and one controlled URL value.
 - The board has a sticky `Horário` column with 15-minute rows and sticky barber headings.
+- On the selected local calendar day, a labeled `Agora HH:mm` line marks the current minute only
+  while it falls within the configured working interval. It starts after the sticky 80px time
+  column, spans the visible professional grid, and remains clipped by the Agenda surface.
 - Each barber heading includes a deterministic portrait, name, unit, active marker, and appointment
   count.
 - Each appointment card includes a deterministic client portrait, client name, time range, service,
@@ -19,6 +22,28 @@ development-only QA route.
 - The temporal `Quadro` is the allocation Kanban. Eligible appointments can move vertically between
   15-minute times, horizontally between barber columns, or both; drag never changes status.
 - Status-column Kanban remains outside the accepted visual direction.
+
+## ENG-43 Visual Refinement
+
+Appointment containers use the neutral `card`/`card-foreground` contract in
+light and dark themes. The eight existing schedule status roles are mapped
+through `data-appointment-status` and affect only a 3px logical leading
+indicator, a bounded 16% light/12% dark leading tint, badge, compact symbol,
+hover border mix, and drag outline. Canceled, completed, confirmed, no-show,
+waiting, and in-progress records no longer become full red, green, gray, amber,
+or blue blocks.
+
+Medium/full cards retain the complete badge. Compact cards retain their 15-minute
+height and time/customer information, show the existing non-color status symbol,
+and keep the complete Portuguese status in the accessible name. Card borders,
+foregrounds, shadows, grid surfaces/lines, sticky time/barber surfaces, hover,
+focus, drag overlay, and drop target resolve through Agenda component tokens in
+`src/index.css`; scheduling React contains no raw status colors.
+
+The shared filter variants and primary CTA were measured and retained because
+their existing neutral/rest and restrained semantic-gold states already meet the
+handoff. The shared workspace active state replaces its complete outline with a
+2px logical leading indicator; the shell remains its single owner.
 
 ## Filters And Period
 
@@ -70,6 +95,9 @@ boundary.
   each arrow press advances exactly one time row or barber column. Portuguese live announcements,
   restored handle focus, and reduced-motion behavior remain part of the interaction.
 - Filter state, status, and selection do not depend on color alone.
+- The current-time cue combines its tokenized line with a visible Portuguese time label, exposes the
+  same current time in the semantic table caption, ignores pointer input, and updates on the next
+  minute boundary with subscription cleanup. It is absent on other dates and outside working hours.
 - Menus and calendar use Base UI/shadcn focus management; card actions remain visible on coarse
   pointers.
 - The filter row and board own their horizontal overflow so narrow layouts do not widen the page.
@@ -78,10 +106,16 @@ boundary.
 
 Focused Vitest covers URL parsing, derived filters, fixtures, the temporal board, list switching,
 calendar opening, menus, drawers, drag contracts, repository validation, optimistic occupancy, and
-non-drag state changes. Focused Playwright covers the reference layout, pointer and keyboard drag,
-announcements, rollback, terminal state, menus, period, view switch, state transition, narrow
-overflow, scenarios, and axe WCAG 2.2 A/AA checks. Real-device touch, VoiceOver/NVDA, and
-authenticated deployed `dev` review remain manual follow-ups.
+non-drag state changes plus the neutral-container source/token contract. Focused
+Playwright in `tests/e2e/schedule-prototype.spec.ts` covers the reference layout,
+all eight rendered status contracts, compact/medium/full geometry, browser
+contrast, pointer and keyboard drag, overlay/drop styling, announcements,
+rollback, terminal state, menus, period, view switch, state transition,
+light/dark/system, forced colors, reduced motion, coarse pointer, narrow/zoom
+overflow, sticky axes, current-time date/range/position/bounds, scenarios, and
+axe WCAG 2.2 A/AA checks. Real-device
+touch, VoiceOver/NVDA, and authenticated deployed `dev` review remain manual
+follow-ups.
 
 ## Backend And Observability Follow-ups
 

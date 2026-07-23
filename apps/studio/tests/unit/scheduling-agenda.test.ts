@@ -8,6 +8,7 @@ import {
   periodBounds,
   validateScheduleSearch,
 } from "@/modules/scheduling/agenda"
+import { resolveAgendaCurrentTimeMarker } from "@/modules/scheduling/agenda-current-time"
 
 const professionals = [
   { id: "professional-carlos", name: "Carlos Lima" },
@@ -114,5 +115,65 @@ describe("agenda derivation", () => {
       unit: "centro",
       view: "board",
     })
+  })
+})
+
+describe("Agenda current-time marker", () => {
+  const workingDay = {
+    endTime: "18:00",
+    selectedDate: "2026-07-22",
+    startTime: "08:00",
+  }
+
+  it("projects local time into the configured range and 15-minute row", () => {
+    expect(
+      resolveAgendaCurrentTimeMarker({
+        ...workingDay,
+        now: new Date(2026, 6, 22, 14, 37),
+      }),
+    ).toEqual({
+      label: "Agora 14:37",
+      position: 397 / 600,
+      rowIndex: 26,
+      rowProgress: 7 / 15,
+      time: "14:37",
+    })
+  })
+
+  it("includes the opening minute and excludes the closing minute", () => {
+    expect(
+      resolveAgendaCurrentTimeMarker({
+        ...workingDay,
+        now: new Date(2026, 6, 22, 8, 0),
+      }),
+    ).toMatchObject({ position: 0, rowIndex: 0, rowProgress: 0 })
+    expect(
+      resolveAgendaCurrentTimeMarker({
+        ...workingDay,
+        now: new Date(2026, 6, 22, 18, 0),
+      }),
+    ).toBeUndefined()
+  })
+
+  it("hides on another local date, outside the range, or for invalid bounds", () => {
+    expect(
+      resolveAgendaCurrentTimeMarker({
+        ...workingDay,
+        now: new Date(2026, 6, 23, 14, 37),
+      }),
+    ).toBeUndefined()
+    expect(
+      resolveAgendaCurrentTimeMarker({
+        ...workingDay,
+        now: new Date(2026, 6, 22, 7, 59),
+      }),
+    ).toBeUndefined()
+    expect(
+      resolveAgendaCurrentTimeMarker({
+        ...workingDay,
+        endTime: "08:00",
+        now: new Date(2026, 6, 22, 8, 0),
+      }),
+    ).toBeUndefined()
   })
 })

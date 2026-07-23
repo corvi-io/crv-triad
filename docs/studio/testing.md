@@ -29,11 +29,14 @@ Auth requests with local synthetic responses and must never call Google, Resend,
 live credentials. Unit coverage remains authoritative for every thin client payload and safe error
 category.
 
-`tests/e2e/schedule.spec.ts` exercises the module through the development-only schedule preview
-without intercepting Better Auth. It covers view, create, reschedule, cancel, URL scenarios and
-filters, conflict recovery, 320 CSS-pixel grouping, dark mode, reduced motion, focus return, long
-content, horizontal density, and a focused axe scan. The authenticated `/agenda` route continues to
-use the real IDP boundary; the preview is local QA tooling and redirects in production.
+`tests/e2e/schedule-prototype.spec.ts` exercises the module through the development-only schedule
+preview without intercepting Better Auth. It covers view, create, reschedule, cancel, URL scenarios
+and filters, conflict recovery, all eight neutral card/status contracts, compact/medium/full
+geometry, hover/focus/drag/drop computed styles, browser contrast, light/dark/system, forced colors,
+320 CSS-pixel and 200%-zoom-equivalent reflow, coarse pointer, sticky axes, current-time
+date/range/position/horizontal bounds, reduced motion, focus return, long content, horizontal
+density, and a focused axe scan. The authenticated `/agenda` route
+continues to use the real IDP boundary; the preview is local QA tooling and redirects in production.
 
 `tests/e2e/barbershop-setup.spec.ts` covers the authenticated setup module: direct entry, normal
 sidebar navigation, collapsed and mobile active states, stable section URLs, absence of preview

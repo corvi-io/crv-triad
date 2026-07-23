@@ -13,15 +13,17 @@ const tones: Record<StatusBadgeTone, string> = {
 
 type StatusBadgeProps = {
   children: string
+  className?: string
   tone?: StatusBadgeTone
 }
 
-export function StatusBadge({ children, tone = "neutral" }: StatusBadgeProps) {
+export function StatusBadge({ children, className, tone = "neutral" }: StatusBadgeProps) {
   return (
     <span
       className={cn(
         "inline-flex min-h-6 max-w-full items-center rounded-md border px-2 text-xs font-medium",
         tones[tone],
+        className,
       )}
     >
       <span className="truncate">{children}</span>

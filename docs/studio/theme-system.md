@@ -136,13 +136,54 @@ Color is never the only carrier of status meaning. Scheduling owns this
 presentation vocabulary until another module proves the same semantics are
 shared.
 
+## Agenda Neutral Card Contract
+
+ENG-43 narrows schedule status colors from full appointment surfaces to bounded
+signals. Every board appointment now resolves its container from
+`--schedule-appointment-surface` (`--card`) and
+`--schedule-appointment-foreground` (`--card-foreground`). Status roles may
+affect only the logical leading indicator, low-intensity leading tint, hover
+border mix, compact symbol, status badge, and drag outline.
+
+The Agenda component layer in `src/index.css` owns:
+
+| Responsibility | Component tokens |
+| --- | --- |
+| Grid hierarchy | `--schedule-grid-surface`, `--schedule-grid-border`, `--schedule-grid-line` |
+| Sticky axes | `--schedule-time-column-surface`, `--schedule-barber-header-surface` |
+| Neutral card | `--schedule-appointment-surface`, `--schedule-appointment-foreground`, `--schedule-appointment-border` |
+| Status signal | `--schedule-appointment-indicator-width`, `--schedule-appointment-tint` |
+| Elevation | `--schedule-appointment-shadow`, `--schedule-appointment-hover-shadow`, `--schedule-appointment-drag-shadow` |
+| Drop feedback | `--schedule-drop-target-surface`, `--schedule-drop-target-border` |
+| Current time | `--schedule-current-time-line`, `--schedule-current-time-label-surface`, `--schedule-current-time-label-foreground` |
+
+`data-appointment-status` maps each card to the existing schedule surface,
+foreground, and border roles. The container never consumes the status surface
+or foreground as its full background or body text. Medium and full cards retain
+the textual badge. Compact cards retain their time/customer geometry, add the
+existing status symbol as a visible non-color signal, and keep the complete
+Portuguese status in the details button accessible name.
+
+Focus replaces hover movement and adds the semantic ring around the full card.
+Reduced motion removes card and overlay transforms. Forced colors removes the
+tint, restores Canvas/CanvasText surfaces and structural borders, and uses
+Highlight for leading/focus/drop signals.
+
+The current-time marker reuses the semantic primary surface and foreground
+through Agenda component tokens. Its visible `Agora HH:mm` label prevents a
+color-only cue; forced colors maps the line and label to
+`Highlight`/`HighlightText`.
+
 ## Implemented Contrast Evidence
 
 `tests/e2e/theme.spec.ts` creates real browser elements from the shipped custom
 properties and measures Chromium-computed foreground, background, and border
 colors. It covers the principal semantic text pairs, feedback, focus, input
-boundaries, and rendered schedule cards in both themes. Normal text targets at
-least 4.5:1; focus and meaningful non-text boundaries target at least 3:1.
+boundaries, neutral appointment containers, indicators, and status badges in
+both themes. `tests/e2e/schedule-prototype.spec.ts` independently rejects
+status-filled containers and covers rendered interaction states. Normal text
+targets at least 4.5:1; focus and meaningful non-text boundaries target at
+least 3:1.
 
 | Feedback role | Light text | Light border | Dark text | Dark border |
 | --- | ---: | ---: | ---: | ---: |
@@ -162,8 +203,11 @@ least 4.5:1; focus and meaningful non-text boundaries target at least 3:1.
 | Canceled | 7.60:1 | 5.91:1 | 11.16:1 | 4.29:1 |
 | No-show | 13.88:1 | 4.35:1 | 14.23:1 | 3.78:1 |
 
-The lowest measured schedule text pair is 6.81:1 and the lowest meaningful
-schedule boundary is 3.11:1. Browser-focused links, buttons, and inputs retain
+The schedule table above now represents badge text/boundary pairs. The lowest
+badge text pair is 6.81:1 and the lowest badge boundary is 3.11:1. Neutral card
+text measures 19.41:1 in light and 15.53:1 in dark; the shared card boundary
+measures 5.71:1 and 4.58:1 respectively. The lowest status indicator is 3.26:1
+in light and 3.54:1 in dark. Browser-focused links, buttons, and inputs retain
 their component box shadow and render a three-pixel opaque gold outline above
 utility-layer outline resets. Browser-native sRGB canvas composition measures
 that rendered outline at 5.11:1 on the light selected sidebar link and 5.36:1 on
@@ -185,8 +229,10 @@ reference accepted primitives and must not create feature-level raw gradients.
 
 The shipped `--auth-brand-background` and `--auth-brand-shadow` component tokens
 compose the restrained radial highlight, navy surface gradient, and elevation on
-the desktop login preview only. Schedule grids, tables, forms, routine cards,
-and long reading surfaces remain on solid semantic colors.
+the desktop login preview only. Agenda appointment cards use a separate bounded
+leading status tint over an otherwise neutral semantic card; schedule grids,
+tables, forms, routine cards, and long reading surfaces remain on solid semantic
+colors.
 
 ## Initial Theme Resolution
 
