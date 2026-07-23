@@ -144,12 +144,14 @@ test("keeps focus stronger than hover and uses restrained drag and drop treatmen
 
   const card = page.locator('[data-appointment-id="kanban-05"]')
   await card.hover()
+  await expect(card).toHaveCSS("box-shadow", /0px 4px 12px/)
+  await expect(card).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, -1)")
   const hover = await card.evaluate((element) => {
     const style = getComputedStyle(element)
     return { boxShadow: style.boxShadow, transform: style.transform }
   })
-  expect(hover.boxShadow).not.toBe("none")
-  expect(hover.transform).not.toBe("none")
+  expect(hover.boxShadow).toContain("0px 4px 12px")
+  expect(hover.transform).toBe("matrix(1, 0, 0, 1, 0, -1)")
 
   const details = card.getByRole("button", { name: /^Rafael Costa/ })
   await details.focus()

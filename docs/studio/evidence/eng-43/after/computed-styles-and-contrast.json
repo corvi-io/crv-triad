@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-07-23T03:23:40.789Z",
+  "capturedAt": "2026-07-23T03:47:16.900Z",
   "route": "/workspace-preview/agenda?date=2026-07-22",
   "syntheticFixturesOnly": true,
   "viewport": {
@@ -27,9 +27,9 @@
       "transform": "none"
     },
     "hover": {
-      "borderColor": "oklab(0.512258 -0.0106739 -0.0688487)",
-      "boxShadow": "rgba(8, 13, 25, 0.12) 0px 1px 2px 0px, rgba(255, 255, 255, 0.02) 0px 0px 0px 1px inset",
-      "transform": "matrix(1, 0, 0, 1, 0, 0)"
+      "borderColor": "color(srgb 0.207294 0.44902 0.412863)",
+      "boxShadow": "rgba(8, 13, 25, 0.16) 0px 4px 12px 0px, rgba(255, 255, 255, 0.03) 0px 0px 0px 1px inset",
+      "transform": "matrix(1, 0, 0, 1, 0, -1)"
     },
     "sidebarActive": {
       "backgroundColor": "rgb(255, 249, 236)",
@@ -213,9 +213,9 @@
       "transform": "none"
     },
     "hover": {
-      "borderColor": "oklab(0.618529 -0.0086486 -0.0669208)",
-      "boxShadow": "rgba(8, 13, 25, 0.12) 0px 1px 2px 0px, rgba(255, 255, 255, 0.02) 0px 0px 0px 1px inset",
-      "transform": "matrix(1, 0, 0, 1, 0, 0)"
+      "borderColor": "color(srgb 0.29851 0.639137 0.540157)",
+      "boxShadow": "rgba(8, 13, 25, 0.16) 0px 4px 12px 0px, rgba(255, 255, 255, 0.03) 0px 0px 0px 1px inset",
+      "transform": "matrix(1, 0, 0, 1, 0, -1)"
     },
     "sidebarActive": {
       "backgroundColor": "rgb(36, 50, 77)",
