@@ -422,7 +422,9 @@ function professionalState(
     (appointment) =>
       appointment.professionalId === professionalId &&
       appointment.date === currentDate &&
-      appointment.status === "in-progress",
+      appointment.status === "in-progress" &&
+      appointmentTime(appointment) <= now &&
+      appointmentEnd(appointment) > now.getTime(),
   )
   if (current) return "Em atendimento"
   const next = appointments

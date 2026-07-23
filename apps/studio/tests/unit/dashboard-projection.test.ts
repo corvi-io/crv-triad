@@ -253,6 +253,37 @@ describe("Dashboard projection", () => {
     ])
   })
 
+  it("does not present future or ended in-progress appointments as currently underway", () => {
+    const temporalStates = deriveDashboard({
+      bounds: { endDate: date, startDate: date },
+      day: {
+        ...day,
+        appointments: [
+          appointment({
+            id: "future-in-progress",
+            start: "11:00",
+            status: "in-progress",
+          }),
+          appointment({
+            durationMinutes: 60,
+            id: "ended-in-progress",
+            professionalId: "professional-two",
+            start: "08:00",
+            status: "in-progress",
+          }),
+        ],
+      },
+      filters: { period: "today", unitId: "centro" },
+      now: new Date(`${date}T10:00:00`),
+      updatedAt: 0,
+    })
+
+    expect(temporalStates.professionals.map(({ state }) => state)).toEqual([
+      "Próximo às 11:00",
+      "Disponível",
+    ])
+  })
+
   it("detects conflicts inside date and professional groups despite interleaved records", () => {
     const interleaved = deriveDashboard({
       bounds: { endDate: date, startDate: date },
