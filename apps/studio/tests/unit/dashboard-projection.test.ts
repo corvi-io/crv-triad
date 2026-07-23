@@ -130,6 +130,17 @@ describe("Dashboard search", () => {
     })
   })
 
+  it("drops a syntactically safe professional outside the loaded allowlist", () => {
+    expect(
+      validateDashboardSearch(
+        { professionalId: "professional-unknown" },
+        date,
+        ["normal"],
+        professionals.map(({ id }) => id),
+      ).professionalId,
+    ).toBeUndefined()
+  })
+
   it("derives yesterday, week, and month bounds from the local date anchor", () => {
     expect(dashboardBounds(validateDashboardSearch({ period: "yesterday" }, date))).toEqual({
       endDate: "2026-07-22",
@@ -225,6 +236,104 @@ describe("Dashboard projection", () => {
 
     expect(filtered.filters.professionalId).toBeUndefined()
     expect(filtered.metrics[0].value).toBe("5")
+  })
+
+  it("marks current professional state unavailable when the selected range excludes today", () => {
+    const historical = deriveDashboard({
+      bounds: { endDate: "2026-07-22", startDate: "2026-07-22" },
+      day,
+      filters: { period: "yesterday", unitId: "centro" },
+      now: new Date(`${date}T11:00:00`),
+      updatedAt: 0,
+    })
+
+    expect(historical.professionals.map(({ state }) => state)).toEqual([
+      "Indisponível — período não inclui hoje",
+      "Indisponível — período não inclui hoje",
+    ])
+  })
+
+  it("detects conflicts inside date and professional groups despite interleaved records", () => {
+    const interleaved = deriveDashboard({
+      bounds: { endDate: date, startDate: date },
+      day: {
+        ...day,
+        appointments: [
+          appointment({ durationMinutes: 120, id: "one-early", start: "09:00" }),
+          appointment({
+            durationMinutes: 15,
+            id: "two-between",
+            professionalId: "professional-two",
+            start: "09:15",
+          }),
+          appointment({ durationMinutes: 15, id: "one-overlap", start: "09:30" }),
+        ],
+      },
+      filters: { period: "today", unitId: "centro" },
+      now: new Date(`${date}T12:00:00`),
+      updatedAt: 0,
+    })
+
+    expect(interleaved.attention).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          appointmentId: "one-overlap",
+          title: "Conflito de horário às 09:30",
+        }),
+      ]),
+    )
+  })
+
+  it("caps operational collections and returns safe values for zero denominators", () => {
+    const cappedServices = Array.from({ length: 7 }, (_, index) => ({
+      ...services[0],
+      id: `service-${index}`,
+      name: `Serviço ${index}`,
+    }))
+    const capped = deriveDashboard({
+      bounds: { endDate: date, startDate: date },
+      day: {
+        ...day,
+        appointments: cappedServices.map((service, index) => {
+          const startMinutes = 12 * 60 + index * 15
+          return appointment({
+            durationMinutes: 15,
+            id: `waiting-${index}`,
+            serviceId: service.id,
+            start: `${String(Math.floor(startMinutes / 60)).padStart(2, "0")}:${String(startMinutes % 60).padStart(2, "0")}`,
+            status: "waiting",
+          })
+        }),
+        services: cappedServices,
+      },
+      filters: { period: "today", unitId: "centro" },
+      now: new Date(`${date}T11:00:00`),
+      updatedAt: 0,
+    })
+    expect(capped.upcoming).toHaveLength(6)
+    expect(capped.attention).toHaveLength(5)
+    expect(capped.services).toHaveLength(5)
+
+    const empty = deriveDashboard({
+      bounds: { endDate: date, startDate: date },
+      day: { ...day, appointments: [], endTime: "08:00", periods: [], startTime: "08:00" },
+      filters: { period: "today", unitId: "centro" },
+      now: new Date(`${date}T11:00:00`),
+      updatedAt: 0,
+    })
+    expect(empty.metrics.map(({ value }) => value)).toEqual([
+      "0",
+      "0",
+      "R$ 0,00",
+      "Indisponível",
+      "0%",
+    ])
+    expect(empty.capacity).toMatchObject({
+      availableMinutes: 0,
+      bookedMinutes: 0,
+      freeMinutes: 0,
+    })
+    expect(empty.cancellations.rate).toBe("0%")
   })
 })
 

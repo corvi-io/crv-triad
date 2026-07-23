@@ -534,7 +534,7 @@ function ServicesCard({
               <div className="min-w-0">
                 <p className="truncate font-medium">{service.name}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Agendado {service.scheduledValue} · Pago {service.paidValue}
+                  Valor agendado {service.scheduledValue} · Valor em estado pago {service.paidValue}
                 </p>
               </div>
               <span className="tabular-nums">{service.count}</span>

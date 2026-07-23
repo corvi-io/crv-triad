@@ -28,10 +28,25 @@ export type DashboardSearch = DashboardFilters & {
   scenario: string
 }
 
+export function validateDashboardProfessionalId(
+  professionalId: unknown,
+  allowedProfessionalIds?: readonly string[],
+) {
+  if (
+    typeof professionalId !== "string" ||
+    !safeId(professionalId) ||
+    (allowedProfessionalIds && !allowedProfessionalIds.includes(professionalId))
+  ) {
+    return undefined
+  }
+  return professionalId
+}
+
 export function validateDashboardSearch(
   search: Record<string, unknown>,
   fallbackDate: string,
   allowedScenarioIds?: readonly string[],
+  allowedProfessionalIds?: readonly string[],
 ): DashboardSearch {
   const date = validDate(search.date) ?? fallbackDate
   const period =
@@ -53,10 +68,7 @@ export function validateDashboardSearch(
     customStart: period === "custom" ? customBounds.startDate : undefined,
     date,
     period,
-    professionalId:
-      typeof search.professionalId === "string" && safeId(search.professionalId)
-        ? search.professionalId
-        : undefined,
+    professionalId: validateDashboardProfessionalId(search.professionalId, allowedProfessionalIds),
     scenario,
     unitId:
       typeof search.unitId === "string" &&

@@ -70,6 +70,14 @@ test("keeps bounded URL filters coherent and drills into existing destinations",
   await expect(page).toHaveURL(/professional=professional-carlos/)
   await expect(page).toHaveURL(/status=completed/)
 
+  await page.goto("/overview?scenario=normal&professionalId=professional-unknown")
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
+  await expect(page).not.toHaveURL(/professionalId=/)
+  await expect(page.locator("#dashboard-professional")).toContainText("Todos os barbeiros")
+  await page.getByRole("button", { name: "Abrir Concluídos na Agenda" }).click()
+  await expect(page).toHaveURL(/\/agenda\?/)
+  await expect(page).not.toHaveURL(/professional=/)
+
   await page.goto("/overview?scenario=normal")
   await page.getByRole("button", { name: "Ver serviços" }).click()
   await expect(page).toHaveURL(/\/barbershop-setup\?/)
@@ -130,6 +138,7 @@ test("reflows medium and tablet layouts while following the system theme", async
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
   await expect(page.locator("html")).not.toHaveClass(/dark/)
   await expectNoPageOverflow(page)
+  await expectProgressContrast(page)
   await page.screenshot({ path: testInfo.outputPath("dashboard-medium-light.png") })
 
   await page.emulateMedia({ colorScheme: "dark" })
@@ -137,6 +146,7 @@ test("reflows medium and tablet layouts while following the system theme", async
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
   await expect(page.locator("html")).toHaveClass(/dark/)
   await expectNoPageOverflow(page)
+  await expectProgressContrast(page)
   await expect(page.getByRole("heading", { name: "Clientes do período" })).toBeAttached()
   await page.screenshot({ path: testInfo.outputPath("dashboard-tablet-system-dark.png") })
 })
@@ -181,20 +191,13 @@ test("preserves 320px reflow, themes, reduced motion, forced colors, focus, and 
     .analyze()
   expect(results.violations).toEqual([])
 
-  const progress = page.getByRole("progressbar").first()
-  const progressColors = await progress.evaluate((element) => {
-    const indicator = element.querySelector<HTMLElement>('[data-slot="progress-indicator"]')
-    return {
-      indicator: getComputedStyle(indicator ?? element).backgroundColor,
-      track: getComputedStyle(element).backgroundColor,
-    }
-  })
-  expect(contrastRatio(progressColors.indicator, progressColors.track)).toBeGreaterThanOrEqual(3)
-
   await page.emulateMedia({ forcedColors: "active", reducedMotion: "reduce" })
   await page.reload()
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
+  const progress = page.getByRole("progressbar").first()
   await expect(progress).toBeVisible()
+  await expect(progress.locator('[data-slot="progress-track"]')).toBeVisible()
+  await expect(progress.locator('[data-slot="progress-indicator"]')).toBeVisible()
   expect(await progress.evaluate((element) => getComputedStyle(element).forcedColorAdjust)).toBe(
     "auto",
   )
@@ -207,6 +210,24 @@ async function expectNoPageOverflow(page: Page) {
     viewport: innerWidth,
   }))
   expect(Math.max(geometry.body, geometry.root)).toBeLessThanOrEqual(geometry.viewport)
+}
+
+async function expectProgressContrast(page: Page) {
+  const progress = page.getByRole("progressbar").first()
+  const track = progress.locator('[data-slot="progress-track"]')
+  const indicator = progress.locator('[data-slot="progress-indicator"]')
+  await expect(track).toBeVisible()
+  await expect(indicator).toBeVisible()
+  const colors = await track.evaluate((element) => {
+    const renderedIndicator = element.querySelector<HTMLElement>('[data-slot="progress-indicator"]')
+    return {
+      indicator: getComputedStyle(renderedIndicator ?? element).backgroundColor,
+      track: getComputedStyle(element).backgroundColor,
+    }
+  })
+  expect(colors.indicator).not.toBe("rgba(0, 0, 0, 0)")
+  expect(colors.track).not.toBe("rgba(0, 0, 0, 0)")
+  expect(contrastRatio(colors.indicator, colors.track)).toBeGreaterThanOrEqual(3)
 }
 
 function contrastRatio(foreground: string, background: string) {

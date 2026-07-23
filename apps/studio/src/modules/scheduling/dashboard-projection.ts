@@ -128,6 +128,8 @@ export function deriveDashboard({
     0,
   )
   const occupancyPercent = percent(bookedMinutes, availableMinutes)
+  const currentDate = format(now, "yyyy-MM-dd")
+  const hasCurrentDayData = bounds.startDate <= currentDate && bounds.endDate >= currentDate
   const upcoming = appointments
     .filter(
       (appointment) =>
@@ -252,7 +254,9 @@ export function deriveDashboard({
         name,
         occupancyPercent: percent(totals.bookedMinutes, professionalAvailableMinutes),
         paidValue: currency(totals.paidValueCents),
-        state: professionalState(id, appointments, day.periods, day, now),
+        state: hasCurrentDayData
+          ? professionalState(id, appointments, day.periods, day, now)
+          : "Indisponível — período não inclui hoje",
       }
     }),
     services: Array.from(serviceTotals.entries())
@@ -327,29 +331,35 @@ function deriveAttention(
     }
   }
 
-  for (let index = 1; index < sorted.length; index += 1) {
-    const previous = sorted[index - 1]
-    const current = sorted[index]
-    if (
-      previous.date === current.date &&
-      previous.professionalId === current.professionalId &&
-      previous.status !== "canceled" &&
-      previous.status !== "no-show" &&
-      current.status !== "canceled" &&
-      current.status !== "no-show" &&
-      appointmentTime(previous).getTime() + previous.durationMinutes * 60_000 >
-        appointmentTime(current).getTime()
-    ) {
-      items.push({
-        appointmentId: current.id,
-        description: `${professionalNames.get(current.professionalId) ?? "Profissional"} tem horários sobrepostos.`,
-        id: `conflict-${previous.id}-${current.id}`,
-        title: `Conflito de horário às ${current.start}`,
-        tone: "danger",
-      })
+  const appointmentsByProfessionalDate = new Map<string, Appointment[]>()
+  for (const appointment of sorted) {
+    if (appointment.status === "canceled" || appointment.status === "no-show") continue
+    const key = `${appointment.date}:${appointment.professionalId}`
+    const group = appointmentsByProfessionalDate.get(key) ?? []
+    group.push(appointment)
+    appointmentsByProfessionalDate.set(key, group)
+  }
+  for (const group of appointmentsByProfessionalDate.values()) {
+    let active = group[0]
+    for (const current of group.slice(1)) {
+      const activeEnd = appointmentEnd(active)
+      if (activeEnd > appointmentTime(current).getTime()) {
+        items.push({
+          appointmentId: current.id,
+          description: `${professionalNames.get(current.professionalId) ?? "Profissional"} tem horários sobrepostos.`,
+          id: `conflict-${active.id}-${current.id}`,
+          title: `Conflito de horário às ${current.start}`,
+          tone: "danger",
+        })
+      }
+      if (appointmentEnd(current) > activeEnd) active = current
     }
   }
   return items.slice(0, 5)
+}
+
+function appointmentEnd(appointment: Appointment) {
+  return appointmentTime(appointment).getTime() + appointment.durationMinutes * 60_000
 }
 
 function availableMinutesForProfessional(
@@ -419,6 +429,7 @@ function professionalState(
     .filter(
       (appointment) =>
         appointment.professionalId === professionalId &&
+        appointment.date === currentDate &&
         !isTerminalAppointmentStatus(appointment.status) &&
         appointmentTime(appointment) >= now,
     )

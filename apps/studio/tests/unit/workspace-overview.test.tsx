@@ -57,6 +57,8 @@ describe("WorkspaceOverview", () => {
     expect(
       screen.getByText("A fonte atual não comprova primeira visita nem retenção de longo prazo."),
     ).toBeInTheDocument()
+    expect(screen.getAllByText(/Valor em estado pago/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/· Pago /)).not.toBeInTheDocument()
   })
 
   it("keeps KPI and creation actions keyboard-operable", async () => {

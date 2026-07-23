@@ -136,8 +136,10 @@
   - [x] Use semantic headings, native links/buttons, labeled filters, semantic tables, accessible
         progress values, and color-independent status/metric meaning.
   - [x] Announce user-triggered filter completion politely without continuous freshness updates.
-  - [x] Verify visible/unobscured focus, 24px targets, keyboard flow, 200% zoom, 320px reflow,
-        forced colors, reduced motion, and coarse pointer behavior.
+  - [x] Verify visible/unobscured focus, 24px targets, keyboard flow, 320px reflow, forced colors,
+        and reduced motion.
+  - [ ] Verify actual browser 200% zoom, VoiceOver/NVDA, and physical touch-device behavior;
+        retained as manual residual evidence.
   - [x] Measure browser-computed normal/muted text, status, focus, progress, and meaningful border
         contrast against WCAG 2.2 AA.
   - [x] Run axe and record VoiceOver/NVDA/real-device checks or residual risk.
@@ -185,28 +187,32 @@ tokens, sessions, private headers, real identities, and production screenshots.
     restrained relative weight. No reference numbers, unsupported facts, pixels, colors, or
     identity were copied.
 - Formula and URL contract tests:
-  - `tests/unit/dashboard-projection.test.ts`: 7 passing tests for allowlists, 31-day inclusive
-    bounds, relative periods, supported formulas, truthful unsupported values, collection
-    ordering/caps, professional availability, and invalid professional fallback.
+  - `tests/unit/dashboard-projection.test.ts`: focused coverage for allowlists, invalid catalog IDs,
+    31-day inclusive bounds, relative periods, supported formulas, zero denominators, truthful
+    unsupported values, collection ordering/caps, historical current-state unavailability,
+    interleaved-professional conflicts, professional availability, and invalid professional
+    fallback.
 - Source sharing and Agenda regression:
   - The Dashboard and Agenda compose the same module-scoped local/dev scheduling repository;
     Playwright proves a Dashboard-created appointment appears in Agenda and reload resets it.
   - The standard Studio check includes the complete Agenda unit suite: 11/11 passing.
-  - Full Playwright passed 55/57. The two failing Agenda expectations are present unchanged on
-    `origin/staging`: one still expects an unfiltered `Barbeiro` count that the accepted unit
-    contract explicitly omits, and one drag helper lands at 14:15 while expecting 14:00. ENG-45
-    does not alter Agenda tests or product behavior.
+  - Full Playwright passed 55/58. Two deterministic failing Agenda expectations are byte-identical
+    to `origin/staging`: one still expects an unfiltered `Barbeiro` count that the accepted unit
+    contract explicitly omits, and one drag helper lands at 14:15 while expecting 14:00. A third
+    Agenda DnD failure was flaky and passed serially. ENG-45 does not alter Agenda tests or product
+    behavior.
 - Dashboard unit/component tests:
-  - Focused Vitest: 2 files / 10 tests passing.
-  - Complete Vitest: 34 files / 225 tests passing; the first saturated run produced timeout-only
-    failures, then the serial/headroom run and the standard Studio/root gates passed.
+  - Baseline before verifier fixes: focused Vitest 2 files / 10 tests and complete Vitest 34 files /
+    225 tests passing.
+  - Final verifier batch: focused Vitest 2 files / 14 tests and complete Vitest 34 files / 229 tests
+    passing. The first saturated baseline run produced timeout-only failures, then the
+    serial/headroom run and the standard Studio/root gates passed.
 - Playwright/accessibility/responsive/contrast:
-  - Focused Dashboard: 6/6 passing; axe, semantic order, shared drawer/state, URL filters,
-    unsupported states, 1600 × 900, medium/tablet, 320px/200%-equivalent reflow,
-    light/dark/system, reduced motion, forced colors, computed progress contrast, visible focus,
-    and 24px targets.
+  - Focused Dashboard: 6/6 passing; axe, semantic order, shared drawer/state, URL normalization,
+    unsupported states, 1600 × 900, medium/tablet, 320px reflow, light/dark/system, reduced motion,
+    forced colors, computed progress track/indicator contrast, visible focus, and 24px targets.
   - Existing theme and Agenda browser coverage supplies light/dark/system and computed contrast
-    evidence. VoiceOver/NVDA, physical-device touch, and browser-UI zoom remain manual.
+    evidence. Actual browser 200% zoom, VoiceOver/NVDA, and physical-device touch remain manual.
 - Production boundary:
   - Production artifact scan passed across 47 files; production Playwright passed 7/7, including
     authenticated `/overview` fail-closed behavior with no scheduling memory values.

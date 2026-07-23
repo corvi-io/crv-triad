@@ -415,8 +415,9 @@ parallel component system.
       allowlisted filters; no new detail route is created.
 - [x] Loading, delayed, empty, filtered-empty, error, retry, unsupported-data, and disabled-source
       states use Brazilian Portuguese copy and accessible semantics.
-- [x] Large desktop, medium desktop, tablet, 320px reflow, 200% zoom, light/dark/system, forced
+- [ ] Large desktop, medium desktop, tablet, 320px reflow, 200% zoom, light/dark/system, forced
       colors, reduced motion, keyboard, focus, target-size, internal-overflow, and axe checks pass.
+      Automated evidence covers every item except actual browser 200% zoom, which remains manual.
 - [x] Browser-computed text, muted text, focus, status, progress, and meaningful non-text contrast
       meet WCAG 2.2 AA.
 - [x] Focused unit tests define every formula and prove filter coherence, bounds, sort order, caps,

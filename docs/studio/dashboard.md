@@ -39,7 +39,9 @@ One validated search contract drives every visible block:
 - allowlisted technical scenario identifier in the development source.
 
 Custom ranges contain at most 31 inclusive calendar days. Invalid dates, units,
-periods, professional IDs, and scenarios fall back safely. Names, phone numbers,
+periods, professional IDs, and scenarios fall back safely. A syntactically valid
+professional ID absent from the loaded catalog is removed from the URL, and
+drill-down uses only the validated projection filter. Names, phone numbers,
 notes, search text, appointment payloads, and other client-shaped data never
 enter URL state. Filter completion is announced politely without moving focus.
 
@@ -59,7 +61,7 @@ import scheduling or development-source internals.
 | Próximos atendimentos | Up to six non-terminal records at or after the source/query time, ordered by date and start. |
 | Atenção necessária | Derivable waiting, completed-pending, overrun in-progress, near scheduled, and overlap items, capped at five. |
 | Fluxo | Factual count for each of the existing eight Agenda statuses. |
-| Ocupação dos barbeiros | Non-canceled/non-no-show booked minutes divided by each professional's available minutes; never ranked. |
+| Ocupação dos barbeiros | Non-canceled/non-no-show booked minutes divided by each professional's available minutes; never ranked. Current state is shown only when the bounds include today, otherwise it is explicitly unavailable. |
 | Capacidade | Available, reserved, and non-negative free minutes, also projected into 08h–12h, 12h–18h, and 18h–22h bands. |
 | Previsto | Prices for all records except `canceled` and `no-show`; not forecast accounting revenue. |
 | Pendente | Prices for completed appointments marked `pending`. |
@@ -106,7 +108,7 @@ reduced motion suppresses the added progress transition.
 The five KPI cards reflow from five columns through intermediate wrapping to one
 column. Operational groups stack without page-level horizontal overflow; tables
 own their overflow. Automated browser evidence covers 1600 × 900 hierarchy,
-320-CSS-pixel/200%-equivalent reflow, keyboard focus, target size, light/dark,
-forced colors, reduced motion, computed contrast, and axe. VoiceOver/NVDA,
-real-browser zoom UI, and physical touch-device review remain manual release
-follow-ups.
+medium/tablet layouts, 320-CSS-pixel reflow, keyboard focus, target size,
+light/dark/system, forced colors, reduced motion, progress track/indicator
+contrast, and axe. Actual browser 200% zoom, VoiceOver/NVDA, and physical
+touch-device review remain manual release follow-ups.

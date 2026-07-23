@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import {
   type DashboardFilters,
@@ -9,7 +9,11 @@ import {
 import { AppointmentDrawer, type DrawerMode } from "./appointment-drawer"
 import type { Appointment, ScheduleDayQuery } from "./contracts"
 import { deriveDashboard } from "./dashboard-projection"
-import { type DashboardSearch, dashboardBounds } from "./dashboard-search"
+import {
+  type DashboardSearch,
+  dashboardBounds,
+  validateDashboardProfessionalId,
+} from "./dashboard-search"
 import { useScheduleDay } from "./queries"
 
 export function DashboardPage({
@@ -32,6 +36,10 @@ export function DashboardPage({
     unitId: search.unitId,
   }
   const dayQuery = useScheduleDay(query)
+  const validatedProfessionalId = validateDashboardProfessionalId(
+    search.professionalId,
+    dayQuery.data?.professionals.map(({ id }) => id),
+  )
   const [drawer, setDrawer] = useState<{
     appointment?: Appointment
     mode: DrawerMode
@@ -68,12 +76,22 @@ export function DashboardPage({
   const hasActiveFilters =
     search.period !== "today" || search.unitId !== "centro" || Boolean(search.professionalId)
 
+  useEffect(() => {
+    if (dayQuery.data && search.professionalId && !validatedProfessionalId) {
+      onSearchChange({ professionalId: undefined })
+    }
+  }, [dayQuery.data, onSearchChange, search.professionalId, validatedProfessionalId])
+
   function changeFilters(next: Partial<DashboardFilters>) {
     onSearchChange(next)
   }
 
   function navigateAgenda(filters?: { professionalId?: string; status?: string }) {
     const period = bounds.startDate === bounds.endDate ? "today" : "custom"
+    const professional = validateDashboardProfessionalId(
+      filters?.professionalId ?? model?.filters.professionalId,
+      dayQuery.data?.professionals.map(({ id }) => id),
+    )
     void navigate({
       search: {
         client: undefined,
@@ -81,7 +99,7 @@ export function DashboardPage({
         customStart: period === "custom" ? bounds.startDate : undefined,
         date: bounds.startDate,
         period,
-        professional: filters?.professionalId ?? search.professionalId,
+        professional,
         scenario: search.scenario,
         service: undefined,
         status: filters?.status,
