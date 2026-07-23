@@ -35,6 +35,10 @@ const appointment: Appointment = {
   unitId: "centro",
 }
 
+function sourceDate(hours: number, minutes: number, seconds = 0) {
+  return new Date(2026, 6, 23, hours, minutes, seconds)
+}
+
 describe("service desk pure rules", () => {
   it("allows only the explicit waiting-to-called-to-service journey", () => {
     expect(canTransition("waiting", "called")).toBe(true)
@@ -44,7 +48,7 @@ describe("service desk pure rules", () => {
   })
 
   it("projects scheduled records without copying unsupported appointments", () => {
-    const now = new Date("2026-07-23T10:15:00-03:00")
+    const now = sourceDate(10, 15)
     const entries = projectScheduledEntries({
       appointments: [
         appointment,
@@ -64,11 +68,11 @@ describe("service desk pure rules", () => {
   })
 
   it("uses exact start-inclusive and end-exclusive current-time bounds", () => {
-    expect(isAppointmentActiveAt(appointment, new Date("2026-07-23T09:59:59-03:00"))).toBe(false)
-    expect(isAppointmentActiveAt(appointment, new Date("2026-07-23T10:00:00-03:00"))).toBe(true)
-    expect(isAppointmentActiveAt(appointment, new Date("2026-07-23T10:29:59-03:00"))).toBe(true)
-    expect(isAppointmentActiveAt(appointment, new Date("2026-07-23T10:30:00-03:00"))).toBe(false)
-    expect(isAppointmentActiveAt(appointment, new Date("2026-07-24T10:15:00-03:00"))).toBe(false)
+    expect(isAppointmentActiveAt(appointment, sourceDate(9, 59, 59))).toBe(false)
+    expect(isAppointmentActiveAt(appointment, sourceDate(10, 0))).toBe(true)
+    expect(isAppointmentActiveAt(appointment, sourceDate(10, 29, 59))).toBe(true)
+    expect(isAppointmentActiveAt(appointment, sourceDate(10, 30))).toBe(false)
+    expect(isAppointmentActiveAt(appointment, new Date(2026, 6, 24, 10, 15))).toBe(false)
   })
 
   it("derives exact non-negative wait durations from one supplied clock", () => {
@@ -82,7 +86,7 @@ describe("service desk pure rules", () => {
       ...projectScheduledEntries({
         appointments: [appointment],
         calledAppointmentIds: new Set(),
-        now: new Date("2026-07-23T11:30:00-03:00"),
+        now: sourceDate(11, 30),
       }),
       {
         arrivalAt: "2026-07-23T10:30:00-03:00",
@@ -188,7 +192,7 @@ describe("service desk URL and walk-in validation", () => {
   })
 
   it("creates fresh clock-based defaults and a temporary snapshot input", () => {
-    const now = new Date("2026-07-23T11:30:00-03:00")
+    const now = sourceDate(11, 30)
     expect(createWalkInFormDefaults(now)).toMatchObject({
       arrivalTime: "11:30",
       preferenceKind: "first-available",

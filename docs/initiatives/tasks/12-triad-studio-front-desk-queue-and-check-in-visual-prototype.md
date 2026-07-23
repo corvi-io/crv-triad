@@ -461,7 +461,10 @@ Record evidence as tasks are completed:
   changed.
 - Notes: the named Maestri UX/progress notes were not connected. Accepted
   decisions transcribed in the PRD and ENG-46 were used. Linear was deliberately
-  not modified because the orchestrator owns issue workflow.
+  not modified because the orchestrator owns issue workflow. The first CI run
+  exposed three service-desk unit assertions that assumed the developer
+  timezone; their source-local test dates were made host-timezone-independent
+  and then passed under both `TZ=UTC` and `TZ=America/Recife`.
 
 ## Risks And Follow-Ups
 
