@@ -15,6 +15,7 @@ import {
   canTransition,
   filterQueueEntries,
   projectScheduledEntries,
+  sortQueueEntries,
 } from "@/modules/service-desk/projection"
 import { createServiceDeskScenarios } from "./scenarios"
 
@@ -28,6 +29,8 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
   #generation = 0
   #lastSnapshot?: ServiceDeskSnapshot
   #scenarioId: ServiceDeskScenarioId = "typical"
+  #schedulingResetRequired = false
+  #schedulingTail: Promise<void> = Promise.resolve()
 
   constructor(scheduling: SchedulingRepository, clock: Clock = createSourceClock()) {
     this.#scheduling = scheduling
@@ -41,12 +44,20 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
     return this.#engine.execute("list", async () => {
       const now = this.#clock.now()
       const date = format(now, "yyyy-MM-dd")
-      const schedule = await this.#scheduling.getDay({
-        endDate: date,
-        focusDate: date,
-        scenarioId: schedulingScenario(query.scenarioId),
-        startDate: date,
-        unitId: query.unitId,
+      const schedule = await this.#withScheduling(async () => {
+        this.#assertGeneration(generation)
+        if (this.#schedulingResetRequired) {
+          await this.#scheduling.reset()
+          this.#assertGeneration(generation)
+          this.#schedulingResetRequired = false
+        }
+        return this.#scheduling.getDay({
+          endDate: date,
+          focusDate: date,
+          scenarioId: schedulingScenario(query.scenarioId),
+          startDate: date,
+          unitId: query.unitId,
+        })
       })
       this.#assertGeneration(generation)
       const projected = projectScheduledEntries({
@@ -54,7 +65,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
         calledAppointmentIds: this.#calledAppointmentIds,
         now,
       })
-      const allEntries = [...projected, ...this.#engine.values()]
+      const allEntries = sortQueueEntries([...projected, ...this.#engine.values()])
       const snapshot: ServiceDeskSnapshot = {
         entries: filterQueueEntries(allEntries, query, schedule.professionals, schedule.services),
         now: now.toISOString(),
@@ -123,9 +134,13 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
       }
       this.#assertEligible(entry, professionalId)
       if (entry.source === "scheduled" && entry.appointmentId) {
-        await this.#scheduling.transition({ id: entry.appointmentId, status: "in-progress" })
-        this.#assertGeneration(generation)
-        this.#calledAppointmentIds.delete(entry.appointmentId)
+        const appointmentId = entry.appointmentId
+        await this.#withScheduling(async () => {
+          this.#assertGeneration(generation)
+          await this.#scheduling.transition({ id: appointmentId, status: "in-progress" })
+          this.#assertGeneration(generation)
+        })
+        this.#calledAppointmentIds.delete(appointmentId)
         const updated = {
           ...entry,
           assignedProfessionalId: professionalId,
@@ -145,10 +160,15 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
 
   async reset() {
     this.#generation += 1
+    const generation = this.#generation
     this.#engine.reset()
     this.#calledAppointmentIds.clear()
     this.#lastSnapshot = undefined
-    await this.#scheduling.reset()
+    await this.#withScheduling(async () => {
+      await this.#scheduling.reset()
+      this.#assertGeneration(generation)
+      this.#schedulingResetRequired = false
+    })
     if (this.#scenarioId === "next-failure") this.#engine.failNext()
   }
 
@@ -158,6 +178,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
     this.#engine.selectScenario(scenarioId)
     this.#calledAppointmentIds.clear()
     this.#lastSnapshot = undefined
+    this.#schedulingResetRequired = true
     if (scenarioId === "next-failure") this.#engine.failNext()
   }
 
@@ -217,6 +238,20 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
       entries: this.#lastSnapshot.entries.map((candidate) =>
         candidate.id === entry.id ? entry : candidate,
       ),
+    }
+  }
+
+  async #withScheduling<TResult>(operation: () => Promise<TResult>) {
+    const previous = this.#schedulingTail
+    let release = () => {}
+    this.#schedulingTail = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await previous
+    try {
+      return await operation()
+    } finally {
+      release()
     }
   }
 }

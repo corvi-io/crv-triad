@@ -426,8 +426,8 @@ Record evidence as tasks are completed:
 - Feature commit: recorded after the intentional delivery commit.
 - Branch: `feature/eng-46-front-desk-queue-check-in`.
 - Pull request: recorded after publication against `staging`.
-- Studio unit/component tests: the final full run passed 36 files and 248
-  tests; focused service-desk projection/repository run passed 15 tests.
+- Studio unit/component tests: the final full run passed 36 files and 250
+  tests; focused service-desk projection/repository run passed 17 tests.
 - Focused service-desk tests: 4 Playwright tests passed.
 - Agenda/Dashboard regressions: the full browser run exposed 18 failures caused
   by real-date/real-time assumptions. A detached `origin/staging` worktree
@@ -464,7 +464,10 @@ Record evidence as tasks are completed:
   not modified because the orchestrator owns issue workflow. The first CI run
   exposed three service-desk unit assertions that assumed the developer
   timezone; their source-local test dates were made host-timezone-independent
-  and then passed under both `TZ=UTC` and `TZ=America/Recife`.
+  and then passed under both `TZ=UTC` and `TZ=America/Recife`. The single Codex
+  review identified arrival ordering and a stale scheduled-start/reset race;
+  both were fixed together in the final review cycle with focused regression
+  coverage. No second automated review was requested.
 
 ## Risks And Follow-Ups
 

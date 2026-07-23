@@ -7,6 +7,7 @@ import {
   isAppointmentActiveAt,
   projectScheduledEntries,
   queueCounts,
+  sortQueueEntries,
   waitMinutes,
 } from "@/modules/service-desk/projection"
 import { validateServiceDeskSearch } from "@/modules/service-desk/search"
@@ -124,6 +125,46 @@ describe("service desk pure rules", () => {
     )
     expect(visible.map(({ id }) => id)).toEqual(["walk-in-1"])
     expect(queueCounts(visible)).toEqual({ called: 1, "in-service": 0, waiting: 0 })
+  })
+
+  it("orders mixed scheduled and walk-in entries by arrival with a stable tie-breaker", () => {
+    const entries = [
+      {
+        arrivalAt: "2026-07-23T10:15:00-03:00",
+        customerName: "Chegada posterior",
+        id: "walk-in-z",
+        preferenceKind: "first-available" as const,
+        priority: "normal" as const,
+        serviceId: "service-simple-cut",
+        source: "walk-in" as const,
+        stage: "waiting" as const,
+        unitId: "centro" as const,
+      },
+      {
+        ...projectScheduledEntries({
+          appointments: [appointment],
+          calledAppointmentIds: new Set(),
+          now: sourceDate(11, 30),
+        })[0],
+        arrivalAt: "2026-07-23T09:30:00-03:00",
+      },
+      {
+        arrivalAt: "2026-07-23T09:30:00-03:00",
+        customerName: "Mesmo horário",
+        id: "walk-in-a",
+        preferenceKind: "first-available" as const,
+        priority: "normal" as const,
+        serviceId: "service-simple-cut",
+        source: "walk-in" as const,
+        stage: "waiting" as const,
+        unitId: "centro" as const,
+      },
+    ]
+    expect(sortQueueEntries(entries).map(({ id }) => id)).toEqual([
+      "scheduled-appointment-safe",
+      "walk-in-a",
+      "walk-in-z",
+    ])
   })
 })
 

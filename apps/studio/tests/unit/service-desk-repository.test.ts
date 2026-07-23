@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
 import { ServiceDeskMemoryRepository } from "@/dev/service-desk/memory-repository"
 import type { ServiceDeskQuery } from "@/modules/service-desk/contracts"
@@ -130,5 +130,44 @@ describe("service desk memory repository", () => {
     const input = { entryId: entry.id, professionalId: "professional-ana" }
     expect((await repository.start(input)).stage).toBe("in-service")
     expect((await repository.start(input)).stage).toBe("in-service")
+  })
+
+  it("rolls back a scheduled start invalidated by reset before it can affect the next generation", async () => {
+    const { repository, scheduling } = createRepository()
+    const snapshot = await repository.getQueue(query())
+    const entry = snapshot.entries.find(
+      (candidate) => candidate.source === "scheduled" && candidate.stage === "waiting",
+    )
+    if (!entry?.appointmentId) throw new Error("Expected one scheduled waiting entry.")
+    await repository.call(entry.id)
+
+    const originalTransition = scheduling.transition.bind(scheduling)
+    let releaseTransition = () => {}
+    let markTransitionStarted = () => {}
+    const transitionStarted = new Promise<void>((resolve) => {
+      markTransitionStarted = resolve
+    })
+    const transitionGate = new Promise<void>((resolve) => {
+      releaseTransition = resolve
+    })
+    vi.spyOn(scheduling, "transition").mockImplementation(async (input) => {
+      markTransitionStarted()
+      await transitionGate
+      return originalTransition(input)
+    })
+
+    const staleStart = repository.start({ entryId: entry.id })
+    await transitionStarted
+    const reset = repository.reset()
+    releaseTransition()
+    await expect(staleStart).rejects.toThrow("A fila mudou durante a operação")
+    await reset
+
+    const day = await scheduling.getDay({
+      endDate: "2026-07-23",
+      startDate: "2026-07-23",
+      unitId: "centro",
+    })
+    expect(day.appointments.find(({ id }) => id === entry.appointmentId)?.status).toBe("arrived")
   })
 })

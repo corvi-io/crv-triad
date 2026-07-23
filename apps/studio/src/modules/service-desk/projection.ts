@@ -120,6 +120,14 @@ export function groupQueueEntries(entries: readonly QueueEntry[]) {
   } satisfies Record<QueueStage, QueueEntry[]>
 }
 
+export function sortQueueEntries(entries: readonly QueueEntry[]) {
+  return [...entries].sort(
+    (left, right) =>
+      parseISO(left.arrivalAt).getTime() - parseISO(right.arrivalAt).getTime() ||
+      left.id.localeCompare(right.id),
+  )
+}
+
 export function queueCounts(entries: readonly QueueEntry[]) {
   const groups = groupQueueEntries(entries)
   return {
