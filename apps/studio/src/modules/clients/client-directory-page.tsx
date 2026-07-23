@@ -19,6 +19,7 @@ import { StatusBadge } from "@/modules/shared/components/feedback/status-badge"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
 import { PageHeader } from "@/modules/shared/components/layout/page-header"
 import { ActionDrawer } from "@/modules/shared/components/overlays/action-drawer"
+import { ConfirmationDialog } from "@/modules/shared/components/overlays/confirmation-dialog"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Input } from "@/modules/shared/components/ui/input"
 import {
@@ -46,6 +47,7 @@ export function ClientDirectoryPage({
   const deferredSearch = useDeferredValue(searchText)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [confirmingArchive, setConfirmingArchive] = useState<ClientRecord | null>(null)
   const [rowMenu, setRowMenu] = useState<{
     anchor: ReturnType<typeof createDataTablePointAnchor>
     client: ClientRecord
@@ -82,6 +84,7 @@ export function ClientDirectoryPage({
     try {
       await archiveClient.mutateAsync({ archived: client.status === "active", id: client.id })
       toast.success(client.status === "active" ? "Cliente arquivado." : "Cliente restaurado.")
+      setConfirmingArchive(null)
     } catch {
       toast.error("A alteração foi desfeita. Tente novamente.")
     }
@@ -245,6 +248,14 @@ export function ClientDirectoryPage({
                 >
                   Próximo agendamento
                 </DataTableSortableHeaderCell>
+                <DataTableSortableHeaderCell
+                  sortKey="createdAt"
+                  sortedBy={search.sortField}
+                  sortDirection={search.sortDirection}
+                  onSortChange={updateSort}
+                >
+                  Cadastro
+                </DataTableSortableHeaderCell>
                 <DataTableHeaderCell>Estado</DataTableHeaderCell>
               </DataTableRow>
             </DataTableHead>
@@ -279,7 +290,7 @@ export function ClientDirectoryPage({
                   icon: rowMenu.client.status === "active" ? ArchiveIcon : RotateCcwIcon,
                   label: rowMenu.client.status === "active" ? "Arquivar" : "Restaurar",
                   variant: rowMenu.client.status === "active" ? "destructive" : "default",
-                  onSelect: () => toggleArchived(rowMenu.client),
+                  onSelect: () => setConfirmingArchive(rowMenu.client),
                 },
               ]
             : []
@@ -321,6 +332,22 @@ export function ClientDirectoryPage({
           onSubmit={create}
         />
       </ActionDrawer>
+      {confirmingArchive ? (
+        <ConfirmationDialog
+          isOpen
+          title={confirmingArchive.status === "active" ? "Arquivar cliente?" : "Restaurar cliente?"}
+          description={
+            confirmingArchive.status === "active"
+              ? "O registro sairá da lista de clientes ativos e poderá ser restaurado."
+              : "O registro voltará para a lista de clientes ativos."
+          }
+          cancelLabel="Cancelar"
+          confirmLabel={confirmingArchive.status === "active" ? "Arquivar" : "Restaurar"}
+          confirmVariant={confirmingArchive.status === "active" ? "destructive" : "default"}
+          onCancel={() => setConfirmingArchive(null)}
+          onConfirm={() => toggleArchived(confirmingArchive)}
+        />
+      ) : null}
     </>
   )
 }
@@ -369,6 +396,7 @@ function ClientRow({
       <DataTableCell>{client.tags.join(", ")}</DataTableCell>
       <DataTableCell>{formatDate(client.lastVisitAt)}</DataTableCell>
       <DataTableCell>{formatDate(client.nextAppointmentAt)}</DataTableCell>
+      <DataTableCell>{formatDate(client.createdAt)}</DataTableCell>
       <DataTableCell>
         <StatusBadge tone={client.status === "active" ? "success" : "neutral"}>
           {client.status === "active" ? "Ativo" : "Arquivado"}

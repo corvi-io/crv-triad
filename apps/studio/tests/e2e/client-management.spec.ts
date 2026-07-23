@@ -56,7 +56,16 @@ test("covers directory scenarios, safe URL state, keyboard row actions, and dupl
     .locator("xpath=ancestor::tr")
   await row.press("Shift+F10")
   await expect(page.getByRole("menuitem", { name: "Visualizar" })).toBeVisible()
-  await page.keyboard.press("Escape")
+  const archiveItem = page.getByRole("menuitem", { name: "Arquivar" })
+  await archiveItem.focus()
+  await page.keyboard.press("Enter")
+  const archiveDialog = page.getByRole("dialog", { name: "Arquivar cliente?" })
+  await expect(archiveDialog).toBeVisible()
+  await archiveDialog.getByRole("button", { name: "Cancelar" }).click()
+  await expect(archiveDialog).toHaveCount(0)
+
+  await page.getByRole("button", { name: "Cadastro" }).click()
+  await expect(page).toHaveURL(/sortField=createdAt/)
 
   await page.goto(clientsUrl("duplicate-candidates"))
   await page.getByRole("button", { name: "Cliente Sintético Duplicado A" }).click()

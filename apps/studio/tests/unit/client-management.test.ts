@@ -75,6 +75,27 @@ describe("client management contracts", () => {
     expect(clientFormValuesToInput(valid).email).toBe("cliente@example.invalid")
   })
 
+  it.each([
+    ["name", "x".repeat(101), "Use no máximo 100 caracteres no nome."],
+    ["phone", "1".repeat(14), "Informe um telefone com no máximo 13 dígitos."],
+    [
+      "servicePreferencesText",
+      "x".repeat(201),
+      "Use no máximo 200 caracteres nas preferências de serviço.",
+    ],
+    ["tagsText", "x".repeat(121), "Use no máximo 120 caracteres nas tags."],
+  ] as const)("localizes the %s maximum-length validation", (field, value, message) => {
+    const result = clientFormSchema.safeParse({
+      ...createClientFormDefaults(),
+      email: "cliente@example.invalid",
+      name: "Cliente Sintético",
+      [field]: value,
+    })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ message, path: [field] }))
+  })
+
   it("normalizes exact duplicate contacts without fuzzy matching", () => {
     expect(normalizeEmail(" Igual@Example.Invalid ")).toBe("igual@example.invalid")
     expect(normalizePhone("+55 (81) 99999-0001")).toBe("5581999990001")
@@ -183,6 +204,23 @@ describe("client memory repository", () => {
     const stale = repository.list({ ...query, scenarioId: "slow" })
     await repository.list({ ...query, scenarioId: "typical" })
     await expect(stale).rejects.toBeInstanceOf(ClientOperationInvalidatedError)
+  })
+
+  it("rejects a delayed stale mutation before it can write into the active scenario", async () => {
+    const repository = new ClientMemoryRepository()
+    await repository.list({ ...query, scenarioId: "slow" })
+    const slowClient = await repository.get("client-01", "slow")
+    const staleMutation = repository.update(slowClient.id, {
+      ...slowClient,
+      name: "STALE MUTATION",
+    })
+
+    await repository.list({ ...query, scenarioId: "typical" })
+    const activeBefore = await repository.get(slowClient.id, "typical")
+
+    await expect(staleMutation).rejects.toBeInstanceOf(ClientOperationInvalidatedError)
+    expect(await repository.get(slowClient.id, "typical")).toEqual(activeBefore)
+    expect(activeBefore.name).not.toBe("STALE MUTATION")
   })
 
   it("keeps persistent errors persistent", async () => {

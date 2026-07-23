@@ -6,11 +6,17 @@ const contactMessage = "Informe pelo menos um telefone ou e-mail."
 export const clientFormSchema = z
   .object({
     email: z.string().trim().email("Informe um e-mail válido.").or(z.literal("")),
-    name: z.string().trim().min(2, "Informe o nome do cliente.").max(100),
-    phone: z.string().max(13),
+    name: z
+      .string()
+      .trim()
+      .min(2, "Informe o nome do cliente.")
+      .max(100, "Use no máximo 100 caracteres no nome."),
+    phone: z.string().max(13, "Informe um telefone com no máximo 13 dígitos."),
     preferenceNote: z.string().trim().max(240, "Use no máximo 240 caracteres."),
-    servicePreferencesText: z.string().max(200),
-    tagsText: z.string().max(120),
+    servicePreferencesText: z
+      .string()
+      .max(200, "Use no máximo 200 caracteres nas preferências de serviço."),
+    tagsText: z.string().max(120, "Use no máximo 120 caracteres nas tags."),
   })
   .refine(({ email, phone }) => email.length > 0 || phone.length >= 10, {
     message: contactMessage,

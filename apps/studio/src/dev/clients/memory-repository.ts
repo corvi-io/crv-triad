@@ -169,7 +169,10 @@ export class ClientMemoryRepository implements ClientRepository {
 
   async #mutate(operation: "create" | "delete" | "update", action: () => ClientRecord) {
     const generation = this.#generation
-    const result = await this.#engine.execute(operation, action)
+    const result = await this.#engine.execute(operation, () => {
+      this.#assertGeneration(generation)
+      return action()
+    })
     this.#assertGeneration(generation)
     return result
   }
