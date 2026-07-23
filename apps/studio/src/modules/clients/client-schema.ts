@@ -48,7 +48,11 @@ export function clientFormValuesToInput(values: ClientFormValues): ClientInput {
 }
 
 export const noteSchema = z.object({
-  body: z.string().trim().min(2, "Escreva uma nota antes de salvar.").max(500),
+  body: z
+    .string()
+    .trim()
+    .min(2, "Escreva uma nota antes de salvar.")
+    .max(500, "Use no máximo 500 caracteres na nota."),
 })
 
 function splitLabels(value: string) {

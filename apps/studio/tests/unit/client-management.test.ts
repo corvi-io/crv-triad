@@ -9,6 +9,7 @@ import {
   clientFormSchema,
   clientFormValuesToInput,
   createClientFormDefaults,
+  noteSchema,
 } from "@/modules/clients/client-schema"
 import { ClientOperationInvalidatedError } from "@/modules/clients/contracts"
 import { resolveClientScenario, validateClientSearch } from "@/modules/clients/search"
@@ -94,6 +95,18 @@ describe("client management contracts", () => {
     expect(result.success).toBe(false)
     if (result.success) return
     expect(result.error.issues).toContainEqual(expect.objectContaining({ message, path: [field] }))
+  })
+
+  it("localizes the note maximum-length validation", () => {
+    const result = noteSchema.safeParse({ body: "x".repeat(501) })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error.issues).toContainEqual(
+      expect.objectContaining({
+        message: "Use no máximo 500 caracteres na nota.",
+        path: ["body"],
+      }),
+    )
   })
 
   it("normalizes exact duplicate contacts without fuzzy matching", () => {
