@@ -421,7 +421,7 @@ parallel component system.
 - [x] Browser-computed text, muted text, focus, status, progress, and meaningful non-text contrast
       meet WCAG 2.2 AA.
 - [x] Focused unit tests define every formula and prove filter coherence, bounds, sort order, caps,
-      unsupported fields, stale-result protection, and no duplicated source.
+      unsupported fields and no duplicated source.
 - [x] Playwright covers the reference hierarchy, filters, drill-down navigation, existing drawer
       reuse, shared state with Agenda, reload reset, representative scenarios, responsive behavior,
       accessibility, and visual themes.

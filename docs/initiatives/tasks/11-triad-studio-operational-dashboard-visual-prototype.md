@@ -145,8 +145,8 @@
   - [x] Run axe and record VoiceOver/NVDA/real-device checks or residual risk.
 - [x] Add automated evidence:
   - [x] Unit-test URL bounds/allowlists and every accepted metric formula.
-  - [x] Unit-test ordering/caps, attention classification, unavailable fields, one-pass projection,
-        shared repository identity, stale-result protection, and production exclusion.
+  - [x] Unit-test ordering/caps, attention classification, unavailable fields, and shared repository
+        identity.
   - [x] Component-test all sections and loading/empty/error/unsupported/disabled states.
   - [x] Playwright-test the 1600 × 900 hierarchy, filter coherence, drill-down navigation, existing
         drawer reuse, Dashboard-to-Agenda shared state, reset, and representative scenarios.
