@@ -33,6 +33,17 @@ bun --filter idp dev
 bun --filter idp check
 ```
 
+The PostgreSQL transaction proof is opt-in and refuses to run without an explicitly isolated test
+database. After starting a disposable local cluster on a non-default port, run:
+
+```bash
+TEST_DATABASE_URL="$TEST_DATABASE_URL" bun --filter idp test:integration:postgres
+```
+
+The integration suite applies the checked-in IDP migrations only to that database. It never reads
+`apps/idp/.env`; it rejects non-loopback hosts, the default PostgreSQL port, and database names that
+do not end in `_test`. Do not point it at a shared or deployed database.
+
 The synthetic-only email preview runs on port `3002` and does not send messages. Invitation
 resolution is exposed as `POST /invitations/resolve`; administrative creation, resend rotation, and
 revocation remain IDP-owned routes. Schema changes are generated with `bun --filter idp db:generate`;

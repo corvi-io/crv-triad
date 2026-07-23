@@ -18,7 +18,7 @@
     "tests/**/*.ts",
     "tests/**/*.tsx",
     "drizzle.config.ts",
-    "vitest.config.ts"
+    "vitest*.config.ts"
   ],
   "exclude": ["dist", "node_modules"]
 }

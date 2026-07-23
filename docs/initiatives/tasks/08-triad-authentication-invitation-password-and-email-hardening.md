@@ -288,18 +288,22 @@ headers, and rendered message bodies.
   and commits failed delivery as revoked before a waiting run may reissue. Deterministic tests cover
   invitation history, concurrent bootstrap calls, and failure/reissue. Better Auth's transactional
   memory adapter proves rollback to a pending invitation with no partial native identity/account
-  after an injected post-consumption failure; its documented non-serializing behavior means it
-  cannot prove simultaneous acceptance. The Docker CLI and `psql` were present locally, but the
-  Docker daemon was unavailable and the repository provides no credential-free PostgreSQL test
-  database or container harness. No shared database or real migration was touched. The remaining
-  unblocking condition is an isolated PostgreSQL harness where the generated schema can be applied
-  and simultaneous native signup transactions can be observed.
+  after an injected post-consumption failure. The opt-in integration suite applies only checked-in
+  migrations to an explicitly supplied isolated test database, then exercises Better Auth's native
+  signup through the Drizzle PostgreSQL adapter. A disposable local PostgreSQL 14.23 cluster on a
+  non-default port proved exactly one winner across simultaneous acceptances and proved that an
+  injected credential-account failure rolls invitation consumption back to pending with no partial
+  user or account. The suite passed 1 file and 2 tests; the cluster stopped, its listener was absent,
+  and its temporary cluster/socket/build root was removed. No app env file, shared database, schema
+  push, or deployed database was used.
 - Review-fix abuse/accessibility evidence: proof resolution now combines bounded per-proof and
   process-wide buckets without trusting forwarded headers; distinct well-formed proofs reach 429 in
   focused tests. Studio maps server password-policy rejection to the new-password field, preserves
   its described-by relationship, and moves focus there under test.
 - IDP tests/check/build: `bun --filter idp check`, `bun --filter idp build`, and
-  `bun --filter idp test` passed; Vitest reported 13 files and 97 tests passing.
+  `bun --filter idp test` passed; Vitest reported 13 files and 97 tests passing. The separate opt-in
+  `TEST_DATABASE_URL="$TEST_DATABASE_URL" bun --filter idp test:integration:postgres` proof passed 1
+  file and 2 tests.
 - Studio tests/check/build: `bun --filter studio routes:generate`, `bun --filter studio check`,
   `bun --filter studio build`, and `bun --filter studio test:production-boundary` passed; Vitest
   reported 30 files and 181 tests passing on the current `staging` base.
