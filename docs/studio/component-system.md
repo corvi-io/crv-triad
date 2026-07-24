@@ -135,7 +135,7 @@ building block of a documented composition.
 | `forms/quantity-unit-control.tsx` | Form composition | Internal: inherited composition without an active module-owned quantity contract. |
 | `forms/rhf-form-fields.tsx` | Form adapters | Internal: React Hook Form adapters; discover through owning module forms, not as standalone UI. |
 | `kibo-ui/kanban/index.tsx` | Vendor-derived composite | Internal legacy composite: retained for migration compatibility but no longer consumed by the accepted Agenda board. A future workflow must revalidate its DnD and accessibility contract before reuse. |
-| `layout/module-layout.tsx` | Layout | Internal: structural fixed-head/scroll-body shell exercised through composed pages. Its viewport has no implicit vertical spacing or bottom padding; content owners add intentional gaps/inset locally, and tables/lists end at their pagination boundary. |
+| `layout/module-layout.tsx` | Layout | Internal: structural fixed-head/scroll-body shell exercised through composed pages. Its viewport has no implicit vertical spacing or bottom padding; content owners add intentional gaps locally. Under `WorkspaceShellContent`, boards reuse the shell-owned content inset rather than duplicating it, fill their remaining height at each active grid breakpoint, and keep scrolling only in panels with real overflow. |
 | `layout/module-tabs.tsx` | Layout/navigation | Internal: requires router context and module-owned tab metadata. |
 | `layout/page-header.tsx` | Layout | Internal: composed by module pages; actions remain module owned. |
 | `layout/section-header.tsx` | Layout | Internal: small structural helper documented through page compositions. |
@@ -148,7 +148,7 @@ building block of a documented composition.
 | `workspace-overview/index.tsx` | Shell content | Internal: typed operational Dashboard presentation over an injected read-only model; owns the accepted semantic hierarchy, responsive card/table composition, and loading/error/empty/disabled states without importing scheduling. |
 | `workspace-overview/model.ts` | Presentation contract | Internal: scheduling-independent read-only Dashboard view model shared only across the projection/presentation boundary. |
 | `workspace-shell/breadcrumbs.tsx` | Shell companion | Internal: route-aware breadcrumb implementation private to the shell folder. |
-| `workspace-shell/content.tsx` | Shell companion | Internal: content inset implementation private to the shell folder. |
+| `workspace-shell/content.tsx` | Shell companion | Internal: authenticated content inset implementation private to the shell folder. It is the single owner of outer page padding; nested module viewports and responsive boards must not duplicate that inset. |
 | `workspace-shell/header.tsx` | Shell companion | Internal: header/sidebar trigger implementation private to the shell folder. |
 | `workspace-shell/index.tsx` | Shell layout | Internal catalog: folder-root `WorkspaceShell` and `WorkspacePreviewShell` are exercised by route, shell, and sandbox tests. |
 | `workspace-shell/sidebar-primary-navigation.tsx` | Shell companion | Internal: registry-driven primary navigation private to the shell folder; active state uses shared selected surface/text plus a 2px logical leading indicator instead of a complete outline, preserving collapse/mobile geometry and semantic focus. |
