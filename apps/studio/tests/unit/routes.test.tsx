@@ -154,4 +154,11 @@ describe("routes", () => {
       "Configuração da barbearia",
     )
   })
+
+  it("rejects a cash date that rolls over to another calendar day", async () => {
+    const { router } = renderRoute("/cash?date=2026-02-31", authenticatedState())
+
+    expect(await screen.findByRole("heading", { name: "Caixa" })).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.search.date).not.toBe("2026-02-31"))
+  })
 })

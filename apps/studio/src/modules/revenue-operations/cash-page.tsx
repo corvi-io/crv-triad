@@ -265,7 +265,11 @@ function OpenDay({
       {summary.status === "closed" ? (
         <ClosedCashSummary closing={summary} />
       ) : (
-        <CashClosingForm query={query} summary={summary} />
+        <CashClosingForm
+          key={`${query.scenarioId}:${query.unitId}:${query.date}:${summary.expectedCashCents}`}
+          query={query}
+          summary={summary}
+        />
       )}
     </section>
   )

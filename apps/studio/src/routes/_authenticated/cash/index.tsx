@@ -9,6 +9,7 @@ import type { SchedulingUnitId } from "@/modules/scheduling/contracts"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
 import { PageHeader } from "@/modules/shared/components/layout/page-header"
 import { Alert, AlertDescription, AlertTitle } from "@/modules/shared/components/ui/alert"
+import { isValidDateOnly } from "@/modules/shared/lib/form-schema"
 
 const repository = createRevenueOperationsRepository?.()
 
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/cash/")({
       typeof search.closing === "string" && /^closing-[\w-]+$/.test(search.closing)
         ? search.closing
         : null,
-    date: isDate(search.date) ? search.date : today(),
+    date: typeof search.date === "string" && isValidDateOnly(search.date) ? search.date : today(),
     scenario:
       typeof search.scenario === "string" && cashScenarioIds.includes(search.scenario)
         ? search.scenario
@@ -83,12 +84,6 @@ function CashRoute() {
       </ModuleLayout>
     </RevenueOperationsRepositoryProvider>
   )
-}
-
-function isDate(value: unknown): value is string {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
-  const date = new Date(`${value}T12:00:00`)
-  return !Number.isNaN(date.getTime())
 }
 
 function today() {

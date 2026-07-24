@@ -29,6 +29,15 @@ describe("cash page", () => {
     expect(screen.queryByRole("button", { name: "Fechar dia" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /Reabrir|Editar/ })).not.toBeInTheDocument()
   })
+
+  it("resets the cash count when the operational context changes", async () => {
+    const view = renderCash("cash-positive-difference")
+    expect(await screen.findByLabelText("Dinheiro contado")).not.toHaveValue("R$ 0,00")
+
+    view.rerenderCash("cash-empty")
+
+    await waitFor(() => expect(screen.getByLabelText("Dinheiro contado")).toHaveValue("R$ 0,00"))
+  })
 })
 
 function renderCash(scenarioId: string) {
@@ -41,7 +50,7 @@ function renderCash(scenarioId: string) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   })
-  return render(
+  const view = (scenario: string) => (
     <AuthStateProvider
       value={{
         error: null,
@@ -54,12 +63,14 @@ function renderCash(scenarioId: string) {
         <RevenueOperationsRepositoryProvider repository={repository}>
           <CashPage
             closingId={null}
-            query={{ date: "2026-07-24", scenarioId, unitId: "centro" }}
+            query={{ date: "2026-07-24", scenarioId: scenario, unitId: "centro" }}
             onContextChange={vi.fn()}
             onOpenClosing={vi.fn()}
           />
         </RevenueOperationsRepositoryProvider>
       </QueryClientProvider>
-    </AuthStateProvider>,
+    </AuthStateProvider>
   )
+  const result = render(view(scenarioId))
+  return { ...result, rerenderCash: (scenario: string) => result.rerender(view(scenario)) }
 }
