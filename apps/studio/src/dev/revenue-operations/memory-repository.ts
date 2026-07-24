@@ -46,7 +46,9 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
   #generation = 0
   #failedNext = new Set<string>()
   readonly #seedingPaid = new Set<string>()
-  #cashScenarioId?: string
+  readonly #cashSeedClosingKeys = new Set<string>()
+  readonly #cashSeedSessionIds = new Set<string>()
+  #cashScenarioKey?: string
   #cashScenarioInitialization?: Promise<void>
 
   constructor(
@@ -266,11 +268,7 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
   }
 
   async listDailyClosings(query: ClosingHistoryQuery) {
-    await this.#ensureCashScenario({
-      date: localDate(this.#clock.now()),
-      scenarioId: query.scenarioId,
-      unitId: query.unitId,
-    })
+    await this.#ensureCashScenario(query)
     return structuredClone(
       [...this.#closings.values()]
         .filter(({ unitId }) => unitId === query.unitId)
@@ -283,6 +281,7 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
   }
 
   async getDailyClosing(query: ClosingDetailQuery) {
+    await this.#ensureCashScenario(query)
     return structuredClone(
       [...this.#closings.values()].find(
         (closing) => closing.id === query.id && closing.unitId === query.unitId,
@@ -317,18 +316,21 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     this.#closingOperations.clear()
     this.#failedNext.clear()
     this.#seedingPaid.clear()
-    this.#cashScenarioId = undefined
+    this.#cashSeedClosingKeys.clear()
+    this.#cashSeedSessionIds.clear()
+    this.#cashScenarioKey = undefined
     this.#cashScenarioInitialization = undefined
     await this.#serviceDesk.reset()
   }
 
   async #ensureCashScenario(query: OperationalDayQuery) {
     const scenarioId = query.scenarioId ?? "cash-typical"
-    if (this.#cashScenarioId === scenarioId) {
+    const scenarioKey = `${scenarioId}:${query.unitId}:${query.date}`
+    if (this.#cashScenarioKey === scenarioKey) {
       await this.#cashScenarioInitialization
       return
     }
-    this.#cashScenarioId = scenarioId
+    this.#cashScenarioKey = scenarioKey
     const initialization = this.#initializeCashScenario(query, scenarioId)
     this.#cashScenarioInitialization = initialization
     try {
@@ -343,9 +345,29 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
   async #initializeCashScenario(query: OperationalDayQuery, scenarioId: string) {
     this.#generation += 1
     const generation = this.#generation
+    const retainedCheckouts = [...this.#checkouts].filter(
+      ([sessionId]) => !this.#cashSeedSessionIds.has(sessionId),
+    )
+    const retainedPaidSales = [...this.#paidSales].filter(
+      ([sessionId]) => !this.#cashSeedSessionIds.has(sessionId),
+    )
+    const retainedClosings = [...this.#closings].filter(
+      ([key]) => !this.#cashSeedClosingKeys.has(key),
+    )
     this.#checkouts.clear()
     this.#paidSales.clear()
+    for (const [sessionId, checkout] of retainedCheckouts) {
+      this.#checkouts.set(sessionId, checkout)
+    }
+    for (const [sessionId, paidSale] of retainedPaidSales) {
+      this.#paidSales.set(sessionId, paidSale)
+    }
+    this.#cashSeedSessionIds.clear()
     this.#closings.clear()
+    for (const [key, closing] of retainedClosings) {
+      this.#closings.set(key, closing)
+    }
+    this.#cashSeedClosingKeys.clear()
     this.#closingOperations.clear()
     this.#failedNext.clear()
     this.#seedingPaid.clear()
@@ -354,7 +376,9 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
 
     for (const checkoutScenario of cashCheckoutScenarios(scenarioId)) {
       const sessionId = `session-walk-in-${checkoutScenario}`
+      if (this.#paidSales.has(sessionId)) continue
       this.#assertGeneration(generation)
+      this.#cashSeedSessionIds.add(sessionId)
       await this.#guardGeneration(this.getCheckout(sessionId), generation)
       await this.#guardGeneration(
         this.completePayment({ operationId: `cash-seed-${checkoutScenario}`, sessionId }),
@@ -373,7 +397,9 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
         summary,
       })
       this.#assertGeneration(generation)
-      this.#closings.set(closingKey(query.unitId, query.date), snapshot)
+      const key = closingKey(query.unitId, query.date)
+      this.#cashSeedClosingKeys.add(key)
+      this.#closings.set(key, snapshot)
     }
     if (scenarioId !== "cash-dense-history" && scenarioId !== "cash-already-closed") return
     const count = scenarioId === "cash-dense-history" ? CLOSING_HISTORY_LIMIT : 5
@@ -388,8 +414,10 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
         countedCashCents === summary.expectedCashCents ? undefined : "Conferência do fechamento",
       )
       this.#assertGeneration(generation)
+      const key = closingKey(query.unitId, date)
+      this.#cashSeedClosingKeys.add(key)
       this.#closings.set(
-        closingKey(query.unitId, date),
+        key,
         createClosingSnapshot({
           cashCount,
           closedAt: `${date}T21:00:00.000Z`,

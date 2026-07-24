@@ -154,15 +154,12 @@ export type CloseDayInput = {
   unitId: SchedulingUnitId
 }
 
-export type ClosingHistoryQuery = {
+export type ClosingHistoryQuery = OperationalDayQuery & {
   limit: number
-  scenarioId?: string
-  unitId: SchedulingUnitId
 }
 
-export type ClosingDetailQuery = {
+export type ClosingDetailQuery = OperationalDayQuery & {
   id: string
-  unitId: SchedulingUnitId
 }
 
 export type RevenueDashboardProjection = {

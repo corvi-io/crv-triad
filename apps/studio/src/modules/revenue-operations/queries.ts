@@ -5,6 +5,7 @@ import type {
   CheckoutAdjustmentInput,
   CheckoutLinePriceInput,
   CloseDayInput,
+  ClosingDetailQuery,
   ClosingHistoryQuery,
   CompletePaymentInput,
   OperationalDayQuery,
@@ -26,12 +27,21 @@ export const revenueOperationsQueryKeys = {
     [...revenueOperationsQueryKeys.all, "checkout", sessionId] as const,
   commissions: (sessionId: string) =>
     [...revenueOperationsQueryKeys.all, "commissions", sessionId] as const,
-  closing: (id: string) => [...revenueOperationsQueryKeys.all, "closing", id] as const,
+  closing: (query: ClosingDetailQuery) =>
+    [
+      ...revenueOperationsQueryKeys.all,
+      "closing",
+      query.id,
+      query.unitId,
+      query.date,
+      query.scenarioId ?? "cash-typical",
+    ] as const,
   closings: (query: ClosingHistoryQuery) =>
     [
       ...revenueOperationsQueryKeys.all,
       "closings",
       query.unitId,
+      query.date,
       query.scenarioId ?? "cash-typical",
       query.limit,
     ] as const,
@@ -56,12 +66,13 @@ export function useDailyClosings(query: ClosingHistoryQuery) {
   })
 }
 
-export function useDailyClosing(id: string | null, unitId: OperationalDayQuery["unitId"]) {
+export function useDailyClosing(id: string | null, query: OperationalDayQuery) {
   const repository = useRevenueOperationsRepository()
+  const detailQuery = { ...query, id: id ?? "" }
   return useQuery({
     enabled: Boolean(id),
-    queryFn: () => repository.getDailyClosing({ id: id ?? "", unitId }),
-    queryKey: [...revenueOperationsQueryKeys.closing(id ?? ""), unitId],
+    queryFn: () => repository.getDailyClosing(detailQuery),
+    queryKey: revenueOperationsQueryKeys.closing(detailQuery),
   })
 }
 
@@ -72,7 +83,7 @@ export function useCloseDay(query: OperationalDayQuery) {
     mutationFn: (input: CloseDayInput) => repository.closeDay(input),
     onSuccess: async (closing) => {
       queryClient.setQueryData(
-        [...revenueOperationsQueryKeys.closing(closing.id), closing.unitId],
+        revenueOperationsQueryKeys.closing({ ...query, id: closing.id }),
         closing,
       )
       await Promise.all([

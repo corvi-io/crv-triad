@@ -139,11 +139,9 @@ describe("cash memory repository", () => {
     expect(second).toEqual(first)
     expect(await repository.listDailyClosings({ limit: 24, ...query })).toHaveLength(1)
     await expect(
-      repository.getDailyClosing({ id: first.id, unitId: "artesao" }),
+      repository.getDailyClosing({ ...query, id: first.id, unitId: "artesao" }),
     ).resolves.toBeUndefined()
-    await expect(repository.getDailyClosing({ id: first.id, unitId: "centro" })).resolves.toEqual(
-      first,
-    )
+    await expect(repository.getDailyClosing({ ...query, id: first.id })).resolves.toEqual(first)
   })
 
   it("keeps the day open when the one-shot close fails and then recovers", async () => {
@@ -174,6 +172,35 @@ describe("cash memory repository", () => {
     expect(await repository.listDailyClosings({ limit: 99, ...denseQuery })).toHaveLength(24)
     await repository.reset()
     expect(await repository.getOpenDaySummary(denseQuery)).toEqual(before)
+  })
+
+  it("preserves an accepted paid sale when cash scenarios initialize", async () => {
+    const repository = createRevenueOperationsRepository()
+    await repository.reset()
+    const sessionId = "session-walk-in-checkout-discount"
+    await repository.getCheckout(sessionId)
+    const acceptedSale = await repository.completePayment({
+      operationId: "accepted-before-cash",
+      sessionId,
+    })
+
+    const summary = await repository.getOpenDaySummary(query)
+
+    expect(await repository.getPaidSale(sessionId)).toEqual(acceptedSale)
+    expect(summary.paidSaleCount).toBe(4)
+    expect(await repository.listPaidSales()).toHaveLength(4)
+  })
+
+  it("initializes the requested scenario before resolving a closing deep link", async () => {
+    const repository = createRevenueOperationsRepository()
+    await repository.reset()
+    const denseQuery = { ...query, scenarioId: "cash-dense-history" }
+    const [closing] = await repository.listDailyClosings({ limit: 1, ...denseQuery })
+    await repository.reset()
+
+    await expect(repository.getDailyClosing({ ...denseQuery, id: closing.id })).resolves.toEqual(
+      closing,
+    )
   })
 
   it("rejects delayed work after a scenario generation changes", async () => {

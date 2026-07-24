@@ -67,11 +67,12 @@ type CashPageProps = {
 export function CashPage({ closingId, onContextChange, onOpenClosing, query }: CashPageProps) {
   const summaryQuery = useOpenDaySummary(query)
   const historyQuery = useDailyClosings({
+    date: query.date,
     limit: CLOSING_HISTORY_LIMIT,
     scenarioId: query.scenarioId,
     unitId: query.unitId,
   })
-  const detailQuery = useDailyClosing(closingId, query.unitId)
+  const detailQuery = useDailyClosing(closingId, query)
 
   if (summaryQuery.isPending || historyQuery.isPending) {
     return (
