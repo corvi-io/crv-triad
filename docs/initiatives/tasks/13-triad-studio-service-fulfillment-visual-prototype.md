@@ -355,10 +355,12 @@ git diff --check
   Barbershop Setup confirmation, and one Client confirmation).
 - Production-boundary scan: passed across 52 files and 1,157,752 bytes.
 - Build/check: build passed with 3,697 modules; Studio check and root check passed.
-- Playwright: focused Service Desk 7/7 passed. The full 65-test parallel run produced 44 passed and
-  21 failed. Two branch-caused nested-overlay failures were fixed with semantic modal layering and
-  passed in the final 9/9 focused probe; the remaining failures are the already-proven unrelated
-  shared scheduling/theme scenario race. The prior schedule-only four-worker reproduction was
+- Playwright: focused Service Desk 7/7 passed. The independently verified full 65-test parallel run
+  produced 47 passed and 18 baseline failures: 1 Dashboard, 14 Agenda, and 3 Theme. Two
+  branch-caused nested-overlay failures found in the earlier run were fixed with semantic modal
+  layering and passed in the final 9/9 focused probe; the 18 remaining failures are the
+  already-proven unrelated shared scheduling/theme scenario race. The prior schedule-only
+  four-worker reproduction was
   2/16, including the same 30-vs-42 appointment contamination. Playwright infrastructure was not
   changed.
 - 1600x900 and 1440x900 visual review: existing screenshots plus the expanded fulfillment journey
