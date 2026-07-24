@@ -326,6 +326,7 @@ test("groups development scenarios in the service-desk filter toolbar", async ({
   await expect(launcher.getByRole("group", { name: /Fila/ })).toBeVisible()
   await expect(launcher.getByRole("group", { name: "Confiabilidade" })).toBeVisible()
   await expect(launcher.getByRole("group", { name: "Execução" })).toBeVisible()
+  await expect(launcher.getByRole("group", { name: "Checkout" })).toBeVisible()
   await launcher.getByRole("menuitemradio", { name: /Vazio/ }).click()
   await expect(page).toHaveURL(/scenario=empty/)
   await expect(page.getByText("Fila sem atendimentos")).toBeVisible()

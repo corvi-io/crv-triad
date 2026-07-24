@@ -370,7 +370,7 @@ export function ServiceDeskPage({
   )
 }
 
-type DevelopmentScenarioGroup = "queue" | "reliability" | "fulfillment"
+type DevelopmentScenarioGroup = "queue" | "reliability" | "fulfillment" | "checkout"
 
 const developmentScenarioPresentation: Record<
   ServiceDeskScenarioId,
@@ -457,12 +457,81 @@ const developmentScenarioPresentation: Record<
     group: "fulfillment",
     label: "Pronto para pagamento",
   },
+  "checkout-pix": { description: "Pagamento por PIX.", group: "checkout", label: "PIX" },
+  "checkout-cash": { description: "Pagamento em dinheiro.", group: "checkout", label: "Dinheiro" },
+  "checkout-debit": { description: "Pagamento no débito.", group: "checkout", label: "Débito" },
+  "checkout-credit": { description: "Pagamento no crédito.", group: "checkout", label: "Crédito" },
+  "checkout-mixed": { description: "Pagamento dividido.", group: "checkout", label: "Misto" },
+  "checkout-discount": {
+    description: "Desconto autorizado.",
+    group: "checkout",
+    label: "Desconto",
+  },
+  "checkout-surcharge": {
+    description: "Acréscimo operacional.",
+    group: "checkout",
+    label: "Acréscimo",
+  },
+  "checkout-price-override": {
+    description: "Preço ajustado.",
+    group: "checkout",
+    label: "Preço ajustado",
+  },
+  "checkout-unauthorized": {
+    description: "Ajuste sem autorização.",
+    group: "checkout",
+    label: "Sem autorização",
+  },
+  "checkout-fixed-commission": {
+    description: "Comissão fixa.",
+    group: "checkout",
+    label: "Comissão fixa",
+  },
+  "checkout-no-commission": {
+    description: "Sem comissão.",
+    group: "checkout",
+    label: "Sem comissão",
+  },
+  "checkout-multi-professional": {
+    description: "Dois profissionais.",
+    group: "checkout",
+    label: "Múltiplos profissionais",
+  },
+  "checkout-scheduled": {
+    description: "Atendimento agendado.",
+    group: "checkout",
+    label: "Agendado",
+  },
+  "checkout-walk-in": {
+    description: "Atendimento sem agendamento.",
+    group: "checkout",
+    label: "Sem agendamento",
+  },
+  "checkout-decline": { description: "Pagamento recusado.", group: "checkout", label: "Recusado" },
+  "checkout-slow": { description: "Resposta com atraso.", group: "checkout", label: "Lento" },
+  "checkout-next-failure": {
+    description: "Próxima operação falha.",
+    group: "checkout",
+    label: "Próxima falha",
+  },
+  "checkout-persistent-error": {
+    description: "Operações falham.",
+    group: "checkout",
+    label: "Erro persistente",
+  },
+  "checkout-paid": { description: "Venda já paga.", group: "checkout", label: "Pago" },
+  "checkout-long-content": {
+    description: "Conteúdo extenso.",
+    group: "checkout",
+    label: "Conteúdo longo",
+  },
 }
 
 const developmentScenarioGroupLabels: Record<DevelopmentScenarioGroup, string> = {
   queue: "Fila",
   reliability: "Confiabilidade",
   fulfillment: "Execução",
+  checkout: "Checkout",
 }
 
 function DevelopmentScenarioLauncher({
@@ -474,7 +543,7 @@ function DevelopmentScenarioLauncher({
   scenarioIds: readonly ServiceDeskScenarioId[]
   selectedScenario: ServiceDeskScenarioId
 }) {
-  const groups = (["queue", "reliability", "fulfillment"] as const).map((group) => ({
+  const groups = (["queue", "reliability", "fulfillment", "checkout"] as const).map((group) => ({
     group,
     scenarios: scenarioIds.filter(
       (scenario) => developmentScenarioPresentation[scenario].group === group,
