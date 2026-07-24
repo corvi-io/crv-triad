@@ -45,7 +45,6 @@ function ServiceSessionRoute() {
             description="Atendimentos indisponíveis neste ambiente."
           />
         }
-        bodyViewportClassName="p-4 sm:p-6"
       >
         <p>Este módulo de avaliação está desativado neste ambiente.</p>
       </ModuleLayout>
@@ -55,7 +54,6 @@ function ServiceSessionRoute() {
     <ServiceDeskRepositoryProvider repository={repository}>
       <ModuleLayout
         head={<PageHeader title="Atendimento" description="Atendimentos / Atendimento" />}
-        bodyViewportClassName="p-4 sm:p-6"
       >
         <ServiceSessionPage
           sessionId={sessionId}
