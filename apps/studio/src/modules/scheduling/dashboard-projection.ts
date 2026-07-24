@@ -89,14 +89,15 @@ export function deriveDashboard({
   const acceptedPaidSales = paidSales?.filter(
     (sale) =>
       sale.unitId === filters.unitId &&
-      sale.completedAt.slice(0, 10) >= bounds.startDate &&
-      sale.completedAt.slice(0, 10) <= bounds.endDate,
+      localDate(sale.completedAt) >= bounds.startDate &&
+      localDate(sale.completedAt) <= bounds.endDate,
   )
   const saleByAppointmentId = new Map(
     acceptedPaidSales
       ?.filter(({ appointmentId }) => appointmentId)
       .map((sale) => [sale.appointmentId as string, sale]),
   )
+  const completedAppointmentIds = new Set<string>()
 
   for (const appointment of appointments) {
     statusCounts[appointment.status] += 1
@@ -126,28 +127,10 @@ export function deriveDashboard({
 
     if (appointment.status === "completed") {
       completedCount += 1
+      completedAppointmentIds.add(appointment.id)
       completedClientIds.add(appointment.clientId)
       const paidSale = saleByAppointmentId.get(appointment.id)
-      const paidSaleLines =
-        paidSale?.lineValues.filter(({ professionalId }) =>
-          selectedProfessionalIds.has(professionalId),
-        ) ?? []
-      if (paidSale && paidSaleLines.length > 0) {
-        paidCompletedCount += 1
-        const valueCents = paidSaleLines.reduce((sum, line) => sum + line.valueCents, 0)
-        paidValueCents += valueCents
-        for (const line of paidSaleLines) {
-          const paidService = serviceTotals.get(line.serviceId) ?? {
-            count: 0,
-            paidValueCents: 0,
-            scheduledValueCents: 0,
-          }
-          paidService.paidValueCents += line.valueCents
-          serviceTotals.set(line.serviceId, paidService)
-          const paidProfessional = professionalTotals.get(line.professionalId)
-          if (paidProfessional) paidProfessional.paidValueCents += line.valueCents
-        }
-      } else if (paidSales === undefined && appointment.paymentStatus === "paid") {
+      if (paidSales === undefined && appointment.paymentStatus === "paid") {
         paidCompletedCount += 1
         paidValueCents += appointment.priceCents
         service.paidValueCents += appointment.priceCents
@@ -157,14 +140,15 @@ export function deriveDashboard({
       }
     }
   }
-  const walkInSales = acceptedPaidSales?.filter(({ appointmentId }) => !appointmentId) ?? []
-  for (const sale of walkInSales) {
+  for (const sale of acceptedPaidSales ?? []) {
     const matchingLines = sale.lineValues.filter(({ professionalId }) =>
       selectedProfessionalIds.has(professionalId),
     )
     if (matchingLines.length === 0) continue
     paidCompletedCount += 1
-    completedCount += 1
+    if (!sale.appointmentId || !completedAppointmentIds.has(sale.appointmentId)) {
+      completedCount += 1
+    }
     paidValueCents += matchingLines.reduce((sum, line) => sum + line.valueCents, 0)
     for (const line of matchingLines) {
       const paidService = serviceTotals.get(line.serviceId) ?? {
@@ -442,6 +426,10 @@ function summarizeComparison(appointments: readonly Appointment[]) {
     paidCompletedCount,
     paidValueCents,
   }
+}
+
+function localDate(timestamp: string) {
+  return format(new Date(timestamp), "yyyy-MM-dd")
 }
 
 function metricComparison(

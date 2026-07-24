@@ -279,6 +279,82 @@ describe("Dashboard projection", () => {
     expect(projected.services).toEqual([])
   })
 
+  it("includes a secondary professional's scheduled paid line in their filter", () => {
+    const projected = deriveDashboard({
+      bounds: { endDate: date, startDate: date },
+      day,
+      filters: {
+        period: "today",
+        professionalId: "professional-two",
+        unitId: "centro",
+      },
+      now: new Date(`${date}T11:00:00`),
+      paidSales: [
+        {
+          appointmentId: "paid",
+          completedAt: `${date}T10:00:00.000-03:00`,
+          discountCents: 0,
+          lineValues: [
+            {
+              professionalId: "professional-one",
+              serviceId: "service-main",
+              valueCents: 6_000,
+            },
+            {
+              professionalId: "professional-two",
+              serviceId: "service-main",
+              valueCents: 2_000,
+            },
+          ],
+          payments: [{ method: "pix", valueCents: 8_000 }],
+          totalCents: 8_000,
+          unitId: "centro",
+        },
+      ],
+      updatedAt: 0,
+    })
+
+    expect(projected.metrics[1].value).toBe("1")
+    expect(projected.metrics[2].value).toBe("R$ 20,00")
+    expect(projected.professionals).toMatchObject([{ paidValue: "R$ 20,00" }])
+    expect(projected.services).toMatchObject([{ paidValue: "R$ 20,00" }])
+  })
+
+  it("filters late-night paid sales by the local operational date", () => {
+    const previousTimeZone = process.env.TZ
+    process.env.TZ = "America/Recife"
+    try {
+      const projected = deriveDashboard({
+        bounds: { endDate: date, startDate: date },
+        day: { ...day, appointments: [] },
+        filters: { period: "today", unitId: "centro" },
+        now: new Date(`${date}T22:45:00-03:00`),
+        paidSales: [
+          {
+            completedAt: "2026-07-24T01:30:00.000Z",
+            discountCents: 0,
+            lineValues: [
+              {
+                professionalId: "professional-one",
+                serviceId: "service-main",
+                valueCents: 8_000,
+              },
+            ],
+            payments: [{ method: "pix", valueCents: 8_000 }],
+            totalCents: 8_000,
+            unitId: "centro",
+          },
+        ],
+        updatedAt: 0,
+      })
+
+      expect(projected.metrics[1].value).toBe("1")
+      expect(projected.metrics[2].value).toBe("R$ 80,00")
+    } finally {
+      process.env.TZ = previousTimeZone
+    }
+  })
+
   it("compares KPIs with the bounded immediately preceding scheduling period", () => {
     const compared = deriveDashboard({
       bounds: { endDate: date, startDate: date },

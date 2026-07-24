@@ -21,8 +21,11 @@ paid sales contribute only to supported paid-sale visit and finance projections 
 an appointment.
 
 With a professional filter, paid values and walk-in completion counts include only matching
-paid-sale lines. Sale-level discount and payment-method composition are left unavailable because
-the accepted contract does not provide an exact per-professional allocation for those facts.
+paid-sale lines, including secondary-professional lines on an appointment whose original
+professional differs. Sale-level discount and payment-method composition are left unavailable
+because the accepted contract does not provide an exact per-professional allocation for those
+facts. Paid-sale timestamps are compared with Dashboard bounds in the browser's local operational
+date rather than by their UTC ISO prefix.
 
 The normal scheduling scenario keeps 42 current-day records, including six
 legitimate non-terminal appointments at 16:00, and 30 prior-day records. Agenda

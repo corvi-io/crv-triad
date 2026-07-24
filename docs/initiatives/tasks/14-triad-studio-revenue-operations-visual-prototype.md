@@ -348,7 +348,7 @@ The accepted prototype:
 - Implementation: `8d8279cb828eb45e26508066c6b57e0a48b4702c`.
 - PR: [#29](https://github.com/corvi-io/crv-triad/pull/29), targeting
   `staging`; Linear ENG-48 moved to `PR Open` after the PR existed.
-- `bun run test`: 42 files, 306 tests passed.
+- `bun run test`: 42 files, 308 tests passed.
 - `bun run check`: passed, including TypeScript, tests, production build, and
   production-boundary scan across 55 files.
 - `bun run build`: passed with the existing-style Vite warning for a main
@@ -372,6 +372,9 @@ The accepted prototype:
   truthful nested-route mobile module identity, all-scenario reset/reload
   reconstruction, and professional-filtered walk-in revenue. The latter two
   money/Dashboard findings correspond to the initial Codex review threads.
+- The final bounded follow-up fixed local-date filtering for late-night paid
+  sales and independently aggregates matching secondary-professional lines
+  from scheduled paid sales. No third automated review is permitted.
 
 ## Task 2: Cash Operations And Daily Closing
 
