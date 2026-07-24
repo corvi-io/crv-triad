@@ -59,6 +59,7 @@ function ServiceDeskRoute() {
     <ServiceDeskRepositoryProvider repository={repository}>
       <ServiceDeskPage
         search={search}
+        scenarioIds={serviceDeskScenarioIds}
         onOpenSession={(sessionId) =>
           navigate({ to: "/service-desk/$sessionId", params: { sessionId }, search })
         }

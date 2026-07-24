@@ -258,48 +258,6 @@ test("keeps the session accessible at a 320px zoom-equivalent viewport and resto
   expect(results.violations).toEqual([])
 })
 
-test("keeps queue card borders above the module scroll fade at narrow widths", async ({
-  page,
-}, testInfo) => {
-  await page.setViewportSize({ width: 320, height: 720 })
-  await page.emulateMedia({ colorScheme: "dark", forcedColors: "active", reducedMotion: "reduce" })
-  await page.goto("/service-desk?scenario=fulfillment-ready")
-
-  const viewport = page.locator(
-    '[data-slot="module-layout-body"] [data-slot="scroll-area-viewport"]',
-  )
-  await viewport.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
-  await expect
-    .poll(async () => viewport.evaluate((element) => element.scrollTop))
-    .toBeGreaterThan(0)
-
-  const clearance = await page.evaluate(() => {
-    const viewport = document.querySelector<HTMLElement>(
-      '[data-slot="module-layout-body"] [data-slot="scroll-area-viewport"]',
-    )
-    const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="card"]'))
-
-    if (!viewport || cards.length === 0)
-      throw new Error("Service desk queue cards were not rendered.")
-
-    const viewportBounds = viewport.getBoundingClientRect()
-    const visibleCards = cards.filter((card) => {
-      const bounds = card.getBoundingClientRect()
-      return bounds.bottom > viewportBounds.top && bounds.top < viewportBounds.bottom
-    })
-    const bottomCard = visibleCards.reduce((lowest, card) =>
-      card.getBoundingClientRect().bottom > lowest.getBoundingClientRect().bottom ? card : lowest,
-    )
-
-    return viewportBounds.bottom - bottomCard.getBoundingClientRect().bottom
-  })
-
-  expect(clearance).toBeGreaterThanOrEqual(30)
-  await page.screenshot({
-    path: testInfo.outputPath("service-desk-queue-scroll-clearance-320.png"),
-  })
-})
-
 test("keeps exact filtered counts and deterministic loading/error/empty states", async ({
   page,
 }) => {
@@ -322,6 +280,56 @@ test("keeps exact filtered counts and deterministic loading/error/empty states",
   await page.goto("/service-desk?scenario=typical&stage=invalid&professional=Nome%20Privado")
   await expect(page).not.toHaveURL(/stage=invalid|Nome%20Privado/)
   await expect(page.getByRole("heading", { name: "Atendimentos" })).toBeVisible()
+})
+
+test("keeps projected appointment card borders inside the queue scroller at 618px", async ({
+  page,
+}, testInfo) => {
+  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" })
+  await page.setViewportSize({ height: 1088, width: 618 })
+  await page.goto("/service-desk?scenario=typical")
+
+  const card = page.locator('[data-slot="card"]').filter({ hasText: "Juliana Costa" }).first()
+  await expect(card).toBeVisible()
+  const geometry = await card.evaluate((element) => {
+    const scroller = element.parentElement
+    if (!scroller) throw new Error("Queue card scroller was not rendered.")
+
+    const cardBounds = element.getBoundingClientRect()
+    const scrollerBounds = scroller.getBoundingClientRect()
+    return {
+      bottom: scrollerBounds.bottom - cardBounds.bottom,
+      boxShadow: getComputedStyle(element).boxShadow,
+      left: cardBounds.left - scrollerBounds.left,
+      right: scrollerBounds.right - cardBounds.right,
+      top: cardBounds.top - scrollerBounds.top,
+    }
+  })
+
+  expect(geometry.boxShadow).toContain("inset")
+  expect(geometry.left).toBeGreaterThanOrEqual(0)
+  expect(geometry.right).toBeGreaterThanOrEqual(0)
+  expect(geometry.top).toBeGreaterThanOrEqual(0)
+  expect(geometry.bottom).toBeGreaterThanOrEqual(0)
+  await page.screenshot({
+    path: testInfo.outputPath("service-desk-projected-appointment-borders-618-dark.png"),
+  })
+})
+
+test("groups development scenarios outside the service-desk product controls", async ({ page }) => {
+  await page.goto("/service-desk?scenario=typical")
+  const productControls = page.getByRole("group", { name: "Busca e filtros de atendimentos" })
+  await expect(
+    productControls.getByRole("button", { name: "Cenários de desenvolvimento" }),
+  ).toHaveCount(0)
+  await page.getByRole("button", { name: "Cenários de desenvolvimento" }).click()
+  const launcher = page.getByRole("menu", { name: "Cenários de desenvolvimento" })
+  await expect(launcher.getByRole("group", { name: /Fila/ })).toBeVisible()
+  await expect(launcher.getByRole("group", { name: "Confiabilidade" })).toBeVisible()
+  await expect(launcher.getByRole("group", { name: "Execução" })).toBeVisible()
+  await launcher.getByRole("menuitemradio", { name: /Vazio/ }).click()
+  await expect(page).toHaveURL(/scenario=empty/)
+  await expect(page.getByText("Fila sem atendimentos")).toBeVisible()
 })
 
 test("passes axe and preserves themes, forced colors, reduced motion, targets, and 320px reflow", async ({

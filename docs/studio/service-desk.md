@@ -73,9 +73,11 @@ memory and are never logged.
 
 The source exposes bounded normal, empty, dense, long-wait, specific-professional,
 first-available, unavailable-professional, slow, next-failure, and persistent-error scenarios.
-Scenario IDs are technical URL inputs and never appear in ordinary product chrome. A full reload
-reconstructs fixtures. Scenario changes and resets increment a generation so delayed operations
-cannot write into a newer scenario. Failures occur before writes.
+Scenario IDs are technical URL inputs. In local/dev only, the separate `Cenários de desenvolvimento`
+launcher groups queue, reliability, and fulfillment fixtures outside the ordinary product controls;
+choosing an option updates the allowlisted URL state. It is absent when the source is disabled in
+`hml`/`prd`. A full reload reconstructs fixtures. Scenario changes and resets increment a generation
+so delayed operations cannot write into a newer scenario. Failures occur before writes.
 
 The service-desk memory source follows the scheduling source boundary. It is available only when
 `VITE_SCHEDULING_SOURCE=memory` and `VITE_DEPLOY_TARGET` is `local` or `dev`. No new public

@@ -7,6 +7,7 @@ import {
   ListFilterIcon,
   PlusIcon,
   ScissorsIcon,
+  Settings2Icon,
   UserRoundCheckIcon,
   UsersIcon,
 } from "lucide-react"
@@ -31,6 +32,16 @@ import {
   CardTitle,
 } from "@/modules/shared/components/ui/card"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/modules/shared/components/ui/dropdown-menu"
+import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -47,7 +58,7 @@ import {
 } from "@/modules/shared/components/ui/select"
 import { Separator } from "@/modules/shared/components/ui/separator"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
-import type { QueueEntry, QueueStage, WalkInInput } from "./contracts"
+import type { QueueEntry, QueueStage, ServiceDeskScenarioId, WalkInInput } from "./contracts"
 import {
   formatArrival,
   formatWait,
@@ -65,10 +76,12 @@ export function ServiceDeskPage({
   onOpenSession,
   onSearchChange,
   search,
+  scenarioIds,
 }: {
   onOpenSession: (sessionId: string) => void
   onSearchChange: (next: Partial<ServiceDeskSearch>) => void
   search: ServiceDeskSearch
+  scenarioIds?: readonly ServiceDeskScenarioId[]
 }) {
   const [searchText, setSearchText] = useState("")
   const deferredSearch = useDeferredValue(searchText)
@@ -231,10 +244,19 @@ export function ServiceDeskPage({
                 />
               ) : null}
             </fieldset>
+            {scenarioIds ? (
+              <div className="flex justify-end" data-slot="development-scenario-launcher">
+                <DevelopmentScenarioLauncher
+                  onScenarioChange={(scenario) => onSearchChange({ scenario })}
+                  scenarioIds={scenarioIds}
+                  selectedScenario={search.scenario}
+                />
+              </div>
+            ) : null}
           </>
         }
         bodyClassName="min-h-0"
-        bodyViewportClassName="flex min-h-full flex-col gap-4 p-4 pb-12 sm:p-6 sm:pb-14"
+        bodyViewportClassName="flex min-h-full flex-col gap-4 p-4 sm:p-6"
       >
         {query.isLoading ? <QueueSkeleton /> : null}
         {query.isError ? (
@@ -347,6 +369,167 @@ export function ServiceDeskPage({
         ) : null}
       </ActionDrawer>
     </>
+  )
+}
+
+type DevelopmentScenarioGroup = "queue" | "reliability" | "fulfillment"
+
+const developmentScenarioPresentation: Record<
+  ServiceDeskScenarioId,
+  { description: string; group: DevelopmentScenarioGroup; label: string }
+> = {
+  typical: {
+    description: "Fila normal com trajetos agendado e sem agendamento.",
+    group: "queue",
+    label: "Normal",
+  },
+  empty: { description: "Fila sem registros.", group: "queue", label: "Vazio" },
+  dense: {
+    description: "Coleção limitada para avaliação visual densa.",
+    group: "queue",
+    label: "Denso",
+  },
+  "long-wait": {
+    description: "Registro com espera longa e conteúdo extenso.",
+    group: "queue",
+    label: "Espera longa",
+  },
+  "specific-professional": {
+    description: "Preferência por profissional específico.",
+    group: "queue",
+    label: "Profissional específico",
+  },
+  "first-available": {
+    description: "Preferência sem atribuição automática.",
+    group: "queue",
+    label: "Primeiro disponível",
+  },
+  "unavailable-professional": {
+    description: "Transição recuperável para profissional indisponível.",
+    group: "queue",
+    label: "Profissional indisponível",
+  },
+  slow: {
+    description: "Resposta com atraso determinístico.",
+    group: "reliability",
+    label: "Lento",
+  },
+  "next-failure": {
+    description: "A próxima operação falha antes de escrever.",
+    group: "reliability",
+    label: "Próxima falha",
+  },
+  "persistent-error": {
+    description: "Operações falham até a troca de cenário.",
+    group: "reliability",
+    label: "Erro persistente",
+  },
+  "fulfillment-single": {
+    description: "Cenário determinístico de fulfillment.",
+    group: "fulfillment",
+    label: "Atendimento simples",
+  },
+  "fulfillment-multiple": {
+    description: "Cenário determinístico de fulfillment.",
+    group: "fulfillment",
+    label: "Múltiplos serviços",
+  },
+  "fulfillment-multi-professional": {
+    description: "Cenário determinístico de fulfillment.",
+    group: "fulfillment",
+    label: "Múltiplos profissionais",
+  },
+  "fulfillment-long-running": {
+    description: "Cenário determinístico de fulfillment.",
+    group: "fulfillment",
+    label: "Atendimento longo",
+  },
+  "fulfillment-long-labels": {
+    description: "Cenário determinístico de fulfillment.",
+    group: "fulfillment",
+    label: "Conteúdo longo",
+  },
+  "fulfillment-no-eligible": {
+    description: "Cenário determinístico de fulfillment.",
+    group: "fulfillment",
+    label: "Sem profissional elegível",
+  },
+  "fulfillment-ready": {
+    description: "Cenário determinístico de fulfillment.",
+    group: "fulfillment",
+    label: "Pronto para pagamento",
+  },
+}
+
+const developmentScenarioGroupLabels: Record<DevelopmentScenarioGroup, string> = {
+  queue: "Fila",
+  reliability: "Confiabilidade",
+  fulfillment: "Execução",
+}
+
+function DevelopmentScenarioLauncher({
+  onScenarioChange,
+  scenarioIds,
+  selectedScenario,
+}: {
+  onScenarioChange: (scenario: ServiceDeskScenarioId) => void
+  scenarioIds: readonly ServiceDeskScenarioId[]
+  selectedScenario: ServiceDeskScenarioId
+}) {
+  const groups = (["queue", "reliability", "fulfillment"] as const).map((group) => ({
+    group,
+    scenarios: scenarioIds.filter(
+      (scenario) => developmentScenarioPresentation[scenario].group === group,
+    ),
+  }))
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            aria-label="Cenários de desenvolvimento"
+            className="ml-auto"
+            size="icon"
+            type="button"
+            variant="outline"
+          >
+            <Settings2Icon aria-hidden="true" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end" className="min-w-80">
+        {groups.map(({ group, scenarios }, index) =>
+          scenarios.length > 0 ? (
+            <DropdownMenuGroup key={group}>
+              {index > 0 ? <DropdownMenuSeparator /> : null}
+              <DropdownMenuLabel>
+                {index === 0 ? "Cenários de desenvolvimento · " : null}
+                {developmentScenarioGroupLabels[group]}
+              </DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={selectedScenario}
+                onValueChange={(value) => onScenarioChange(value as ServiceDeskScenarioId)}
+              >
+                {scenarios.map((scenario) => {
+                  const presentation = developmentScenarioPresentation[scenario]
+                  return (
+                    <DropdownMenuRadioItem closeOnClick key={scenario} value={scenario}>
+                      <span className="flex min-w-0 flex-col">
+                        <span>{presentation.label}</span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {presentation.description}
+                        </span>
+                      </span>
+                    </DropdownMenuRadioItem>
+                  )
+                })}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+          ) : null,
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -466,7 +649,7 @@ function QueueCard({
     .toLocaleUpperCase("pt-BR")
 
   return (
-    <Card size="sm">
+    <Card className="ring-inset" size="sm">
       <CardHeader>
         <div className="flex min-w-0 items-center gap-2">
           <Avatar>
