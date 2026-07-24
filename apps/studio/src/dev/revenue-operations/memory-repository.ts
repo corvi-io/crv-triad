@@ -342,22 +342,28 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
 
   async #initializeCashScenario(query: OperationalDayQuery, scenarioId: string) {
     this.#generation += 1
+    const generation = this.#generation
     this.#checkouts.clear()
     this.#paidSales.clear()
     this.#closings.clear()
     this.#closingOperations.clear()
     this.#failedNext.clear()
     this.#seedingPaid.clear()
-    await this.#serviceDesk.reset()
-    await this.#scheduling.reset()
+    await this.#guardGeneration(this.#serviceDesk.reset(), generation)
+    await this.#guardGeneration(this.#scheduling.reset(), generation)
 
     for (const checkoutScenario of cashCheckoutScenarios(scenarioId)) {
       const sessionId = `session-walk-in-${checkoutScenario}`
-      await this.getCheckout(sessionId)
-      await this.completePayment({ operationId: `cash-seed-${checkoutScenario}`, sessionId })
+      this.#assertGeneration(generation)
+      await this.#guardGeneration(this.getCheckout(sessionId), generation)
+      await this.#guardGeneration(
+        this.completePayment({ operationId: `cash-seed-${checkoutScenario}`, sessionId }),
+        generation,
+      )
     }
 
-    const summary = await this.#projectOpenDay(query)
+    this.#assertGeneration(generation)
+    const summary = await this.#guardGeneration(this.#projectOpenDay(query), generation)
     if (scenarioId === "cash-already-closed") {
       const snapshot = createClosingSnapshot({
         cashCount: projectCashCount(summary.expectedCashCents, summary.expectedCashCents),
@@ -366,6 +372,7 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
         responsiblePersonName: "Marina Souza",
         summary,
       })
+      this.#assertGeneration(generation)
       this.#closings.set(closingKey(query.unitId, query.date), snapshot)
     }
     if (scenarioId !== "cash-dense-history" && scenarioId !== "cash-already-closed") return
@@ -380,6 +387,7 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
         countedCashCents,
         countedCashCents === summary.expectedCashCents ? undefined : "Conferência do fechamento",
       )
+      this.#assertGeneration(generation)
       this.#closings.set(
         closingKey(query.unitId, date),
         createClosingSnapshot({
@@ -483,6 +491,17 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     tenderSummary(next.tenders, next.totalCents)
     this.#checkouts.set(sessionId, structuredClone(next))
     return structuredClone(next)
+  }
+
+  async #guardGeneration<T>(operation: Promise<T>, generation: number) {
+    try {
+      const value = await operation
+      this.#assertGeneration(generation)
+      return value
+    } catch (error) {
+      this.#assertGeneration(generation)
+      throw error
+    }
   }
 
   #assertGeneration(generation: number) {

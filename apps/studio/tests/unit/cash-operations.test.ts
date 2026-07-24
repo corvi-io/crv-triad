@@ -184,6 +184,31 @@ describe("cash memory repository", () => {
     await repository.getOpenDaySummary({ ...query, scenarioId: "cash-empty" })
     await expect(delayed).rejects.toMatchObject({ code: "stale" })
   })
+
+  it("prevents a stale initializer from contaminating the current scenario", async () => {
+    const repository = createRevenueOperationsRepository()
+    await repository.reset()
+    const stale = repository.getOpenDaySummary(query)
+    const current = repository.getOpenDaySummary({ ...query, scenarioId: "cash-empty" })
+
+    const [staleResult, currentResult] = await Promise.allSettled([stale, current])
+
+    expect(staleResult).toMatchObject({
+      reason: expect.objectContaining({ code: "stale" }),
+      status: "rejected",
+    })
+    expect(currentResult).toMatchObject({
+      status: "fulfilled",
+      value: expect.objectContaining({ paidSaleCount: 0, status: "open" }),
+    })
+    await expect(repository.listPaidSales()).resolves.toEqual([])
+    await expect(
+      repository.listDailyClosings({ limit: 24, ...query, scenarioId: "cash-empty" }),
+    ).resolves.toEqual([])
+    await expect(
+      repository.getOpenDaySummary({ ...query, scenarioId: "cash-empty" }),
+    ).resolves.toMatchObject({ paidSaleCount: 0, status: "open" })
+  })
 })
 
 function sale(): PaidSale {
