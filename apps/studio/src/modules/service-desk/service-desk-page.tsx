@@ -258,7 +258,7 @@ export function ServiceDeskPage({
           </>
         }
         bodyClassName="min-h-0"
-        bodyViewportClassName="flex min-h-full flex-col gap-4 p-4 sm:p-6"
+        bodyViewportClassName="flex h-full min-h-0 flex-col gap-4 overflow-hidden p-4 sm:p-6"
       >
         {query.isLoading ? <QueueSkeleton /> : null}
         {query.isError ? (
@@ -300,7 +300,7 @@ export function ServiceDeskPage({
               </Empty>
             ) : (
               <section
-                className="grid min-w-0 flex-1 items-start gap-3 lg:grid-cols-2 xl:grid-cols-4"
+                className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-4 gap-3 sm:grid-cols-2 sm:grid-rows-2 xl:grid-cols-4 xl:grid-rows-1"
                 aria-label="Etapas da fila de atendimento"
               >
                 {(["waiting", "called", "in-service", "ready-for-payment"] as const).map(
@@ -479,7 +479,7 @@ function QueueColumn({
   return (
     <section
       aria-labelledby={`queue-stage-${stage}`}
-      className="flex min-w-0 flex-col gap-3 rounded-xl border bg-muted/30 p-3"
+      className="flex min-h-0 min-w-0 flex-col gap-3 rounded-xl border bg-muted/30 p-3"
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-heading font-semibold" id={`queue-stage-${stage}`}>
@@ -497,7 +497,7 @@ function QueueColumn({
           className="min-h-0 flex-1"
           scrollbars="vertical"
           scrollbarVisibility="overflow"
-          viewportClassName="flex max-h-[48rem] flex-col gap-3 pb-1"
+          viewportClassName="flex h-full min-h-0 flex-col gap-3 pb-1"
         >
           {entries.map((entry) => (
             <QueueCard

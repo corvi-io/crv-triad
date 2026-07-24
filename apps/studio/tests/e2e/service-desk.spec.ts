@@ -362,7 +362,7 @@ test("keeps dense queue cards at their full height in the desktop scroller", asy
 
 test("opens checkout directly from a ready-for-payment card and keeps columns independently scrollable", async ({
   page,
-}) => {
+}, testInfo) => {
   await page.setViewportSize({ height: 900, width: 1440 })
   await page.goto("/service-desk?scenario=fulfillment-ready")
   await page
@@ -379,6 +379,27 @@ test("opens checkout directly from a ready-for-payment card and keeps columns in
     '[aria-label="Etapas da fila de atendimento"] [data-slot="scroll-area"]',
   )
   await expect(columns).toHaveCount(3)
+
+  const bodyViewport = page.locator(
+    '[data-slot="module-layout-body"] > [data-slot="scroll-area-viewport"]',
+  )
+  const awaitingViewport = page
+    .getByRole("region", { name: "Aguardando" })
+    .locator('[data-slot="scroll-area-viewport"]')
+  const scrollRanges = {
+    awaiting: await awaitingViewport.evaluate((element) =>
+      Math.round(element.scrollHeight - element.clientHeight),
+    ),
+    body: await bodyViewport.evaluate((element) =>
+      Math.round(element.scrollHeight - element.clientHeight),
+    ),
+  }
+
+  expect(scrollRanges.body).toBeLessThanOrEqual(1)
+  expect(scrollRanges.awaiting).toBeGreaterThan(1)
+  await page.screenshot({
+    path: testInfo.outputPath("service-desk-column-only-scroll-1440-dense.png"),
+  })
 })
 
 test("passes axe and preserves themes, forced colors, reduced motion, targets, and 320px reflow", async ({
