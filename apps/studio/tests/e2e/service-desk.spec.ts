@@ -258,6 +258,48 @@ test("keeps the session accessible at a 320px zoom-equivalent viewport and resto
   expect(results.violations).toEqual([])
 })
 
+test("keeps queue card borders above the module scroll fade at narrow widths", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await page.emulateMedia({ colorScheme: "dark", forcedColors: "active", reducedMotion: "reduce" })
+  await page.goto("/service-desk?scenario=dense")
+
+  const viewport = page.locator(
+    '[data-slot="module-layout-body"] [data-slot="scroll-area-viewport"]',
+  )
+  await viewport.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
+  await expect
+    .poll(async () => viewport.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(0)
+
+  const clearance = await page.evaluate(() => {
+    const viewport = document.querySelector<HTMLElement>(
+      '[data-slot="module-layout-body"] [data-slot="scroll-area-viewport"]',
+    )
+    const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="card"]'))
+
+    if (!viewport || cards.length === 0)
+      throw new Error("Service desk queue cards were not rendered.")
+
+    const viewportBounds = viewport.getBoundingClientRect()
+    const visibleCards = cards.filter((card) => {
+      const bounds = card.getBoundingClientRect()
+      return bounds.bottom > viewportBounds.top && bounds.top < viewportBounds.bottom
+    })
+    const bottomCard = visibleCards.reduce((lowest, card) =>
+      card.getBoundingClientRect().bottom > lowest.getBoundingClientRect().bottom ? card : lowest,
+    )
+
+    return viewportBounds.bottom - bottomCard.getBoundingClientRect().bottom
+  })
+
+  expect(clearance).toBeGreaterThanOrEqual(30)
+  await page.screenshot({
+    path: testInfo.outputPath("service-desk-queue-scroll-clearance-320.png"),
+  })
+})
+
 test("keeps exact filtered counts and deterministic loading/error/empty states", async ({
   page,
 }) => {

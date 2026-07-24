@@ -234,7 +234,7 @@ export function ServiceDeskPage({
           </>
         }
         bodyClassName="min-h-0"
-        bodyViewportClassName="flex min-h-full flex-col gap-4 p-4 sm:p-6"
+        bodyViewportClassName="flex min-h-full flex-col gap-4 p-4 pb-12 sm:p-6 sm:pb-14"
       >
         {query.isLoading ? <QueueSkeleton /> : null}
         {query.isError ? (
