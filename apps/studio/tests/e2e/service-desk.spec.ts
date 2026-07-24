@@ -263,7 +263,7 @@ test("keeps queue card borders above the module scroll fade at narrow widths", a
 }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 720 })
   await page.emulateMedia({ colorScheme: "dark", forcedColors: "active", reducedMotion: "reduce" })
-  await page.goto("/service-desk?scenario=dense")
+  await page.goto("/service-desk?scenario=fulfillment-ready")
 
   const viewport = page.locator(
     '[data-slot="module-layout-body"] [data-slot="scroll-area-viewport"]',
