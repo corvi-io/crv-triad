@@ -1,10 +1,13 @@
 import { Link } from "@tanstack/react-router"
 
 import { SidebarTrigger } from "@/modules/shared/components/ui/sidebar"
+import { getWorkspaceRouteByPath } from "@/modules/shared/workspace/module-registry"
 
 import { Breadcrumbs } from "./breadcrumbs"
 
-export function WorkspaceShellHeader() {
+export function WorkspaceShellHeader({ pathname }: { pathname: string }) {
+  const currentRoute = getWorkspaceRouteByPath(pathname)
+
   return (
     <header
       className="flex h-workspace-header shrink-0 items-center gap-2 bg-inherit px-4 text-inherit"
@@ -18,9 +21,9 @@ export function WorkspaceShellHeader() {
         </div>
         <Link
           className="truncate rounded-md px-1.5 text-sm font-semibold text-foreground sm:hidden"
-          to="/overview"
+          to={currentRoute?.path ?? "/overview"}
         >
-          Dashboard
+          {currentRoute?.label ?? "Dashboard"}
         </Link>
       </div>
     </header>

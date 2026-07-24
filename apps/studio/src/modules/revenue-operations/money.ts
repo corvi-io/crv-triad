@@ -28,18 +28,29 @@ export function allocateNetValues(
   }
   assertCents(discountCents, "Desconto")
   assertCents(surchargeCents, "Acréscimo")
-  const subtotal = lines.reduce((sum, line) => sum + line.priceCents, 0)
+  const subtotal = assertCents(
+    lines.reduce((sum, line) => sum + line.priceCents, 0),
+    "Subtotal",
+  )
   if (discountCents > subtotal + surchargeCents) {
     throw new RevenueOperationsError(
       "O desconto não pode deixar o total negativo.",
       "invalid-adjustment",
     )
   }
-  const total = subtotal - discountCents + surchargeCents
-  if (subtotal === 0) return lines.map(({ id }) => ({ id, netCents: 0 }))
+  const total = assertCents(subtotal - discountCents + surchargeCents, "Total após os ajustes")
+  if (subtotal === 0) {
+    if (total > 0 && lines.length === 0) {
+      throw new RevenueOperationsError(
+        "Não é possível alocar um acréscimo sem serviços.",
+        "invalid-adjustment",
+      )
+    }
+    return lines.map(({ id }, index) => ({ id, netCents: index === 0 ? total : 0 }))
+  }
   const floors = lines.map((line) => ({
     id: line.id,
-    netCents: Math.floor((line.priceCents * total) / subtotal),
+    netCents: Number((BigInt(line.priceCents) * BigInt(total)) / BigInt(subtotal)),
   }))
   let remainder = total - floors.reduce((sum, line) => sum + line.netCents, 0)
   return floors.map((line) => {

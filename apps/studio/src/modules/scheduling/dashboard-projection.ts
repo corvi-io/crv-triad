@@ -128,37 +128,45 @@ export function deriveDashboard({
       completedCount += 1
       completedClientIds.add(appointment.clientId)
       const paidSale = saleByAppointmentId.get(appointment.id)
-      if (paidSale || (paidSales === undefined && appointment.paymentStatus === "paid")) {
+      const paidSaleLines =
+        paidSale?.lineValues.filter(({ professionalId }) =>
+          selectedProfessionalIds.has(professionalId),
+        ) ?? []
+      if (paidSale && paidSaleLines.length > 0) {
         paidCompletedCount += 1
-        const valueCents = paidSale?.totalCents ?? appointment.priceCents
+        const valueCents = paidSaleLines.reduce((sum, line) => sum + line.valueCents, 0)
         paidValueCents += valueCents
-        if (paidSale) {
-          for (const line of paidSale.lineValues) {
-            const paidService = serviceTotals.get(line.serviceId) ?? {
-              count: 0,
-              paidValueCents: 0,
-              scheduledValueCents: 0,
-            }
-            paidService.paidValueCents += line.valueCents
-            serviceTotals.set(line.serviceId, paidService)
-            const paidProfessional = professionalTotals.get(line.professionalId)
-            if (paidProfessional) paidProfessional.paidValueCents += line.valueCents
+        for (const line of paidSaleLines) {
+          const paidService = serviceTotals.get(line.serviceId) ?? {
+            count: 0,
+            paidValueCents: 0,
+            scheduledValueCents: 0,
           }
-        } else {
-          service.paidValueCents += valueCents
-          if (professional) professional.paidValueCents += valueCents
+          paidService.paidValueCents += line.valueCents
+          serviceTotals.set(line.serviceId, paidService)
+          const paidProfessional = professionalTotals.get(line.professionalId)
+          if (paidProfessional) paidProfessional.paidValueCents += line.valueCents
         }
-      } else {
+      } else if (paidSales === undefined && appointment.paymentStatus === "paid") {
+        paidCompletedCount += 1
+        paidValueCents += appointment.priceCents
+        service.paidValueCents += appointment.priceCents
+        if (professional) professional.paidValueCents += appointment.priceCents
+      } else if (!paidSale) {
         pendingCompletedValueCents += appointment.priceCents
       }
     }
   }
   const walkInSales = acceptedPaidSales?.filter(({ appointmentId }) => !appointmentId) ?? []
   for (const sale of walkInSales) {
+    const matchingLines = sale.lineValues.filter(({ professionalId }) =>
+      selectedProfessionalIds.has(professionalId),
+    )
+    if (matchingLines.length === 0) continue
     paidCompletedCount += 1
     completedCount += 1
-    paidValueCents += sale.totalCents
-    for (const line of sale.lineValues) {
+    paidValueCents += matchingLines.reduce((sum, line) => sum + line.valueCents, 0)
+    for (const line of matchingLines) {
       const paidService = serviceTotals.get(line.serviceId) ?? {
         count: 0,
         paidValueCents: 0,
@@ -267,11 +275,14 @@ export function deriveDashboard({
     filters: { ...filters, professionalId: selectedProfessionalId },
     finance: {
       discounts:
-        acceptedPaidSales && acceptedPaidSales.length > 0
+        !selectedProfessionalId && acceptedPaidSales && acceptedPaidSales.length > 0
           ? currency(acceptedPaidSales.reduce((sum, sale) => sum + sale.discountCents, 0))
           : undefined,
       paidValue: currency(paidValueCents),
-      paymentMethods: acceptedPaidSales ? paymentMethodProjection(acceptedPaidSales) : undefined,
+      paymentMethods:
+        acceptedPaidSales && !selectedProfessionalId
+          ? paymentMethodProjection(acceptedPaidSales)
+          : undefined,
       pendingCompletedValue: currency(pendingCompletedValueCents),
       scheduledValue: currency(scheduledValueCents),
     },

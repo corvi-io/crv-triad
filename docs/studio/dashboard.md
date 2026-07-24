@@ -20,6 +20,10 @@ continues to own appointment counts, status, capacity, cancellations, and no-sho
 paid sales contribute only to supported paid-sale visit and finance projections and never create
 an appointment.
 
+With a professional filter, paid values and walk-in completion counts include only matching
+paid-sale lines. Sale-level discount and payment-method composition are left unavailable because
+the accepted contract does not provide an exact per-professional allocation for those facts.
+
 The normal scheduling scenario keeps 42 current-day records, including six
 legitimate non-terminal appointments at 16:00, and 30 prior-day records. Agenda
 continues to show only the selected day. Dashboard requests the current bounds

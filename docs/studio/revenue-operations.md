@@ -32,7 +32,10 @@ the revenue source is present; scheduling continues to own operational appointme
 
 All BRL amounts are safe integer cents. Percentage commission rates are integer basis points.
 Adjusted line values are allocated proportionally from adjusted line prices, with remaining cents
-assigned in stable service-item order. Totals cannot be negative.
+assigned in stable service-item order. When every adjusted line price is zero, proportional
+allocation has no denominator: the complete non-negative net adjustment is assigned to the first
+service item in stable order, and an adjustment without any service item is rejected. Totals cannot
+be negative.
 
 The command tab accepts one fixed discount and one fixed surcharge. Non-zero values require bounded
 reasons. Authorized scenarios may override a line price with a bounded reason; unauthorized

@@ -27,8 +27,33 @@ describe("revenue exact-money rules", () => {
     ])
   })
 
+  it("assigns a zero-subtotal net adjustment to the first line in stable order", () => {
+    expect(
+      allocateNetValues(
+        [
+          { id: "line-a", priceCents: 0 },
+          { id: "line-b", priceCents: 0 },
+        ],
+        0,
+        500,
+      ),
+    ).toEqual([
+      { id: "line-a", netCents: 500 },
+      { id: "line-b", netCents: 0 },
+    ])
+    expect(() => allocateNetValues([], 0, 500)).toThrow(
+      "Não é possível alocar um acréscimo sem serviços.",
+    )
+  })
+
   it("rejects totals below zero", () => {
     expect(() => allocateNetValues(lines, 301, 0)).toThrow(RevenueOperationsError)
+    expect(() => allocateNetValues([{ id: "line", priceCents: -1 }], 0, 0)).toThrow(
+      RevenueOperationsError,
+    )
+    expect(() =>
+      allocateNetValues([{ id: "line", priceCents: Number.MAX_SAFE_INTEGER + 1 }], 0, 0),
+    ).toThrow(RevenueOperationsError)
   })
 
   it("calculates percentage, fixed, capped, and no commission exactly", () => {

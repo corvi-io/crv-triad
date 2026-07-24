@@ -276,6 +276,9 @@ dataset.
 - A discount cannot make the total negative.
 - Discount and surcharge allocation across service lines is proportional to
   each adjusted line value.
+- If every adjusted line value is zero, assign the complete non-negative net
+  adjustment to the first service item in stable order; reject a non-zero
+  adjustment when no service item exists.
 - Cent remainders are allocated by stable service-item order so reload and
   retry produce the same result.
 

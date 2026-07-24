@@ -325,7 +325,8 @@ The accepted prototype:
 - [x] Integration-test atomic cross-surface transitions.
 - [x] Route-test valid, missing, not-ready, paid, and unavailable-source states.
 - [x] Production-boundary-test no `src/dev`, backend, or provider leakage.
-- [x] Playwright-test Pix, cash, mixed, failure recovery, reset, and reload.
+- [x] Playwright-test Pix, cash, mixed, failure recovery, scenario switching,
+      and reload.
 - [x] Run automated axe checks.
 - [ ] Manually test keyboard, VoiceOver or NVDA, forced colors, reduced motion,
       coarse pointer, 320px, and 200% zoom.
@@ -347,13 +348,16 @@ The accepted prototype:
 - Implementation: `8d8279cb828eb45e26508066c6b57e0a48b4702c`.
 - PR: [#29](https://github.com/corvi-io/crv-triad/pull/29), targeting
   `staging`; Linear ENG-48 moved to `PR Open` after the PR existed.
-- `bun run test`: 42 files, 282 tests passed.
+- `bun run test`: 42 files, 306 tests passed.
 - `bun run check`: passed, including TypeScript, tests, production build, and
   production-boundary scan across 55 files.
 - `bun run build`: passed with the existing-style Vite warning for a main
   chunk over 500 kB.
 - `bunx playwright test tests/e2e/service-desk.spec.ts
   tests/e2e/revenue-operations.spec.ts`: 13 passed, including focused axe.
+- Parameterized repository coverage reconstructs all 20 checkout scenarios
+  after reset and from a fresh repository, including deterministic error,
+  loading, failure, and paid states.
 - The complete 71-test Playwright run produced 53 passes. One branch-local
   service-desk copy assertion was updated and now passes. The remaining 17
   failures were isolated to pre-existing Agenda/theme fixtures fixed at
@@ -364,6 +368,10 @@ The accepted prototype:
   `docs/studio/evidence/eng-48/checkout-paid-light-1440x900.png`,
   `checkout-open-dark-320x720.png`, and
   `checkout-forced-colors-320x720.png`.
+- The bounded review batch added exact zero-subtotal surcharge allocation,
+  truthful nested-route mobile module identity, all-scenario reset/reload
+  reconstruction, and professional-filtered walk-in revenue. The latter two
+  money/Dashboard findings correspond to the initial Codex review threads.
 
 ## Task 2: Cash Operations And Daily Closing
 

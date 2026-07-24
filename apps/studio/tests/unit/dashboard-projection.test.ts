@@ -239,6 +239,46 @@ describe("Dashboard projection", () => {
     expect(projected.services[0].paidValue).toBe("R$ 80,00")
   })
 
+  it("excludes walk-in revenue outside the active professional filter", () => {
+    const projected = deriveDashboard({
+      bounds: { endDate: date, startDate: date },
+      day: { ...day, appointments: [] },
+      filters: {
+        period: "today",
+        professionalId: "professional-one",
+        unitId: "centro",
+      },
+      now: new Date(`${date}T11:00:00`),
+      paidSales: [
+        {
+          completedAt: `${date}T10:00:00.000Z`,
+          discountCents: 500,
+          lineValues: [
+            {
+              professionalId: "professional-two",
+              serviceId: "service-main",
+              valueCents: 8_000,
+            },
+          ],
+          payments: [{ method: "pix", valueCents: 8_000 }],
+          totalCents: 8_000,
+          unitId: "centro",
+        },
+      ],
+      updatedAt: 0,
+    })
+
+    expect(projected.metrics[1].value).toBe("0")
+    expect(projected.metrics[2].value).toBe("R$ 0,00")
+    expect(projected.finance).toMatchObject({
+      discounts: undefined,
+      paidValue: "R$ 0,00",
+      paymentMethods: undefined,
+    })
+    expect(projected.professionals).toMatchObject([{ paidValue: "R$ 0,00" }])
+    expect(projected.services).toEqual([])
+  })
+
   it("compares KPIs with the bounded immediately preceding scheduling period", () => {
     const compared = deriveDashboard({
       bounds: { endDate: date, startDate: date },

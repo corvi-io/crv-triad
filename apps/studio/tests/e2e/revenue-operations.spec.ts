@@ -78,6 +78,12 @@ test("passes axe and captures dark, 320px zoom-equivalent, keyboard, and forced-
   )
   await expect(page.getByRole("heading", { name: "Serviços realizados" })).toBeVisible()
   await expect(page.locator("html")).toHaveClass(/dark/)
+  await expect(
+    page.locator('[data-slot="workspace-header"]').getByRole("link", {
+      exact: true,
+      name: "Atendimentos",
+    }),
+  ).toHaveAttribute("href", "/service-desk")
   const geometry = await page.evaluate(() => ({
     body: document.body.scrollWidth,
     reduced: matchMedia("(prefers-reduced-motion: reduce)").matches,

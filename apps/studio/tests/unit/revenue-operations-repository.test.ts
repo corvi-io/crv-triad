@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest"
 import { RevenueOperationsMemoryRepository } from "@/dev/revenue-operations/memory-repository"
 import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
 import { ServiceDeskMemoryRepository } from "@/dev/service-desk/memory-repository"
+import { serviceDeskScenarioIds } from "@/dev/service-desk/scenarios"
 import type { ServiceDeskRepository } from "@/modules/service-desk/contracts"
 
 const now = new Date("2026-07-23T11:30:00-03:00")
+const checkoutScenarioIds = serviceDeskScenarioIds.filter((scenario) =>
+  scenario.startsWith("checkout-"),
+)
 
 function createRepositories() {
   const scheduling = new SchedulingMemoryRepository("2026-07-23")
@@ -133,6 +137,56 @@ describe("revenue operations memory coordinator", () => {
     ).toBe(true)
   })
 
+  it("reconciles a surcharge after an authorized line price reaches zero", async () => {
+    const { revenue } = createRepositories()
+    const sessionId = "session-walk-in-checkout-pix"
+    const initial = await revenue.getCheckout(sessionId)
+    const lineId = initial.lines[0]?.id
+    expect(lineId).toBeDefined()
+
+    await revenue.updateLinePrice({
+      lineId: lineId as string,
+      operationId: "zero-line-price",
+      priceCents: 0,
+      reason: "Cortesia autorizada",
+      sessionId,
+    })
+    const adjusted = await revenue.updateAdjustments({
+      discountCents: 0,
+      operationId: "zero-subtotal-surcharge",
+      sessionId,
+      surchargeCents: 500,
+      surchargeReason: "Acréscimo autorizado",
+    })
+
+    expect(adjusted.totalCents).toBe(500)
+    expect(adjusted.lines).toMatchObject([{ id: lineId, netCents: 500 }])
+
+    await revenue.replaceTenders({
+      operationId: "zero-subtotal-tender",
+      sessionId,
+      tenders: [{ appliedCents: 500, id: "pix-500", method: "pix" }],
+    })
+    await expect(
+      revenue.completePayment({ operationId: "zero-subtotal-complete", sessionId }),
+    ).resolves.toMatchObject({
+      commissions: [{ baseCents: 500 }],
+      totalCents: 500,
+    })
+  })
+
+  it.each(
+    checkoutScenarioIds,
+  )("reconstructs %s deterministically after reset and fresh-repository reload", async (scenario) => {
+    const sessionId = `session-walk-in-${scenario}`
+    const repositories = createRepositories()
+    const before = await checkoutResult(repositories.revenue, sessionId)
+
+    await repositories.revenue.reset()
+    expect(await checkoutResult(repositories.revenue, sessionId)).toEqual(before)
+    expect(await checkoutResult(createRepositories().revenue, sessionId)).toEqual(before)
+  }, 10_000)
+
   it("discards a delayed load after reset changes the generation", async () => {
     const { revenue } = createRepositories()
     const pending = revenue.getCheckout("session-walk-in-checkout-slow")
@@ -145,3 +199,16 @@ describe("revenue operations memory coordinator", () => {
     expect(typeOnly).toBeUndefined()
   })
 })
+
+async function checkoutResult(revenue: RevenueOperationsMemoryRepository, sessionId: string) {
+  try {
+    return { checkout: await revenue.getCheckout(sessionId) }
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? { message: error.message, name: error.name }
+          : { message: String(error), name: "Unknown" },
+    }
+  }
+}
