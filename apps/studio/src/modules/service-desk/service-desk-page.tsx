@@ -77,13 +77,19 @@ export function ServiceDeskPage({
   onOpenSession,
   onSearchChange,
   search,
+  scenarioGroupLabels,
+  scenarioGroups,
   scenarioIds,
+  scenarioPresentation,
 }: {
   onCheckout: (sessionId: string) => void
   onOpenSession: (sessionId: string) => void
   onSearchChange: (next: Partial<ServiceDeskSearch>) => void
   search: ServiceDeskSearch
+  scenarioGroupLabels?: Readonly<Record<DevelopmentScenarioGroup, string>>
+  scenarioGroups?: readonly DevelopmentScenarioGroup[]
   scenarioIds?: readonly ServiceDeskScenarioId[]
+  scenarioPresentation?: Readonly<Record<ServiceDeskScenarioId, DevelopmentScenarioPresentation>>
 }) {
   const [searchText, setSearchText] = useState("")
   const deferredSearch = useDeferredValue(searchText)
@@ -238,10 +244,13 @@ export function ServiceDeskPage({
                   ]}
                 />
               ) : null}
-              {scenarioIds ? (
+              {scenarioIds && scenarioGroups && scenarioGroupLabels && scenarioPresentation ? (
                 <DevelopmentScenarioLauncher
                   onScenarioChange={(scenario) => onSearchChange({ scenario })}
+                  scenarioGroupLabels={scenarioGroupLabels}
+                  scenarioGroups={scenarioGroups}
                   scenarioIds={scenarioIds}
+                  scenarioPresentation={scenarioPresentation}
                   selectedScenario={search.scenario}
                 />
               ) : null}
@@ -361,182 +370,30 @@ export function ServiceDeskPage({
 
 type DevelopmentScenarioGroup = "queue" | "reliability" | "fulfillment" | "checkout"
 
-const developmentScenarioPresentation: Record<
-  ServiceDeskScenarioId,
-  { description: string; group: DevelopmentScenarioGroup; label: string }
-> = {
-  typical: {
-    description: "Fila normal com trajetos agendado e sem agendamento.",
-    group: "queue",
-    label: "Normal",
-  },
-  empty: { description: "Fila sem registros.", group: "queue", label: "Vazio" },
-  dense: {
-    description: "Coleção limitada para avaliação visual densa.",
-    group: "queue",
-    label: "Denso",
-  },
-  "long-wait": {
-    description: "Registro com espera longa e conteúdo extenso.",
-    group: "queue",
-    label: "Espera longa",
-  },
-  "specific-professional": {
-    description: "Preferência por profissional específico.",
-    group: "queue",
-    label: "Profissional específico",
-  },
-  "first-available": {
-    description: "Preferência sem atribuição automática.",
-    group: "queue",
-    label: "Primeiro disponível",
-  },
-  "unavailable-professional": {
-    description: "Transição recuperável para profissional indisponível.",
-    group: "queue",
-    label: "Profissional indisponível",
-  },
-  slow: {
-    description: "Resposta com atraso determinístico.",
-    group: "reliability",
-    label: "Lento",
-  },
-  "next-failure": {
-    description: "A próxima operação falha antes de escrever.",
-    group: "reliability",
-    label: "Próxima falha",
-  },
-  "persistent-error": {
-    description: "Operações falham até a troca de cenário.",
-    group: "reliability",
-    label: "Erro persistente",
-  },
-  "fulfillment-single": {
-    description: "Cenário determinístico de fulfillment.",
-    group: "fulfillment",
-    label: "Atendimento simples",
-  },
-  "fulfillment-multiple": {
-    description: "Cenário determinístico de fulfillment.",
-    group: "fulfillment",
-    label: "Múltiplos serviços",
-  },
-  "fulfillment-multi-professional": {
-    description: "Cenário determinístico de fulfillment.",
-    group: "fulfillment",
-    label: "Múltiplos profissionais",
-  },
-  "fulfillment-long-running": {
-    description: "Cenário determinístico de fulfillment.",
-    group: "fulfillment",
-    label: "Atendimento longo",
-  },
-  "fulfillment-long-labels": {
-    description: "Cenário determinístico de fulfillment.",
-    group: "fulfillment",
-    label: "Conteúdo longo",
-  },
-  "fulfillment-no-eligible": {
-    description: "Cenário determinístico de fulfillment.",
-    group: "fulfillment",
-    label: "Sem profissional elegível",
-  },
-  "fulfillment-ready": {
-    description: "Cenário determinístico de fulfillment.",
-    group: "fulfillment",
-    label: "Pronto para pagamento",
-  },
-  "checkout-pix": { description: "Pagamento por PIX.", group: "checkout", label: "PIX" },
-  "checkout-cash": { description: "Pagamento em dinheiro.", group: "checkout", label: "Dinheiro" },
-  "checkout-debit": { description: "Pagamento no débito.", group: "checkout", label: "Débito" },
-  "checkout-credit": { description: "Pagamento no crédito.", group: "checkout", label: "Crédito" },
-  "checkout-mixed": { description: "Pagamento dividido.", group: "checkout", label: "Misto" },
-  "checkout-discount": {
-    description: "Desconto autorizado.",
-    group: "checkout",
-    label: "Desconto",
-  },
-  "checkout-surcharge": {
-    description: "Acréscimo operacional.",
-    group: "checkout",
-    label: "Acréscimo",
-  },
-  "checkout-price-override": {
-    description: "Preço ajustado.",
-    group: "checkout",
-    label: "Preço ajustado",
-  },
-  "checkout-unauthorized": {
-    description: "Ajuste sem autorização.",
-    group: "checkout",
-    label: "Sem autorização",
-  },
-  "checkout-fixed-commission": {
-    description: "Comissão fixa.",
-    group: "checkout",
-    label: "Comissão fixa",
-  },
-  "checkout-no-commission": {
-    description: "Sem comissão.",
-    group: "checkout",
-    label: "Sem comissão",
-  },
-  "checkout-multi-professional": {
-    description: "Dois profissionais.",
-    group: "checkout",
-    label: "Múltiplos profissionais",
-  },
-  "checkout-scheduled": {
-    description: "Atendimento agendado.",
-    group: "checkout",
-    label: "Agendado",
-  },
-  "checkout-walk-in": {
-    description: "Atendimento sem agendamento.",
-    group: "checkout",
-    label: "Sem agendamento",
-  },
-  "checkout-decline": { description: "Pagamento recusado.", group: "checkout", label: "Recusado" },
-  "checkout-slow": { description: "Resposta com atraso.", group: "checkout", label: "Lento" },
-  "checkout-next-failure": {
-    description: "Próxima operação falha.",
-    group: "checkout",
-    label: "Próxima falha",
-  },
-  "checkout-persistent-error": {
-    description: "Operações falham.",
-    group: "checkout",
-    label: "Erro persistente",
-  },
-  "checkout-paid": { description: "Venda já paga.", group: "checkout", label: "Pago" },
-  "checkout-long-content": {
-    description: "Conteúdo extenso.",
-    group: "checkout",
-    label: "Conteúdo longo",
-  },
-}
-
-const developmentScenarioGroupLabels: Record<DevelopmentScenarioGroup, string> = {
-  queue: "Fila",
-  reliability: "Confiabilidade",
-  fulfillment: "Execução",
-  checkout: "Checkout",
+type DevelopmentScenarioPresentation = {
+  description: string
+  group: DevelopmentScenarioGroup
+  label: string
 }
 
 function DevelopmentScenarioLauncher({
   onScenarioChange,
+  scenarioGroupLabels,
+  scenarioGroups,
   scenarioIds,
+  scenarioPresentation,
   selectedScenario,
 }: {
   onScenarioChange: (scenario: ServiceDeskScenarioId) => void
+  scenarioGroupLabels: Readonly<Record<DevelopmentScenarioGroup, string>>
+  scenarioGroups: readonly DevelopmentScenarioGroup[]
   scenarioIds: readonly ServiceDeskScenarioId[]
+  scenarioPresentation: Readonly<Record<ServiceDeskScenarioId, DevelopmentScenarioPresentation>>
   selectedScenario: ServiceDeskScenarioId
 }) {
-  const groups = (["queue", "reliability", "fulfillment", "checkout"] as const).map((group) => ({
+  const groups = scenarioGroups.map((group) => ({
     group,
-    scenarios: scenarioIds.filter(
-      (scenario) => developmentScenarioPresentation[scenario].group === group,
-    ),
+    scenarios: scenarioIds.filter((scenario) => scenarioPresentation[scenario]?.group === group),
   }))
 
   return (
@@ -560,14 +417,14 @@ function DevelopmentScenarioLauncher({
               {index > 0 ? <DropdownMenuSeparator /> : null}
               <DropdownMenuLabel>
                 {index === 0 ? "Cenários de desenvolvimento · " : null}
-                {developmentScenarioGroupLabels[group]}
+                {scenarioGroupLabels[group]}
               </DropdownMenuLabel>
               <DropdownMenuRadioGroup
                 value={selectedScenario}
                 onValueChange={(value) => onScenarioChange(value as ServiceDeskScenarioId)}
               >
                 {scenarios.map((scenario) => {
-                  const presentation = developmentScenarioPresentation[scenario]
+                  const presentation = scenarioPresentation[scenario]
                   return (
                     <DropdownMenuRadioItem closeOnClick key={scenario} value={scenario}>
                       <span className="flex min-w-0 flex-col">

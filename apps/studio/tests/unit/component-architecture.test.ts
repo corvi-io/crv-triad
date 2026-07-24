@@ -84,6 +84,15 @@ describe("Studio component dependency model", () => {
     expect(`${serviceDeskRoute}\n${serviceDeskShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
     expect(serviceDeskRoute).toContain('from "virtual:studio-service-desk-source"')
 
+    const serviceDeskPage = await readFile(
+      path.resolve(process.cwd(), "src/modules/service-desk/service-desk-page.tsx"),
+      "utf8",
+    )
+    expect(serviceDeskPage).not.toContain("const developmentScenarioPresentation")
+    expect(serviceDeskPage).not.toContain("const developmentScenarioGroupLabels")
+    expect(serviceDeskRoute).toContain("scenarioPresentation={developmentScenarioPresentation}")
+    expect(serviceDeskShim).toContain("export const developmentScenarioPresentation = undefined")
+
     const revenueRoute = await readFile(
       path.resolve(
         process.cwd(),
