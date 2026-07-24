@@ -87,7 +87,7 @@ export default defineConfig(({ command, mode }) => {
       setupFiles: ["./tests/setup.ts"],
       css: true,
       clearMocks: true,
-      maxWorkers: 4,
+      maxWorkers: 1,
       minWorkers: 1,
       restoreMocks: true,
       unstubEnvs: true,
