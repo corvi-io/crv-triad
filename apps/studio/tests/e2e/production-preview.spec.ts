@@ -93,6 +93,7 @@ test("keeps Atendimentos fail-closed and excludes queue fixtures in production",
   await expect(page.getByRole("heading", { name: "Atendimentos" })).toBeVisible()
   await expect(page.getByText("Atendimentos indisponíveis")).toBeVisible()
   await expect(page.getByRole("button", { name: "Adicionar à fila" })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Cenários de desenvolvimento" })).toHaveCount(0)
   await expect(page.getByText("Pessoa Sintética 1")).toHaveCount(0)
 })
 

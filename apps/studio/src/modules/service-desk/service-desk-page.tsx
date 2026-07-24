@@ -7,10 +7,11 @@ import {
   ListFilterIcon,
   PlusIcon,
   ScissorsIcon,
+  Settings2Icon,
   UserRoundCheckIcon,
   UsersIcon,
 } from "lucide-react"
-import { useDeferredValue, useMemo, useState } from "react"
+import { useDeferredValue, useState } from "react"
 import { toast } from "sonner"
 import type { Professional, Service } from "@/modules/scheduling/contracts"
 import { SingleSelectListFilter } from "@/modules/shared/components/data-display/list-filter"
@@ -31,6 +32,16 @@ import {
   CardTitle,
 } from "@/modules/shared/components/ui/card"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/modules/shared/components/ui/dropdown-menu"
+import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -38,6 +49,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/modules/shared/components/ui/empty"
+import { ScrollArea } from "@/modules/shared/components/ui/scroll-area"
 import {
   Select,
   SelectContent,
@@ -47,13 +59,12 @@ import {
 } from "@/modules/shared/components/ui/select"
 import { Separator } from "@/modules/shared/components/ui/separator"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
-import type { QueueEntry, QueueStage, WalkInInput } from "./contracts"
+import type { QueueEntry, QueueStage, ServiceDeskScenarioId, WalkInInput } from "./contracts"
 import {
   formatArrival,
   formatWait,
   groupQueueEntries,
   professionalPreferenceLabels,
-  queueCounts,
   queuePriorityLabels,
   queueStageLabels,
 } from "./projection"
@@ -62,13 +73,23 @@ import type { ServiceDeskSearch } from "./search"
 import { WalkInForm } from "./walk-in-form"
 
 export function ServiceDeskPage({
+  onCheckout,
   onOpenSession,
   onSearchChange,
   search,
+  scenarioGroupLabels,
+  scenarioGroups,
+  scenarioIds,
+  scenarioPresentation,
 }: {
+  onCheckout: (sessionId: string) => void
   onOpenSession: (sessionId: string) => void
   onSearchChange: (next: Partial<ServiceDeskSearch>) => void
   search: ServiceDeskSearch
+  scenarioGroupLabels?: Readonly<Record<DevelopmentScenarioGroup, string>>
+  scenarioGroups?: readonly DevelopmentScenarioGroup[]
+  scenarioIds?: readonly ServiceDeskScenarioId[]
+  scenarioPresentation?: Readonly<Record<ServiceDeskScenarioId, DevelopmentScenarioPresentation>>
 }) {
   const [searchText, setSearchText] = useState("")
   const deferredSearch = useDeferredValue(searchText)
@@ -90,19 +111,12 @@ export function ServiceDeskPage({
   const snapshot = query.data
   const entries = snapshot?.entries ?? []
   const groups = groupQueueEntries(entries)
-  const counts = queueCounts(entries)
   const hasFilters =
     Boolean(searchText) ||
     search.stage !== "all" ||
     search.priority !== "all" ||
     search.preference !== "all" ||
     search.professional !== "all"
-  const oldestWait = useMemo(() => {
-    if (!snapshot || groups.waiting.length === 0) return null
-    return groups.waiting.reduce((oldest, entry) =>
-      entry.arrivalAt < oldest.arrivalAt ? entry : oldest,
-    )
-  }, [groups.waiting, snapshot])
 
   async function add(input: WalkInInput) {
     if (addWalkIn.isPending) return
@@ -230,11 +244,21 @@ export function ServiceDeskPage({
                   ]}
                 />
               ) : null}
+              {scenarioIds && scenarioGroups && scenarioGroupLabels && scenarioPresentation ? (
+                <DevelopmentScenarioLauncher
+                  onScenarioChange={(scenario) => onSearchChange({ scenario })}
+                  scenarioGroupLabels={scenarioGroupLabels}
+                  scenarioGroups={scenarioGroups}
+                  scenarioIds={scenarioIds}
+                  scenarioPresentation={scenarioPresentation}
+                  selectedScenario={search.scenario}
+                />
+              ) : null}
             </fieldset>
           </>
         }
         bodyClassName="min-h-0"
-        bodyViewportClassName="flex min-h-full flex-col gap-4 p-4 sm:p-6"
+        bodyViewportClassName="flex h-full min-h-0 flex-col gap-4 overflow-hidden p-4 sm:p-6"
       >
         {query.isLoading ? <QueueSkeleton /> : null}
         {query.isError ? (
@@ -251,13 +275,6 @@ export function ServiceDeskPage({
         ) : null}
         {snapshot ? (
           <>
-            <p className="text-sm text-muted-foreground" aria-live="polite">
-              {counts.waiting} aguardando, {counts.called} chamado(s), {counts["in-service"]} em
-              atendimento e {counts["ready-for-payment"]} pronto(s) para pagamento
-              {oldestWait
-                ? `. Maior espera visível: ${formatWait(oldestWait.arrivalAt, snapshot.now)}.`
-                : "."}
-            </p>
             {entries.length === 0 ? (
               <Empty className="min-h-64">
                 <EmptyHeader>
@@ -283,7 +300,7 @@ export function ServiceDeskPage({
               </Empty>
             ) : (
               <section
-                className="grid min-w-0 flex-1 items-start gap-3 lg:grid-cols-2 xl:grid-cols-4"
+                className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-4 gap-3 sm:grid-cols-2 sm:grid-rows-2 xl:h-full xl:grid-cols-4 xl:grid-rows-1"
                 aria-label="Etapas da fila de atendimento"
               >
                 {(["waiting", "called", "in-service", "ready-for-payment"] as const).map(
@@ -306,6 +323,7 @@ export function ServiceDeskPage({
                         }))
                       }
                       onCall={call}
+                      onCheckout={onCheckout}
                       onStart={start}
                       onOpenSession={onOpenSession}
                     />
@@ -350,6 +368,83 @@ export function ServiceDeskPage({
   )
 }
 
+type DevelopmentScenarioGroup = "queue" | "reliability" | "fulfillment" | "checkout"
+
+type DevelopmentScenarioPresentation = {
+  description: string
+  group: DevelopmentScenarioGroup
+  label: string
+}
+
+function DevelopmentScenarioLauncher({
+  onScenarioChange,
+  scenarioGroupLabels,
+  scenarioGroups,
+  scenarioIds,
+  scenarioPresentation,
+  selectedScenario,
+}: {
+  onScenarioChange: (scenario: ServiceDeskScenarioId) => void
+  scenarioGroupLabels: Readonly<Record<DevelopmentScenarioGroup, string>>
+  scenarioGroups: readonly DevelopmentScenarioGroup[]
+  scenarioIds: readonly ServiceDeskScenarioId[]
+  scenarioPresentation: Readonly<Record<ServiceDeskScenarioId, DevelopmentScenarioPresentation>>
+  selectedScenario: ServiceDeskScenarioId
+}) {
+  const groups = scenarioGroups.map((group) => ({
+    group,
+    scenarios: scenarioIds.filter((scenario) => scenarioPresentation[scenario]?.group === group),
+  }))
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            aria-label="Cenários de desenvolvimento"
+            size="icon"
+            type="button"
+            variant="outline"
+          >
+            <Settings2Icon aria-hidden="true" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end" className="min-w-80">
+        {groups.map(({ group, scenarios }, index) =>
+          scenarios.length > 0 ? (
+            <DropdownMenuGroup key={group}>
+              {index > 0 ? <DropdownMenuSeparator /> : null}
+              <DropdownMenuLabel>
+                {index === 0 ? "Cenários de desenvolvimento · " : null}
+                {scenarioGroupLabels[group]}
+              </DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={selectedScenario}
+                onValueChange={(value) => onScenarioChange(value as ServiceDeskScenarioId)}
+              >
+                {scenarios.map((scenario) => {
+                  const presentation = scenarioPresentation[scenario]
+                  return (
+                    <DropdownMenuRadioItem closeOnClick key={scenario} value={scenario}>
+                      <span className="flex min-w-0 flex-col">
+                        <span>{presentation.label}</span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {presentation.description}
+                        </span>
+                      </span>
+                    </DropdownMenuRadioItem>
+                  )
+                })}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+          ) : null,
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 function QueueColumn({
   entries,
   isCalling,
@@ -357,6 +452,7 @@ function QueueColumn({
   now,
   onAssignmentChange,
   onCall,
+  onCheckout,
   onOpenSession,
   onStart,
   professionals,
@@ -371,6 +467,7 @@ function QueueColumn({
   now: string
   onAssignmentChange: (entryId: string, professionalId: string) => void
   onCall: (entry: QueueEntry) => void
+  onCheckout: (sessionId: string) => void
   onOpenSession: (sessionId: string) => void
   onStart: (entry: QueueEntry) => void
   professionals: readonly Professional[]
@@ -382,7 +479,7 @@ function QueueColumn({
   return (
     <section
       aria-labelledby={`queue-stage-${stage}`}
-      className="flex min-w-0 flex-col gap-3 rounded-xl border bg-muted/30 p-3"
+      className="flex min-h-0 min-w-0 flex-col gap-3 rounded-xl border bg-muted/30 p-3"
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-heading font-semibold" id={`queue-stage-${stage}`}>
@@ -396,7 +493,12 @@ function QueueColumn({
           Nenhum cliente nesta etapa.
         </p>
       ) : (
-        <div className="flex max-h-[48rem] flex-col gap-3 overflow-y-auto pb-1">
+        <ScrollArea
+          className="min-h-0 flex-1"
+          scrollbars="vertical"
+          scrollbarVisibility="overflow"
+          viewportClassName="flex h-full min-h-0 flex-col gap-3 pb-1"
+        >
           {entries.map((entry) => (
             <QueueCard
               entry={entry}
@@ -406,6 +508,7 @@ function QueueColumn({
               now={now}
               onAssignmentChange={onAssignmentChange}
               onCall={onCall}
+              onCheckout={onCheckout}
               onOpenSession={onOpenSession}
               onStart={onStart}
               professionals={professionals}
@@ -414,7 +517,7 @@ function QueueColumn({
               unavailableProfessionalIds={unavailableProfessionalIds}
             />
           ))}
-        </div>
+        </ScrollArea>
       )}
     </section>
   )
@@ -427,6 +530,7 @@ function QueueCard({
   now,
   onAssignmentChange,
   onCall,
+  onCheckout,
   onOpenSession,
   onStart,
   professionals,
@@ -440,6 +544,7 @@ function QueueCard({
   now: string
   onAssignmentChange: (entryId: string, professionalId: string) => void
   onCall: (entry: QueueEntry) => void
+  onCheckout: (sessionId: string) => void
   onOpenSession: (sessionId: string) => void
   onStart: (entry: QueueEntry) => void
   professionals: readonly Professional[]
@@ -466,7 +571,7 @@ function QueueCard({
     .toLocaleUpperCase("pt-BR")
 
   return (
-    <Card size="sm">
+    <Card className="shrink-0 ring-inset" size="sm">
       <CardHeader>
         <div className="flex min-w-0 items-center gap-2">
           <Avatar>
@@ -549,7 +654,15 @@ function QueueCard({
             Iniciar atendimento
           </Button>
         ) : null}
-        {entry.stage === "in-service" || entry.stage === "ready-for-payment" ? (
+        {entry.stage === "ready-for-payment" && entry.paymentStatus !== "paid" ? (
+          <Button
+            className="w-full"
+            type="button"
+            onClick={() => onCheckout(entry.sessionId ?? `session-${entry.id}`)}
+          >
+            Receber pagamento
+          </Button>
+        ) : entry.stage === "in-service" || entry.stage === "ready-for-payment" ? (
           <Button
             className="w-full"
             type="button"

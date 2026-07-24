@@ -1,5 +1,8 @@
 import {
   createServiceDeskRepository,
+  developmentScenarioGroupLabels,
+  developmentScenarioGroups,
+  developmentScenarioPresentation,
   serviceDeskScenarioIds,
 } from "virtual:studio-service-desk-source"
 import { createFileRoute, redirect } from "@tanstack/react-router"
@@ -59,6 +62,13 @@ function ServiceDeskRoute() {
     <ServiceDeskRepositoryProvider repository={repository}>
       <ServiceDeskPage
         search={search}
+        scenarioGroupLabels={developmentScenarioGroupLabels}
+        scenarioGroups={developmentScenarioGroups}
+        scenarioIds={serviceDeskScenarioIds}
+        scenarioPresentation={developmentScenarioPresentation}
+        onCheckout={(sessionId) =>
+          navigate({ to: "/service-desk/$sessionId/checkout", params: { sessionId }, search })
+        }
         onOpenSession={(sessionId) =>
           navigate({ to: "/service-desk/$sessionId", params: { sessionId }, search })
         }
