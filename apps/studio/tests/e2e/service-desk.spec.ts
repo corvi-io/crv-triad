@@ -258,7 +258,7 @@ test("keeps the session accessible at a 320px zoom-equivalent viewport and resto
   expect(results.violations).toEqual([])
 })
 
-test("keeps exact filtered counts and deterministic loading/error/empty states", async ({
+test("keeps deterministic loading, error, and filtered-empty states without an aggregate summary", async ({
   page,
 }) => {
   await page.goto("/service-desk?scenario=slow")
@@ -275,7 +275,7 @@ test("keeps exact filtered counts and deterministic loading/error/empty states",
   await expect(page.getByText("Nenhum atendimento encontrado")).toBeVisible()
   await expect(
     page.getByText(/0 aguardando, 0 chamado\(s\), 0 em atendimento e 0 pronto\(s\)/),
-  ).toBeVisible()
+  ).toHaveCount(0)
 
   await page.goto("/service-desk?scenario=typical&stage=invalid&professional=Nome%20Privado")
   await expect(page).not.toHaveURL(/stage=invalid|Nome%20Privado/)
