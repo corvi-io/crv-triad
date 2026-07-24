@@ -1,6 +1,10 @@
-import { createServiceDeskRepository } from "virtual:studio-service-desk-source"
+import {
+  createServiceDeskRepository,
+  serviceDeskScenarioIds,
+} from "virtual:studio-service-desk-source"
 import { createFileRoute } from "@tanstack/react-router"
 import { ServiceDeskRepositoryProvider } from "@/modules/service-desk/repository-context"
+import { type ServiceDeskSearch, validateServiceDeskSearch } from "@/modules/service-desk/search"
 import { ServiceSessionPage } from "@/modules/service-desk/service-session-page"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
 import { PageHeader } from "@/modules/shared/components/layout/page-header"
@@ -9,10 +13,13 @@ const repository = createServiceDeskRepository?.()
 
 export const Route = createFileRoute("/_authenticated/service-desk/$sessionId/")({
   component: ServiceSessionRoute,
+  validateSearch: (search: Record<string, unknown>): ServiceDeskSearch =>
+    validateServiceDeskSearch(search, serviceDeskScenarioIds),
 })
 
 function ServiceSessionRoute() {
   const { sessionId } = Route.useParams()
+  const search = Route.useSearch()
   const navigate = Route.useNavigate()
   if (!repository) {
     return (
@@ -40,14 +47,7 @@ function ServiceSessionRoute() {
           onBack={() =>
             navigate({
               to: "/service-desk",
-              search: {
-                preference: "all",
-                priority: "all",
-                professional: "all",
-                scenario: "typical",
-                stage: "all",
-                unit: "centro",
-              },
+              search,
             })
           }
         />

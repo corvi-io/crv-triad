@@ -83,7 +83,9 @@ Agenda-to-queue-to-called-to-in-service coherence, the equivalent walk-in journe
 first-available assignment, drawer validation and first-invalid focus, PII-safe URL behavior, exact
 filtered counts, deterministic loading/empty/error states, full Card and shared feedback anatomy,
 1600x900 and 320-CSS-pixel screenshots, dark/system, reduced motion, forced colors, focus return,
-24px targets, and focused axe WCAG 2.2 A/AA. Focused Vitest covers transition allowlists, scheduled
+24px targets, and focused axe WCAG 2.2 A/AA. The 320-CSS-pixel viewport is the automated
+zoom-equivalent check for a 640px layout viewport at 200%; it is not evidence of physical browser
+zoom. Focused Vitest covers transition allowlists, scheduled
 projection without appointment copies, start-inclusive/end-exclusive time bounds, wait formatting,
 filter/count equivalence, URL allowlists, every form bound, shared scheduling transition identity,
 walk-in isolation, unavailable-professional recovery, one-shot failure/reset, and persistent error.
@@ -91,11 +93,18 @@ Production coverage proves the authenticated route resolves disabled and the bui
 the adapter, scenarios, and representative synthetic queue markers.
 
 The same suite continues through `/service-desk/$sessionId`: it preserves the immutable initial
-item, adds and attributes a second service, updates bounded private notes, confirms completion, and
-asserts the `Pronto para pagamento` handoff without putting free text in the URL. Focused repository
-tests cover item protection, eligibility, note normalization, idempotent finish, exact elapsed-time
-boundaries, and the linked appointment remaining `in-progress`. The fulfillment journey records a
-1440x900 screenshot in addition to the existing 1600x900 and 320-CSS-pixel evidence.
+item, adds/removes/re-adds a service, reassigns its professional, preserves the source scenario on
+return, updates bounded private notes, confirms completion, and asserts the
+`Pronto para pagamento` handoff without putting free text in the URL. It also visits every listed
+fulfillment fixture, reloads the ready fixture, checks session-level axe, 320-CSS-pixel reflow,
+forced colors, reduced motion, keyboard dialog entry, and focus restoration. Focused repository
+tests cover item protection, eligibility, note normalization, exact retry deduplication across
+add/remove/reassign/notes/finish, source-clock regression with snapshot preservation, idempotent
+finish, exact elapsed-time boundaries, and the linked appointment remaining `in-progress`.
+Component coverage distinguishes missing sessions from recoverable load failures, retries loading,
+reuses the same operation key after a failed add, verifies concise feedback, and prevents a second
+submission while the first promise is pending. The fulfillment journey records a 1440x900
+screenshot in addition to the existing 1600x900 and 320-CSS-pixel evidence.
 
 `tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
 the resolved class at the first animation frame, measures browser-computed contrast for core

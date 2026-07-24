@@ -5,6 +5,7 @@ import type {
   AssignServiceItemProfessionalInput,
   ServiceDeskQuery,
   SessionItemInput,
+  SessionMutationInput,
   StartServiceInput,
   UpdateSessionNotesInput,
   WalkInInput,
@@ -13,7 +14,8 @@ import { useServiceDeskRepository } from "./repository-context"
 
 export const serviceDeskQueryKeys = {
   all: ["service-desk"] as const,
-  queue: (query: ServiceDeskQuery) => [...serviceDeskQueryKeys.all, "queue", query] as const,
+  queues: ["service-desk", "queue"] as const,
+  queue: (query: ServiceDeskQuery) => [...serviceDeskQueryKeys.queues, query] as const,
   session: (sessionId: string) => [...serviceDeskQueryKeys.all, "session", sessionId] as const,
 }
 
@@ -35,7 +37,7 @@ function useSessionMutation<TInput>(
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: serviceDeskQueryKeys.session(sessionId) }),
-        queryClient.invalidateQueries({ queryKey: serviceDeskQueryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: serviceDeskQueryKeys.queues }),
       ])
     },
   })
@@ -71,7 +73,9 @@ export function useUpdateSessionNotes(sessionId: string) {
 
 export function useFinishSession(sessionId: string) {
   const repository = useServiceDeskRepository()
-  return useSessionMutation(sessionId, () => repository.finishSession(sessionId))
+  return useSessionMutation(sessionId, (input: SessionMutationInput) =>
+    repository.finishSession(input),
+  )
 }
 
 export function useServiceDeskQueue(query: ServiceDeskQuery) {

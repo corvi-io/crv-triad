@@ -72,14 +72,19 @@ export type ServiceSession = {
   unitName: string
   unavailableProfessionalIds: readonly string[]
 }
-export type AddServiceItemInput = { professionalId: string; serviceId: string; sessionId: string }
+export type SessionMutationInput = { operationId: string; sessionId: string }
+export type AddServiceItemInput = SessionMutationInput & {
+  professionalId: string
+  serviceId: string
+}
 export type AssignServiceItemProfessionalInput = {
   itemId: string
+  operationId: string
   professionalId: string
   sessionId: string
 }
-export type SessionItemInput = { itemId: string; sessionId: string }
-export type UpdateSessionNotesInput = { notes: string; sessionId: string }
+export type SessionItemInput = SessionMutationInput & { itemId: string }
+export type UpdateSessionNotesInput = SessionMutationInput & { notes: string }
 
 export type WalkInInput = {
   arrivalAt: string
@@ -122,7 +127,7 @@ export type ServiceDeskRepository = {
   addWalkIn(input: WalkInInput): Promise<QueueEntry>
   assignServiceItemProfessional(input: AssignServiceItemProfessionalInput): Promise<ServiceSession>
   call(entryId: string): Promise<QueueEntry>
-  finishSession(sessionId: string): Promise<ServiceSession>
+  finishSession(input: SessionMutationInput): Promise<ServiceSession>
   getQueue(query: ServiceDeskQuery): Promise<ServiceDeskSnapshot>
   getSession(sessionId: string): Promise<ServiceSession>
   removeServiceItem(input: SessionItemInput): Promise<ServiceSession>
@@ -135,5 +140,12 @@ export class ServiceDeskTransitionError extends Error {
   constructor(message: string) {
     super(message)
     this.name = "ServiceDeskTransitionError"
+  }
+}
+
+export class ServiceSessionNotFoundError extends ServiceDeskTransitionError {
+  constructor() {
+    super("Atendimento não encontrado.")
+    this.name = "ServiceSessionNotFoundError"
   }
 }

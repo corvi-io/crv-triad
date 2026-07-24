@@ -51,7 +51,7 @@ function ServiceDeskRoute() {
       <ServiceDeskPage
         search={search}
         onOpenSession={(sessionId) =>
-          navigate({ to: "/service-desk/$sessionId", params: { sessionId } })
+          navigate({ to: "/service-desk/$sessionId", params: { sessionId }, search })
         }
         onSearchChange={(next) =>
           navigate({ replace: true, search: (previous) => ({ ...previous, ...next }) })

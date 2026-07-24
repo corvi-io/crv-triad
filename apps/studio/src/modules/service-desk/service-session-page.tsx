@@ -6,7 +6,7 @@ import {
   ScissorsIcon,
   Trash2Icon,
 } from "lucide-react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { ConfirmationDialog } from "@/modules/shared/components/overlays/confirmation-dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/modules/shared/components/ui/alert"
@@ -36,13 +36,14 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/modules/shared/components/ui/select"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import { Textarea } from "@/modules/shared/components/ui/textarea"
-import type { ServiceSession } from "./contracts"
+import { type ServiceSession, ServiceSessionNotFoundError } from "./contracts"
 import {
   useAddServiceItem,
   useAssignServiceItemProfessional,
@@ -69,7 +70,7 @@ export function ServiceSessionPage({
   if (query.isLoading) {
     return <Skeleton className="h-80 w-full" aria-label="Carregando atendimento" />
   }
-  if (query.isError || !query.data) {
+  if (query.error instanceof ServiceSessionNotFoundError || (!query.isError && !query.data)) {
     return (
       <Empty>
         <EmptyHeader>
@@ -86,6 +87,19 @@ export function ServiceSessionPage({
       </Empty>
     )
   }
+  if (query.isError) {
+    return (
+      <Alert>
+        <AlertTitle>Não foi possível carregar o atendimento</AlertTitle>
+        <AlertDescription>
+          Tente novamente. As alterações confirmadas continuam preservadas.
+        </AlertDescription>
+        <Button type="button" variant="outline" onClick={() => query.refetch()}>
+          Tentar novamente
+        </Button>
+      </Alert>
+    )
+  }
   return (
     <SessionWorkspace
       key={`${query.data.id}-${query.data.status}`}
@@ -100,6 +114,10 @@ function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack
   const [professionalId, setProfessionalId] = useState("")
   const [notes, setNotes] = useState(session.notes)
   const [confirming, setConfirming] = useState(false)
+  const addOperation = useRef("")
+  const finishOperation = useRef("")
+  const notesOperation = useRef<{ notes: string; operationId: string } | undefined>(undefined)
+  const itemOperations = useRef(new Map<string, string>())
   const addItem = useAddServiceItem(session.id)
   const removeItem = useRemoveServiceItem(session.id)
   const assign = useAssignServiceItemProfessional(session.id)
@@ -113,12 +131,23 @@ function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack
   )
   const active = session.status === "in-progress"
   const pending =
-    addItem.isPending || removeItem.isPending || assign.isPending || updateNotes.isPending
+    addItem.isPending ||
+    removeItem.isPending ||
+    assign.isPending ||
+    updateNotes.isPending ||
+    finish.isPending
 
   async function add() {
     if (!serviceId || !professionalId || pending) return
+    addOperation.current ||= createOperationId()
     try {
-      await addItem.mutateAsync({ professionalId, serviceId, sessionId: session.id })
+      await addItem.mutateAsync({
+        operationId: addOperation.current,
+        professionalId,
+        serviceId,
+        sessionId: session.id,
+      })
+      addOperation.current = ""
       setServiceId("")
       setProfessionalId("")
       toast.success("Serviço adicionado.")
@@ -127,10 +156,51 @@ function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack
     }
   }
 
-  async function saveNotes() {
-    if (notes.length > SESSION_NOTES_MAX_LENGTH || updateNotes.isPending) return
+  async function remove(itemId: string) {
+    if (pending) return
+    const key = `remove:${itemId}`
+    const operationId = itemOperations.current.get(key) ?? createOperationId()
+    itemOperations.current.set(key, operationId)
     try {
-      await updateNotes.mutateAsync({ notes, sessionId: session.id })
+      await removeItem.mutateAsync({ itemId, operationId, sessionId: session.id })
+      itemOperations.current.delete(key)
+      toast.success("Serviço removido.")
+    } catch {
+      toast.error("Não foi possível remover o serviço.")
+    }
+  }
+
+  async function reassign(itemId: string, nextProfessionalId: string) {
+    if (pending) return
+    const key = `assign:${itemId}:${nextProfessionalId}`
+    const operationId = itemOperations.current.get(key) ?? createOperationId()
+    itemOperations.current.set(key, operationId)
+    try {
+      await assign.mutateAsync({
+        itemId,
+        operationId,
+        professionalId: nextProfessionalId,
+        sessionId: session.id,
+      })
+      itemOperations.current.delete(key)
+      toast.success("Profissional atualizado.")
+    } catch {
+      toast.error("Não foi possível atualizar o profissional.")
+    }
+  }
+
+  async function saveNotes() {
+    if (notes.length > SESSION_NOTES_MAX_LENGTH || pending) return
+    if (notesOperation.current?.notes !== notes) {
+      notesOperation.current = { notes, operationId: createOperationId() }
+    }
+    try {
+      await updateNotes.mutateAsync({
+        notes,
+        operationId: notesOperation.current.operationId,
+        sessionId: session.id,
+      })
+      notesOperation.current = undefined
       toast.success("Observações atualizadas.")
     } catch {
       toast.error("Não foi possível atualizar as observações.")
@@ -138,8 +208,14 @@ function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack
   }
 
   async function complete() {
+    if (pending) return
+    finishOperation.current ||= createOperationId()
     try {
-      await finish.mutateAsync(undefined)
+      await finish.mutateAsync({
+        operationId: finishOperation.current,
+        sessionId: session.id,
+      })
+      finishOperation.current = ""
       setConfirming(false)
       toast.success("Atendimento pronto para pagamento.")
     } catch {
@@ -206,24 +282,19 @@ function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack
                     disabled={!active || pending}
                     items={professionals.map(({ id, name }) => ({ label: name, value: id }))}
                     value={item.professionalId}
-                    onValueChange={(value) =>
-                      value &&
-                      assign.mutate({
-                        itemId: item.id,
-                        professionalId: value,
-                        sessionId: session.id,
-                      })
-                    }
+                    onValueChange={(value) => value && void reassign(item.id, value)}
                   >
                     <SelectTrigger id={`professional-${item.id}`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {professionals.map(({ id, name }) => (
-                        <SelectItem key={id} value={id}>
-                          {name}
-                        </SelectItem>
-                      ))}
+                      <SelectGroup>
+                        {professionals.map(({ id, name }) => (
+                          <SelectItem key={id} value={id}>
+                            {name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </Field>
@@ -234,7 +305,7 @@ function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack
                     type="button"
                     variant="outline"
                     isLoading={removeItem.isPending}
-                    onClick={() => removeItem.mutate({ itemId: item.id, sessionId: session.id })}
+                    onClick={() => void remove(item.id)}
                   >
                     <Trash2Icon data-icon="inline-start" aria-hidden="true" />
                     Remover serviço
@@ -260,6 +331,7 @@ function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack
                 items={session.services.map(({ id, name }) => ({ label: name, value: id }))}
                 value={serviceId || null}
                 onValueChange={(value) => {
+                  addOperation.current = ""
                   setServiceId(value ?? "")
                   setProfessionalId("")
                 }}
@@ -268,11 +340,13 @@ function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack
                   <SelectValue>{selectedService?.name ?? "Escolha um serviço"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {session.services.map(({ id, name }) => (
-                    <SelectItem key={id} value={id}>
-                      {name}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {session.services.map(({ id, name }) => (
+                      <SelectItem key={id} value={id}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </Field>
@@ -284,7 +358,10 @@ function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack
                 disabled={!serviceId}
                 items={eligible.map(({ id, name }) => ({ label: name, value: id }))}
                 value={professionalId || null}
-                onValueChange={(value) => setProfessionalId(value ?? "")}
+                onValueChange={(value) => {
+                  addOperation.current = ""
+                  setProfessionalId(value ?? "")
+                }}
               >
                 <SelectTrigger id="new-professional">
                   <SelectValue>
@@ -293,11 +370,13 @@ function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {eligible.map(({ id, name }) => (
-                    <SelectItem key={id} value={id}>
-                      {name}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {eligible.map(({ id, name }) => (
+                      <SelectItem key={id} value={id}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </Field>
@@ -387,4 +466,8 @@ function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack
       />
     </div>
   )
+}
+
+function createOperationId() {
+  return crypto.randomUUID()
 }

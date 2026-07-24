@@ -11,11 +11,15 @@ import type {
   ServiceDeskSnapshot,
   ServiceSession,
   SessionItemInput,
+  SessionMutationInput,
   StartServiceInput,
   UpdateSessionNotesInput,
   WalkInInput,
 } from "@/modules/service-desk/contracts"
-import { ServiceDeskTransitionError } from "@/modules/service-desk/contracts"
+import {
+  ServiceDeskTransitionError,
+  ServiceSessionNotFoundError,
+} from "@/modules/service-desk/contracts"
 import {
   canTransition,
   filterQueueEntries,
@@ -31,6 +35,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
   readonly #engine: MemoryScenarioEngine<QueueEntry>
   readonly #scheduling: SchedulingRepository
   readonly #calledAppointmentIds = new Set<string>()
+  readonly #appliedSessionOperations = new Set<string>()
   readonly #sessions = new Map<string, ServiceSession>()
   #generation = 0
   #lastSnapshot?: ServiceDeskSnapshot
@@ -158,13 +163,13 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
     return this.#engine.execute("list", () => {
       this.#assertGeneration(generation)
       const session = this.#sessions.get(sessionId)
-      if (!session) throw new ServiceDeskTransitionError("Atendimento não encontrado.")
+      if (!session) throw new ServiceSessionNotFoundError()
       return this.#withNow(session)
     })
   }
 
   async addServiceItem(input: AddServiceItemInput) {
-    return this.#mutateSession(input.sessionId, (session) => {
+    return this.#mutateSession("add", input, (session, now) => {
       this.#assertSessionActive(session)
       this.#assertSessionEligible(session, input.serviceId, input.professionalId)
       return {
@@ -172,8 +177,8 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
         items: [
           ...session.items,
           {
-            addedAt: this.#clock.now().toISOString(),
-            id: `service-item-${session.items.length + 1}-${this.#generation}`,
+            addedAt: now,
+            id: `service-item-${input.operationId}`,
             professionalId: input.professionalId,
             serviceId: input.serviceId,
             source: "added" as const,
@@ -184,7 +189,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
   }
 
   async removeServiceItem(input: SessionItemInput) {
-    return this.#mutateSession(input.sessionId, (session) => {
+    return this.#mutateSession("remove", input, (session) => {
       this.#assertSessionActive(session)
       const item = session.items.find(({ id }) => id === input.itemId)
       if (!item) throw new ServiceDeskTransitionError("Serviço não encontrado.")
@@ -196,7 +201,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
   }
 
   async assignServiceItemProfessional(input: AssignServiceItemProfessionalInput) {
-    return this.#mutateSession(input.sessionId, (session) => {
+    return this.#mutateSession("assign", input, (session) => {
       this.#assertSessionActive(session)
       const item = session.items.find(({ id }) => id === input.itemId)
       if (!item) throw new ServiceDeskTransitionError("Serviço não encontrado.")
@@ -213,7 +218,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
   }
 
   async updateSessionNotes(input: UpdateSessionNotesInput) {
-    return this.#mutateSession(input.sessionId, (session) => {
+    return this.#mutateSession("notes", input, (session) => {
       this.#assertSessionActive(session)
       const notes = input.notes.trim()
       if (notes.length > 500) {
@@ -223,8 +228,8 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
     })
   }
 
-  async finishSession(sessionId: string) {
-    return this.#mutateSession(sessionId, (session) => {
+  async finishSession(input: SessionMutationInput) {
+    return this.#mutateSession("finish", input, (session, now) => {
       if (session.status === "ready-for-payment") return session
       this.#assertSessionActive(session)
       for (const item of session.items) {
@@ -232,7 +237,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
       }
       return {
         ...session,
-        finishedAt: this.#clock.now().toISOString(),
+        finishedAt: now,
         status: "ready-for-payment" as const,
       }
     })
@@ -303,6 +308,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
     this.#generation += 1
     const generation = this.#generation
     this.#engine.reset()
+    this.#appliedSessionOperations.clear()
     this.#calledAppointmentIds.clear()
     this.#sessions.clear()
     this.#lastSnapshot = undefined
@@ -318,6 +324,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
     this.#generation += 1
     this.#scenarioId = scenarioId
     this.#engine.selectScenario(scenarioId)
+    this.#appliedSessionOperations.clear()
     this.#calledAppointmentIds.clear()
     this.#sessions.clear()
     this.#lastSnapshot = undefined
@@ -410,17 +417,35 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
     return session
   }
 
-  async #mutateSession(sessionId: string, update: (session: ServiceSession) => ServiceSession) {
+  async #mutateSession(
+    kind: "add" | "assign" | "finish" | "notes" | "remove",
+    input: SessionMutationInput,
+    update: (session: ServiceSession, now: string) => ServiceSession,
+  ) {
     const generation = this.#generation
     return this.#engine.execute("update", () => {
       this.#assertGeneration(generation)
-      const session = this.#sessions.get(sessionId)
-      if (!session) throw new ServiceDeskTransitionError("Atendimento não encontrado.")
-      const updated = update(session)
+      const session = this.#sessions.get(input.sessionId)
+      if (!session) throw new ServiceSessionNotFoundError()
+      const now = this.#assertSessionClock(session)
+      const operationKey = `${generation}:${input.sessionId}:${kind}:${input.operationId}`
+      if (this.#appliedSessionOperations.has(operationKey)) return { ...session, now }
+      const updated = update(session, now)
       this.#assertGeneration(generation)
-      this.#sessions.set(sessionId, updated)
-      return this.#withNow(updated)
+      this.#sessions.set(input.sessionId, updated)
+      this.#appliedSessionOperations.add(operationKey)
+      return { ...updated, now }
     })
+  }
+
+  #assertSessionClock(session: ServiceSession) {
+    const now = this.#clock.now().toISOString()
+    if (now < session.startedAt) {
+      throw new ServiceDeskTransitionError(
+        "O relógio de origem está anterior ao início do atendimento. Revise a fonte e tente novamente.",
+      )
+    }
+    return now
   }
 
   #withNow(session: ServiceSession) {

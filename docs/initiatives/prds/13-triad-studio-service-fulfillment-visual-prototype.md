@@ -435,41 +435,41 @@ notes or customer contact data.
 
 ## Acceptance Criteria
 
-- [ ] Implementation starts from `staging` after ENG-46/PR #27 is merged.
-- [ ] An authenticated `/service-desk/$sessionId` workspace opens from an
+- [x] Implementation starts from `staging` after ENG-46/PR #27 is merged.
+- [x] An authenticated `/service-desk/$sessionId` workspace opens from an
       `Em atendimento` entry and keeps `Atendimentos` active.
-- [ ] The initial service item and selected starting professional are preserved.
-- [ ] Users can add service catalog items and attribute each item to an eligible
+- [x] The initial service item and selected starting professional are preserved.
+- [x] Users can add service catalog items and attribute each item to an eligible
       professional.
-- [ ] Users can change a service item's professional while service is active.
-- [ ] Users can remove added items, but not the initial item.
-- [ ] Users can edit bounded service-session notes with explicit pt-BR
+- [x] Users can change a service item's professional while service is active.
+- [x] Users can remove added items, but not the initial item.
+- [x] Users can edit bounded service-session notes with explicit pt-BR
       validation and sensitive-data guidance.
-- [ ] Elapsed-time and state labels use the injected source clock and exact
+- [x] Elapsed-time and state labels use the injected source clock and exact
       boundaries.
-- [ ] Finishing validates completeness, confirms intent, is pending-safe, and
+- [x] Finishing validates completeness, confirms intent, is pending-safe, and
       atomically transitions the session to `ready-for-payment`.
-- [ ] `Pronto para pagamento` is visible as an operational handoff, with no
+- [x] `Pronto para pagamento` is visible as an operational handoff, with no
       payment action, price editing, discount, commission, or cash behavior.
-- [ ] A linked appointment remains `in-progress` and is not presented as paid,
+- [x] A linked appointment remains `in-progress` and is not presented as paid,
       completed, or revenue-bearing.
-- [ ] Normal, edge, slow, failure, ready, reset, and reload scenarios are
+- [x] Normal, edge, slow, failure, ready, reset, and reload scenarios are
       deterministic.
-- [ ] Failed or stale mutations preserve coherent prior state.
-- [ ] No new source, public environment variable, API, IDP, persistence,
+- [x] Failed or stale mutations preserve coherent prior state.
+- [x] No new source, public environment variable, API, IDP, persistence,
       polling, or realtime behavior is added.
-- [ ] `hml`/`prd` remain fail-closed and production artifacts exclude
+- [x] `hml`/`prd` remain fail-closed and production artifacts exclude
       service-session fixtures/scenarios/adapter markers.
-- [ ] Existing Studio components/tokens and pt-BR UX copy are used consistently.
-- [ ] Keyboard, focus, screen-reader semantics, contrast, forced colors,
+- [x] Existing Studio components/tokens and pt-BR UX copy are used consistently.
+- [x] Keyboard, focus, screen-reader semantics, contrast, forced colors,
       reduced motion, 24px targets, 200% zoom, 320px reflow, coarse pointer, and
       axe evidence are recorded.
-- [ ] Focused service-session tests, service-desk regressions, Agenda/Dashboard
+- [x] Focused service-session tests, service-desk regressions, Agenda/Dashboard
       truthfulness, production boundary, build/check, Playwright, root check,
       and diff checks pass or isolate a pre-existing baseline.
-- [ ] Durable Studio and initiative documentation is updated.
-- [ ] Preflight passes, the PR targets `staging`, and Linear status changes are
-      evidence-based.
+- [x] Durable Studio and initiative documentation is updated.
+- [x] Preflight passes, draft PR #28 targets `staging`, and no Linear mutation
+      was made in this bounded review batch.
 
 ## Verification Plan
 
@@ -522,9 +522,9 @@ git diff --check
 - [x] Professional attribution is per service item.
 - [x] Price editing, discounts, and all payment behavior are excluded.
 - [x] Scheduled appointments remain `in-progress` at the handoff.
-- [ ] The next initiative must define command-tab values, discounts, payment
+- Future: the next initiative must define command-tab values, discounts, payment
       methods, payment registration, and the appointment completion boundary.
-- [ ] A later initiative must define commissions.
-- [ ] Production work must define canonical visit identity, API/persistence,
+- Future: a later initiative must define commissions.
+- Future production work must define canonical visit identity, API/persistence,
       tenant/unit authorization, actor permissions, audit, concurrency,
       idempotency, retention, realtime, and observability.

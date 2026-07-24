@@ -37,11 +37,19 @@ professional. Additional catalog services may be added, reassigned to an eligibl
 professional, and removed. Operational notes are optional, trimmed, limited to 500 characters, and
 must not contain credentials, payment-card data, documents, or health information.
 
-The source clock records `startedAt` and derives elapsed time with future-clock clamping. Completion
-requires at least the initial item and an eligible available professional on every item. Finish is
-atomic, pending-safe, and idempotent, records `finishedAt`, and changes only the service session and
-queue handoff to `ready-for-payment`. A linked scheduled appointment remains `in-progress`.
-Completed sessions are read-only and cannot be reopened.
+The source clock records `startedAt` and derives elapsed time with future-clock clamping for
+presentation. Every session write rejects a regressed source clock before changing the snapshot.
+Stable operation IDs deduplicate exact retries for add, remove, reassignment, notes, and finish at
+the memory boundary without forbidding separate duplicate service items. Completion requires at
+least the initial item and an eligible available professional on every item. Finish is atomic,
+pending-safe, and idempotent, records `finishedAt`, and changes only the service session and queue
+handoff to `ready-for-payment`. A linked scheduled appointment remains `in-progress`. Completed
+sessions are read-only and cannot be reopened.
+
+The child route carries only the board's allowlisted technical search context and restores it on
+return. Missing sessions use a bounded not-found state. Recoverable source failures use a shared
+Alert with `Tentar novamente`; mutation promises keep stable labels, suppress duplicate submission,
+and produce concise PII-free Sonner success/error feedback.
 
 ## Queue And Form Contract
 

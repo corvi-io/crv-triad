@@ -29,8 +29,8 @@ export function ConfirmationDialog({
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onCancel()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/30 transition-opacity data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none" />
-        <Dialog.Popup className="fixed top-1/2 left-1/2 z-50 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-popover p-5 text-popover-foreground shadow-lg outline-none transition data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none">
+        <Dialog.Backdrop className="fixed inset-0 z-(--layer-modal) bg-black/30 transition-opacity data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none" />
+        <Dialog.Popup className="fixed top-1/2 left-1/2 z-(--layer-modal) w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-popover p-5 text-popover-foreground shadow-lg outline-none transition data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none">
           <div className="flex gap-3">
             <AlertTriangleIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-warning" />
             <div className="flex min-w-0 flex-col gap-1">

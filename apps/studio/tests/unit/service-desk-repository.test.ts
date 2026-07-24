@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
 import { ServiceDeskMemoryRepository } from "@/dev/service-desk/memory-repository"
 import type { ServiceDeskQuery } from "@/modules/service-desk/contracts"
+import { ServiceSessionNotFoundError } from "@/modules/service-desk/contracts"
 
 const anchor = new Date("2026-07-23T11:30:00-03:00")
 const clock = { now: () => new Date(anchor) }
@@ -39,16 +40,22 @@ describe("service desk memory repository", () => {
       source: "initial",
     })
     const added = await repository.addServiceItem({
+      operationId: "add-lifecycle",
       professionalId: "professional-bruno",
       serviceId: "service-fade",
       sessionId: initial.id,
     })
     expect(added.items).toHaveLength(2)
     await expect(
-      repository.removeServiceItem({ itemId: initial.items[0].id, sessionId: initial.id }),
+      repository.removeServiceItem({
+        itemId: initial.items[0].id,
+        operationId: "remove-initial",
+        sessionId: initial.id,
+      }),
     ).rejects.toThrow("inicial")
     await repository.assignServiceItemProfessional({
       itemId: added.items[1].id,
+      operationId: "assign-lifecycle",
       professionalId: "professional-ana",
       sessionId: initial.id,
     })
@@ -56,13 +63,15 @@ describe("service desk memory repository", () => {
       (
         await repository.updateSessionNotes({
           notes: "  Registro operacional.  ",
+          operationId: "notes-lifecycle",
           sessionId: initial.id,
         })
       ).notes,
     ).toBe("Registro operacional.")
-    const finished = await repository.finishSession(initial.id)
+    const finishInput = { operationId: "finish-lifecycle", sessionId: initial.id }
+    const finished = await repository.finishSession(finishInput)
     expect(finished.status).toBe("ready-for-payment")
-    expect((await repository.finishSession(initial.id)).status).toBe("ready-for-payment")
+    expect((await repository.finishSession(finishInput)).status).toBe("ready-for-payment")
     const day = await scheduling.getDay({
       endDate: "2026-07-23",
       startDate: "2026-07-23",
@@ -80,6 +89,121 @@ describe("service desk memory repository", () => {
       id: "session-walk-in-fulfillment-ready",
       status: "ready-for-payment",
     })
+  })
+
+  it("deduplicates exact mutation retries at the memory boundary", async () => {
+    const { repository } = createRepository()
+    const initial = await repository.getSession("session-walk-in-fulfillment-single")
+    const addInput = {
+      operationId: "retry-add",
+      professionalId: "professional-ana",
+      serviceId: "service-fade",
+      sessionId: initial.id,
+    }
+    expect((await repository.addServiceItem(addInput)).items).toHaveLength(2)
+    const added = await repository.addServiceItem(addInput)
+    expect(added.items).toHaveLength(2)
+
+    const addedItem = added.items[1]
+    const assignInput = {
+      itemId: addedItem.id,
+      operationId: "retry-assign",
+      professionalId: "professional-bruno",
+      sessionId: initial.id,
+    }
+    expect((await repository.assignServiceItemProfessional(assignInput)).items[1]).toMatchObject({
+      professionalId: "professional-bruno",
+    })
+    expect((await repository.assignServiceItemProfessional(assignInput)).items[1]).toMatchObject({
+      professionalId: "professional-bruno",
+    })
+
+    const notesInput = {
+      notes: "Registro sem dados pessoais.",
+      operationId: "retry-notes",
+      sessionId: initial.id,
+    }
+    expect((await repository.updateSessionNotes(notesInput)).notes).toBe(notesInput.notes)
+    expect((await repository.updateSessionNotes(notesInput)).notes).toBe(notesInput.notes)
+
+    const removeInput = {
+      itemId: addedItem.id,
+      operationId: "retry-remove",
+      sessionId: initial.id,
+    }
+    expect((await repository.removeServiceItem(removeInput)).items).toHaveLength(1)
+    expect((await repository.removeServiceItem(removeInput)).items).toHaveLength(1)
+
+    const finishInput = { operationId: "retry-finish", sessionId: initial.id }
+    expect((await repository.finishSession(finishInput)).status).toBe("ready-for-payment")
+    expect((await repository.finishSession(finishInput)).status).toBe("ready-for-payment")
+  })
+
+  it("rejects a regressed source clock before every session mutation and preserves snapshots", async () => {
+    const cases = [
+      {
+        name: "add",
+        mutate: (repository: ServiceDeskMemoryRepository, sessionId: string, _itemId: string) =>
+          repository.addServiceItem({
+            operationId: "clock-add",
+            professionalId: "professional-ana",
+            serviceId: "service-fade",
+            sessionId,
+          }),
+      },
+      {
+        name: "remove",
+        mutate: (repository: ServiceDeskMemoryRepository, sessionId: string, itemId: string) =>
+          repository.removeServiceItem({ itemId, operationId: "clock-remove", sessionId }),
+      },
+      {
+        name: "assign",
+        mutate: (repository: ServiceDeskMemoryRepository, sessionId: string, itemId: string) =>
+          repository.assignServiceItemProfessional({
+            itemId,
+            operationId: "clock-assign",
+            professionalId: "professional-bruno",
+            sessionId,
+          }),
+      },
+      {
+        name: "notes",
+        mutate: (repository: ServiceDeskMemoryRepository, sessionId: string, _itemId: string) =>
+          repository.updateSessionNotes({
+            notes: "Não deve persistir.",
+            operationId: "clock-notes",
+            sessionId,
+          }),
+      },
+      {
+        name: "finish",
+        mutate: (repository: ServiceDeskMemoryRepository, sessionId: string, _itemId: string) =>
+          repository.finishSession({ operationId: "clock-finish", sessionId }),
+      },
+    ]
+
+    for (const candidate of cases) {
+      let sourceNow = new Date(anchor)
+      const scheduling = new SchedulingMemoryRepository("2026-07-23")
+      const repository = new ServiceDeskMemoryRepository(scheduling, {
+        now: () => new Date(sourceNow),
+      })
+      const before = await repository.getSession("session-walk-in-fulfillment-multiple")
+      const itemId = before.items[1].id
+      sourceNow = new Date("2026-07-23T10:30:00-03:00")
+      await expect(candidate.mutate(repository, before.id, itemId), candidate.name).rejects.toThrow(
+        "relógio de origem",
+      )
+      sourceNow = new Date(anchor)
+      expect(await repository.getSession(before.id), candidate.name).toEqual(before)
+    }
+  })
+
+  it("uses a distinct missing-session error", async () => {
+    const { repository } = createRepository()
+    await expect(repository.getSession("session-missing")).rejects.toBeInstanceOf(
+      ServiceSessionNotFoundError,
+    )
   })
 
   it("shares the scheduled source and transitions the original appointment", async () => {
