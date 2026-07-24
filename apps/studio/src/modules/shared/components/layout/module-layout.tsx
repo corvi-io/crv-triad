@@ -5,6 +5,7 @@ import { cn } from "@/modules/shared/lib/utils"
 
 type ModuleLayoutProps = {
   bodyClassName?: string
+  bodyMaskHeight?: number
   bodyViewportClassName?: string
   children?: ReactNode
   className?: string
@@ -14,6 +15,7 @@ type ModuleLayoutProps = {
 
 export function ModuleLayout({
   bodyClassName,
+  bodyMaskHeight,
   bodyViewportClassName,
   children,
   className,
@@ -36,6 +38,7 @@ export function ModuleLayout({
       <ScrollArea
         data-slot="module-layout-body"
         className={cn("min-h-0 flex-1", bodyClassName)}
+        maskHeight={bodyMaskHeight}
         viewportClassName={bodyViewportClassName}
       >
         {children}

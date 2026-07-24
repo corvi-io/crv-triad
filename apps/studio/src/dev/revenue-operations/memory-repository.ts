@@ -1,10 +1,22 @@
+import {
+  CLOSING_HISTORY_LIMIT,
+  createClosingSnapshot,
+  projectCashCount,
+  projectOpenDay,
+} from "@/modules/revenue-operations/cash"
 import type {
   Checkout,
   CheckoutAdjustmentInput,
   CheckoutLine,
   CheckoutLinePriceInput,
+  CloseDayInput,
+  ClosingDetailQuery,
+  ClosingHistoryQuery,
   CommissionRule,
   CompletePaymentInput,
+  DailyClosingSnapshot,
+  OpenDaySummary,
+  OperationalDayQuery,
   PaidSale,
   PaymentTender,
   ReplaceTendersInput,
@@ -18,6 +30,7 @@ import {
   normalizeReason,
   tenderSummary,
 } from "@/modules/revenue-operations/money"
+import type { SchedulingRepository } from "@/modules/scheduling/contracts"
 import type { ServiceDeskRepository, ServicePaymentHandoff } from "@/modules/service-desk/contracts"
 
 type Clock = { now: () => Date }
@@ -25,15 +38,27 @@ type Clock = { now: () => Date }
 export class RevenueOperationsMemoryRepository implements RevenueOperationsRepository {
   readonly #checkouts = new Map<string, Checkout>()
   readonly #paidSales = new Map<string, PaidSale>()
+  readonly #closings = new Map<string, DailyClosingSnapshot>()
+  readonly #closingOperations = new Map<string, Promise<DailyClosingSnapshot>>()
   readonly #serviceDesk: ServiceDeskRepository
+  readonly #scheduling: SchedulingRepository
   readonly #clock: Clock
   #generation = 0
   #failedNext = new Set<string>()
   readonly #seedingPaid = new Set<string>()
+  readonly #cashSeedClosingKeys = new Set<string>()
+  readonly #cashSeedSessionIds = new Set<string>()
+  #cashScenarioKey?: string
+  #cashScenarioInitialization?: Promise<void>
 
-  constructor(serviceDesk: ServiceDeskRepository, clock: Clock = { now: () => new Date() }) {
+  constructor(
+    serviceDesk: ServiceDeskRepository,
+    schedulingOrClock: SchedulingRepository | Clock = emptySchedulingRepository,
+    clock: Clock = { now: () => new Date() },
+  ) {
     this.#serviceDesk = serviceDesk
-    this.#clock = clock
+    this.#scheduling = "getDay" in schedulingOrClock ? schedulingOrClock : emptySchedulingRepository
+    this.#clock = "now" in schedulingOrClock ? schedulingOrClock : clock
   }
 
   async getCheckout(sessionId: string) {
@@ -179,6 +204,91 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     return structuredClone(this.#paidSales.get(sessionId))
   }
 
+  async listPaidSales() {
+    return structuredClone([...this.#paidSales.values()])
+  }
+
+  async getOpenDaySummary(query: OperationalDayQuery) {
+    await this.#ensureCashScenario(query)
+    const generation = this.#generation
+    if (query.scenarioId === "cash-persistent-error") {
+      throw new RevenueOperationsError("Não foi possível carregar o caixa.", "not-found")
+    }
+    if (query.scenarioId === "cash-slow") await delay(900)
+    this.#assertGeneration(generation)
+    const closing = this.#closings.get(closingKey(query.unitId, query.date))
+    if (closing) return structuredClone(closing)
+    return this.#projectOpenDay(query)
+  }
+
+  async closeDay(input: CloseDayInput) {
+    await this.#ensureCashScenario(input)
+    const key = closingKey(input.unitId, input.date)
+    const existing = this.#closings.get(key)
+    if (existing) return structuredClone(existing)
+    const pending = this.#closingOperations.get(key)
+    if (pending) return structuredClone(await pending)
+    const operation = this.#performClose(input, key)
+    this.#closingOperations.set(key, operation)
+    try {
+      return structuredClone(await operation)
+    } finally {
+      if (this.#closingOperations.get(key) === operation) {
+        this.#closingOperations.delete(key)
+      }
+    }
+  }
+
+  async #performClose(input: CloseDayInput, key: string) {
+    const generation = this.#generation
+    const summary = await this.#projectOpenDay(input)
+    const cashCount = projectCashCount(
+      summary.expectedCashCents,
+      input.countedCashCents,
+      input.reason,
+    )
+    if (input.scenarioId === "cash-next-failure" && !this.#failedNext.has(`cash:${key}`)) {
+      this.#failedNext.add(`cash:${key}`)
+      throw new RevenueOperationsError(
+        "Não foi possível fechar o dia. Nenhuma alteração foi aplicada.",
+        "invalid-cash-count",
+      )
+    }
+    if (input.scenarioId === "cash-slow") await delay(900)
+    this.#assertGeneration(generation)
+    const snapshot = createClosingSnapshot({
+      cashCount,
+      closedAt: this.#clock.now().toISOString(),
+      id: `closing-${input.unitId}-${input.date}`,
+      responsiblePersonName: input.responsiblePersonName,
+      summary,
+    })
+    this.#closings.set(key, structuredClone(snapshot))
+    return snapshot
+  }
+
+  async listDailyClosings(query: ClosingHistoryQuery) {
+    await this.#ensureCashScenario(query)
+    return structuredClone(
+      [...this.#closings.values()]
+        .filter(({ unitId }) => unitId === query.unitId)
+        .sort(
+          (left, right) =>
+            right.date.localeCompare(left.date) || right.closedAt.localeCompare(left.closedAt),
+        )
+        .slice(0, Math.min(query.limit, CLOSING_HISTORY_LIMIT)),
+    )
+  }
+
+  async getDailyClosing(query: ClosingDetailQuery) {
+    await this.#ensureCashScenario(query)
+    return structuredClone(
+      [...this.#closings.values()].find(
+        (closing) => closing.id === query.id && closing.unitId === query.unitId,
+      ),
+    )
+  }
+
   async getDashboardProjection(): Promise<readonly RevenueDashboardProjection[]> {
     return [...this.#paidSales.values()].map((sale) => ({
       appointmentId: sale.appointmentId,
@@ -202,9 +312,140 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     this.#generation += 1
     this.#checkouts.clear()
     this.#paidSales.clear()
+    this.#closings.clear()
+    this.#closingOperations.clear()
     this.#failedNext.clear()
     this.#seedingPaid.clear()
+    this.#cashSeedClosingKeys.clear()
+    this.#cashSeedSessionIds.clear()
+    this.#cashScenarioKey = undefined
+    this.#cashScenarioInitialization = undefined
     await this.#serviceDesk.reset()
+  }
+
+  async #ensureCashScenario(query: OperationalDayQuery) {
+    const scenarioId = query.scenarioId ?? "cash-typical"
+    const scenarioKey = `${scenarioId}:${query.unitId}:${query.date}`
+    if (this.#cashScenarioKey === scenarioKey) {
+      await this.#cashScenarioInitialization
+      return
+    }
+    this.#cashScenarioKey = scenarioKey
+    const initialization = this.#initializeCashScenario(query, scenarioId)
+    this.#cashScenarioInitialization = initialization
+    try {
+      await initialization
+    } finally {
+      if (this.#cashScenarioInitialization === initialization) {
+        this.#cashScenarioInitialization = undefined
+      }
+    }
+  }
+
+  async #initializeCashScenario(query: OperationalDayQuery, scenarioId: string) {
+    this.#generation += 1
+    const generation = this.#generation
+    const retainedCheckouts = [...this.#checkouts].filter(
+      ([sessionId]) => !this.#cashSeedSessionIds.has(sessionId),
+    )
+    const retainedPaidSales = [...this.#paidSales].filter(
+      ([sessionId]) => !this.#cashSeedSessionIds.has(sessionId),
+    )
+    const retainedClosings = [...this.#closings].filter(
+      ([key]) => !this.#cashSeedClosingKeys.has(key),
+    )
+    this.#checkouts.clear()
+    this.#paidSales.clear()
+    for (const [sessionId, checkout] of retainedCheckouts) {
+      this.#checkouts.set(sessionId, checkout)
+    }
+    for (const [sessionId, paidSale] of retainedPaidSales) {
+      this.#paidSales.set(sessionId, paidSale)
+    }
+    this.#cashSeedSessionIds.clear()
+    this.#closings.clear()
+    for (const [key, closing] of retainedClosings) {
+      this.#closings.set(key, closing)
+    }
+    this.#cashSeedClosingKeys.clear()
+    this.#closingOperations.clear()
+    this.#failedNext.clear()
+    this.#seedingPaid.clear()
+    await this.#guardGeneration(this.#serviceDesk.reset(), generation)
+    await this.#guardGeneration(this.#scheduling.reset(), generation)
+
+    for (const checkoutScenario of cashCheckoutScenarios(scenarioId)) {
+      const sessionId = `session-walk-in-${checkoutScenario}`
+      if (this.#paidSales.has(sessionId)) continue
+      this.#assertGeneration(generation)
+      this.#cashSeedSessionIds.add(sessionId)
+      await this.#guardGeneration(this.getCheckout(sessionId), generation)
+      await this.#guardGeneration(
+        this.completePayment({ operationId: `cash-seed-${checkoutScenario}`, sessionId }),
+        generation,
+      )
+    }
+
+    this.#assertGeneration(generation)
+    const summary = await this.#guardGeneration(this.#projectOpenDay(query), generation)
+    if (scenarioId === "cash-already-closed") {
+      const snapshot = createClosingSnapshot({
+        cashCount: projectCashCount(summary.expectedCashCents, summary.expectedCashCents),
+        closedAt: this.#clock.now().toISOString(),
+        id: `closing-${query.unitId}-${query.date}`,
+        responsiblePersonName: "Marina Souza",
+        summary,
+      })
+      this.#assertGeneration(generation)
+      const key = closingKey(query.unitId, query.date)
+      this.#cashSeedClosingKeys.add(key)
+      this.#closings.set(key, snapshot)
+    }
+    if (scenarioId !== "cash-dense-history" && scenarioId !== "cash-already-closed") return
+    const count = scenarioId === "cash-dense-history" ? CLOSING_HISTORY_LIMIT : 5
+    for (let index = 1; index <= count; index += 1) {
+      const date = shiftDate(query.date, -index)
+      const historicalSummary = { ...summary, date }
+      const countedCashCents =
+        summary.expectedCashCents + (index % 3 === 0 ? 125 : index % 4 === 0 ? -75 : 0)
+      const cashCount = projectCashCount(
+        summary.expectedCashCents,
+        countedCashCents,
+        countedCashCents === summary.expectedCashCents ? undefined : "Conferência do fechamento",
+      )
+      this.#assertGeneration(generation)
+      const key = closingKey(query.unitId, date)
+      this.#cashSeedClosingKeys.add(key)
+      this.#closings.set(
+        key,
+        createClosingSnapshot({
+          cashCount,
+          closedAt: `${date}T21:00:00.000Z`,
+          id: `closing-${query.unitId}-${date}`,
+          responsiblePersonName: index % 2 === 0 ? "Marina Souza" : "Rafael Lima",
+          summary: historicalSummary,
+        }),
+      )
+    }
+  }
+
+  async #projectOpenDay(query: OperationalDayQuery): Promise<OpenDaySummary> {
+    const schedulingDay = await this.#scheduling.getDay({
+      endDate: query.date,
+      focusDate: query.date,
+      scenarioId: "all-statuses",
+      startDate: query.date,
+      unitId: query.unitId,
+    })
+    return projectOpenDay({
+      cancellationCount: schedulingDay.appointments.filter(({ status }) => status === "canceled")
+        .length,
+      date: query.date,
+      noShowCount: schedulingDay.appointments.filter(({ status }) => status === "no-show").length,
+      paidSales: [...this.#paidSales.values()],
+      unitId: query.unitId,
+      unitName: schedulingDay.unitName,
+    })
   }
 
   async #createCheckout(sessionId: string): Promise<Checkout> {
@@ -278,6 +519,17 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     tenderSummary(next.tenders, next.totalCents)
     this.#checkouts.set(sessionId, structuredClone(next))
     return structuredClone(next)
+  }
+
+  async #guardGeneration<T>(operation: Promise<T>, generation: number) {
+    try {
+      const value = await operation
+      this.#assertGeneration(generation)
+      return value
+    } catch (error) {
+      this.#assertGeneration(generation)
+      throw error
+    }
   }
 
   #assertGeneration(generation: number) {
@@ -368,4 +620,64 @@ function scenarioFromSession(sessionId: string) {
 
 function delay(milliseconds: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, milliseconds))
+}
+
+function cashCheckoutScenarios(scenarioId: string) {
+  if (scenarioId === "cash-empty") return []
+  if (scenarioId === "cash-exact") return ["checkout-cash"]
+  if (scenarioId === "cash-adjustments") return ["checkout-discount", "checkout-surcharge"]
+  if (scenarioId === "cash-professionals") {
+    return ["checkout-multi-professional", "checkout-fixed-commission"]
+  }
+  return ["checkout-pix", "checkout-cash", "checkout-mixed"]
+}
+
+function closingKey(unitId: string, date: string) {
+  return `${unitId}:${date}`
+}
+
+function localDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function shiftDate(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00`)
+  value.setDate(value.getDate() + days)
+  return localDate(value)
+}
+
+const emptySchedulingRepository: SchedulingRepository = {
+  async cancel() {
+    throw new Error("Scheduling is unavailable.")
+  },
+  async create() {
+    throw new Error("Scheduling is unavailable.")
+  },
+  async getDay(query) {
+    return {
+      appointments: [],
+      date: query.focusDate ?? query.startDate,
+      endTime: "18:00",
+      occupancies: [],
+      periods: [],
+      professionals: [],
+      services: [],
+      startTime: "08:00",
+      unitName: query.unitId === "centro" ? "Centro" : "Artesão",
+    }
+  },
+  async reset() {},
+  scenarios() {
+    return []
+  },
+  async selectScenario() {},
+  async transition() {
+    throw new Error("Scheduling is unavailable.")
+  },
+  async update() {
+    throw new Error("Scheduling is unavailable.")
+  },
 }

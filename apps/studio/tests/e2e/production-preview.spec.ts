@@ -97,6 +97,17 @@ test("keeps Atendimentos fail-closed and excludes queue fixtures in production",
   await expect(page.getByText("Pessoa Sintética 1")).toHaveCount(0)
 })
 
+test("keeps Caixa fail-closed and excludes closing scenarios in production", async ({ page }) => {
+  await page.unroute("**/api/auth/**")
+  await routeAuthenticatedSession(page)
+  await page.goto("/cash?date=2026-07-24&scenario=cash-dense-history&unitId=centro")
+
+  await expect(page.getByRole("heading", { name: "Caixa" })).toBeVisible()
+  await expect(page.getByText("Caixa indisponível")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Fechar dia" })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Visualizar" })).toHaveCount(0)
+})
+
 async function routeAuthenticatedSession(page: Page) {
   await page.route("**/api/auth/**", async (route) => {
     if (route.request().method() === "OPTIONS") {

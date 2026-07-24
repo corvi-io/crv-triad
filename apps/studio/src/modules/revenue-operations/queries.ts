@@ -4,20 +4,102 @@ import { serviceDeskQueryKeys } from "@/modules/service-desk/queries"
 import type {
   CheckoutAdjustmentInput,
   CheckoutLinePriceInput,
+  CloseDayInput,
+  ClosingDetailQuery,
+  ClosingHistoryQuery,
   CompletePaymentInput,
+  OperationalDayQuery,
   ReplaceTendersInput,
 } from "./contracts"
 import { useRevenueOperationsRepository } from "./repository-context"
 
 export const revenueOperationsQueryKeys = {
   all: ["revenue-operations"] as const,
+  cash: (query: OperationalDayQuery) =>
+    [
+      ...revenueOperationsQueryKeys.all,
+      "cash",
+      query.unitId,
+      query.date,
+      query.scenarioId ?? "cash-typical",
+    ] as const,
   checkout: (sessionId: string) =>
     [...revenueOperationsQueryKeys.all, "checkout", sessionId] as const,
   commissions: (sessionId: string) =>
     [...revenueOperationsQueryKeys.all, "commissions", sessionId] as const,
+  closing: (query: ClosingDetailQuery) =>
+    [
+      ...revenueOperationsQueryKeys.all,
+      "closing",
+      query.id,
+      query.unitId,
+      query.date,
+      query.scenarioId ?? "cash-typical",
+    ] as const,
+  closings: (query: ClosingHistoryQuery) =>
+    [
+      ...revenueOperationsQueryKeys.all,
+      "closings",
+      query.unitId,
+      query.date,
+      query.scenarioId ?? "cash-typical",
+      query.limit,
+    ] as const,
   dashboard: [...["revenue-operations"], "dashboard"] as const,
   paidSale: (sessionId: string) =>
     [...revenueOperationsQueryKeys.all, "paid-sale", sessionId] as const,
+}
+
+export function useOpenDaySummary(query: OperationalDayQuery) {
+  const repository = useRevenueOperationsRepository()
+  return useQuery({
+    queryFn: () => repository.getOpenDaySummary(query),
+    queryKey: revenueOperationsQueryKeys.cash(query),
+  })
+}
+
+export function useDailyClosings(query: ClosingHistoryQuery) {
+  const repository = useRevenueOperationsRepository()
+  return useQuery({
+    queryFn: () => repository.listDailyClosings(query),
+    queryKey: revenueOperationsQueryKeys.closings(query),
+  })
+}
+
+export function useDailyClosing(id: string | null, query: OperationalDayQuery) {
+  const repository = useRevenueOperationsRepository()
+  const detailQuery = { ...query, id: id ?? "" }
+  return useQuery({
+    enabled: Boolean(id),
+    queryFn: () => repository.getDailyClosing(detailQuery),
+    queryKey: revenueOperationsQueryKeys.closing(detailQuery),
+  })
+}
+
+export function useCloseDay(query: OperationalDayQuery) {
+  const repository = useRevenueOperationsRepository()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CloseDayInput) => repository.closeDay(input),
+    onSuccess: async (closing) => {
+      queryClient.setQueryData(
+        revenueOperationsQueryKeys.closing({ ...query, id: closing.id }),
+        closing,
+      )
+      await Promise.all([
+        queryClient.invalidateQueries({
+          exact: true,
+          queryKey: revenueOperationsQueryKeys.cash(query),
+        }),
+        queryClient.invalidateQueries({
+          predicate: ({ queryKey }) =>
+            queryKey[0] === "revenue-operations" &&
+            queryKey[1] === "closings" &&
+            queryKey[2] === query.unitId,
+        }),
+      ])
+    },
+  })
 }
 
 export function useCheckout(sessionId: string) {

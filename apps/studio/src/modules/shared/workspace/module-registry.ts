@@ -1,5 +1,6 @@
 import type { LucideIcon as LucideIconType } from "lucide-react"
 import {
+  BanknoteIcon,
   Building2Icon,
   CalendarDaysIcon,
   ClipboardListIcon,
@@ -13,6 +14,7 @@ import {
 export type WorkspaceModulePath =
   | "/agenda"
   | "/barbershop-setup"
+  | "/cash"
   | "/clients"
   | "/overview"
   | "/service-desk"
@@ -67,6 +69,14 @@ export const workspacePrimaryNavigation = [
     status: "active",
   },
   {
+    id: "cash",
+    label: "Caixa",
+    description: "Conferência e fechamento do dia.",
+    icon: BanknoteIcon,
+    path: "/cash",
+    status: "active",
+  },
+  {
     id: "clients",
     label: "Clientes",
     description: "Diretório e histórico de clientes.",
@@ -96,6 +106,15 @@ export const workspaceSecondaryNavigation = [
 ] as const satisfies readonly WorkspaceNavigationItem[]
 
 export const workspaceModules = [
+  {
+    id: "cash",
+    label: "Caixa",
+    path: "/cash",
+    icon: BanknoteIcon,
+    breadcrumbLabel: "Caixa",
+    description: "Confira recebimentos, dinheiro e fechamentos do dia.",
+    commandKeywords: ["caixa", "dinheiro", "fechamento", "recebimento"],
+  },
   {
     id: "service-desk",
     label: "Atendimentos",

@@ -93,6 +93,75 @@ export type PaidSale = {
   unitId: SchedulingUnitId
 }
 
+export type OperationalDayQuery = {
+  date: string
+  scenarioId?: string
+  unitId: SchedulingUnitId
+}
+
+export type PaymentMethodSummary = {
+  method: TenderMethod
+  totalCents: MoneyCents
+}
+
+export type ProfessionalRevenueSummary = {
+  barbershopCents: MoneyCents
+  commissionCents: MoneyCents
+  professionalId: string
+  professionalName: string
+  revenueCents: MoneyCents
+}
+
+export type OpenDaySummary = {
+  barbershopCents: MoneyCents
+  cancellationCount: number
+  commissionCents: MoneyCents
+  date: string
+  discountCents: MoneyCents
+  expectedCashCents: MoneyCents
+  noShowCount: number
+  paidSaleCount: number
+  paymentMethods: readonly PaymentMethodSummary[]
+  professionals: readonly ProfessionalRevenueSummary[]
+  receivedCents: MoneyCents
+  status: "open"
+  surchargeCents: MoneyCents
+  unitId: SchedulingUnitId
+  unitName: string
+}
+
+export type CashCount = {
+  countedCashCents: MoneyCents
+  differenceCents: MoneyCents
+  reason?: string
+}
+
+export type DailyClosingSnapshot = Omit<OpenDaySummary, "status"> &
+  CashCount & {
+    closedAt: string
+    id: string
+    responsiblePersonName: string
+    status: "closed"
+  }
+
+export type CloseDayInput = {
+  countedCashCents: MoneyCents
+  date: string
+  operationId: string
+  reason?: string
+  responsiblePersonName: string
+  scenarioId?: string
+  unitId: SchedulingUnitId
+}
+
+export type ClosingHistoryQuery = OperationalDayQuery & {
+  limit: number
+}
+
+export type ClosingDetailQuery = OperationalDayQuery & {
+  id: string
+}
+
 export type RevenueDashboardProjection = {
   appointmentId?: string
   completedAt: string
@@ -128,10 +197,15 @@ export type CompletePaymentInput = {
 }
 
 export type RevenueOperationsRepository = {
+  closeDay(input: CloseDayInput): Promise<DailyClosingSnapshot>
   completePayment(input: CompletePaymentInput): Promise<PaidSale>
+  getDailyClosing(query: ClosingDetailQuery): Promise<DailyClosingSnapshot | undefined>
   getCheckout(sessionId: string): Promise<Checkout>
   getDashboardProjection(): Promise<readonly RevenueDashboardProjection[]>
+  getOpenDaySummary(query: OperationalDayQuery): Promise<OpenDaySummary | DailyClosingSnapshot>
   getPaidSale(sessionId: string): Promise<PaidSale | undefined>
+  listDailyClosings(query: ClosingHistoryQuery): Promise<readonly DailyClosingSnapshot[]>
+  listPaidSales(): Promise<readonly PaidSale[]>
   previewCommissions(sessionId: string): Promise<readonly ItemCommissionSnapshot[]>
   replaceTenders(input: ReplaceTendersInput): Promise<Checkout>
   reset(): Promise<void>
@@ -142,7 +216,9 @@ export type RevenueOperationsRepository = {
 export class RevenueOperationsError extends Error {
   readonly code:
     | "already-paid"
+    | "already-closed"
     | "declined"
+    | "invalid-cash-count"
     | "invalid-adjustment"
     | "invalid-tender"
     | "not-found"
@@ -153,7 +229,9 @@ export class RevenueOperationsError extends Error {
     message: string,
     code:
       | "already-paid"
+      | "already-closed"
       | "declined"
+      | "invalid-cash-count"
       | "invalid-adjustment"
       | "invalid-tender"
       | "not-found"

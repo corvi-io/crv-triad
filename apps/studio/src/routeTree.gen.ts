@@ -18,6 +18,7 @@ import { Route as ResetPasswordIndexRouteImport } from './routes/reset-password/
 import { Route as WorkspacePreviewIndexRouteImport } from './routes/workspace-preview/index'
 import { Route as AuthenticatedAgendaIndexRouteImport } from './routes/_authenticated/agenda/index'
 import { Route as AuthenticatedBarbershopSetupIndexRouteImport } from './routes/_authenticated/barbershop-setup/index'
+import { Route as AuthenticatedCashIndexRouteImport } from './routes/_authenticated/cash/index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated/clients/index'
 import { Route as AuthenticatedOverviewIndexRouteImport } from './routes/_authenticated/overview/index'
 import { Route as AuthenticatedPreferencesIndexRouteImport } from './routes/_authenticated/preferences/index'
@@ -74,6 +75,11 @@ const AuthenticatedBarbershopSetupIndexRoute =
     path: '/barbershop-setup/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCashIndexRoute = AuthenticatedCashIndexRouteImport.update({
+  id: '/cash/',
+  path: '/cash/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedClientsIndexRoute =
   AuthenticatedClientsIndexRouteImport.update({
     id: '/clients/',
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/workspace-preview/': typeof WorkspacePreviewIndexRoute
   '/agenda/': typeof AuthenticatedAgendaIndexRoute
   '/barbershop-setup/': typeof AuthenticatedBarbershopSetupIndexRoute
+  '/cash/': typeof AuthenticatedCashIndexRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/overview/': typeof AuthenticatedOverviewIndexRoute
   '/preferences/': typeof AuthenticatedPreferencesIndexRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/workspace-preview': typeof WorkspacePreviewIndexRoute
   '/agenda': typeof AuthenticatedAgendaIndexRoute
   '/barbershop-setup': typeof AuthenticatedBarbershopSetupIndexRoute
+  '/cash': typeof AuthenticatedCashIndexRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/overview': typeof AuthenticatedOverviewIndexRoute
   '/preferences': typeof AuthenticatedPreferencesIndexRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/workspace-preview/': typeof WorkspacePreviewIndexRoute
   '/_authenticated/agenda/': typeof AuthenticatedAgendaIndexRoute
   '/_authenticated/barbershop-setup/': typeof AuthenticatedBarbershopSetupIndexRoute
+  '/_authenticated/cash/': typeof AuthenticatedCashIndexRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/overview/': typeof AuthenticatedOverviewIndexRoute
   '/_authenticated/preferences/': typeof AuthenticatedPreferencesIndexRoute
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/workspace-preview/'
     | '/agenda/'
     | '/barbershop-setup/'
+    | '/cash/'
     | '/clients/'
     | '/overview/'
     | '/preferences/'
@@ -218,6 +228,7 @@ export interface FileRouteTypes {
     | '/workspace-preview'
     | '/agenda'
     | '/barbershop-setup'
+    | '/cash'
     | '/clients'
     | '/overview'
     | '/preferences'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/workspace-preview/'
     | '/_authenticated/agenda/'
     | '/_authenticated/barbershop-setup/'
+    | '/_authenticated/cash/'
     | '/_authenticated/clients/'
     | '/_authenticated/overview/'
     | '/_authenticated/preferences/'
@@ -325,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBarbershopSetupIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/cash/': {
+      id: '/_authenticated/cash/'
+      path: '/cash'
+      fullPath: '/cash/'
+      preLoaderRoute: typeof AuthenticatedCashIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/clients/': {
       id: '/_authenticated/clients/'
       path: '/clients'
@@ -395,6 +414,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAgendaIndexRoute: typeof AuthenticatedAgendaIndexRoute
   AuthenticatedBarbershopSetupIndexRoute: typeof AuthenticatedBarbershopSetupIndexRoute
+  AuthenticatedCashIndexRoute: typeof AuthenticatedCashIndexRoute
   AuthenticatedClientsIndexRoute: typeof AuthenticatedClientsIndexRoute
   AuthenticatedOverviewIndexRoute: typeof AuthenticatedOverviewIndexRoute
   AuthenticatedPreferencesIndexRoute: typeof AuthenticatedPreferencesIndexRoute
@@ -409,6 +429,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAgendaIndexRoute: AuthenticatedAgendaIndexRoute,
   AuthenticatedBarbershopSetupIndexRoute:
     AuthenticatedBarbershopSetupIndexRoute,
+  AuthenticatedCashIndexRoute: AuthenticatedCashIndexRoute,
   AuthenticatedClientsIndexRoute: AuthenticatedClientsIndexRoute,
   AuthenticatedOverviewIndexRoute: AuthenticatedOverviewIndexRoute,
   AuthenticatedPreferencesIndexRoute: AuthenticatedPreferencesIndexRoute,
