@@ -4,9 +4,10 @@
 
 `/service-desk` is an authenticated local/configured-`dev` product-evaluation module labeled
 `Atendimentos`. Reception can project scheduled arrivals into a queue, add a temporary walk-in,
-call a customer, and start service. The workflow stops at `Em atendimento`.
+call a customer, start service, operate the performed-service session, and hand it off as
+`Pronto para pagamento`.
 
-It does not define service fulfillment, prices, discounts, payment, commission, cash closing,
+It does not define prices, discounts, payment, commission, cash closing,
 production authorization, persistence, realtime reconciliation, or automatic allocation.
 
 ## Architecture
@@ -26,6 +27,21 @@ adds only a reception-owned `called` overlay. `Iniciar atendimento` calls the sc
 repository's public transition contract with `in-progress`, so Agenda and Dashboard remain coherent.
 Walk-ins remain temporary contact snapshots and create neither Client records nor Agenda
 appointments.
+
+## Service Fulfillment
+
+`/service-desk/$sessionId` is the focused child workspace for an `in-service` queue entry. The same
+service-desk repository owns the queue entry and its service session; no second source or browser
+storage exists. Starting service creates one immutable initial item from the selected service and
+professional. Additional catalog services may be added, reassigned to an eligible available
+professional, and removed. Operational notes are optional, trimmed, limited to 500 characters, and
+must not contain credentials, payment-card data, documents, or health information.
+
+The source clock records `startedAt` and derives elapsed time with future-clock clamping. Completion
+requires at least the initial item and an eligible available professional on every item. Finish is
+atomic, pending-safe, and idempotent, records `finishedAt`, and changes only the service session and
+queue handoff to `ready-for-payment`. A linked scheduled appointment remains `in-progress`.
+Completed sessions are read-only and cannot be reopened.
 
 ## Queue And Form Contract
 
@@ -76,4 +92,4 @@ coarse-pointer review remain manual evidence and must be reported honestly.
 A production initiative must define canonical visit/client identity, tenant and unit authorization,
 queue ordering, concurrency and idempotency, audit attribution, persistence, clock/timezone
 semantics, bounded API queries, realtime reconciliation, privacy lifecycle, and observability.
-Service fulfillment and finance remain separately owned future initiatives.
+Finance remains a separately owned future initiative.

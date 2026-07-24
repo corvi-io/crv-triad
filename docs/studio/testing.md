@@ -90,6 +90,13 @@ walk-in isolation, unavailable-professional recovery, one-shot failure/reset, an
 Production coverage proves the authenticated route resolves disabled and the built artifact excludes
 the adapter, scenarios, and representative synthetic queue markers.
 
+The same suite continues through `/service-desk/$sessionId`: it preserves the immutable initial
+item, adds and attributes a second service, updates bounded private notes, confirms completion, and
+asserts the `Pronto para pagamento` handoff without putting free text in the URL. Focused repository
+tests cover item protection, eligibility, note normalization, idempotent finish, exact elapsed-time
+boundaries, and the linked appointment remaining `in-progress`. The fulfillment journey records a
+1440x900 screenshot in addition to the existing 1600x900 and 320-CSS-pixel evidence.
+
 `tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
 the resolved class at the first animation frame, measures browser-computed contrast for core
 semantic pairs, all four feedback roles, focus, input boundaries, and all eight schedule roles in

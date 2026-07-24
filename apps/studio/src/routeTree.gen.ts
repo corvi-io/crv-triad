@@ -25,6 +25,7 @@ import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedServiceDeskIndexRouteImport } from './routes/_authenticated/service-desk/index'
 import { Route as WorkspacePreviewAgendaIndexRouteImport } from './routes/workspace-preview/agenda/index'
 import { Route as WorkspacePreviewSandboxIndexRouteImport } from './routes/workspace-preview/sandbox/index'
+import { Route as AuthenticatedServiceDeskSessionIdIndexRouteImport } from './routes/_authenticated/service-desk/$sessionId/index'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -114,6 +115,12 @@ const WorkspacePreviewSandboxIndexRoute =
     path: '/workspace-preview/sandbox/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedServiceDeskSessionIdIndexRoute =
+  AuthenticatedServiceDeskSessionIdIndexRouteImport.update({
+    id: '/service-desk/$sessionId/',
+    path: '/service-desk/$sessionId/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/service-desk/': typeof AuthenticatedServiceDeskIndexRoute
   '/workspace-preview/agenda/': typeof WorkspacePreviewAgendaIndexRoute
   '/workspace-preview/sandbox/': typeof WorkspacePreviewSandboxIndexRoute
+  '/service-desk/$sessionId/': typeof AuthenticatedServiceDeskSessionIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
@@ -148,6 +156,7 @@ export interface FileRoutesByTo {
   '/service-desk': typeof AuthenticatedServiceDeskIndexRoute
   '/workspace-preview/agenda': typeof WorkspacePreviewAgendaIndexRoute
   '/workspace-preview/sandbox': typeof WorkspacePreviewSandboxIndexRoute
+  '/service-desk/$sessionId': typeof AuthenticatedServiceDeskSessionIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -167,6 +176,7 @@ export interface FileRoutesById {
   '/_authenticated/service-desk/': typeof AuthenticatedServiceDeskIndexRoute
   '/workspace-preview/agenda/': typeof WorkspacePreviewAgendaIndexRoute
   '/workspace-preview/sandbox/': typeof WorkspacePreviewSandboxIndexRoute
+  '/_authenticated/service-desk/$sessionId/': typeof AuthenticatedServiceDeskSessionIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/service-desk/'
     | '/workspace-preview/agenda/'
     | '/workspace-preview/sandbox/'
+    | '/service-desk/$sessionId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/service-desk'
     | '/workspace-preview/agenda'
     | '/workspace-preview/sandbox'
+    | '/service-desk/$sessionId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -221,6 +233,7 @@ export interface FileRouteTypes {
     | '/_authenticated/service-desk/'
     | '/workspace-preview/agenda/'
     | '/workspace-preview/sandbox/'
+    | '/_authenticated/service-desk/$sessionId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -348,6 +361,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspacePreviewSandboxIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/service-desk/$sessionId/': {
+      id: '/_authenticated/service-desk/$sessionId/'
+      path: '/service-desk/$sessionId'
+      fullPath: '/service-desk/$sessionId/'
+      preLoaderRoute: typeof AuthenticatedServiceDeskSessionIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -360,6 +380,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPreferencesIndexRoute: typeof AuthenticatedPreferencesIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
   AuthenticatedServiceDeskIndexRoute: typeof AuthenticatedServiceDeskIndexRoute
+  AuthenticatedServiceDeskSessionIdIndexRoute: typeof AuthenticatedServiceDeskSessionIdIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -372,6 +393,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPreferencesIndexRoute: AuthenticatedPreferencesIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
   AuthenticatedServiceDeskIndexRoute: AuthenticatedServiceDeskIndexRoute,
+  AuthenticatedServiceDeskSessionIdIndexRoute:
+    AuthenticatedServiceDeskSessionIdIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

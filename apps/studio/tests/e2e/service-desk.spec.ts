@@ -102,6 +102,39 @@ test("adds a walk-in, validates focus, keeps PII out of URL, and requires assign
   await expect(trigger).toBeFocused()
 })
 
+test("fulfills a service and hands it off as ready for payment", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto("/service-desk?scenario=empty")
+  await page.getByRole("button", { name: "Adicionar à fila" }).first().click()
+  const drawer = page.getByRole("dialog", { name: /Atendimentos \/ Adicionar à fila/ })
+  await page.getByLabel("Nome do cliente").fill("Pessoa Fulfillment")
+  await page.getByLabel("Serviço").click()
+  await page.getByRole("option", { name: "Corte simples" }).click()
+  await drawer.getByRole("button", { name: "Adicionar à fila" }).click()
+  const card = page.locator('[data-slot="card"]').filter({ hasText: "Pessoa Fulfillment" })
+  await card.getByRole("button", { name: "Chamar cliente" }).click()
+  await card.getByRole("combobox", { name: "Profissional para Pessoa Fulfillment" }).click()
+  await page.getByRole("option", { name: "Ana Clara" }).click()
+  await card.getByRole("button", { name: "Iniciar atendimento" }).click()
+  await card.getByRole("button", { name: "Abrir atendimento" }).click()
+  await expect(page).toHaveURL(/\/service-desk\/session-/)
+  await expect(page.getByRole("heading", { name: "Serviços realizados" })).toBeVisible()
+  await page.getByLabel("Serviço", { exact: true }).click()
+  await page.getByRole("option", { name: "Corte degradê" }).click()
+  await page.getByLabel("Profissional responsável").last().click()
+  await page.getByRole("option", { name: "Bruno Rocha" }).click()
+  await page.getByRole("button", { name: "Adicionar serviço" }).click()
+  await expect(page.getByText("Serviço adicionado.")).toBeVisible()
+  await page.getByLabel("Observações").fill("Registro operacional sem dados sensíveis.")
+  await page.getByRole("button", { name: "Salvar observações" }).click()
+  await page.getByRole("button", { name: "Finalizar atendimento" }).click()
+  const confirmation = page.getByRole("dialog", { name: "Finalizar atendimento?" })
+  await confirmation.getByRole("button", { name: "Finalizar atendimento" }).click()
+  await expect(page.getByText("Pronto para pagamento").first()).toBeVisible()
+  expect(page.url()).not.toContain("Registro")
+  await page.screenshot({ fullPage: true, path: testInfo.outputPath("service-session-1440.png") })
+})
+
 test("keeps exact filtered counts and deterministic loading/error/empty states", async ({
   page,
 }) => {
@@ -117,7 +150,9 @@ test("keeps exact filtered counts and deterministic loading/error/empty states",
   await expect(page.getByText("Fila sem atendimentos")).toBeVisible()
   await page.goto("/service-desk?scenario=typical&stage=called")
   await expect(page.getByText("Nenhum atendimento encontrado")).toBeVisible()
-  await expect(page.getByText(/0 aguardando, 0 chamado\(s\) e 0 em atendimento/)).toBeVisible()
+  await expect(
+    page.getByText(/0 aguardando, 0 chamado\(s\), 0 em atendimento e 0 pronto\(s\)/),
+  ).toBeVisible()
 
   await page.goto("/service-desk?scenario=typical&stage=invalid&professional=Nome%20Privado")
   await expect(page).not.toHaveURL(/stage=invalid|Nome%20Privado/)

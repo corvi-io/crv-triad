@@ -11,6 +11,7 @@ import type {
 export const queueStageLabels: Record<QueueStage, string> = {
   called: "Chamado",
   "in-service": "Em atendimento",
+  "ready-for-payment": "Pronto para pagamento",
   waiting: "Aguardando",
 }
 
@@ -116,6 +117,7 @@ export function groupQueueEntries(entries: readonly QueueEntry[]) {
   return {
     called: entries.filter(({ stage }) => stage === "called"),
     "in-service": entries.filter(({ stage }) => stage === "in-service"),
+    "ready-for-payment": entries.filter(({ stage }) => stage === "ready-for-payment"),
     waiting: entries.filter(({ stage }) => stage === "waiting"),
   } satisfies Record<QueueStage, QueueEntry[]>
 }
@@ -133,6 +135,7 @@ export function queueCounts(entries: readonly QueueEntry[]) {
   return {
     called: groups.called.length,
     "in-service": groups["in-service"].length,
+    "ready-for-payment": groups["ready-for-payment"].length,
     waiting: groups.waiting.length,
   } satisfies Record<QueueStage, number>
 }

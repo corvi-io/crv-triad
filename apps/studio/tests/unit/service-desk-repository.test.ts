@@ -22,6 +22,66 @@ function createRepository() {
 }
 
 describe("service desk memory repository", () => {
+  it("owns the service session lifecycle through ready for payment", async () => {
+    const { repository, scheduling } = createRepository()
+    const snapshot = await repository.getQueue(query())
+    const entry = snapshot.entries.find(
+      (candidate) => candidate.source === "scheduled" && candidate.stage === "waiting",
+    )
+    if (!entry?.appointmentId) throw new Error("Expected a scheduled fixture.")
+    await repository.call(entry.id)
+    const started = await repository.start({ entryId: entry.id })
+    if (!started.sessionId) throw new Error("Expected a service session.")
+    const initial = await repository.getSession(started.sessionId)
+    expect(initial.items).toHaveLength(1)
+    expect(initial.items[0]).toMatchObject({
+      professionalId: entry.professionalId,
+      source: "initial",
+    })
+    const added = await repository.addServiceItem({
+      professionalId: "professional-bruno",
+      serviceId: "service-fade",
+      sessionId: initial.id,
+    })
+    expect(added.items).toHaveLength(2)
+    await expect(
+      repository.removeServiceItem({ itemId: initial.items[0].id, sessionId: initial.id }),
+    ).rejects.toThrow("inicial")
+    await repository.assignServiceItemProfessional({
+      itemId: added.items[1].id,
+      professionalId: "professional-ana",
+      sessionId: initial.id,
+    })
+    expect(
+      (
+        await repository.updateSessionNotes({
+          notes: "  Registro operacional.  ",
+          sessionId: initial.id,
+        })
+      ).notes,
+    ).toBe("Registro operacional.")
+    const finished = await repository.finishSession(initial.id)
+    expect(finished.status).toBe("ready-for-payment")
+    expect((await repository.finishSession(initial.id)).status).toBe("ready-for-payment")
+    const day = await scheduling.getDay({
+      endDate: "2026-07-23",
+      startDate: "2026-07-23",
+      unitId: "centro",
+    })
+    expect(day.appointments.find(({ id }) => id === entry.appointmentId)?.status).toBe(
+      "in-progress",
+    )
+  })
+
+  it("reconstructs a deterministic service-session fixture after reload", async () => {
+    const { repository } = createRepository()
+    const session = await repository.getSession("session-walk-in-fulfillment-ready")
+    expect(session).toMatchObject({
+      id: "session-walk-in-fulfillment-ready",
+      status: "ready-for-payment",
+    })
+  })
+
   it("shares the scheduled source and transitions the original appointment", async () => {
     const { repository, scheduling } = createRepository()
     const initial = await repository.getQueue(query())

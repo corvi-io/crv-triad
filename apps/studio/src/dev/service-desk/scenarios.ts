@@ -12,6 +12,13 @@ export const serviceDeskScenarioIds = [
   "slow",
   "next-failure",
   "persistent-error",
+  "fulfillment-single",
+  "fulfillment-multiple",
+  "fulfillment-multi-professional",
+  "fulfillment-long-running",
+  "fulfillment-long-labels",
+  "fulfillment-no-eligible",
+  "fulfillment-ready",
 ] as const satisfies readonly ServiceDeskScenarioId[]
 
 export function createServiceDeskScenarios(now: Date) {
@@ -139,6 +146,30 @@ export function createServiceDeskScenarios(now: Date) {
       persistentFailure: true,
       records: typical,
     },
+    ...[
+      ["fulfillment-single", "Atendimento simples", "Pessoa Atendimento"],
+      ["fulfillment-multiple", "Múltiplos serviços", "Pessoa Múltiplos Serviços"],
+      ["fulfillment-multi-professional", "Múltiplos profissionais", "Pessoa Equipe"],
+      ["fulfillment-long-running", "Atendimento longo", "Pessoa Longa Duração"],
+      [
+        "fulfillment-long-labels",
+        "Conteúdo longo",
+        "Pessoa Com Nome Sintético Deliberadamente Longo",
+      ],
+      ["fulfillment-no-eligible", "Sem profissional elegível", "Pessoa Sem Profissional"],
+      ["fulfillment-ready", "Pronto para pagamento", "Pessoa Atendimento Finalizado"],
+    ].map(([id, label, customerName]) => ({
+      id: id as ServiceDeskScenarioId,
+      label,
+      description: "Cenário determinístico de fulfillment.",
+      records: [
+        walkIn(`walk-in-${id}`, customerName, {
+          assignedProfessionalId: "professional-ana",
+          arrivalAt: at(id === "fulfillment-long-running" ? "07:00" : "10:00"),
+          stage: "in-service",
+        }),
+      ],
+    })),
   ] satisfies readonly (ScenarioDefinition<QueueEntry> & { id: ServiceDeskScenarioId })[]
   return definitions
 }

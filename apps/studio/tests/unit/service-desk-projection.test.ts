@@ -124,7 +124,12 @@ describe("service desk pure rules", () => {
       ],
     )
     expect(visible.map(({ id }) => id)).toEqual(["walk-in-1"])
-    expect(queueCounts(visible)).toEqual({ called: 1, "in-service": 0, waiting: 0 })
+    expect(queueCounts(visible)).toEqual({
+      called: 1,
+      "in-service": 0,
+      "ready-for-payment": 0,
+      waiting: 0,
+    })
   })
 
   it("orders mixed scheduled and walk-in entries by arrival with a stable tie-breaker", () => {

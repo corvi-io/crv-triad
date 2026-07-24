@@ -1,6 +1,6 @@
 import type { Professional, SchedulingUnitId, Service } from "@/modules/scheduling/contracts"
 
-export const queueStages = ["waiting", "called", "in-service"] as const
+export const queueStages = ["waiting", "called", "in-service", "ready-for-payment"] as const
 export type QueueStage = (typeof queueStages)[number]
 
 export const queuePriorities = ["normal", "fit-in"] as const
@@ -20,6 +20,13 @@ export type ServiceDeskScenarioId =
   | "slow"
   | "next-failure"
   | "persistent-error"
+  | "fulfillment-single"
+  | "fulfillment-multiple"
+  | "fulfillment-multi-professional"
+  | "fulfillment-long-running"
+  | "fulfillment-long-labels"
+  | "fulfillment-no-eligible"
+  | "fulfillment-ready"
 
 export type QueueEntry = {
   appointmentId?: string
@@ -28,6 +35,7 @@ export type QueueEntry = {
   customerName: string
   customerPhone?: string
   id: string
+  sessionId?: string
   notes?: string
   preferenceKind: ProfessionalPreferenceKind
   priority: QueuePriority
@@ -37,6 +45,41 @@ export type QueueEntry = {
   stage: QueueStage
   unitId: SchedulingUnitId
 }
+
+export type ServiceSessionStatus = "in-progress" | "ready-for-payment"
+export type ServiceSessionItem = {
+  addedAt: string
+  id: string
+  professionalId: string
+  serviceId: string
+  source: "initial" | "added"
+}
+export type ServiceSession = {
+  appointmentId?: string
+  customerName: string
+  finishedAt?: string
+  id: string
+  items: readonly ServiceSessionItem[]
+  notes: string
+  now: string
+  professionals: readonly Professional[]
+  queueEntryId: string
+  services: readonly Service[]
+  source: "scheduled" | "walk-in"
+  startedAt: string
+  status: ServiceSessionStatus
+  unitId: SchedulingUnitId
+  unitName: string
+  unavailableProfessionalIds: readonly string[]
+}
+export type AddServiceItemInput = { professionalId: string; serviceId: string; sessionId: string }
+export type AssignServiceItemProfessionalInput = {
+  itemId: string
+  professionalId: string
+  sessionId: string
+}
+export type SessionItemInput = { itemId: string; sessionId: string }
+export type UpdateSessionNotesInput = { notes: string; sessionId: string }
 
 export type WalkInInput = {
   arrivalAt: string
@@ -75,11 +118,17 @@ export type StartServiceInput = {
 }
 
 export type ServiceDeskRepository = {
+  addServiceItem(input: AddServiceItemInput): Promise<ServiceSession>
   addWalkIn(input: WalkInInput): Promise<QueueEntry>
+  assignServiceItemProfessional(input: AssignServiceItemProfessionalInput): Promise<ServiceSession>
   call(entryId: string): Promise<QueueEntry>
+  finishSession(sessionId: string): Promise<ServiceSession>
   getQueue(query: ServiceDeskQuery): Promise<ServiceDeskSnapshot>
+  getSession(sessionId: string): Promise<ServiceSession>
+  removeServiceItem(input: SessionItemInput): Promise<ServiceSession>
   reset(): Promise<void>
   start(input: StartServiceInput): Promise<QueueEntry>
+  updateSessionNotes(input: UpdateSessionNotesInput): Promise<ServiceSession>
 }
 
 export class ServiceDeskTransitionError extends Error {
