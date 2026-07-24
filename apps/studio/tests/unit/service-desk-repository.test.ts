@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
 import { ServiceDeskMemoryRepository } from "@/dev/service-desk/memory-repository"
 import type { ServiceDeskQuery } from "@/modules/service-desk/contracts"
+import { ServiceSessionNotFoundError } from "@/modules/service-desk/contracts"
 
 const anchor = new Date("2026-07-23T11:30:00-03:00")
 const clock = { now: () => new Date(anchor) }
@@ -22,6 +23,226 @@ function createRepository() {
 }
 
 describe("service desk memory repository", () => {
+  it("owns the service session lifecycle through ready for payment", async () => {
+    const { repository, scheduling } = createRepository()
+    const snapshot = await repository.getQueue(query())
+    const entry = snapshot.entries.find(
+      (candidate) => candidate.source === "scheduled" && candidate.stage === "waiting",
+    )
+    if (!entry?.appointmentId) throw new Error("Expected a scheduled fixture.")
+    await repository.call(entry.id)
+    const started = await repository.start({ entryId: entry.id })
+    if (!started.sessionId) throw new Error("Expected a service session.")
+    const initial = await repository.getSession(started.sessionId)
+    expect(initial.items).toHaveLength(1)
+    expect(initial.items[0]).toMatchObject({
+      professionalId: entry.professionalId,
+      source: "initial",
+    })
+    const added = await repository.addServiceItem({
+      operationId: "add-lifecycle",
+      professionalId: "professional-bruno",
+      serviceId: "service-fade",
+      sessionId: initial.id,
+    })
+    expect(added.items).toHaveLength(2)
+    await expect(
+      repository.removeServiceItem({
+        itemId: initial.items[0].id,
+        operationId: "remove-initial",
+        sessionId: initial.id,
+      }),
+    ).rejects.toThrow("inicial")
+    await repository.assignServiceItemProfessional({
+      itemId: added.items[1].id,
+      operationId: "assign-lifecycle",
+      professionalId: "professional-ana",
+      sessionId: initial.id,
+    })
+    expect(
+      (
+        await repository.updateSessionNotes({
+          notes: "  Registro operacional.  ",
+          operationId: "notes-lifecycle",
+          sessionId: initial.id,
+        })
+      ).notes,
+    ).toBe("Registro operacional.")
+    const finishInput = { operationId: "finish-lifecycle", sessionId: initial.id }
+    const finished = await repository.finishSession(finishInput)
+    expect(finished.status).toBe("ready-for-payment")
+    expect((await repository.finishSession(finishInput)).status).toBe("ready-for-payment")
+    const day = await scheduling.getDay({
+      endDate: "2026-07-23",
+      startDate: "2026-07-23",
+      unitId: "centro",
+    })
+    expect(day.appointments.find(({ id }) => id === entry.appointmentId)?.status).toBe(
+      "in-progress",
+    )
+  })
+
+  it("reconstructs a deterministic service-session fixture after reload", async () => {
+    const { repository } = createRepository()
+    const session = await repository.getSession("session-walk-in-fulfillment-ready")
+    expect(session).toMatchObject({
+      id: "session-walk-in-fulfillment-ready",
+      status: "ready-for-payment",
+    })
+  })
+
+  it("preserves a removed fixture item across queue reads and seeds it again after reset", async () => {
+    const { repository } = createRepository()
+    const initial = await repository.getSession("session-walk-in-fulfillment-multiple")
+    const addedItem = initial.items.find(({ source }) => source === "added")
+    if (!addedItem) throw new Error("Expected the seeded added item.")
+    await repository.removeServiceItem({
+      itemId: addedItem.id,
+      operationId: "remove-seeded-item",
+      sessionId: initial.id,
+    })
+
+    await repository.getQueue(query({ scenarioId: "fulfillment-multiple" }))
+    expect((await repository.getSession(initial.id)).items).toHaveLength(1)
+
+    await repository.reset()
+    expect((await repository.getSession(initial.id)).items).toHaveLength(2)
+  })
+
+  it("preserves edited fixture notes across queue reads and restores them after reset", async () => {
+    const { repository } = createRepository()
+    const initial = await repository.getSession("session-walk-in-fulfillment-long-labels")
+    const notes = "Observação editada sem dados pessoais."
+    await repository.updateSessionNotes({
+      notes,
+      operationId: "edit-seeded-notes",
+      sessionId: initial.id,
+    })
+
+    await repository.getQueue(query({ scenarioId: "fulfillment-long-labels" }))
+    expect((await repository.getSession(initial.id)).notes).toBe(notes)
+
+    await repository.reset()
+    expect((await repository.getSession(initial.id)).notes).toContain(
+      "Observação sintética extensa",
+    )
+  })
+
+  it("deduplicates exact mutation retries at the memory boundary", async () => {
+    const { repository } = createRepository()
+    const initial = await repository.getSession("session-walk-in-fulfillment-single")
+    const addInput = {
+      operationId: "retry-add",
+      professionalId: "professional-ana",
+      serviceId: "service-fade",
+      sessionId: initial.id,
+    }
+    expect((await repository.addServiceItem(addInput)).items).toHaveLength(2)
+    const added = await repository.addServiceItem(addInput)
+    expect(added.items).toHaveLength(2)
+
+    const addedItem = added.items[1]
+    const assignInput = {
+      itemId: addedItem.id,
+      operationId: "retry-assign",
+      professionalId: "professional-bruno",
+      sessionId: initial.id,
+    }
+    expect((await repository.assignServiceItemProfessional(assignInput)).items[1]).toMatchObject({
+      professionalId: "professional-bruno",
+    })
+    expect((await repository.assignServiceItemProfessional(assignInput)).items[1]).toMatchObject({
+      professionalId: "professional-bruno",
+    })
+
+    const notesInput = {
+      notes: "Registro sem dados pessoais.",
+      operationId: "retry-notes",
+      sessionId: initial.id,
+    }
+    expect((await repository.updateSessionNotes(notesInput)).notes).toBe(notesInput.notes)
+    expect((await repository.updateSessionNotes(notesInput)).notes).toBe(notesInput.notes)
+
+    const removeInput = {
+      itemId: addedItem.id,
+      operationId: "retry-remove",
+      sessionId: initial.id,
+    }
+    expect((await repository.removeServiceItem(removeInput)).items).toHaveLength(1)
+    expect((await repository.removeServiceItem(removeInput)).items).toHaveLength(1)
+
+    const finishInput = { operationId: "retry-finish", sessionId: initial.id }
+    expect((await repository.finishSession(finishInput)).status).toBe("ready-for-payment")
+    expect((await repository.finishSession(finishInput)).status).toBe("ready-for-payment")
+  })
+
+  it("rejects a regressed source clock before every session mutation and preserves snapshots", async () => {
+    const cases = [
+      {
+        name: "add",
+        mutate: (repository: ServiceDeskMemoryRepository, sessionId: string, _itemId: string) =>
+          repository.addServiceItem({
+            operationId: "clock-add",
+            professionalId: "professional-ana",
+            serviceId: "service-fade",
+            sessionId,
+          }),
+      },
+      {
+        name: "remove",
+        mutate: (repository: ServiceDeskMemoryRepository, sessionId: string, itemId: string) =>
+          repository.removeServiceItem({ itemId, operationId: "clock-remove", sessionId }),
+      },
+      {
+        name: "assign",
+        mutate: (repository: ServiceDeskMemoryRepository, sessionId: string, itemId: string) =>
+          repository.assignServiceItemProfessional({
+            itemId,
+            operationId: "clock-assign",
+            professionalId: "professional-bruno",
+            sessionId,
+          }),
+      },
+      {
+        name: "notes",
+        mutate: (repository: ServiceDeskMemoryRepository, sessionId: string, _itemId: string) =>
+          repository.updateSessionNotes({
+            notes: "Não deve persistir.",
+            operationId: "clock-notes",
+            sessionId,
+          }),
+      },
+      {
+        name: "finish",
+        mutate: (repository: ServiceDeskMemoryRepository, sessionId: string, _itemId: string) =>
+          repository.finishSession({ operationId: "clock-finish", sessionId }),
+      },
+    ]
+
+    for (const candidate of cases) {
+      let sourceNow = new Date(anchor)
+      const scheduling = new SchedulingMemoryRepository("2026-07-23")
+      const repository = new ServiceDeskMemoryRepository(scheduling, {
+        now: () => new Date(sourceNow),
+      })
+      const before = await repository.getSession("session-walk-in-fulfillment-multiple")
+      const itemId = before.items[1].id
+      sourceNow = new Date("2026-07-23T10:30:00-03:00")
+      await expect(candidate.mutate(repository, before.id, itemId), candidate.name).rejects.toThrow(
+        "relógio de origem",
+      )
+      sourceNow = new Date(anchor)
+      expect(await repository.getSession(before.id), candidate.name).toEqual(before)
+    }
+  })
+
+  it("uses a distinct missing-session error", async () => {
+    const { repository } = createRepository()
+    await expect(repository.getSession("session-missing")).rejects.toBeInstanceOf(
+      ServiceSessionNotFoundError,
+    )
+  })
+
   it("shares the scheduled source and transitions the original appointment", async () => {
     const { repository, scheduling } = createRepository()
     const initial = await repository.getQueue(query())

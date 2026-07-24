@@ -10,7 +10,11 @@ import {
   sortQueueEntries,
   waitMinutes,
 } from "@/modules/service-desk/projection"
-import { validateServiceDeskSearch } from "@/modules/service-desk/search"
+import {
+  canonicalServiceDeskSearch,
+  shouldCanonicalizeServiceDeskSearch,
+  validateServiceDeskSearch,
+} from "@/modules/service-desk/search"
 import {
   createWalkInFormDefaults,
   walkInFormSchema,
@@ -124,7 +128,12 @@ describe("service desk pure rules", () => {
       ],
     )
     expect(visible.map(({ id }) => id)).toEqual(["walk-in-1"])
-    expect(queueCounts(visible)).toEqual({ called: 1, "in-service": 0, waiting: 0 })
+    expect(queueCounts(visible)).toEqual({
+      called: 1,
+      "in-service": 0,
+      "ready-for-payment": 0,
+      waiting: 0,
+    })
   })
 
   it("orders mixed scheduled and walk-in entries by arrival with a stable tie-breaker", () => {
@@ -204,6 +213,39 @@ describe("service desk URL and walk-in validation", () => {
         unit: "centro",
       },
     )
+  })
+
+  it("requires canonicalization when raw or invalid values remain in service-desk URLs", () => {
+    const search = validateServiceDeskSearch(
+      {
+        name: "Nome privado",
+        notes: "texto livre",
+        professional: "Maria",
+        scenario: "fulfillment-single",
+        stage: "in-service",
+      },
+      ["typical", "fulfillment-single"],
+    )
+    expect(
+      shouldCanonicalizeServiceDeskSearch(
+        "scenario=fulfillment-single&stage=in-service&professional=Maria&name=Nome+privado&notes=texto+livre",
+        search,
+      ),
+    ).toBe(true)
+    expect(
+      shouldCanonicalizeServiceDeskSearch(
+        "scenario=fulfillment-single&stage=in-service&professional=all",
+        search,
+      ),
+    ).toBe(false)
+    expect(canonicalServiceDeskSearch(search)).toEqual({
+      preference: "all",
+      priority: "all",
+      professional: "all",
+      scenario: "fulfillment-single",
+      stage: "in-service",
+      unit: "centro",
+    })
   })
 
   it("provides explicit Portuguese messages for every form bound", () => {

@@ -140,7 +140,7 @@ building block of a documented composition.
 | `layout/page-header.tsx` | Layout | Internal: composed by module pages; actions remain module owned. |
 | `layout/section-header.tsx` | Layout | Internal: small structural helper documented through page compositions. |
 | `overlays/action-drawer.tsx` | Overlay | Documented public contract: focus-managed form composition with explicit primary and secondary action slots plus Base UI open-change completion notification for consumers that retain content through full-width entry/exit slide transitions; reduced motion removes the transition. |
-| `overlays/confirmation-dialog.tsx` | Overlay | Documented public contract: Base UI focus-managed confirmation with explicit title/description, configurable Portuguese action labels, and default or destructive confirmation treatment; covered by consuming form and prototype flows. |
+| `overlays/confirmation-dialog.tsx` | Overlay | Documented public contract: Base UI Portal/focus-managed confirmation with semantic `--layer-modal` stacking above drawers, explicit title/description, configurable Portuguese action labels, default or destructive treatment, and pending-safe `isLoading` confirmation that keeps labels stable and disables cancellation; covered by consuming form and service-session flows. |
 | `overlays/drawer-section.tsx` | Overlay anatomy | Internal: companion anatomy for `ActionDrawer`, not a standalone surface. |
 | `overlays/drawer-tabs.tsx` | Overlay anatomy | Internal: companion tab anatomy requiring a composed drawer. |
 | `reference-creation-page.tsx` | Legacy page helper | Internal: retained only for migration compatibility; do not use for new generic CRUD pages. |
@@ -174,7 +174,7 @@ building block of a documented composition.
 | `ui/popover.tsx` | Primitive | Internal: implementation detail of date/combobox controls. |
 | `ui/progress.tsx` | Primitive | Internal: official shadcn/Base UI progress anatomy used by Dashboard occupancy and capacity; its indicator transition is suppressed under reduced motion. |
 | `ui/scroll-area.tsx` | Primitive | Internal: scroll wrapper documented through table, drawer, and module layouts; consumers may request overflow-measured scrollbar mounting when an idle painted track would misrepresent scrollability. |
-| `ui/select.tsx` | Primitive | Internal: cataloged through composed sandbox/filter forms. |
+| `ui/select.tsx` | Primitive | Internal: Base UI data-entry selection anatomy, including accepted `SelectGroup` wrapping for item collections; cataloged through composed sandbox and service-session forms. |
 | `ui/separator.tsx` | Primitive | Internal: non-interactive structural primitive. |
 | `ui/sheet.tsx` | Primitive | Internal: implementation detail of `ActionDrawer` and mobile sidebar. |
 | `ui/sidebar.tsx` | Primitive | Internal: shell-specific primitive; consume only through `workspace-shell`. |

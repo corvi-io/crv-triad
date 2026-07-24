@@ -10,29 +10,30 @@ import {
   shouldCanonicalizeServiceDeskSearch,
   validateServiceDeskSearch,
 } from "@/modules/service-desk/search"
-import { ServiceDeskPage } from "@/modules/service-desk/service-desk-page"
+import { ServiceSessionPage } from "@/modules/service-desk/service-session-page"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
 import { PageHeader } from "@/modules/shared/components/layout/page-header"
-import { Alert, AlertDescription, AlertTitle } from "@/modules/shared/components/ui/alert"
 
 const repository = createServiceDeskRepository?.()
 
-export const Route = createFileRoute("/_authenticated/service-desk/")({
-  component: ServiceDeskRoute,
+export const Route = createFileRoute("/_authenticated/service-desk/$sessionId/")({
+  component: ServiceSessionRoute,
   validateSearch: (search: Record<string, unknown>): ServiceDeskSearch =>
     validateServiceDeskSearch(search, serviceDeskScenarioIds),
-  beforeLoad: ({ location, search }) => {
+  beforeLoad: ({ location, params, search }) => {
     if (shouldCanonicalizeServiceDeskSearch(location.searchStr, search)) {
       throw redirect({
+        params: { sessionId: params.sessionId },
         replace: true,
         search: canonicalServiceDeskSearch(search),
-        to: "/service-desk",
+        to: "/service-desk/$sessionId",
       })
     }
   },
 })
 
-function ServiceDeskRoute() {
+function ServiceSessionRoute() {
+  const { sessionId } = Route.useParams()
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
   if (!repository) {
@@ -40,32 +41,32 @@ function ServiceDeskRoute() {
       <ModuleLayout
         head={
           <PageHeader
-            title="Atendimentos"
-            description="Acompanhe chegadas, chamadas e serviços iniciados."
+            title="Atendimento"
+            description="Atendimentos indisponíveis neste ambiente."
           />
         }
         bodyViewportClassName="p-4 sm:p-6"
       >
-        <Alert>
-          <AlertTitle>Atendimentos indisponíveis</AlertTitle>
-          <AlertDescription>
-            Este módulo de avaliação está desativado neste ambiente.
-          </AlertDescription>
-        </Alert>
+        <p>Este módulo de avaliação está desativado neste ambiente.</p>
       </ModuleLayout>
     )
   }
   return (
     <ServiceDeskRepositoryProvider repository={repository}>
-      <ServiceDeskPage
-        search={search}
-        onOpenSession={(sessionId) =>
-          navigate({ to: "/service-desk/$sessionId", params: { sessionId }, search })
-        }
-        onSearchChange={(next) =>
-          navigate({ replace: true, search: (previous) => ({ ...previous, ...next }) })
-        }
-      />
+      <ModuleLayout
+        head={<PageHeader title="Atendimento" description="Atendimentos / Atendimento" />}
+        bodyViewportClassName="p-4 sm:p-6"
+      >
+        <ServiceSessionPage
+          sessionId={sessionId}
+          onBack={() =>
+            navigate({
+              to: "/service-desk",
+              search,
+            })
+          }
+        />
+      </ModuleLayout>
     </ServiceDeskRepositoryProvider>
   )
 }

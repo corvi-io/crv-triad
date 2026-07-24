@@ -102,6 +102,160 @@ test("adds a walk-in, validates focus, keeps PII out of URL, and requires assign
   await expect(trigger).toBeFocused()
 })
 
+test("fulfills a service and hands it off as ready for payment", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto("/service-desk?scenario=empty")
+  await page.getByRole("button", { name: "Adicionar à fila" }).first().click()
+  const drawer = page.getByRole("dialog", { name: /Atendimentos \/ Adicionar à fila/ })
+  await page.getByLabel("Nome do cliente").fill("Pessoa Fulfillment")
+  await page.getByLabel("Serviço").click()
+  await page.getByRole("option", { name: "Corte simples" }).click()
+  await drawer.getByRole("button", { name: "Adicionar à fila" }).click()
+  const card = page.locator('[data-slot="card"]').filter({ hasText: "Pessoa Fulfillment" })
+  await card.getByRole("button", { name: "Chamar cliente" }).click()
+  await card.getByRole("combobox", { name: "Profissional para Pessoa Fulfillment" }).click()
+  await page.getByRole("option", { name: "Ana Clara" }).click()
+  await card.getByRole("button", { name: "Iniciar atendimento" }).click()
+  await card.getByRole("button", { name: "Abrir atendimento" }).click()
+  await expect(page).toHaveURL(/\/service-desk\/session-/)
+  await expect(page.getByRole("heading", { name: "Serviços realizados" })).toBeVisible()
+  await page.getByLabel("Serviço", { exact: true }).click()
+  await page.getByRole("option", { name: "Corte degradê" }).click()
+  await page.getByLabel("Profissional responsável").last().click()
+  await page.getByRole("option", { name: "Bruno Rocha" }).click()
+  await page.getByRole("button", { name: "Adicionar serviço" }).click()
+  await expect(page.getByText("Serviço adicionado.")).toBeVisible()
+  const addedService = page.locator('[data-slot="card"]').filter({ hasText: "Corte degradê" })
+  await addedService.getByRole("combobox", { name: "Profissional responsável" }).click()
+  await page.getByRole("option", { name: "Ana Clara" }).click()
+  await expect(page.getByText("Profissional atualizado.")).toBeVisible()
+  await addedService.getByRole("button", { name: "Remover serviço" }).click()
+  await expect(page.getByText("Serviço removido.")).toBeVisible()
+  await expect(addedService).toHaveCount(0)
+  await page.getByLabel("Serviço", { exact: true }).click()
+  await page.getByRole("option", { name: "Corte degradê" }).click()
+  await page.getByLabel("Profissional responsável").last().click()
+  await page.getByRole("option", { name: "Bruno Rocha" }).click()
+  await page.getByRole("button", { name: "Adicionar serviço" }).click()
+  await page.getByRole("button", { name: "Voltar para atendimentos" }).click()
+  await expect(page).toHaveURL(/scenario=empty/)
+  await expect(page.getByText("Pessoa Fulfillment")).toBeVisible()
+  await card.getByRole("button", { name: "Abrir atendimento" }).click()
+  await page.getByLabel("Observações").fill("Registro operacional sem dados sensíveis.")
+  await page.getByRole("button", { name: "Salvar observações" }).click()
+  await expect(page.getByText("Observações atualizadas.")).toBeVisible()
+  await page.getByRole("button", { name: "Finalizar atendimento" }).click()
+  const confirmation = page.getByRole("dialog", { name: "Finalizar atendimento?" })
+  await confirmation.getByRole("button", { name: "Finalizar atendimento" }).click()
+  await expect(page.getByText("Pronto para pagamento").first()).toBeVisible()
+  expect(page.url()).not.toContain("Registro")
+  await page.screenshot({ fullPage: true, path: testInfo.outputPath("service-session-1440.png") })
+})
+
+test("reloads deterministic fulfillment scenarios with exact truth claims", async ({ page }) => {
+  const scenarios = [
+    ["fulfillment-single", "Serviço inicial"],
+    ["fulfillment-multiple", "Serviço adicionado"],
+    ["fulfillment-multi-professional", "Bruno Rocha"],
+    ["fulfillment-long-running", "4 h 30 min"],
+    ["fulfillment-long-labels", "Observação sintética extensa"],
+    ["fulfillment-no-eligible", "Escolha um profissional"],
+    ["fulfillment-ready", "Pronto para pagamento"],
+  ] as const
+  for (const [scenario, truth] of scenarios) {
+    await page.goto(`/service-desk/session-walk-in-${scenario}?scenario=${scenario}`)
+    await expect(page.getByText(truth).first()).toBeVisible()
+  }
+  await page.reload()
+  await expect(page.getByText("Pronto para pagamento").first()).toBeVisible()
+  await expect(page.getByText("O pagamento pertence à próxima etapa.")).toBeVisible()
+})
+
+test("preserves removed fixture items and edited notes across board round trips", async ({
+  page,
+}) => {
+  await page.goto(
+    "/service-desk/session-walk-in-fulfillment-multiple?scenario=fulfillment-multiple",
+  )
+  const addedService = page.locator('[data-slot="card"]').filter({ hasText: "Serviço adicionado" })
+  await addedService.getByRole("button", { name: "Remover serviço" }).click()
+  await expect(addedService).toHaveCount(0)
+  await page.getByRole("button", { name: "Voltar para atendimentos" }).click()
+  const multipleCard = page
+    .locator('[data-slot="card"]')
+    .filter({ hasText: "Pessoa Múltiplos Serviços" })
+  await multipleCard.getByRole("button", { name: "Abrir atendimento" }).click()
+  await expect(page.getByText("Serviço adicionado")).toHaveCount(0)
+
+  await page.goto(
+    "/service-desk/session-walk-in-fulfillment-long-labels?scenario=fulfillment-long-labels",
+  )
+  const notes = "Observação editada sem dados pessoais."
+  await page.getByLabel("Observações").fill(notes)
+  await page.getByRole("button", { name: "Salvar observações" }).click()
+  await expect(page.getByText("Observações atualizadas.")).toBeVisible()
+  await page.getByRole("button", { name: "Voltar para atendimentos" }).click()
+  const longLabelsCard = page
+    .locator('[data-slot="card"]')
+    .filter({ hasText: "Pessoa Com Nome Sintético Deliberadamente Longo" })
+  await longLabelsCard.getByRole("button", { name: "Abrir atendimento" }).click()
+  await expect(page.getByLabel("Observações")).toHaveValue(notes)
+  await expect(page.getByLabel("Observações")).not.toHaveValue(/Observação sintética extensa/)
+})
+
+test("canonicalizes raw child-route search to allowlisted technical filters", async ({ page }) => {
+  await page.goto(
+    "/service-desk/session-walk-in-fulfillment-single?scenario=fulfillment-single&stage=in-service&unit=artesao&professional=Maria&name=Nome%20Privado&notes=Texto%20privado",
+  )
+  await expect(page.getByRole("heading", { name: "Serviços realizados" })).toBeVisible()
+  await expect
+    .poll(() => {
+      const url = new URL(page.url())
+      return {
+        keys: [...url.searchParams.keys()].sort(),
+        professional: url.searchParams.get("professional"),
+        scenario: url.searchParams.get("scenario"),
+        stage: url.searchParams.get("stage"),
+        unit: url.searchParams.get("unit"),
+      }
+    })
+    .toEqual({
+      keys: ["preference", "priority", "professional", "scenario", "stage", "unit"],
+      professional: "all",
+      scenario: "fulfillment-single",
+      stage: "in-service",
+      unit: "artesao",
+    })
+  expect(page.url()).not.toMatch(/Maria|Nome%20Privado|Texto%20privado|name=|notes=/i)
+})
+
+test("keeps the session accessible at a 320px zoom-equivalent viewport and restores focus", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await page.emulateMedia({ colorScheme: "dark", forcedColors: "active", reducedMotion: "reduce" })
+  await page.goto("/service-desk/session-walk-in-fulfillment-single?scenario=fulfillment-single")
+  const finish = page.locator("#main-content").getByRole("button", {
+    name: "Finalizar atendimento",
+  })
+  await finish.focus()
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("dialog", { name: "Finalizar atendimento?" })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(finish).toBeFocused()
+  const geometry = await page.evaluate(() => ({
+    body: document.body.scrollWidth,
+    root: document.documentElement.scrollWidth,
+    viewport: innerWidth,
+  }))
+  expect(Math.max(geometry.body, geometry.root)).toBeLessThanOrEqual(geometry.viewport)
+  const results = await new AxeBuilder({ page })
+    .include("#main-content")
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"])
+    .analyze()
+  expect(results.violations).toEqual([])
+})
+
 test("keeps exact filtered counts and deterministic loading/error/empty states", async ({
   page,
 }) => {
@@ -117,7 +271,9 @@ test("keeps exact filtered counts and deterministic loading/error/empty states",
   await expect(page.getByText("Fila sem atendimentos")).toBeVisible()
   await page.goto("/service-desk?scenario=typical&stage=called")
   await expect(page.getByText("Nenhum atendimento encontrado")).toBeVisible()
-  await expect(page.getByText(/0 aguardando, 0 chamado\(s\) e 0 em atendimento/)).toBeVisible()
+  await expect(
+    page.getByText(/0 aguardando, 0 chamado\(s\), 0 em atendimento e 0 pronto\(s\)/),
+  ).toBeVisible()
 
   await page.goto("/service-desk?scenario=typical&stage=invalid&professional=Nome%20Privado")
   await expect(page).not.toHaveURL(/stage=invalid|Nome%20Privado/)

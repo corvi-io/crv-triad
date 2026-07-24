@@ -107,6 +107,7 @@
 :root {
   /* Primitive tokens: raw values from the accepted design anchors and project scales. */
   --primitive-transparent: transparent;
+  --primitive-layer-modal: 60;
   --primitive-white: #ffffff;
   --primitive-neutral-50: #fafafa;
   --primitive-neutral-100: #f5f5f5;
@@ -229,6 +230,7 @@
   --card-foreground: var(--primitive-navy-950);
   --popover: var(--primitive-white);
   --popover-foreground: var(--primitive-navy-950);
+  --layer-modal: var(--primitive-layer-modal);
   --primary: var(--primitive-gold-700);
   --primary-foreground: var(--primitive-white);
   --secondary: var(--primitive-navy-100);

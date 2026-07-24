@@ -20,7 +20,8 @@ Routes:
 - `/workspace-preview/sandbox` (development-only neutral component/data sandbox)
 - `/workspace-preview/agenda` (development-only Agenda board/list interaction and QA surface)
 - `/agenda` (authenticated Agenda visual prototype with default temporal board and alternate list)
-- `/service-desk` (authenticated queue/check-in evaluation through service start)
+- `/service-desk` and `/service-desk/$sessionId` (authenticated queue, service fulfillment, and
+  ready-for-payment evaluation)
 - `/barbershop-setup` (authenticated barbershop setup module)
 - `/overview` (authenticated operational Dashboard derived from the scheduling source)
 - `/profile`
@@ -69,7 +70,9 @@ session-memory scheduling repository, keeps `called` as reception-only state, an
 original appointment to `in-progress` when service starts. Walk-ins remain temporary queue
 snapshots, require human assignment for `Primeiro disponível`, and create neither Clients nor
 Agenda appointments. It follows the scheduling source boundary, fails closed in `hml`/`prd`, and
-adds no environment variable. See `docs/studio/service-desk.md`.
+adds no environment variable. The child workspace keeps performed services, professional
+attribution, bounded notes, and the ready-for-payment handoff in the same session-memory lifecycle.
+See `docs/studio/service-desk.md`.
 
 The authenticated barbershop setup module presents a guided overview, fill-height
 unit/professional/service catalogs, structured unit opening hours, and a dated block-based

@@ -26,6 +26,15 @@ export const defaultServiceDeskSearch: ServiceDeskSearch = {
   unit: "centro",
 }
 
+const serviceDeskSearchKeys = [
+  "preference",
+  "priority",
+  "professional",
+  "scenario",
+  "stage",
+  "unit",
+] as const satisfies readonly (keyof ServiceDeskSearch)[]
+
 export function validateServiceDeskSearch(
   search: Record<string, unknown>,
   scenarioIds: readonly ServiceDeskScenarioId[] = ["typical"],
@@ -43,6 +52,33 @@ export function validateServiceDeskSearch(
     scenario: includes(scenarioIds, search.scenario) ? search.scenario : "typical",
     stage: includes(queueStages, search.stage) ? search.stage : "all",
     unit: search.unit === "artesao" ? "artesao" : "centro",
+  }
+}
+
+export function shouldCanonicalizeServiceDeskSearch(
+  searchString: string,
+  search: ServiceDeskSearch,
+) {
+  const parameters = new URLSearchParams(searchString)
+  const allowed = new Set<string>(serviceDeskSearchKeys)
+  for (const key of parameters.keys()) {
+    if (!allowed.has(key)) return true
+  }
+  for (const key of serviceDeskSearchKeys) {
+    const raw = parameters.get(key)
+    if (raw !== null && raw !== search[key]) return true
+  }
+  return false
+}
+
+export function canonicalServiceDeskSearch(search: ServiceDeskSearch): ServiceDeskSearch {
+  return {
+    preference: search.preference,
+    priority: search.priority,
+    professional: search.professional,
+    scenario: search.scenario,
+    stage: search.stage,
+    unit: search.unit,
   }
 }
 

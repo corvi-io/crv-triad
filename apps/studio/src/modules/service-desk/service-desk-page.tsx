@@ -62,9 +62,11 @@ import type { ServiceDeskSearch } from "./search"
 import { WalkInForm } from "./walk-in-form"
 
 export function ServiceDeskPage({
+  onOpenSession,
   onSearchChange,
   search,
 }: {
+  onOpenSession: (sessionId: string) => void
   onSearchChange: (next: Partial<ServiceDeskSearch>) => void
   search: ServiceDeskSearch
 }) {
@@ -185,6 +187,7 @@ export function ServiceDeskPage({
                   { label: "Aguardando", value: "waiting" },
                   { label: "Chamados", value: "called" },
                   { label: "Em atendimento", value: "in-service" },
+                  { label: "Pronto para pagamento", value: "ready-for-payment" },
                 ]}
               />
               <SingleSelectListFilter
@@ -249,8 +252,8 @@ export function ServiceDeskPage({
         {snapshot ? (
           <>
             <p className="text-sm text-muted-foreground" aria-live="polite">
-              {counts.waiting} aguardando, {counts.called} chamado(s) e {counts["in-service"]} em
-              atendimento
+              {counts.waiting} aguardando, {counts.called} chamado(s), {counts["in-service"]} em
+              atendimento e {counts["ready-for-payment"]} pronto(s) para pagamento
               {oldestWait
                 ? `. Maior espera visível: ${formatWait(oldestWait.arrivalAt, snapshot.now)}.`
                 : "."}
@@ -280,28 +283,34 @@ export function ServiceDeskPage({
               </Empty>
             ) : (
               <section
-                className="grid min-w-0 flex-1 items-start gap-3 lg:grid-cols-3"
+                className="grid min-w-0 flex-1 items-start gap-3 lg:grid-cols-2 xl:grid-cols-4"
                 aria-label="Etapas da fila de atendimento"
               >
-                {(["waiting", "called", "in-service"] as const).map((stage) => (
-                  <QueueColumn
-                    entries={groups[stage]}
-                    key={stage}
-                    now={snapshot.now}
-                    professionals={snapshot.professionals}
-                    services={snapshot.services}
-                    stage={stage}
-                    startAssignments={startAssignments}
-                    unavailableProfessionalIds={snapshot.unavailableProfessionalIds}
-                    isCalling={callEntry.isPending}
-                    isStarting={startEntry.isPending}
-                    onAssignmentChange={(entryId, professionalId) =>
-                      setStartAssignments((current) => ({ ...current, [entryId]: professionalId }))
-                    }
-                    onCall={call}
-                    onStart={start}
-                  />
-                ))}
+                {(["waiting", "called", "in-service", "ready-for-payment"] as const).map(
+                  (stage) => (
+                    <QueueColumn
+                      entries={groups[stage]}
+                      key={stage}
+                      now={snapshot.now}
+                      professionals={snapshot.professionals}
+                      services={snapshot.services}
+                      stage={stage}
+                      startAssignments={startAssignments}
+                      unavailableProfessionalIds={snapshot.unavailableProfessionalIds}
+                      isCalling={callEntry.isPending}
+                      isStarting={startEntry.isPending}
+                      onAssignmentChange={(entryId, professionalId) =>
+                        setStartAssignments((current) => ({
+                          ...current,
+                          [entryId]: professionalId,
+                        }))
+                      }
+                      onCall={call}
+                      onStart={start}
+                      onOpenSession={onOpenSession}
+                    />
+                  ),
+                )}
               </section>
             )}
           </>
@@ -348,6 +357,7 @@ function QueueColumn({
   now,
   onAssignmentChange,
   onCall,
+  onOpenSession,
   onStart,
   professionals,
   services,
@@ -361,6 +371,7 @@ function QueueColumn({
   now: string
   onAssignmentChange: (entryId: string, professionalId: string) => void
   onCall: (entry: QueueEntry) => void
+  onOpenSession: (sessionId: string) => void
   onStart: (entry: QueueEntry) => void
   professionals: readonly Professional[]
   services: readonly Service[]
@@ -395,6 +406,7 @@ function QueueColumn({
               now={now}
               onAssignmentChange={onAssignmentChange}
               onCall={onCall}
+              onOpenSession={onOpenSession}
               onStart={onStart}
               professionals={professionals}
               selectedProfessionalId={startAssignments[entry.id]}
@@ -415,6 +427,7 @@ function QueueCard({
   now,
   onAssignmentChange,
   onCall,
+  onOpenSession,
   onStart,
   professionals,
   selectedProfessionalId,
@@ -427,6 +440,7 @@ function QueueCard({
   now: string
   onAssignmentChange: (entryId: string, professionalId: string) => void
   onCall: (entry: QueueEntry) => void
+  onOpenSession: (sessionId: string) => void
   onStart: (entry: QueueEntry) => void
   professionals: readonly Professional[]
   selectedProfessionalId?: string
@@ -533,11 +547,16 @@ function QueueCard({
             Iniciar atendimento
           </Button>
         ) : null}
-        {entry.stage === "in-service" ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <UserRoundCheckIcon aria-hidden="true" />
-            Atendimento iniciado
-          </p>
+        {entry.stage === "in-service" || entry.stage === "ready-for-payment" ? (
+          <Button
+            className="w-full"
+            type="button"
+            variant="outline"
+            onClick={() => onOpenSession(entry.sessionId ?? `session-${entry.id}`)}
+          >
+            <UserRoundCheckIcon data-icon="inline-start" aria-hidden="true" />
+            {entry.stage === "in-service" ? "Abrir atendimento" : "Revisar atendimento"}
+          </Button>
         ) : null}
       </CardFooter>
     </Card>
@@ -547,7 +566,7 @@ function QueueCard({
 function QueueSkeleton() {
   return (
     <div className="grid gap-3 lg:grid-cols-3" aria-label="Carregando atendimentos" role="status">
-      {["waiting", "called", "in-service"].map((stage) => (
+      {["waiting", "called", "in-service", "ready-for-payment"].map((stage) => (
         <Card key={stage}>
           <CardHeader>
             <Skeleton className="h-5 w-32" />
