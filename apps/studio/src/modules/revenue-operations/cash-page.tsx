@@ -1,18 +1,23 @@
 import { zodResolver } from "@hookform/resolvers/zod"
+import { format } from "date-fns"
 import { BanknoteIcon, CalendarDaysIcon, HistoryIcon, StoreIcon } from "lucide-react"
 import { useState } from "react"
+import { ptBR } from "react-day-picker/locale"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useAuth } from "@/modules/auth/services/auth-provider"
 import type { SchedulingUnitId } from "@/modules/scheduling/contracts"
+import { FilterTrigger } from "@/modules/shared/components/data-display/filter-trigger"
+import { SingleSelectListFilter } from "@/modules/shared/components/data-display/list-filter"
 import { MetricCard } from "@/modules/shared/components/data-display/metric-card"
 import { StatusBadge } from "@/modules/shared/components/feedback/status-badge"
-import { DatePicker } from "@/modules/shared/components/forms/date-picker"
+import { formatDateOnly, parseDateOnly } from "@/modules/shared/components/forms/date-picker"
 import { FormField, getFieldDescriptionIds } from "@/modules/shared/components/forms/form-layout"
 import { MaskedInput } from "@/modules/shared/components/forms/masked-input"
 import { ConfirmationDialog } from "@/modules/shared/components/overlays/confirmation-dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/modules/shared/components/ui/alert"
 import { Button } from "@/modules/shared/components/ui/button"
+import { Calendar } from "@/modules/shared/components/ui/calendar"
 import {
   Card,
   CardContent,
@@ -21,12 +26,11 @@ import {
   CardTitle,
 } from "@/modules/shared/components/ui/card"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/modules/shared/components/ui/select"
+  Popover,
+  PopoverContent,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/modules/shared/components/ui/popover"
 import { Textarea } from "@/modules/shared/components/ui/textarea"
 import { CLOSING_HISTORY_LIMIT } from "./cash"
 import type {
@@ -56,15 +60,15 @@ const cashFormSchema = z
   })
 
 type CashFormValues = z.infer<typeof cashFormSchema>
+type CashContextChangeHandler = (context: { date?: string; unitId?: SchedulingUnitId }) => void
 
 type CashPageProps = {
   closingId: string | null
-  onContextChange: (context: { date?: string; unitId?: SchedulingUnitId }) => void
   onOpenClosing: (id: string | null) => void
   query: OperationalDayQuery
 }
 
-export function CashPage({ closingId, onContextChange, onOpenClosing, query }: CashPageProps) {
+export function CashPage({ closingId, onOpenClosing, query }: CashPageProps) {
   const summaryQuery = useOpenDaySummary(query)
   const historyQuery = useDailyClosings({
     date: query.date,
@@ -102,7 +106,6 @@ export function CashPage({ closingId, onContextChange, onOpenClosing, query }: C
   const summary = summaryQuery.data
   return (
     <div className="space-y-6">
-      <CashContext date={query.date} unitId={query.unitId} onContextChange={onContextChange} />
       {closingId ? (
         <ClosingDetail
           closing={detailQuery.data}
@@ -116,48 +119,80 @@ export function CashPage({ closingId, onContextChange, onOpenClosing, query }: C
   )
 }
 
-function CashContext({
+export function CashFilters({
   date,
   onContextChange,
   unitId,
 }: {
   date: string
-  onContextChange: CashPageProps["onContextChange"]
+  onContextChange: CashContextChangeHandler
   unitId: SchedulingUnitId
 }) {
+  const selectedDate = parseDateOnly(date)
+  const [dateMenuOpen, setDateMenuOpen] = useState(false)
+  const [displayedMonth, setDisplayedMonth] = useState(() => selectedDate ?? new Date())
+  const dateLabel = selectedDate
+    ? format(selectedDate, "dd/MM/yyyy", { locale: ptBR })
+    : "Escolher data"
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Contexto operacional</CardTitle>
-        <CardDescription>
-          Todos os valores são limitados à unidade e à data escolhidas.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-2">
-        <FormField id="cash-unit" icon={StoreIcon} label="Unidade">
-          <Select
-            value={unitId}
-            onValueChange={(value) => value && onContextChange({ unitId: value })}
-          >
-            <SelectTrigger id="cash-unit">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="centro">Centro</SelectItem>
-              <SelectItem value="artesao">Artesão</SelectItem>
-            </SelectContent>
-          </Select>
-        </FormField>
-        <FormField id="cash-date" icon={CalendarDaysIcon} label="Data operacional">
-          <DatePicker
-            id="cash-date"
-            placeholder="Selecione a data"
-            value={date}
-            onValueChange={(nextDate) => onContextChange({ date: nextDate })}
+    <fieldset
+      className="flex min-w-0 items-center gap-1.5 overflow-x-auto rounded-lg border bg-card p-2"
+      data-slot="cash-filters"
+    >
+      <legend className="sr-only">Filtros do caixa</legend>
+      <SingleSelectListFilter
+        showSelectedLabel
+        icon={StoreIcon}
+        id="cash-unit-filter"
+        inactiveValue="centro"
+        label="Unidade"
+        options={[
+          { label: "Centro", value: "centro" },
+          { label: "Artesão", value: "artesao" },
+        ]}
+        value={unitId}
+        onValueChange={(nextUnitId) => onContextChange({ unitId: nextUnitId })}
+      />
+      <Popover
+        open={dateMenuOpen}
+        onOpenChange={(open) => {
+          if (open) setDisplayedMonth(selectedDate ?? new Date())
+          setDateMenuOpen(open)
+        }}
+      >
+        <PopoverTrigger
+          render={
+            <FilterTrigger
+              active={!isToday(date)}
+              aria-label={`Data operacional: ${dateLabel}`}
+              icon={CalendarDaysIcon}
+              id="cash-date-filter"
+              label={dateLabel}
+            />
+          }
+        />
+        <PopoverContent align="start" className="w-auto p-0">
+          <PopoverTitle className="sr-only">Data operacional</PopoverTitle>
+          <Calendar
+            autoFocus
+            captionLayout="dropdown"
+            endMonth={new Date(2100, 11)}
+            locale={ptBR}
+            mode="single"
+            month={displayedMonth}
+            selected={selectedDate}
+            startMonth={new Date(1900, 0)}
+            onMonthChange={setDisplayedMonth}
+            onSelect={(nextDate) => {
+              if (!nextDate) return
+              onContextChange({ date: formatDateOnly(nextDate) })
+              setDateMenuOpen(false)
+            }}
           />
-        </FormField>
-      </CardContent>
-    </Card>
+        </PopoverContent>
+      </Popover>
+    </fieldset>
   )
 }
 
@@ -631,4 +666,8 @@ function formatInstant(instant: string) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(instant))
+}
+
+function isToday(date: string) {
+  return date === formatDateOnly(new Date())
 }

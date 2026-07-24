@@ -15,6 +15,10 @@ test("closes an exactly counted day once and keeps the snapshot read-only after 
   page,
 }) => {
   await page.goto(cashUrl())
+  await expect(page.getByRole("heading", { name: "Caixa" })).toHaveCount(1)
+  await expect(page.getByRole("heading", { name: "Contexto operacional" })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Centro" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Data operacional: 24/07/2026" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Resumo do dia" })).toBeVisible()
   await expect(page.getByText("Dia aberto")).toBeVisible()
   await expect(page.getByRole("link", { name: "Caixa", exact: true })).toHaveAttribute(
@@ -23,6 +27,39 @@ test("closes an exactly counted day once and keeps the snapshot read-only after 
   )
   await expect(page.getByText("R$ 0,00", { exact: true }).first()).toBeVisible()
   expect(page.url()).not.toMatch(/reason|counted|responsible|Pessoa/)
+
+  const filters = page.locator('[data-slot="cash-filters"]')
+  const filtersTop = (await filters.boundingBox())?.y
+  const viewport = page.locator(
+    '[data-slot="module-layout-body"] [data-slot="scroll-area-viewport"]',
+  )
+  const viewportBox = await viewport.boundingBox()
+  const firstCardBox = await page
+    .locator('[data-slot="module-layout-body"] [data-slot="card"]')
+    .first()
+    .boundingBox()
+  expect(viewportBox).not.toBeNull()
+  expect(firstCardBox).not.toBeNull()
+  expect(firstCardBox?.x).toBeGreaterThan(viewportBox?.x ?? 0)
+  expect((firstCardBox?.x ?? 0) + (firstCardBox?.width ?? 0)).toBeLessThan(
+    (viewportBox?.x ?? 0) + (viewportBox?.width ?? 0),
+  )
+  await page
+    .locator('[data-slot="module-layout-body"] [data-slot="scroll-area-viewport"]')
+    .evaluate((element) => {
+      element.scrollTop = element.scrollHeight
+    })
+  expect((await filters.boundingBox())?.y).toBeCloseTo(filtersTop ?? 0, 1)
+  await page
+    .locator('[data-slot="module-layout-body"] [data-slot="scroll-area-viewport"]')
+    .evaluate((element) => {
+      element.scrollTop = 0
+    })
+
+  await page.getByRole("button", { name: "Centro" }).click()
+  await expect(page.getByRole("menuitemradio", { name: "Centro" })).toBeVisible()
+  await expect(page.getByRole("menuitemradio", { name: "Artesão" })).toBeVisible()
+  await page.keyboard.press("Escape")
 
   await page.getByRole("button", { name: "Fechar dia" }).click()
   const dialog = page.getByRole("dialog", { name: "Confirmar fechamento do dia?" })

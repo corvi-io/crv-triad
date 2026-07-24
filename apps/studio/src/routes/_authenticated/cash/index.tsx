@@ -3,7 +3,7 @@ import {
   createRevenueOperationsRepository,
 } from "virtual:studio-revenue-operations-source"
 import { createFileRoute } from "@tanstack/react-router"
-import { CashPage } from "@/modules/revenue-operations/cash-page"
+import { CashFilters, CashPage } from "@/modules/revenue-operations/cash-page"
 import { RevenueOperationsRepositoryProvider } from "@/modules/revenue-operations/repository-context"
 import type { SchedulingUnitId } from "@/modules/scheduling/contracts"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
@@ -56,23 +56,31 @@ function CashRoute() {
   return (
     <RevenueOperationsRepositoryProvider repository={repository}>
       <ModuleLayout
+        bodyMaskHeight={0}
+        bodyViewportClassName="p-px"
         head={
-          <PageHeader
-            title="Caixa"
-            description="Confira recebimentos e registre um fechamento imutável por unidade e data."
-          />
+          <>
+            <PageHeader
+              title="Caixa"
+              description="Confira recebimentos e registre um fechamento imutável por unidade e data."
+            />
+            <CashFilters
+              date={search.date}
+              unitId={search.unitId}
+              onContextChange={(context) =>
+                navigate({
+                  replace: true,
+                  search: (previous) => ({ ...previous, closing: null, ...context }),
+                  to: "/cash",
+                })
+              }
+            />
+          </>
         }
       >
         <CashPage
           closingId={search.closing}
           query={{ date: search.date, scenarioId: search.scenario, unitId: search.unitId }}
-          onContextChange={(context) =>
-            navigate({
-              replace: true,
-              search: (previous) => ({ ...previous, closing: null, ...context }),
-              to: "/cash",
-            })
-          }
           onOpenClosing={(closing) =>
             navigate({
               replace: true,

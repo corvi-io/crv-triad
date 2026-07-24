@@ -64,7 +64,6 @@ function renderCash(scenarioId: string) {
           <CashPage
             closingId={null}
             query={{ date: "2026-07-24", scenarioId: scenario, unitId: "centro" }}
-            onContextChange={vi.fn()}
             onOpenClosing={vi.fn()}
           />
         </RevenueOperationsRepositoryProvider>
