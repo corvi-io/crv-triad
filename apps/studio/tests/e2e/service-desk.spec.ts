@@ -440,6 +440,133 @@ test("fills the available module height with the queue board without enabling pa
   await page.screenshot({ path: testInfo.outputPath("service-desk-vertical-fill-1440-dense.png") })
 })
 
+test("fills the available module height in the responsive two-column queue board", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ height: 900, width: 768 })
+  await page.goto("/service-desk?scenario=dense")
+
+  const board = page.getByRole("region", { name: "Etapas da fila de atendimento" })
+  await expect(board).toBeVisible()
+  const geometry = await board.evaluate((element) => {
+    const workspaceContent = element.closest('[data-slot="workspace-content"]')
+    const moduleViewport = element
+      .closest('[data-slot="module-layout"]')
+      ?.querySelector<HTMLElement>(
+        '[data-slot="module-layout-body"] > [data-slot="scroll-area-viewport"]',
+      )
+    if (!moduleViewport || !workspaceContent)
+      throw new Error("Service Desk content area was not rendered.")
+
+    const boardBounds = element.getBoundingClientRect()
+    const viewportBounds = moduleViewport.getBoundingClientRect()
+    const viewportStyle = getComputedStyle(moduleViewport)
+    const workspaceBounds = workspaceContent.getBoundingClientRect()
+    const workspaceStyle = getComputedStyle(workspaceContent)
+    const boardStyle = getComputedStyle(element)
+    return {
+      boardBottom: Math.round(boardBounds.bottom),
+      boardLeft: Math.round(boardBounds.left),
+      boardRight: Math.round(boardBounds.right),
+      columns: boardStyle.gridTemplateColumns.split(" ").length,
+      contentBottom: Math.round(workspaceBounds.bottom - parseFloat(workspaceStyle.paddingBottom)),
+      contentLeft: Math.round(workspaceBounds.left + parseFloat(workspaceStyle.paddingLeft)),
+      contentRight: Math.round(workspaceBounds.right - parseFloat(workspaceStyle.paddingRight)),
+      pageOverflow: Math.round(document.documentElement.scrollHeight - window.innerHeight),
+      rows: boardStyle.gridTemplateRows.split(" ").length,
+      viewportContentBottom: Math.round(
+        viewportBounds.bottom - parseFloat(viewportStyle.paddingBottom),
+      ),
+      viewportOverflow: Math.round(moduleViewport.scrollHeight - moduleViewport.clientHeight),
+    }
+  })
+
+  expect(geometry.columns).toBe(2)
+  expect(geometry.rows).toBe(2)
+  expect(geometry.boardBottom).toBeCloseTo(geometry.contentBottom, 0)
+  expect(geometry.boardLeft).toBeCloseTo(geometry.contentLeft, 0)
+  expect(geometry.boardRight).toBeCloseTo(geometry.contentRight, 0)
+  expect(geometry.pageOverflow).toBeLessThanOrEqual(1)
+  expect(geometry.viewportOverflow).toBeLessThanOrEqual(1)
+  await page.screenshot({ path: testInfo.outputPath("service-desk-vertical-fill-768-dense.png") })
+})
+
+test("reuses the owning inset across Service Desk session, checkout, and drawer surfaces", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 900, width: 768 })
+  await page.goto("/service-desk/session-walk-in-checkout-paid?scenario=checkout-paid")
+  await expect(page.getByRole("heading", { name: "Atendimento" })).toBeVisible()
+
+  const sessionGeometry = await page.locator("#main-content").evaluate((main) => {
+    const workspaceContent = main.querySelector<HTMLElement>('[data-slot="workspace-content"]')
+    const moduleViewport = main.querySelector<HTMLElement>(
+      '[data-slot="module-layout-body"] > [data-slot="scroll-area-viewport"]',
+    )
+    const session = moduleViewport?.firstElementChild
+    if (!workspaceContent || !moduleViewport || !session)
+      throw new Error("Service Desk session content was not rendered.")
+
+    const workspaceBounds = workspaceContent.getBoundingClientRect()
+    const workspaceStyle = getComputedStyle(workspaceContent)
+    const sessionBounds = session.getBoundingClientRect()
+    const viewportStyle = getComputedStyle(moduleViewport)
+    return {
+      contentLeft: Math.round(workspaceBounds.left + parseFloat(workspaceStyle.paddingLeft)),
+      sessionLeft: Math.round(sessionBounds.left),
+      viewportPaddingLeft: parseFloat(viewportStyle.paddingLeft),
+    }
+  })
+
+  expect(sessionGeometry.viewportPaddingLeft).toBe(0)
+  expect(sessionGeometry.sessionLeft).toBeCloseTo(sessionGeometry.contentLeft, 0)
+
+  await page.goto("/service-desk/session-walk-in-checkout-paid/checkout?scenario=checkout-paid")
+  await expect(page.getByRole("heading", { name: "Pagamento" })).toBeVisible()
+
+  const checkoutGeometry = await page.locator("#main-content").evaluate((main) => {
+    const workspaceContent = main.querySelector<HTMLElement>('[data-slot="workspace-content"]')
+    const moduleViewport = main.querySelector<HTMLElement>(
+      '[data-slot="module-layout-body"] > [data-slot="scroll-area-viewport"]',
+    )
+    const checkout = moduleViewport?.firstElementChild
+    if (!workspaceContent || !moduleViewport || !checkout)
+      throw new Error("Service Desk checkout content was not rendered.")
+
+    const workspaceBounds = workspaceContent.getBoundingClientRect()
+    const workspaceStyle = getComputedStyle(workspaceContent)
+    const checkoutBounds = checkout.getBoundingClientRect()
+    const viewportStyle = getComputedStyle(moduleViewport)
+    return {
+      checkoutLeft: Math.round(checkoutBounds.left),
+      contentLeft: Math.round(workspaceBounds.left + parseFloat(workspaceStyle.paddingLeft)),
+      viewportPaddingLeft: parseFloat(viewportStyle.paddingLeft),
+    }
+  })
+
+  expect(checkoutGeometry.viewportPaddingLeft).toBe(0)
+  expect(checkoutGeometry.checkoutLeft).toBeCloseTo(checkoutGeometry.contentLeft, 0)
+
+  await page.goto("/service-desk?scenario=empty")
+  await page.getByRole("button", { name: "Adicionar à fila" }).first().click()
+  const drawer = page.getByRole("dialog", { name: /Atendimentos \/ Adicionar à fila/ })
+  await expect(drawer).toBeVisible()
+  const drawerGeometry = await drawer.evaluate((element) => {
+    const viewport = element.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]')
+    if (!viewport) throw new Error("Service Desk drawer viewport was not rendered.")
+
+    const drawerStyle = getComputedStyle(element)
+    const viewportStyle = getComputedStyle(viewport)
+    return {
+      drawerPaddingLeft: parseFloat(drawerStyle.paddingLeft),
+      viewportPaddingLeft: parseFloat(viewportStyle.paddingLeft),
+    }
+  })
+
+  expect(drawerGeometry.drawerPaddingLeft).toBe(0)
+  expect(drawerGeometry.viewportPaddingLeft).toBe(16)
+})
+
 test("passes axe and preserves themes, forced colors, reduced motion, targets, and 320px reflow", async ({
   page,
 }, testInfo) => {

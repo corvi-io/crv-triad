@@ -44,7 +44,6 @@ function CheckoutRoute() {
     return (
       <ModuleLayout
         head={<PageHeader title="Pagamento" description="Atendimentos / Atendimento / Pagamento" />}
-        bodyViewportClassName="p-4 sm:p-6"
       >
         <Alert>
           <AlertTitle>Pagamento indisponível</AlertTitle>
@@ -62,7 +61,6 @@ function CheckoutRoute() {
           head={
             <PageHeader title="Pagamento" description="Atendimentos / Atendimento / Pagamento" />
           }
-          bodyViewportClassName="p-4 sm:p-6"
         >
           <CheckoutPage
             sessionId={sessionId}

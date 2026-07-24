@@ -99,6 +99,14 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
 - Use the shared `ModuleLayout` for module pages that need a fixed `head` and
   scrollable body content. It owns the Lina-based `ScrollArea`; avoid adding
   route-local body scroll wrappers for module screens.
+- `WorkspaceShellContent` owns the authenticated content inset. Responsive boards inside it must
+  reuse that padding instead of adding duplicate inset to a `ModuleLayout` viewport, fill the
+  remaining height at every active grid breakpoint, and confine scrolling to panels with measured
+  overflow rather than the module body or page.
+- The same one-owner rule applies across authenticated feature roots, detail pages, checkout pages,
+  and drawers: nested `ModuleLayout` viewports reuse `WorkspaceShellContent` inset, while
+  `ActionDrawer` alone owns its scroll-body inset. Do not add matching padding inside their
+  children or nested viewports; preserve only intentional card and form-field spacing.
 - Put page-level create buttons and secondary page commands in
   `PageHeader.actions`. Do not add fake or disabled creation buttons before the
   backing route, mutation, or product flow exists.

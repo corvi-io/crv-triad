@@ -258,7 +258,7 @@ export function ServiceDeskPage({
           </>
         }
         bodyClassName="min-h-0"
-        bodyViewportClassName="flex h-full min-h-0 flex-col gap-4 overflow-hidden p-4 sm:p-6"
+        bodyViewportClassName="flex h-full min-h-0 flex-col gap-4 overflow-hidden"
       >
         {query.isLoading ? <QueueSkeleton /> : null}
         {query.isError ? (
@@ -300,7 +300,7 @@ export function ServiceDeskPage({
               </Empty>
             ) : (
               <section
-                className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-4 gap-3 sm:grid-cols-2 sm:grid-rows-2 xl:h-full xl:grid-cols-4 xl:grid-rows-1"
+                className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-4 gap-3 sm:h-full sm:grid-cols-2 sm:grid-rows-2 xl:grid-cols-4 xl:grid-rows-1"
                 aria-label="Etapas da fila de atendimento"
               >
                 {(["waiting", "called", "in-service", "ready-for-payment"] as const).map(

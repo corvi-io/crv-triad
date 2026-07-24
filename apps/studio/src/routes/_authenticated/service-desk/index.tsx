@@ -47,7 +47,6 @@ function ServiceDeskRoute() {
             description="Acompanhe chegadas, chamadas e serviços iniciados."
           />
         }
-        bodyViewportClassName="p-4 sm:p-6"
       >
         <Alert>
           <AlertTitle>Atendimentos indisponíveis</AlertTitle>
