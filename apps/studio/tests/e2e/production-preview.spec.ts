@@ -108,6 +108,19 @@ test("keeps Caixa fail-closed and excludes closing scenarios in production", asy
   await expect(page.getByRole("button", { name: "Visualizar" })).toHaveCount(0)
 })
 
+test("keeps Relatórios fail-closed and excludes reporting scenarios in production", async ({
+  page,
+}) => {
+  await page.unroute("**/api/auth/**")
+  await routeAuthenticatedSession(page)
+  await page.goto("/reports?scenario=long-labels&period=current-month")
+
+  await expect(page.getByRole("heading", { name: "Relatórios" })).toBeVisible()
+  await expect(page.getByText("Relatórios indisponíveis")).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Faturamento" })).toHaveCount(0)
+  await expect(page.getByText("Corte executivo premium com acabamento detalhado")).toHaveCount(0)
+})
+
 async function routeAuthenticatedSession(page: Page) {
   await page.route("**/api/auth/**", async (route) => {
     if (route.request().method() === "OPTIONS") {

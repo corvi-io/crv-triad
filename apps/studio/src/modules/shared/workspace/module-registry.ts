@@ -1,6 +1,7 @@
 import type { LucideIcon as LucideIconType } from "lucide-react"
 import {
   BanknoteIcon,
+  BarChart3Icon,
   Building2Icon,
   CalendarDaysIcon,
   ClipboardListIcon,
@@ -17,6 +18,7 @@ export type WorkspaceModulePath =
   | "/cash"
   | "/clients"
   | "/overview"
+  | "/reports"
   | "/service-desk"
 export type WorkspaceRoutePath = WorkspaceModulePath | "/profile" | "/preferences"
 
@@ -77,6 +79,14 @@ export const workspacePrimaryNavigation = [
     status: "active",
   },
   {
+    id: "reports",
+    label: "Relatórios",
+    description: "Análise histórica de operação e receita.",
+    icon: BarChart3Icon,
+    path: "/reports",
+    status: "active",
+  },
+  {
     id: "clients",
     label: "Clientes",
     description: "Diretório e histórico de clientes.",
@@ -114,6 +124,15 @@ export const workspaceModules = [
     breadcrumbLabel: "Caixa",
     description: "Confira recebimentos, dinheiro e fechamentos do dia.",
     commandKeywords: ["caixa", "dinheiro", "fechamento", "recebimento"],
+  },
+  {
+    id: "reports",
+    label: "Relatórios",
+    path: "/reports",
+    icon: BarChart3Icon,
+    breadcrumbLabel: "Relatórios",
+    description: "Analise resultados históricos com filtros consistentes.",
+    commandKeywords: ["relatórios", "faturamento", "comissões", "ticket", "gestão"],
   },
   {
     id: "service-desk",

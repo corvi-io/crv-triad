@@ -24,6 +24,7 @@ Routes:
   (authenticated queue, service fulfillment, exact payment registration, and commission
   evaluation)
 - `/cash` (authenticated cash count, daily close, and bounded read-only closing history)
+- `/reports` (authenticated bounded historical operation and revenue reports)
 - `/barbershop-setup` (authenticated barbershop setup module)
 - `/overview` (authenticated operational Dashboard derived from the scheduling source)
 - `/profile`
@@ -86,6 +87,16 @@ snapshot with bounded read-only history. This remains a local/configured-`dev` v
 with no gateway, sensitive payment field, persistence, production authorization, reopen, or
 provider reconciliation. See
 `docs/studio/revenue-operations.md`.
+
+The authenticated `Relatórios` module at `/reports` applies one canonical
+inclusive URL filter set to seven bounded management projections. It reconciles
+integer-cent paid revenue, ticket, and immutable commission facts; states
+cancellation/no-show denominators; and excludes unknown customer identity from
+new/returning ratios. Every chart has a textual takeaway and table equivalent.
+The deterministic source is composed through accepted public repository seams
+only for `local`/configured `dev`, fails closed in `hml`/`prd`, adds no public
+environment variable, and exposes no API, persistence, export, polling,
+forecasting, or production role claim. See `docs/studio/reporting.md`.
 
 The authenticated barbershop setup module presents a guided overview, fill-height
 unit/professional/service catalogs, structured unit opening hours, and a dated block-based
