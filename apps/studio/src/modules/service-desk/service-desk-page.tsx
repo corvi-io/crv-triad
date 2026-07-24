@@ -243,16 +243,14 @@ export function ServiceDeskPage({
                   ]}
                 />
               ) : null}
-            </fieldset>
-            {scenarioIds ? (
-              <div className="flex justify-end" data-slot="development-scenario-launcher">
+              {scenarioIds ? (
                 <DevelopmentScenarioLauncher
                   onScenarioChange={(scenario) => onSearchChange({ scenario })}
                   scenarioIds={scenarioIds}
                   selectedScenario={search.scenario}
                 />
-              </div>
-            ) : null}
+              ) : null}
+            </fieldset>
           </>
         }
         bodyClassName="min-h-0"
@@ -489,7 +487,6 @@ function DevelopmentScenarioLauncher({
         render={
           <Button
             aria-label="Cenários de desenvolvimento"
-            className="ml-auto"
             size="icon"
             type="button"
             variant="outline"
@@ -649,7 +646,7 @@ function QueueCard({
     .toLocaleUpperCase("pt-BR")
 
   return (
-    <Card className="ring-inset" size="sm">
+    <Card className="shrink-0 ring-inset" size="sm">
       <CardHeader>
         <div className="flex min-w-0 items-center gap-2">
           <Avatar>

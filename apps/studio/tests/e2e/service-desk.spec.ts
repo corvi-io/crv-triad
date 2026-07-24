@@ -316,13 +316,12 @@ test("keeps projected appointment card borders inside the queue scroller at 618p
   })
 })
 
-test("groups development scenarios outside the service-desk product controls", async ({ page }) => {
+test("groups development scenarios in the service-desk filter toolbar", async ({ page }) => {
   await page.goto("/service-desk?scenario=typical")
   const productControls = page.getByRole("group", { name: "Busca e filtros de atendimentos" })
-  await expect(
-    productControls.getByRole("button", { name: "Cenários de desenvolvimento" }),
-  ).toHaveCount(0)
-  await page.getByRole("button", { name: "Cenários de desenvolvimento" }).click()
+  const trigger = productControls.getByRole("button", { name: "Cenários de desenvolvimento" })
+  await expect(trigger).toBeVisible()
+  await trigger.click()
   const launcher = page.getByRole("menu", { name: "Cenários de desenvolvimento" })
   await expect(launcher.getByRole("group", { name: /Fila/ })).toBeVisible()
   await expect(launcher.getByRole("group", { name: "Confiabilidade" })).toBeVisible()
@@ -330,6 +329,34 @@ test("groups development scenarios outside the service-desk product controls", a
   await launcher.getByRole("menuitemradio", { name: /Vazio/ }).click()
   await expect(page).toHaveURL(/scenario=empty/)
   await expect(page.getByText("Fila sem atendimentos")).toBeVisible()
+})
+
+test("keeps dense queue cards at their full height in the desktop scroller", async ({
+  page,
+}, testInfo) => {
+  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" })
+  await page.setViewportSize({ height: 1200, width: 2048 })
+  await page.goto("/service-desk?scenario=dense")
+
+  const column = page.getByRole("region", { name: "Aguardando" })
+  const cards = column.locator('[data-slot="card"]')
+  await expect(cards).toHaveCount(21)
+  const geometry = await cards.evaluateAll((elements) =>
+    elements.map((element) => ({
+      border: getComputedStyle(element).boxShadow,
+      height: element.getBoundingClientRect().height,
+      overflow: getComputedStyle(element).overflow,
+    })),
+  )
+
+  for (const card of geometry) {
+    expect(card.height).toBeGreaterThanOrEqual(180)
+    expect(card.border).toContain("inset")
+    expect(card.overflow).toBe("hidden")
+  }
+  await page.screenshot({
+    path: testInfo.outputPath("service-desk-dense-card-heights-2048-dark.png"),
+  })
 })
 
 test("passes axe and preserves themes, forced colors, reduced motion, targets, and 320px reflow", async ({
