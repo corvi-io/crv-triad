@@ -1,5 +1,5 @@
 import { differenceInCalendarDays, format } from "date-fns"
-
+import type { RevenueDashboardProjection } from "@/modules/revenue-operations/contracts"
 import type { WorkspaceOverviewModel } from "@/modules/shared/components/workspace-overview/model"
 
 import type { Appointment, AppointmentStatus, ScheduleDay, SchedulePeriod } from "./contracts"
@@ -13,6 +13,7 @@ type DashboardProjectionInput = {
   filters: WorkspaceOverviewModel["filters"]
   now: Date
   updatedAt: number
+  paidSales?: readonly RevenueDashboardProjection[]
 }
 
 type MutableProfessional = {
@@ -40,6 +41,7 @@ export function deriveDashboard({
   filters,
   now,
   updatedAt,
+  paidSales,
 }: DashboardProjectionInput): WorkspaceOverviewModel {
   const comparisonRange = comparisonBounds ?? { endDate: "", startDate: "" }
   const professionalNames = new Map(day.professionals.map(({ id, name }) => [id, name]))
@@ -84,6 +86,17 @@ export function deriveDashboard({
   let pendingCompletedValueCents = 0
   let potentialLossCents = 0
   let scheduledValueCents = 0
+  const acceptedPaidSales = paidSales?.filter(
+    (sale) =>
+      sale.unitId === filters.unitId &&
+      sale.completedAt.slice(0, 10) >= bounds.startDate &&
+      sale.completedAt.slice(0, 10) <= bounds.endDate,
+  )
+  const saleByAppointmentId = new Map(
+    acceptedPaidSales
+      ?.filter(({ appointmentId }) => appointmentId)
+      .map((sale) => [sale.appointmentId as string, sale]),
+  )
 
   for (const appointment of appointments) {
     statusCounts[appointment.status] += 1
@@ -114,14 +127,47 @@ export function deriveDashboard({
     if (appointment.status === "completed") {
       completedCount += 1
       completedClientIds.add(appointment.clientId)
-      if (appointment.paymentStatus === "paid") {
+      const paidSale = saleByAppointmentId.get(appointment.id)
+      if (paidSale || (paidSales === undefined && appointment.paymentStatus === "paid")) {
         paidCompletedCount += 1
-        paidValueCents += appointment.priceCents
-        service.paidValueCents += appointment.priceCents
-        if (professional) professional.paidValueCents += appointment.priceCents
+        const valueCents = paidSale?.totalCents ?? appointment.priceCents
+        paidValueCents += valueCents
+        if (paidSale) {
+          for (const line of paidSale.lineValues) {
+            const paidService = serviceTotals.get(line.serviceId) ?? {
+              count: 0,
+              paidValueCents: 0,
+              scheduledValueCents: 0,
+            }
+            paidService.paidValueCents += line.valueCents
+            serviceTotals.set(line.serviceId, paidService)
+            const paidProfessional = professionalTotals.get(line.professionalId)
+            if (paidProfessional) paidProfessional.paidValueCents += line.valueCents
+          }
+        } else {
+          service.paidValueCents += valueCents
+          if (professional) professional.paidValueCents += valueCents
+        }
       } else {
         pendingCompletedValueCents += appointment.priceCents
       }
+    }
+  }
+  const walkInSales = acceptedPaidSales?.filter(({ appointmentId }) => !appointmentId) ?? []
+  for (const sale of walkInSales) {
+    paidCompletedCount += 1
+    completedCount += 1
+    paidValueCents += sale.totalCents
+    for (const line of sale.lineValues) {
+      const paidService = serviceTotals.get(line.serviceId) ?? {
+        count: 0,
+        paidValueCents: 0,
+        scheduledValueCents: 0,
+      }
+      paidService.paidValueCents += line.valueCents
+      serviceTotals.set(line.serviceId, paidService)
+      const paidProfessional = professionalTotals.get(line.professionalId)
+      if (paidProfessional) paidProfessional.paidValueCents += line.valueCents
     }
   }
 
@@ -220,9 +266,12 @@ export function deriveDashboard({
     },
     filters: { ...filters, professionalId: selectedProfessionalId },
     finance: {
-      discounts: undefined,
+      discounts:
+        acceptedPaidSales && acceptedPaidSales.length > 0
+          ? currency(acceptedPaidSales.reduce((sum, sale) => sum + sale.discountCents, 0))
+          : undefined,
       paidValue: currency(paidValueCents),
-      paymentMethods: undefined,
+      paymentMethods: acceptedPaidSales ? paymentMethodProjection(acceptedPaidSales) : undefined,
       pendingCompletedValue: currency(pendingCompletedValueCents),
       scheduledValue: currency(scheduledValueCents),
     },
@@ -621,6 +670,27 @@ function compareAppointments(left: Appointment, right: Appointment) {
 
 function appointmentTime(appointment: Appointment) {
   return new Date(`${appointment.date}T${appointment.start}:00`)
+}
+
+function paymentMethodProjection(sales: readonly RevenueDashboardProjection[]) {
+  const labels = {
+    cash: "Dinheiro",
+    credit: "Crédito",
+    debit: "Débito",
+    pix: "Pix",
+  } as const
+  const totals = new Map<string, number>()
+  for (const sale of sales) {
+    for (const payment of sale.payments) {
+      totals.set(payment.method, (totals.get(payment.method) ?? 0) + payment.valueCents)
+    }
+  }
+  return [...totals.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([method, value]) => ({
+      label: labels[method as keyof typeof labels],
+      value: currency(value),
+    }))
 }
 
 function parseDate(value: string) {

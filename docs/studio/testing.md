@@ -106,6 +106,17 @@ reuses the same operation key after a failed add, verifies concise feedback, and
 submission while the first promise is pending. The fulfillment journey records a 1440x900
 screenshot in addition to the existing 1600x900 and 320-CSS-pixel evidence.
 
+`tests/e2e/revenue-operations.spec.ts` covers the authenticated checkout route, active
+`Atendimentos` navigation, URL privacy, exact Pix, cash change, mixed tenders, confirmation focus,
+read-only paid state, one-shot atomic failure/retry, deterministic reload, light/dark screenshots,
+320-CSS-pixel reflow as a 640px-at-200%-zoom layout equivalent, forced colors, reduced motion,
+keyboard entry, 24px targets, and axe. Focused Vitest proves stable cent allocation,
+basis-point/fixed/no-commission calculation,
+tender rejection/reconciliation, ready-session hydration, scheduled versus walk-in truth,
+idempotent completion, atomic failure, paid immutability, Dashboard projection, stale-generation
+discard, component validation, first-invalid focus, and production-source boundaries. Actual
+VoiceOver/NVDA and a physical coarse-pointer device remain manual residual checks.
+
 `tests/e2e/theme.spec.ts` verifies stored light/dark and live system preference behavior, records
 the resolved class at the first animation frame, measures browser-computed contrast for core
 semantic pairs, all four feedback roles, focus, input boundaries, and all eight schedule roles in

@@ -1,6 +1,8 @@
+import { createRevenueOperationsRepository } from "virtual:studio-revenue-operations-source"
 import { createSchedulingRepository } from "virtual:studio-scheduling-prototype"
 import { createFileRoute } from "@tanstack/react-router"
-
+import { useRevenueDashboardProjection } from "@/modules/revenue-operations/queries"
+import { RevenueOperationsRepositoryProvider } from "@/modules/revenue-operations/repository-context"
 import { DashboardPage } from "@/modules/scheduling/dashboard-page"
 import {
   type DashboardSearch,
@@ -11,6 +13,7 @@ import { formatDateOnly } from "@/modules/shared/components/forms/date-picker"
 import { WorkspaceOverview } from "@/modules/shared/components/workspace-overview"
 
 const repository = createSchedulingRepository?.()
+const revenueRepository = createRevenueOperationsRepository?.()
 
 export const Route = createFileRoute("/_authenticated/overview/")({
   component: OverviewRoute,
@@ -44,39 +47,82 @@ function OverviewRoute() {
   }
   return (
     <SchedulingRepositoryProvider repository={repository}>
-      <DashboardPage
-        search={search}
-        onNavigateClients={() =>
-          navigate({
-            search: {
-              contact: "all",
-              duplicate: "all",
-              page: 1,
-              pageSize: 10,
-              scenario: "typical",
-              sortDirection: "asc",
-              sortField: "name",
-              status: "active",
-              tag: "",
-            },
-            to: "/clients",
-          })
-        }
-        onNavigateServices={() =>
-          navigate({
-            search: {
-              availabilityDate: search.date,
-              availabilityView: "week",
-              scenario: "single-unit",
-              section: "services",
-            },
-            to: "/barbershop-setup",
-          })
-        }
-        onSearchChange={(next) =>
-          navigate({ replace: true, search: (previous) => ({ ...previous, ...next }) })
-        }
-      />
+      {revenueRepository ? (
+        <RevenueOperationsRepositoryProvider repository={revenueRepository}>
+          <DashboardWithRevenue
+            search={search}
+            onNavigateClients={() =>
+              navigate({
+                search: {
+                  contact: "all",
+                  duplicate: "all",
+                  page: 1,
+                  pageSize: 10,
+                  scenario: "typical",
+                  sortDirection: "asc",
+                  sortField: "name",
+                  status: "active",
+                  tag: "",
+                },
+                to: "/clients",
+              })
+            }
+            onNavigateServices={() =>
+              navigate({
+                search: {
+                  availabilityDate: search.date,
+                  availabilityView: "week",
+                  scenario: "single-unit",
+                  section: "services",
+                },
+                to: "/barbershop-setup",
+              })
+            }
+            onSearchChange={(next) =>
+              navigate({ replace: true, search: (previous) => ({ ...previous, ...next }) })
+            }
+          />
+        </RevenueOperationsRepositoryProvider>
+      ) : (
+        <DashboardPage
+          search={search}
+          onNavigateClients={() =>
+            navigate({
+              search: {
+                contact: "all",
+                duplicate: "all",
+                page: 1,
+                pageSize: 10,
+                scenario: "typical",
+                sortDirection: "asc",
+                sortField: "name",
+                status: "active",
+                tag: "",
+              },
+              to: "/clients",
+            })
+          }
+          onNavigateServices={() =>
+            navigate({
+              search: {
+                availabilityDate: search.date,
+                availabilityView: "week",
+                scenario: "single-unit",
+                section: "services",
+              },
+              to: "/barbershop-setup",
+            })
+          }
+          onSearchChange={(next) =>
+            navigate({ replace: true, search: (previous) => ({ ...previous, ...next }) })
+          }
+        />
+      )}
     </SchedulingRepositoryProvider>
   )
+}
+
+function DashboardWithRevenue(props: React.ComponentProps<typeof DashboardPage>) {
+  const revenue = useRevenueDashboardProjection()
+  return <DashboardPage {...props} paidSales={revenue.data ?? []} />
 }

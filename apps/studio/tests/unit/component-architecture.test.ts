@@ -83,6 +83,23 @@ describe("Studio component dependency model", () => {
     )
     expect(`${serviceDeskRoute}\n${serviceDeskShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
     expect(serviceDeskRoute).toContain('from "virtual:studio-service-desk-source"')
+
+    const revenueRoute = await readFile(
+      path.resolve(
+        process.cwd(),
+        "src/routes/_authenticated/service-desk/$sessionId/checkout/index.tsx",
+      ),
+      "utf8",
+    )
+    const revenueShim = await readFile(
+      path.resolve(
+        process.cwd(),
+        "src/modules/shared/config/revenue-operations-source-disabled.ts",
+      ),
+      "utf8",
+    )
+    expect(`${revenueRoute}\n${revenueShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
+    expect(revenueRoute).toContain('from "virtual:studio-revenue-operations-source"')
   })
 
   it("has no shared mega-barrel", async () => {

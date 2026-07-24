@@ -61,9 +61,11 @@ import {
 
 export function ServiceSessionPage({
   onBack,
+  onCheckout,
   sessionId,
 }: {
   onBack: () => void
+  onCheckout?: () => void
   sessionId: string
 }) {
   const query = useServiceSession(sessionId)
@@ -105,11 +107,20 @@ export function ServiceSessionPage({
       key={`${query.data.id}-${query.data.status}`}
       session={query.data}
       onBack={onBack}
+      onCheckout={onCheckout}
     />
   )
 }
 
-function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack: () => void }) {
+function SessionWorkspace({
+  session,
+  onBack,
+  onCheckout,
+}: {
+  session: ServiceSession
+  onBack: () => void
+  onCheckout?: () => void
+}) {
   const [serviceId, setServiceId] = useState("")
   const [professionalId, setProfessionalId] = useState("")
   const [notes, setNotes] = useState(session.notes)
@@ -250,8 +261,15 @@ function SessionWorkspace({ session, onBack }: { session: ServiceSession; onBack
           <CircleCheckIcon aria-hidden="true" />
           <AlertTitle>Pronto para pagamento</AlertTitle>
           <AlertDescription>
-            O serviço foi finalizado. O pagamento pertence à próxima etapa.
+            {session.status === "paid"
+              ? "O atendimento foi concluído e o pagamento está somente para leitura."
+              : "O serviço foi finalizado. Revise a comanda para registrar o pagamento."}
           </AlertDescription>
+          {onCheckout ? (
+            <Button type="button" variant="outline" onClick={onCheckout}>
+              {session.status === "paid" ? "Ver pagamento" : "Ir para pagamento"}
+            </Button>
+          ) : null}
         </Alert>
       ) : null}
       <section aria-labelledby="performed-services" className="flex flex-col gap-3">

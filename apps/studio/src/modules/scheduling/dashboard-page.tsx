@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router"
 import { useEffect, useMemo, useState } from "react"
-
+import type { RevenueDashboardProjection } from "@/modules/revenue-operations/contracts"
 import {
   type DashboardFilters,
   WorkspaceOverview,
@@ -21,11 +21,13 @@ export function DashboardPage({
   onNavigateClients,
   onNavigateServices,
   onSearchChange,
+  paidSales,
   search,
 }: {
   onNavigateClients?: () => void
   onNavigateServices: () => void
   onSearchChange: (next: Partial<DashboardSearch>) => void
+  paidSales?: readonly RevenueDashboardProjection[]
   search: DashboardSearch
 }) {
   const navigate = useNavigate()
@@ -67,6 +69,7 @@ export function DashboardPage({
               unitId: search.unitId,
             },
             now: new Date(),
+            paidSales,
             updatedAt: dayQuery.dataUpdatedAt,
           })
         : undefined,
@@ -77,6 +80,7 @@ export function DashboardPage({
       comparisonStartDate,
       dayQuery.data,
       dayQuery.dataUpdatedAt,
+      paidSales,
       search.customEnd,
       search.customStart,
       search.period,

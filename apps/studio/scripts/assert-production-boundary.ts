@@ -40,6 +40,9 @@ const forbiddenMarkers = [
   "Pessoa Sintética",
   "walk-in-unavailable",
   "service-desk-source",
+  "RevenueOperationsMemoryRepository",
+  "revenue-operations-source",
+  "checkout-multi-professional",
   ".stories.",
 ]
 

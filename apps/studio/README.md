@@ -20,8 +20,9 @@ Routes:
 - `/workspace-preview/sandbox` (development-only neutral component/data sandbox)
 - `/workspace-preview/agenda` (development-only Agenda board/list interaction and QA surface)
 - `/agenda` (authenticated Agenda visual prototype with default temporal board and alternate list)
-- `/service-desk` and `/service-desk/$sessionId` (authenticated queue, service fulfillment, and
-  ready-for-payment evaluation)
+- `/service-desk`, `/service-desk/$sessionId`, and `/service-desk/$sessionId/checkout`
+  (authenticated queue, service fulfillment, exact payment registration, and commission
+  evaluation)
 - `/barbershop-setup` (authenticated barbershop setup module)
 - `/overview` (authenticated operational Dashboard derived from the scheduling source)
 - `/profile`
@@ -73,6 +74,14 @@ Agenda appointments. It follows the scheduling source boundary, fails closed in 
 adds no environment variable. The child workspace keeps performed services, professional
 attribution, bounded notes, and the ready-for-payment handoff in the same session-memory lifecycle.
 See `docs/studio/service-desk.md`.
+
+The checkout child route consumes the accepted ready-session handoff, calculates every amount in
+integer cents and commission rate in basis points, registers Pix/cash/debit/credit or exact mixed
+tenders, and atomically snapshots one immutable paid sale. Scheduled payment completes the linked
+appointment; walk-in payment creates none. Supported Dashboard finance facts use the same paid-sale
+source. This remains a local/configured-`dev` visual prototype with no gateway, sensitive payment
+field, persistence, production authorization, or cash closing. See
+`docs/studio/revenue-operations.md`.
 
 The authenticated barbershop setup module presents a guided overview, fill-height
 unit/professional/service catalogs, structured unit opening hours, and a dated block-based

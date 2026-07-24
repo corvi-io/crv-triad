@@ -59,6 +59,13 @@ function ServiceSessionRoute() {
       >
         <ServiceSessionPage
           sessionId={sessionId}
+          onCheckout={() =>
+            navigate({
+              params: { sessionId },
+              search,
+              to: "/service-desk/$sessionId/checkout",
+            })
+          }
           onBack={() =>
             navigate({
               to: "/service-desk",

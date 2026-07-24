@@ -168,7 +168,9 @@ test("reloads deterministic fulfillment scenarios with exact truth claims", asyn
   }
   await page.reload()
   await expect(page.getByText("Pronto para pagamento").first()).toBeVisible()
-  await expect(page.getByText("O pagamento pertence à próxima etapa.")).toBeVisible()
+  await expect(
+    page.getByText("O serviço foi finalizado. Revise a comanda para registrar o pagamento."),
+  ).toBeVisible()
 })
 
 test("preserves removed fixture items and edited notes across board round trips", async ({

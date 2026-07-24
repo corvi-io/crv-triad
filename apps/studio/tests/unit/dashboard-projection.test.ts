@@ -197,6 +197,48 @@ describe("Dashboard projection", () => {
     })
   })
 
+  it("uses paid-sale projections instead of appointment catalog prices", () => {
+    const projected = deriveDashboard({
+      bounds: { endDate: date, startDate: date },
+      day,
+      filters: { period: "today", unitId: "centro" },
+      now: new Date(`${date}T11:00:00`),
+      paidSales: [
+        {
+          appointmentId: "paid",
+          completedAt: `${date}T10:00:00.000Z`,
+          discountCents: 1_000,
+          lineValues: [
+            {
+              professionalId: "professional-one",
+              serviceId: "service-main",
+              valueCents: 8_000,
+            },
+          ],
+          payments: [
+            { method: "pix", valueCents: 3_000 },
+            { method: "debit", valueCents: 5_000 },
+          ],
+          totalCents: 8_000,
+          unitId: "centro",
+        },
+      ],
+      updatedAt: 0,
+    })
+
+    expect(projected.metrics[2].value).toBe("R$ 80,00")
+    expect(projected.finance).toMatchObject({
+      discounts: "R$ 10,00",
+      paidValue: "R$ 80,00",
+      paymentMethods: [
+        { label: "Débito", value: "R$ 50,00" },
+        { label: "Pix", value: "R$ 30,00" },
+      ],
+    })
+    expect(projected.professionals[0].paidValue).toBe("R$ 80,00")
+    expect(projected.services[0].paidValue).toBe("R$ 80,00")
+  })
+
   it("compares KPIs with the bounded immediately preceding scheduling period", () => {
     const compared = deriveDashboard({
       bounds: { endDate: date, startDate: date },
