@@ -282,7 +282,7 @@ test("keeps deterministic loading, error, and filtered-empty states without an a
   await expect(page.getByRole("heading", { name: "Atendimentos" })).toBeVisible()
 })
 
-test("keeps projected appointment card borders inside the queue scroller at 618px", async ({
+test("keeps projected appointment card borders in the queue scroll content at 618px", async ({
   page,
 }, testInfo) => {
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" })
@@ -298,10 +298,12 @@ test("keeps projected appointment card borders inside the queue scroller at 618p
     const cardBounds = element.getBoundingClientRect()
     const scrollerBounds = scroller.getBoundingClientRect()
     return {
-      bottom: scrollerBounds.bottom - cardBounds.bottom,
       boxShadow: getComputedStyle(element).boxShadow,
+      contentBottom:
+        scroller.scrollHeight - (cardBounds.bottom - scrollerBounds.top + scroller.scrollTop),
       left: cardBounds.left - scrollerBounds.left,
       right: scrollerBounds.right - cardBounds.right,
+      verticalOverflow: scroller.scrollHeight - scroller.clientHeight,
       top: cardBounds.top - scrollerBounds.top,
     }
   })
@@ -310,7 +312,8 @@ test("keeps projected appointment card borders inside the queue scroller at 618p
   expect(geometry.left).toBeGreaterThanOrEqual(0)
   expect(geometry.right).toBeGreaterThanOrEqual(0)
   expect(geometry.top).toBeGreaterThanOrEqual(0)
-  expect(geometry.bottom).toBeGreaterThanOrEqual(0)
+  expect(geometry.contentBottom).toBeGreaterThanOrEqual(0)
+  expect(geometry.verticalOverflow).toBeGreaterThan(0)
   await page.screenshot({
     path: testInfo.outputPath("service-desk-projected-appointment-borders-618-dark.png"),
   })
@@ -400,6 +403,41 @@ test("opens checkout directly from a ready-for-payment card and keeps columns in
   await page.screenshot({
     path: testInfo.outputPath("service-desk-column-only-scroll-1440-dense.png"),
   })
+})
+
+test("fills the available module height with the queue board without enabling page scrolling", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ height: 900, width: 1440 })
+  await page.goto("/service-desk?scenario=dense")
+
+  const board = page.getByRole("region", { name: "Etapas da fila de atendimento" })
+  await expect(board).toBeVisible()
+  const geometry = await board.evaluate((element) => {
+    const moduleViewport = element
+      .closest('[data-slot="module-layout"]')
+      ?.querySelector<HTMLElement>(
+        '[data-slot="module-layout-body"] > [data-slot="scroll-area-viewport"]',
+      )
+    if (!moduleViewport) throw new Error("Service Desk module viewport was not rendered.")
+
+    const boardBounds = element.getBoundingClientRect()
+    const viewportBounds = moduleViewport.getBoundingClientRect()
+    const viewportStyle = getComputedStyle(moduleViewport)
+    return {
+      boardBottom: Math.round(boardBounds.bottom),
+      pageOverflow: Math.round(document.documentElement.scrollHeight - window.innerHeight),
+      viewportContentBottom: Math.round(
+        viewportBounds.bottom - parseFloat(viewportStyle.paddingBottom),
+      ),
+      viewportOverflow: Math.round(moduleViewport.scrollHeight - moduleViewport.clientHeight),
+    }
+  })
+
+  expect(geometry.boardBottom).toBeCloseTo(geometry.viewportContentBottom, 0)
+  expect(geometry.pageOverflow).toBeLessThanOrEqual(1)
+  expect(geometry.viewportOverflow).toBeLessThanOrEqual(1)
+  await page.screenshot({ path: testInfo.outputPath("service-desk-vertical-fill-1440-dense.png") })
 })
 
 test("passes axe and preserves themes, forced colors, reduced motion, targets, and 320px reflow", async ({

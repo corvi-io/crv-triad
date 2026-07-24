@@ -300,7 +300,7 @@ export function ServiceDeskPage({
               </Empty>
             ) : (
               <section
-                className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-4 gap-3 sm:grid-cols-2 sm:grid-rows-2 xl:grid-cols-4 xl:grid-rows-1"
+                className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-4 gap-3 sm:grid-cols-2 sm:grid-rows-2 xl:h-full xl:grid-cols-4 xl:grid-rows-1"
                 aria-label="Etapas da fila de atendimento"
               >
                 {(["waiting", "called", "in-service", "ready-for-payment"] as const).map(
