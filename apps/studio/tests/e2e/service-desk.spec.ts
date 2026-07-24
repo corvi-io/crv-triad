@@ -491,8 +491,36 @@ test("fills the available module height in the responsive two-column queue board
   await page.screenshot({ path: testInfo.outputPath("service-desk-vertical-fill-768-dense.png") })
 })
 
-test("reuses the owning inset on Service Desk checkout and drawer surfaces", async ({ page }) => {
+test("reuses the owning inset across Service Desk session, checkout, and drawer surfaces", async ({
+  page,
+}) => {
   await page.setViewportSize({ height: 900, width: 768 })
+  await page.goto("/service-desk/session-scheduled-kanban-08?scenario=checkout-paid")
+  await expect(page.getByRole("heading", { name: "Atendimento" })).toBeVisible()
+
+  const sessionGeometry = await page.locator("#main-content").evaluate((main) => {
+    const workspaceContent = main.querySelector<HTMLElement>('[data-slot="workspace-content"]')
+    const moduleViewport = main.querySelector<HTMLElement>(
+      '[data-slot="module-layout-body"] > [data-slot="scroll-area-viewport"]',
+    )
+    const session = moduleViewport?.firstElementChild
+    if (!workspaceContent || !moduleViewport || !session)
+      throw new Error("Service Desk session content was not rendered.")
+
+    const workspaceBounds = workspaceContent.getBoundingClientRect()
+    const workspaceStyle = getComputedStyle(workspaceContent)
+    const sessionBounds = session.getBoundingClientRect()
+    const viewportStyle = getComputedStyle(moduleViewport)
+    return {
+      contentLeft: Math.round(workspaceBounds.left + parseFloat(workspaceStyle.paddingLeft)),
+      sessionLeft: Math.round(sessionBounds.left),
+      viewportPaddingLeft: parseFloat(viewportStyle.paddingLeft),
+    }
+  })
+
+  expect(sessionGeometry.viewportPaddingLeft).toBe(0)
+  expect(sessionGeometry.sessionLeft).toBeCloseTo(sessionGeometry.contentLeft, 0)
+
   await page.goto("/service-desk/session-scheduled-kanban-08/checkout?scenario=checkout-paid")
   await expect(page.getByRole("heading", { name: "Pagamento" })).toBeVisible()
 
