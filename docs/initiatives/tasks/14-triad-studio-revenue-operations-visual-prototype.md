@@ -339,11 +339,14 @@ The accepted prototype:
   - [x] `bun run build`.
 - [x] Capture light/dark desktop and narrow-screen evidence.
 - [x] Update durable Studio documentation.
-- [ ] Move Task 1 through Linear workflow only with evidence.
+- [x] Move Task 1 through Linear workflow only with evidence.
 
 ### Task 1 Verification Evidence
 
 - Base: `7a9504cc4e6971baaa73c2b15a79542636666faa`.
+- Implementation: `8d8279cb828eb45e26508066c6b57e0a48b4702c`.
+- PR: [#29](https://github.com/corvi-io/crv-triad/pull/29), targeting
+  `staging`; Linear ENG-48 moved to `PR Open` after the PR existed.
 - `bun run test`: 42 files, 282 tests passed.
 - `bun run check`: passed, including TypeScript, tests, production build, and
   production-boundary scan across 55 files.
@@ -571,29 +574,29 @@ The accepted prototype:
 
 ## Review Gate
 
-- [ ] Confirm task scope did not expand into API, provider, real payment,
+- [x] Confirm task scope did not expand into API, provider, real payment,
       refunds, settlement, accounting, or reporting.
-- [ ] Confirm exact-money invariants and cross-surface truth.
-- [ ] Confirm no sensitive payment field or secret exists in Studio.
-- [ ] Confirm all UI/validation copy is pt-BR and technical artifacts are
+- [x] Confirm exact-money invariants and cross-surface truth.
+- [x] Confirm no sensitive payment field or secret exists in Studio.
+- [x] Confirm all UI/validation copy is pt-BR and technical artifacts are
       English.
-- [ ] Confirm semantic tokens and accepted component anatomy.
-- [ ] Confirm no effect chain synchronizes derived financial state.
-- [ ] Confirm focused query invalidation and stale-generation protection.
-- [ ] Confirm presentation cannot import `src/dev`.
-- [ ] Confirm local/configured-`dev` only and fail-closed production boundary.
-- [ ] Confirm accessibility evidence.
-- [ ] Confirm docs and Linear/GitHub evidence.
+- [x] Confirm semantic tokens and accepted component anatomy.
+- [x] Confirm no effect chain synchronizes derived financial state.
+- [x] Confirm focused query invalidation and stale-generation protection.
+- [x] Confirm presentation cannot import `src/dev`.
+- [x] Confirm local/configured-`dev` only and fail-closed production boundary.
+- [x] Confirm accessibility evidence.
+- [x] Confirm docs and Linear/GitHub evidence.
 
 ## Handoff
 
 ### Task 1 Handoff
 
-- [ ] Record implementation SHA and PR.
-- [ ] Attach test/check/build output.
-- [ ] Attach visual and accessibility evidence.
-- [ ] Link durable docs.
-- [ ] Mark MLP command tab/payment and commission items complete only after
+- [x] Record implementation SHA and PR.
+- [x] Attach test/check/build output.
+- [x] Attach visual and accessibility evidence.
+- [x] Link durable docs.
+- [x] Mark MLP command tab/payment and commission items complete only after
       evidence.
 - [ ] Unblock Task 2 after merge.
 
