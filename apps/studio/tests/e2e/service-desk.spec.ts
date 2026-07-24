@@ -495,7 +495,7 @@ test("reuses the owning inset across Service Desk session, checkout, and drawer 
   page,
 }) => {
   await page.setViewportSize({ height: 900, width: 768 })
-  await page.goto("/service-desk/session-scheduled-kanban-08?scenario=checkout-paid")
+  await page.goto("/service-desk/session-walk-in-checkout-paid?scenario=checkout-paid")
   await expect(page.getByRole("heading", { name: "Atendimento" })).toBeVisible()
 
   const sessionGeometry = await page.locator("#main-content").evaluate((main) => {
@@ -521,7 +521,7 @@ test("reuses the owning inset across Service Desk session, checkout, and drawer 
   expect(sessionGeometry.viewportPaddingLeft).toBe(0)
   expect(sessionGeometry.sessionLeft).toBeCloseTo(sessionGeometry.contentLeft, 0)
 
-  await page.goto("/service-desk/session-scheduled-kanban-08/checkout?scenario=checkout-paid")
+  await page.goto("/service-desk/session-walk-in-checkout-paid/checkout?scenario=checkout-paid")
   await expect(page.getByRole("heading", { name: "Pagamento" })).toBeVisible()
 
   const checkoutGeometry = await page.locator("#main-content").evaluate((main) => {
