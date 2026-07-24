@@ -440,6 +440,57 @@ test("fills the available module height with the queue board without enabling pa
   await page.screenshot({ path: testInfo.outputPath("service-desk-vertical-fill-1440-dense.png") })
 })
 
+test("fills the available module height in the responsive two-column queue board", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ height: 900, width: 768 })
+  await page.goto("/service-desk?scenario=dense")
+
+  const board = page.getByRole("region", { name: "Etapas da fila de atendimento" })
+  await expect(board).toBeVisible()
+  const geometry = await board.evaluate((element) => {
+    const workspaceContent = element.closest('[data-slot="workspace-content"]')
+    const moduleViewport = element
+      .closest('[data-slot="module-layout"]')
+      ?.querySelector<HTMLElement>(
+        '[data-slot="module-layout-body"] > [data-slot="scroll-area-viewport"]',
+      )
+    if (!moduleViewport || !workspaceContent)
+      throw new Error("Service Desk content area was not rendered.")
+
+    const boardBounds = element.getBoundingClientRect()
+    const viewportBounds = moduleViewport.getBoundingClientRect()
+    const viewportStyle = getComputedStyle(moduleViewport)
+    const workspaceBounds = workspaceContent.getBoundingClientRect()
+    const workspaceStyle = getComputedStyle(workspaceContent)
+    const boardStyle = getComputedStyle(element)
+    return {
+      boardBottom: Math.round(boardBounds.bottom),
+      boardLeft: Math.round(boardBounds.left),
+      boardRight: Math.round(boardBounds.right),
+      columns: boardStyle.gridTemplateColumns.split(" ").length,
+      contentBottom: Math.round(workspaceBounds.bottom - parseFloat(workspaceStyle.paddingBottom)),
+      contentLeft: Math.round(workspaceBounds.left + parseFloat(workspaceStyle.paddingLeft)),
+      contentRight: Math.round(workspaceBounds.right - parseFloat(workspaceStyle.paddingRight)),
+      pageOverflow: Math.round(document.documentElement.scrollHeight - window.innerHeight),
+      rows: boardStyle.gridTemplateRows.split(" ").length,
+      viewportContentBottom: Math.round(
+        viewportBounds.bottom - parseFloat(viewportStyle.paddingBottom),
+      ),
+      viewportOverflow: Math.round(moduleViewport.scrollHeight - moduleViewport.clientHeight),
+    }
+  })
+
+  expect(geometry.columns).toBe(2)
+  expect(geometry.rows).toBe(2)
+  expect(geometry.boardBottom).toBeCloseTo(geometry.contentBottom, 0)
+  expect(geometry.boardLeft).toBeCloseTo(geometry.contentLeft, 0)
+  expect(geometry.boardRight).toBeCloseTo(geometry.contentRight, 0)
+  expect(geometry.pageOverflow).toBeLessThanOrEqual(1)
+  expect(geometry.viewportOverflow).toBeLessThanOrEqual(1)
+  await page.screenshot({ path: testInfo.outputPath("service-desk-vertical-fill-768-dense.png") })
+})
+
 test("passes axe and preserves themes, forced colors, reduced motion, targets, and 320px reflow", async ({
   page,
 }, testInfo) => {
