@@ -91,6 +91,43 @@ describe("service desk memory repository", () => {
     })
   })
 
+  it("preserves a removed fixture item across queue reads and seeds it again after reset", async () => {
+    const { repository } = createRepository()
+    const initial = await repository.getSession("session-walk-in-fulfillment-multiple")
+    const addedItem = initial.items.find(({ source }) => source === "added")
+    if (!addedItem) throw new Error("Expected the seeded added item.")
+    await repository.removeServiceItem({
+      itemId: addedItem.id,
+      operationId: "remove-seeded-item",
+      sessionId: initial.id,
+    })
+
+    await repository.getQueue(query({ scenarioId: "fulfillment-multiple" }))
+    expect((await repository.getSession(initial.id)).items).toHaveLength(1)
+
+    await repository.reset()
+    expect((await repository.getSession(initial.id)).items).toHaveLength(2)
+  })
+
+  it("preserves edited fixture notes across queue reads and restores them after reset", async () => {
+    const { repository } = createRepository()
+    const initial = await repository.getSession("session-walk-in-fulfillment-long-labels")
+    const notes = "Observação editada sem dados pessoais."
+    await repository.updateSessionNotes({
+      notes,
+      operationId: "edit-seeded-notes",
+      sessionId: initial.id,
+    })
+
+    await repository.getQueue(query({ scenarioId: "fulfillment-long-labels" }))
+    expect((await repository.getSession(initial.id)).notes).toBe(notes)
+
+    await repository.reset()
+    expect((await repository.getSession(initial.id)).notes).toContain(
+      "Observação sintética extensa",
+    )
+  })
+
   it("deduplicates exact mutation retries at the memory boundary", async () => {
     const { repository } = createRepository()
     const initial = await repository.getSession("session-walk-in-fulfillment-single")

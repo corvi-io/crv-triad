@@ -4,7 +4,12 @@ import {
 } from "virtual:studio-service-desk-source"
 import { createFileRoute, redirect } from "@tanstack/react-router"
 import { ServiceDeskRepositoryProvider } from "@/modules/service-desk/repository-context"
-import { type ServiceDeskSearch, validateServiceDeskSearch } from "@/modules/service-desk/search"
+import {
+  canonicalServiceDeskSearch,
+  type ServiceDeskSearch,
+  shouldCanonicalizeServiceDeskSearch,
+  validateServiceDeskSearch,
+} from "@/modules/service-desk/search"
 import { ServiceDeskPage } from "@/modules/service-desk/service-desk-page"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
 import { PageHeader } from "@/modules/shared/components/layout/page-header"
@@ -17,8 +22,12 @@ export const Route = createFileRoute("/_authenticated/service-desk/")({
   validateSearch: (search: Record<string, unknown>): ServiceDeskSearch =>
     validateServiceDeskSearch(search, serviceDeskScenarioIds),
   beforeLoad: ({ location, search }) => {
-    if (shouldCanonicalizeSearch(location.searchStr, search)) {
-      throw redirect({ replace: true, search, to: "/service-desk" })
+    if (shouldCanonicalizeServiceDeskSearch(location.searchStr, search)) {
+      throw redirect({
+        replace: true,
+        search: canonicalServiceDeskSearch(search),
+        to: "/service-desk",
+      })
     }
   },
 })
@@ -59,17 +68,4 @@ function ServiceDeskRoute() {
       />
     </ServiceDeskRepositoryProvider>
   )
-}
-
-function shouldCanonicalizeSearch(searchString: string, search: ServiceDeskSearch) {
-  const parameters = new URLSearchParams(searchString)
-  const allowed = new Set(["preference", "priority", "professional", "scenario", "stage", "unit"])
-  for (const key of parameters.keys()) {
-    if (!allowed.has(key)) return true
-  }
-  for (const key of allowed) {
-    const raw = parameters.get(key)
-    if (raw !== null && raw !== search[key as keyof ServiceDeskSearch]) return true
-  }
-  return false
 }

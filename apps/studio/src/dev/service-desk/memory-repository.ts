@@ -36,6 +36,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
   readonly #scheduling: SchedulingRepository
   readonly #calledAppointmentIds = new Set<string>()
   readonly #appliedSessionOperations = new Set<string>()
+  readonly #seededScenarioSessions = new Set<string>()
   readonly #sessions = new Map<string, ServiceSession>()
   #generation = 0
   #lastSnapshot?: ServiceDeskSnapshot
@@ -310,6 +311,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
     this.#engine.reset()
     this.#appliedSessionOperations.clear()
     this.#calledAppointmentIds.clear()
+    this.#seededScenarioSessions.clear()
     this.#sessions.clear()
     this.#lastSnapshot = undefined
     await this.#withScheduling(async () => {
@@ -326,6 +328,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
     this.#engine.selectScenario(scenarioId)
     this.#appliedSessionOperations.clear()
     this.#calledAppointmentIds.clear()
+    this.#seededScenarioSessions.clear()
     this.#sessions.clear()
     this.#lastSnapshot = undefined
     this.#schedulingResetRequired = true
@@ -474,7 +477,8 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
   }
 
   #seedScenarioSession(session: ServiceSession, scenarioId: ServiceDeskScenarioId) {
-    if (!scenarioId.startsWith("fulfillment-") || session.items.length > 1) return
+    const seedKey = `${this.#generation}:${scenarioId}:${session.id}`
+    if (!scenarioId.startsWith("fulfillment-") || this.#seededScenarioSessions.has(seedKey)) return
     const secondProfessional =
       scenarioId === "fulfillment-multi-professional" ? "professional-bruno" : "professional-ana"
     if (["fulfillment-multiple", "fulfillment-multi-professional"].includes(scenarioId)) {
@@ -517,6 +521,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
         status: "ready-for-payment",
       })
     }
+    this.#seededScenarioSessions.add(seedKey)
   }
 
   #rememberScheduledEntry(entry: QueueEntry) {

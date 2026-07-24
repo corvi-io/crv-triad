@@ -171,6 +171,64 @@ test("reloads deterministic fulfillment scenarios with exact truth claims", asyn
   await expect(page.getByText("O pagamento pertence à próxima etapa.")).toBeVisible()
 })
 
+test("preserves removed fixture items and edited notes across board round trips", async ({
+  page,
+}) => {
+  await page.goto(
+    "/service-desk/session-walk-in-fulfillment-multiple?scenario=fulfillment-multiple",
+  )
+  const addedService = page.locator('[data-slot="card"]').filter({ hasText: "Serviço adicionado" })
+  await addedService.getByRole("button", { name: "Remover serviço" }).click()
+  await expect(addedService).toHaveCount(0)
+  await page.getByRole("button", { name: "Voltar para atendimentos" }).click()
+  const multipleCard = page
+    .locator('[data-slot="card"]')
+    .filter({ hasText: "Pessoa Múltiplos Serviços" })
+  await multipleCard.getByRole("button", { name: "Abrir atendimento" }).click()
+  await expect(page.getByText("Serviço adicionado")).toHaveCount(0)
+
+  await page.goto(
+    "/service-desk/session-walk-in-fulfillment-long-labels?scenario=fulfillment-long-labels",
+  )
+  const notes = "Observação editada sem dados pessoais."
+  await page.getByLabel("Observações").fill(notes)
+  await page.getByRole("button", { name: "Salvar observações" }).click()
+  await expect(page.getByText("Observações atualizadas.")).toBeVisible()
+  await page.getByRole("button", { name: "Voltar para atendimentos" }).click()
+  const longLabelsCard = page
+    .locator('[data-slot="card"]')
+    .filter({ hasText: "Pessoa Com Nome Sintético Deliberadamente Longo" })
+  await longLabelsCard.getByRole("button", { name: "Abrir atendimento" }).click()
+  await expect(page.getByLabel("Observações")).toHaveValue(notes)
+  await expect(page.getByLabel("Observações")).not.toHaveValue(/Observação sintética extensa/)
+})
+
+test("canonicalizes raw child-route search to allowlisted technical filters", async ({ page }) => {
+  await page.goto(
+    "/service-desk/session-walk-in-fulfillment-single?scenario=fulfillment-single&stage=in-service&unit=artesao&professional=Maria&name=Nome%20Privado&notes=Texto%20privado",
+  )
+  await expect(page.getByRole("heading", { name: "Serviços realizados" })).toBeVisible()
+  await expect
+    .poll(() => {
+      const url = new URL(page.url())
+      return {
+        keys: [...url.searchParams.keys()].sort(),
+        professional: url.searchParams.get("professional"),
+        scenario: url.searchParams.get("scenario"),
+        stage: url.searchParams.get("stage"),
+        unit: url.searchParams.get("unit"),
+      }
+    })
+    .toEqual({
+      keys: ["preference", "priority", "professional", "scenario", "stage", "unit"],
+      professional: "all",
+      scenario: "fulfillment-single",
+      stage: "in-service",
+      unit: "artesao",
+    })
+  expect(page.url()).not.toMatch(/Maria|Nome%20Privado|Texto%20privado|name=|notes=/i)
+})
+
 test("keeps the session accessible at a 320px zoom-equivalent viewport and restores focus", async ({
   page,
 }) => {

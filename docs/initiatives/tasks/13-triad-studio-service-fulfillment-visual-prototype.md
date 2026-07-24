@@ -349,13 +349,14 @@ git diff --check
 - Studio routes/format: passed; 254 files formatted with no fixes on the final run.
 - Studio lint: passed; 259 files checked with no fixes.
 - Studio typecheck: passed.
-- Studio unit/component tests: 38 files, 260 tests passed.
-- Focused service-session tests: 4 files, 27 tests passed.
-- Service-desk and affected overlay regressions: 9/9 passed (7 Service Desk, one
-  Barbershop Setup confirmation, and one Client confirmation).
-- Production-boundary scan: passed across 52 files and 1,157,752 bytes.
+- Studio unit/component tests: 38 files, 263 tests passed.
+- Focused service-session tests: 4 files, 30 tests passed.
+- Service Desk Playwright: 9/9 passed, including fixture mutation persistence across board
+  round-trips and immediate child-route search canonicalization. The targeted canonicalization
+  probe also passed independently 1/1.
+- Production-boundary scan: passed across 52 files and 1,158,063 bytes.
 - Build/check: build passed with 3,697 modules; Studio check and root check passed.
-- Playwright: focused Service Desk 7/7 passed. The independently verified full 65-test parallel run
+- Playwright: focused Service Desk 9/9 passed. The independently verified full 65-test parallel run
   produced 47 passed and 18 baseline failures: 1 Dashboard, 14 Agenda, and 3 Theme. Two
   branch-caused nested-overlay failures found in the earlier run were fixed with semantic modal
   layering and passed in the final 9/9 focused probe; the 18 remaining failures are the
@@ -372,8 +373,9 @@ git diff --check
 - VoiceOver/NVDA: unavailable; remains a manual residual.
 - Forced colors/reduced motion/coarse pointer: headless forced colors and reduced motion passed;
   physical coarse pointer was unavailable.
-- Security/privacy review: no PII/free text in URLs, toasts, operation IDs, logs, or telemetry; no
-  secrets, storage, HTTP, or public environment input added.
+- Security/privacy review: parent and child Service Desk routes immediately canonicalize URL search
+  to the six validated technical keys; no PII/free text remains in URLs, toasts, operation IDs,
+  logs, or telemetry; no secrets, storage, HTTP, or public environment input was added.
 - Documentation review: Studio service-desk, testing, component-system, PRD, and this plan are
   aligned with the implemented contract and exact evidence.
 - Notes: Automated evidence covers 1600x900, 1440x900, 320 CSS pixels, keyboard/focus,

@@ -2,9 +2,14 @@ import {
   createServiceDeskRepository,
   serviceDeskScenarioIds,
 } from "virtual:studio-service-desk-source"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import { ServiceDeskRepositoryProvider } from "@/modules/service-desk/repository-context"
-import { type ServiceDeskSearch, validateServiceDeskSearch } from "@/modules/service-desk/search"
+import {
+  canonicalServiceDeskSearch,
+  type ServiceDeskSearch,
+  shouldCanonicalizeServiceDeskSearch,
+  validateServiceDeskSearch,
+} from "@/modules/service-desk/search"
 import { ServiceSessionPage } from "@/modules/service-desk/service-session-page"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
 import { PageHeader } from "@/modules/shared/components/layout/page-header"
@@ -15,6 +20,16 @@ export const Route = createFileRoute("/_authenticated/service-desk/$sessionId/")
   component: ServiceSessionRoute,
   validateSearch: (search: Record<string, unknown>): ServiceDeskSearch =>
     validateServiceDeskSearch(search, serviceDeskScenarioIds),
+  beforeLoad: ({ location, params, search }) => {
+    if (shouldCanonicalizeServiceDeskSearch(location.searchStr, search)) {
+      throw redirect({
+        params: { sessionId: params.sessionId },
+        replace: true,
+        search: canonicalServiceDeskSearch(search),
+        to: "/service-desk/$sessionId",
+      })
+    }
+  },
 })
 
 function ServiceSessionRoute() {
