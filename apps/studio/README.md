@@ -23,6 +23,7 @@ Routes:
 - `/service-desk`, `/service-desk/$sessionId`, and `/service-desk/$sessionId/checkout`
   (authenticated queue, service fulfillment, exact payment registration, and commission
   evaluation)
+- `/cash` (authenticated cash count, daily close, and bounded read-only closing history)
 - `/barbershop-setup` (authenticated barbershop setup module)
 - `/overview` (authenticated operational Dashboard derived from the scheduling source)
 - `/profile`
@@ -79,8 +80,11 @@ The checkout child route consumes the accepted ready-session handoff, calculates
 integer cents and commission rate in basis points, registers Pix/cash/debit/credit or exact mixed
 tenders, and atomically snapshots one immutable paid sale. Scheduled payment completes the linked
 appointment; walk-in payment creates none. Supported Dashboard finance facts use the same paid-sale
-source. This remains a local/configured-`dev` visual prototype with no gateway, sensitive payment
-field, persistence, production authorization, or cash closing. See
+source. The top-level `/cash` route derives its exact unit/date summary from those paid sales and
+scheduling outcome facts, records counted cash, and atomically stores one immutable closing
+snapshot with bounded read-only history. This remains a local/configured-`dev` visual prototype
+with no gateway, sensitive payment field, persistence, production authorization, reopen, or
+provider reconciliation. See
 `docs/studio/revenue-operations.md`.
 
 The authenticated barbershop setup module presents a guided overview, fill-height

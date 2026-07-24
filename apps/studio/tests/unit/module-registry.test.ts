@@ -13,6 +13,7 @@ describe("workspace module registry", () => {
       ["Dashboard", "/overview"],
       ["Agenda", "/agenda"],
       ["Atendimentos", "/service-desk"],
+      ["Caixa", "/cash"],
       ["Clientes", "/clients"],
     ])
     expect(workspaceSecondaryNavigation.map((item) => [item.label, item.path])).toEqual([
@@ -28,6 +29,7 @@ describe("workspace module registry", () => {
     expect(getWorkspaceRouteByPath("/agenda")?.breadcrumbLabel).toBe("Agenda")
     expect(getWorkspaceRouteByPath("/clients")?.breadcrumbLabel).toBe("Clientes")
     expect(getWorkspaceRouteByPath("/service-desk")?.breadcrumbLabel).toBe("Atendimentos")
+    expect(getWorkspaceRouteByPath("/cash")?.breadcrumbLabel).toBe("Caixa")
     expect(getWorkspaceRouteByPath("/barbershop-setup")?.breadcrumbLabel).toBe(
       "Configuração da barbearia",
     )

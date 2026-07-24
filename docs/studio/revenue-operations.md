@@ -5,16 +5,17 @@
 ENG-48 adds the authenticated `/service-desk/$sessionId/checkout` child route under
 `Atendimentos`. It continues a `ready-for-payment` service session into a frontend-only command
 tab, exact payment registration, item-level commission preview, and immutable paid-sale snapshot.
+ENG-49 adds the authenticated top-level `/cash` route for a unit/date operational summary, counted
+cash, one immutable daily closing, and bounded read-only closing history.
 
 The prototype registers demonstration payments; it never processes money. It has no provider,
 gateway, QR Code, terminal, card number, CVV, token, credential, refund, settlement, fiscal,
-accounting, persistence, polling, realtime, or commission-payout behavior. Cash operations and
-daily closing remain ENG-49 scope.
+accounting, persistence, polling, realtime, or commission-payout behavior.
 
 ## Ownership And Composition
 
-- `src/modules/revenue-operations` owns checkout, tender, paid-sale, commission, repository, query,
-  and presentation contracts.
+- `src/modules/revenue-operations` owns checkout, tender, paid-sale, commission, cash aggregation,
+  daily closing, history, repository, query, and presentation contracts.
 - `src/dev/revenue-operations` owns the deterministic memory coordinator and scenarios.
 - `service-desk` exposes only a typed ready-session handoff and completion seam. Revenue
   presentation imports neither service-desk presentation nor `src/dev`.
@@ -27,6 +28,28 @@ daily closing remain ENG-49 scope.
 The repository instances share the same scheduling/service-desk composition. A walk-in paid sale
 does not create an appointment. Supported Dashboard finance values use paid-sale projections when
 the revenue source is present; scheduling continues to own operational appointment facts.
+
+## Cash And Daily Closing Contract
+
+The `/cash` route scopes every read and mutation by scheduling unit and canonical local
+`YYYY-MM-DD` operational date. It derives paid-sale count, received revenue, payment methods,
+discounts, surcharges, commissions, barbershop value, professional values, and expected cash from
+the accepted paid-sale ledger. Cancellation and no-show counts come from `SchedulingRepository`
+day facts; cash presentation imports neither scheduling fixtures nor development adapters.
+
+Payment-method values must equal received revenue. Professional commission plus barbershop values
+must equal accepted net sale values. All calculations use safe integer cents. Counted cash minus
+expected cash produces the signed difference. A non-zero difference requires a trimmed
+3–160-character reason; reason text remains outside URLs, logs, toasts, and telemetry.
+
+Closing validates the complete projection before writing. One detached snapshot is committed per
+unit/date with exact aggregates, counted cash, difference, bounded reason, responsible-person
+display name, and close time. Duplicate close requests return the existing snapshot. Synthetic
+failure and stale-generation paths write nothing. Closed days and historical details expose no
+reopen or edit action.
+
+History is bounded to 24 snapshots per unit in the evaluation source. A production API requires
+server-side pagination and indexed tenant/unit/date queries.
 
 ## Exact-Money Contract
 
@@ -67,6 +90,11 @@ Scenario selection and reset increment the source generation. Delayed reads or w
 generation before commit. A full reload reconstructs the selected deterministic scenario rather
 than persisting business state.
 
+Cash scenarios cover typical, exact-count, positive/negative difference, empty, multiple-tender,
+adjustment, scheduling-outcome, multiple-professional/commission, slow, next-failure,
+persistent-error, already-closed, dense-history, and long-reason states. They seed sales only by
+completing accepted ENG-48 checkout contracts; the cash route has no copied financial fixtures.
+
 ## Privacy, Security, And URLs
 
 Only stable session ID and allowlisted technical service-desk search values enter route state.
@@ -76,7 +104,7 @@ sensitive data. No checkout payload is logged or sent to telemetry.
 
 ## Accessibility And Responsive Contract
 
-The route uses source-ordered headings, complete Card anatomy, native forms/buttons, associated
+The routes use source-ordered headings, complete Card anatomy, native forms/buttons, associated
 labels and errors, first-invalid focus, a focus-managed confirmation dialog, stable pending labels,
 concise live feedback, and visible text in addition to status color. Controls retain 24 CSS pixel
 minimum targets.
