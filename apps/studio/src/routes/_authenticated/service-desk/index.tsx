@@ -60,6 +60,9 @@ function ServiceDeskRoute() {
       <ServiceDeskPage
         search={search}
         scenarioIds={serviceDeskScenarioIds}
+        onCheckout={(sessionId) =>
+          navigate({ to: "/service-desk/$sessionId/checkout", params: { sessionId }, search })
+        }
         onOpenSession={(sessionId) =>
           navigate({ to: "/service-desk/$sessionId", params: { sessionId }, search })
         }

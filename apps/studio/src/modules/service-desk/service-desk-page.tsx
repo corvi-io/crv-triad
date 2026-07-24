@@ -11,7 +11,7 @@ import {
   UserRoundCheckIcon,
   UsersIcon,
 } from "lucide-react"
-import { useDeferredValue, useMemo, useState } from "react"
+import { useDeferredValue, useState } from "react"
 import { toast } from "sonner"
 import type { Professional, Service } from "@/modules/scheduling/contracts"
 import { SingleSelectListFilter } from "@/modules/shared/components/data-display/list-filter"
@@ -49,6 +49,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/modules/shared/components/ui/empty"
+import { ScrollArea } from "@/modules/shared/components/ui/scroll-area"
 import {
   Select,
   SelectContent,
@@ -64,7 +65,6 @@ import {
   formatWait,
   groupQueueEntries,
   professionalPreferenceLabels,
-  queueCounts,
   queuePriorityLabels,
   queueStageLabels,
 } from "./projection"
@@ -73,11 +73,13 @@ import type { ServiceDeskSearch } from "./search"
 import { WalkInForm } from "./walk-in-form"
 
 export function ServiceDeskPage({
+  onCheckout,
   onOpenSession,
   onSearchChange,
   search,
   scenarioIds,
 }: {
+  onCheckout: (sessionId: string) => void
   onOpenSession: (sessionId: string) => void
   onSearchChange: (next: Partial<ServiceDeskSearch>) => void
   search: ServiceDeskSearch
@@ -103,19 +105,12 @@ export function ServiceDeskPage({
   const snapshot = query.data
   const entries = snapshot?.entries ?? []
   const groups = groupQueueEntries(entries)
-  const counts = queueCounts(entries)
   const hasFilters =
     Boolean(searchText) ||
     search.stage !== "all" ||
     search.priority !== "all" ||
     search.preference !== "all" ||
     search.professional !== "all"
-  const oldestWait = useMemo(() => {
-    if (!snapshot || groups.waiting.length === 0) return null
-    return groups.waiting.reduce((oldest, entry) =>
-      entry.arrivalAt < oldest.arrivalAt ? entry : oldest,
-    )
-  }, [groups.waiting, snapshot])
 
   async function add(input: WalkInInput) {
     if (addWalkIn.isPending) return
@@ -271,13 +266,6 @@ export function ServiceDeskPage({
         ) : null}
         {snapshot ? (
           <>
-            <p className="text-sm text-muted-foreground" aria-live="polite">
-              {counts.waiting} aguardando, {counts.called} chamado(s), {counts["in-service"]} em
-              atendimento e {counts["ready-for-payment"]} pronto(s) para pagamento
-              {oldestWait
-                ? `. Maior espera visível: ${formatWait(oldestWait.arrivalAt, snapshot.now)}.`
-                : "."}
-            </p>
             {entries.length === 0 ? (
               <Empty className="min-h-64">
                 <EmptyHeader>
@@ -326,6 +314,7 @@ export function ServiceDeskPage({
                         }))
                       }
                       onCall={call}
+                      onCheckout={onCheckout}
                       onStart={start}
                       onOpenSession={onOpenSession}
                     />
@@ -606,6 +595,7 @@ function QueueColumn({
   now,
   onAssignmentChange,
   onCall,
+  onCheckout,
   onOpenSession,
   onStart,
   professionals,
@@ -620,6 +610,7 @@ function QueueColumn({
   now: string
   onAssignmentChange: (entryId: string, professionalId: string) => void
   onCall: (entry: QueueEntry) => void
+  onCheckout: (sessionId: string) => void
   onOpenSession: (sessionId: string) => void
   onStart: (entry: QueueEntry) => void
   professionals: readonly Professional[]
@@ -645,7 +636,12 @@ function QueueColumn({
           Nenhum cliente nesta etapa.
         </p>
       ) : (
-        <div className="flex max-h-[48rem] flex-col gap-3 overflow-y-auto pb-1">
+        <ScrollArea
+          className="min-h-0 flex-1"
+          scrollbars="vertical"
+          scrollbarVisibility="overflow"
+          viewportClassName="flex max-h-[48rem] flex-col gap-3 pb-1"
+        >
           {entries.map((entry) => (
             <QueueCard
               entry={entry}
@@ -655,6 +651,7 @@ function QueueColumn({
               now={now}
               onAssignmentChange={onAssignmentChange}
               onCall={onCall}
+              onCheckout={onCheckout}
               onOpenSession={onOpenSession}
               onStart={onStart}
               professionals={professionals}
@@ -663,7 +660,7 @@ function QueueColumn({
               unavailableProfessionalIds={unavailableProfessionalIds}
             />
           ))}
-        </div>
+        </ScrollArea>
       )}
     </section>
   )
@@ -676,6 +673,7 @@ function QueueCard({
   now,
   onAssignmentChange,
   onCall,
+  onCheckout,
   onOpenSession,
   onStart,
   professionals,
@@ -689,6 +687,7 @@ function QueueCard({
   now: string
   onAssignmentChange: (entryId: string, professionalId: string) => void
   onCall: (entry: QueueEntry) => void
+  onCheckout: (sessionId: string) => void
   onOpenSession: (sessionId: string) => void
   onStart: (entry: QueueEntry) => void
   professionals: readonly Professional[]
@@ -798,7 +797,15 @@ function QueueCard({
             Iniciar atendimento
           </Button>
         ) : null}
-        {entry.stage === "in-service" || entry.stage === "ready-for-payment" ? (
+        {entry.stage === "ready-for-payment" && entry.paymentStatus !== "paid" ? (
+          <Button
+            className="w-full"
+            type="button"
+            onClick={() => onCheckout(entry.sessionId ?? `session-${entry.id}`)}
+          >
+            Receber pagamento
+          </Button>
+        ) : entry.stage === "in-service" || entry.stage === "ready-for-payment" ? (
           <Button
             className="w-full"
             type="button"

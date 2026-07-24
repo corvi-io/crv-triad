@@ -360,6 +360,27 @@ test("keeps dense queue cards at their full height in the desktop scroller", asy
   })
 })
 
+test("opens checkout directly from a ready-for-payment card and keeps columns independently scrollable", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 900, width: 1440 })
+  await page.goto("/service-desk?scenario=fulfillment-ready")
+  await page
+    .getByRole("region", { name: "Pronto para pagamento" })
+    .getByRole("button", { name: "Receber pagamento" })
+    .first()
+    .click()
+  await expect(page).toHaveURL(/\/service-desk\/session-.*\/checkout/)
+  await expect(page.getByRole("heading", { name: "Pagamento" })).toBeVisible()
+
+  await page.goto("/service-desk?scenario=dense")
+  await expect(page.getByText(/Maior espera visível/)).toHaveCount(0)
+  const columns = page.locator(
+    '[aria-label="Etapas da fila de atendimento"] [data-slot="scroll-area"]',
+  )
+  await expect(columns).toHaveCount(3)
+})
+
 test("passes axe and preserves themes, forced colors, reduced motion, targets, and 320px reflow", async ({
   page,
 }, testInfo) => {
