@@ -145,7 +145,11 @@ describe("routes", () => {
     expect(
       await screen.findByRole("heading", { name: "Configuração da barbearia" }),
     ).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Barbearia" })).toHaveAttribute("aria-current", "page")
+    const navigation = screen.getByRole("navigation", { name: "Navegação secundária" })
+    expect(within(navigation).getByRole("link", { name: "Barbearia" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    )
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
       "Configuração da barbearia",
     )

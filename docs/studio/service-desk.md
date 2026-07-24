@@ -5,9 +5,9 @@
 `/service-desk` is an authenticated local/configured-`dev` product-evaluation module labeled
 `Atendimentos`. Reception can project scheduled arrivals into a queue, add a temporary walk-in,
 call a customer, start service, operate the performed-service session, and hand it off as
-`Pronto para pagamento`.
+`Pronto para pagamento`, then exposes a narrow handoff to the revenue-operations checkout.
 
-It does not define prices, discounts, payment, commission, cash closing,
+It does not own prices, discounts, payment, commission, cash closing,
 production authorization, persistence, realtime reconciliation, or automatic allocation.
 
 ## Architecture
@@ -100,4 +100,6 @@ coarse-pointer review remain manual evidence and must be reported honestly.
 A production initiative must define canonical visit/client identity, tenant and unit authorization,
 queue ordering, concurrency and idempotency, audit attribution, persistence, clock/timezone
 semantics, bounded API queries, realtime reconciliation, privacy lifecycle, and observability.
-Finance remains a separately owned future initiative.
+The accepted revenue-operations evaluation module consumes the public payment handoff and returns
+only the final completion transition. Its contract is documented in
+`docs/studio/revenue-operations.md`; production finance remains a future backend initiative.

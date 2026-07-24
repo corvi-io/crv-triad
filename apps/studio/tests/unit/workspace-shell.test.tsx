@@ -149,4 +149,21 @@ describe("authenticated workspace shell", () => {
     await waitFor(() => expect(dialog).not.toBeInTheDocument())
     expect(trigger).toHaveFocus()
   })
+
+  it("identifies the active module in the mobile header on a nested route", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 320 })
+    const { container } = renderWorkspace(
+      "/service-desk/session-walk-in-checkout-pix/checkout?scenario=checkout-pix",
+    )
+
+    const header = await waitFor(() => {
+      const element = container.querySelector('[data-slot="workspace-header"]')
+      expect(element).not.toBeNull()
+      return element
+    })
+    expect(header).not.toBeNull()
+    expect(
+      within(header as HTMLElement).getByRole("link", { name: "Atendimentos" }),
+    ).toHaveAttribute("href", "/service-desk")
+  })
 })

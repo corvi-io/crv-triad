@@ -110,7 +110,7 @@ function WorkspaceShellFrame({
           className="min-h-0 overflow-hidden bg-card text-card-foreground"
           tabIndex={-1}
         >
-          <WorkspaceShellHeader />
+          <WorkspaceShellHeader pathname={pathname} />
           <WorkspaceShellContent>{children}</WorkspaceShellContent>
         </SidebarInset>
       </SidebarProvider>

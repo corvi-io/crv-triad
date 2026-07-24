@@ -19,6 +19,26 @@ export const serviceDeskScenarioIds = [
   "fulfillment-long-labels",
   "fulfillment-no-eligible",
   "fulfillment-ready",
+  "checkout-pix",
+  "checkout-cash",
+  "checkout-debit",
+  "checkout-credit",
+  "checkout-mixed",
+  "checkout-discount",
+  "checkout-surcharge",
+  "checkout-price-override",
+  "checkout-unauthorized",
+  "checkout-fixed-commission",
+  "checkout-no-commission",
+  "checkout-multi-professional",
+  "checkout-scheduled",
+  "checkout-walk-in",
+  "checkout-decline",
+  "checkout-slow",
+  "checkout-next-failure",
+  "checkout-persistent-error",
+  "checkout-paid",
+  "checkout-long-content",
 ] as const satisfies readonly ServiceDeskScenarioId[]
 
 export function createServiceDeskScenarios(now: Date) {
@@ -170,6 +190,45 @@ export function createServiceDeskScenarios(now: Date) {
         }),
       ],
     })),
+    ...[
+      "checkout-pix",
+      "checkout-cash",
+      "checkout-debit",
+      "checkout-credit",
+      "checkout-mixed",
+      "checkout-discount",
+      "checkout-surcharge",
+      "checkout-price-override",
+      "checkout-unauthorized",
+      "checkout-fixed-commission",
+      "checkout-no-commission",
+      "checkout-multi-professional",
+      "checkout-scheduled",
+      "checkout-walk-in",
+      "checkout-decline",
+      "checkout-slow",
+      "checkout-next-failure",
+      "checkout-persistent-error",
+      "checkout-paid",
+      "checkout-long-content",
+    ].map((id) => ({
+      id: id as ServiceDeskScenarioId,
+      label: "Pagamento",
+      description: "Cenário determinístico de checkout.",
+      records: [
+        walkIn(`walk-in-${id}`, checkoutCustomerName(id), {
+          assignedProfessionalId: "professional-ana",
+          arrivalAt: at("10:00"),
+          stage: "in-service",
+        }),
+      ],
+    })),
   ] satisfies readonly (ScenarioDefinition<QueueEntry> & { id: ServiceDeskScenarioId })[]
   return definitions
+}
+
+function checkoutCustomerName(id: string) {
+  return id === "checkout-long-content"
+    ? "Pessoa Com Nome Sintético Deliberadamente Longo Para Validar Refluxo"
+    : "Pessoa Pagamento"
 }

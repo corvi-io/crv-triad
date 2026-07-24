@@ -27,6 +27,26 @@ export type ServiceDeskScenarioId =
   | "fulfillment-long-labels"
   | "fulfillment-no-eligible"
   | "fulfillment-ready"
+  | "checkout-pix"
+  | "checkout-cash"
+  | "checkout-debit"
+  | "checkout-credit"
+  | "checkout-mixed"
+  | "checkout-discount"
+  | "checkout-surcharge"
+  | "checkout-price-override"
+  | "checkout-unauthorized"
+  | "checkout-fixed-commission"
+  | "checkout-no-commission"
+  | "checkout-multi-professional"
+  | "checkout-scheduled"
+  | "checkout-walk-in"
+  | "checkout-decline"
+  | "checkout-slow"
+  | "checkout-next-failure"
+  | "checkout-persistent-error"
+  | "checkout-paid"
+  | "checkout-long-content"
 
 export type QueueEntry = {
   appointmentId?: string
@@ -37,6 +57,7 @@ export type QueueEntry = {
   id: string
   sessionId?: string
   notes?: string
+  paymentStatus?: "paid"
   preferenceKind: ProfessionalPreferenceKind
   priority: QueuePriority
   professionalId?: string
@@ -46,7 +67,7 @@ export type QueueEntry = {
   unitId: SchedulingUnitId
 }
 
-export type ServiceSessionStatus = "in-progress" | "ready-for-payment"
+export type ServiceSessionStatus = "in-progress" | "paid" | "ready-for-payment"
 export type ServiceSessionItem = {
   addedAt: string
   id: string
@@ -71,6 +92,28 @@ export type ServiceSession = {
   unitId: SchedulingUnitId
   unitName: string
   unavailableProfessionalIds: readonly string[]
+}
+export type ServicePaymentHandoff = {
+  appointmentId?: string
+  customerName: string
+  finishedAt: string
+  items: readonly {
+    id: string
+    professionalId: string
+    professionalName: string
+    serviceId: string
+    serviceName: string
+    priceCents: number
+  }[]
+  sessionId: string
+  source: "scheduled" | "walk-in"
+  unitId: SchedulingUnitId
+  unitName: string
+}
+export type CompleteServicePaymentInput = {
+  completedAt: string
+  operationId: string
+  sessionId: string
 }
 export type SessionMutationInput = { operationId: string; sessionId: string }
 export type AddServiceItemInput = SessionMutationInput & {
@@ -128,6 +171,8 @@ export type ServiceDeskRepository = {
   assignServiceItemProfessional(input: AssignServiceItemProfessionalInput): Promise<ServiceSession>
   call(entryId: string): Promise<QueueEntry>
   finishSession(input: SessionMutationInput): Promise<ServiceSession>
+  completePayment(input: CompleteServicePaymentInput): Promise<ServiceSession>
+  getPaymentHandoff(sessionId: string): Promise<ServicePaymentHandoff>
   getQueue(query: ServiceDeskQuery): Promise<ServiceDeskSnapshot>
   getSession(sessionId: string): Promise<ServiceSession>
   removeServiceItem(input: SessionItemInput): Promise<ServiceSession>

@@ -4,11 +4,13 @@ import type { SchedulingRepository } from "@/modules/scheduling/contracts"
 import type {
   AddServiceItemInput,
   AssignServiceItemProfessionalInput,
+  CompleteServicePaymentInput,
   QueueEntry,
   ServiceDeskQuery,
   ServiceDeskRepository,
   ServiceDeskScenarioId,
   ServiceDeskSnapshot,
+  ServicePaymentHandoff,
   ServiceSession,
   SessionItemInput,
   SessionMutationInput,
@@ -79,8 +81,13 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
       })
       const allEntries = sortQueueEntries([...projected, ...this.#engine.values()]).map((entry) => {
         const session = this.#sessions.get(`session-${entry.id}`)
-        return session?.status === "ready-for-payment"
-          ? { ...entry, sessionId: session.id, stage: "ready-for-payment" as const }
+        return session?.status === "ready-for-payment" || session?.status === "paid"
+          ? {
+              ...entry,
+              paymentStatus: session.status === "paid" ? ("paid" as const) : undefined,
+              sessionId: session.id,
+              stage: "ready-for-payment" as const,
+            }
           : session
             ? { ...entry, sessionId: session.id }
             : entry
@@ -109,9 +116,10 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
         if (!session) return entry
         return {
           ...entry,
+          paymentStatus: session.status === "paid" ? ("paid" as const) : undefined,
           sessionId: session.id,
           stage:
-            session.status === "ready-for-payment"
+            session.status === "ready-for-payment" || session.status === "paid"
               ? ("ready-for-payment" as const)
               : ("in-service" as const),
         }
@@ -167,6 +175,62 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
       if (!session) throw new ServiceSessionNotFoundError()
       return this.#withNow(session)
     })
+  }
+
+  async getPaymentHandoff(sessionId: string): Promise<ServicePaymentHandoff> {
+    const session = await this.getSession(sessionId)
+    if (session.status === "in-progress" || !session.finishedAt) {
+      throw new ServiceDeskTransitionError("Finalize o atendimento antes de abrir o pagamento.")
+    }
+    return {
+      appointmentId: session.appointmentId,
+      customerName: session.customerName,
+      finishedAt: session.finishedAt,
+      items: session.items.map((item) => {
+        const service = session.services.find(({ id }) => id === item.serviceId)
+        const professional = session.professionals.find(({ id }) => id === item.professionalId)
+        if (!service || !professional) {
+          throw new ServiceDeskTransitionError("Os dados do atendimento estão incompletos.")
+        }
+        return {
+          id: item.id,
+          priceCents: service.priceCents,
+          professionalId: professional.id,
+          professionalName: professional.name,
+          serviceId: service.id,
+          serviceName: service.name,
+        }
+      }),
+      sessionId: session.id,
+      source: session.source,
+      unitId: session.unitId,
+      unitName: session.unitName,
+    }
+  }
+
+  async completePayment(input: CompleteServicePaymentInput) {
+    const generation = this.#generation
+    const session = this.#sessions.get(input.sessionId)
+    if (!session) throw new ServiceSessionNotFoundError()
+    if (session.status === "paid") return this.#withNow(session)
+    if (session.status !== "ready-for-payment") {
+      throw new ServiceDeskTransitionError("Este atendimento ainda não está pronto para pagamento.")
+    }
+    if (session.appointmentId) {
+      await this.#withScheduling(async () => {
+        this.#assertGeneration(generation)
+        await this.#scheduling.transition({
+          id: session.appointmentId as string,
+          paymentStatus: "paid",
+          status: "completed",
+        })
+        this.#assertGeneration(generation)
+      })
+    }
+    this.#assertGeneration(generation)
+    const updated = { ...session, now: input.completedAt, status: "paid" as const }
+    this.#sessions.set(session.id, updated)
+    return updated
   }
 
   async addServiceItem(input: AddServiceItemInput) {
@@ -478,10 +542,23 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
 
   #seedScenarioSession(session: ServiceSession, scenarioId: ServiceDeskScenarioId) {
     const seedKey = `${this.#generation}:${scenarioId}:${session.id}`
-    if (!scenarioId.startsWith("fulfillment-") || this.#seededScenarioSessions.has(seedKey)) return
+    if (
+      (!scenarioId.startsWith("fulfillment-") && !scenarioId.startsWith("checkout-")) ||
+      this.#seededScenarioSessions.has(seedKey)
+    )
+      return
     const secondProfessional =
-      scenarioId === "fulfillment-multi-professional" ? "professional-bruno" : "professional-ana"
-    if (["fulfillment-multiple", "fulfillment-multi-professional"].includes(scenarioId)) {
+      scenarioId === "fulfillment-multi-professional" ||
+      scenarioId === "checkout-multi-professional"
+        ? "professional-bruno"
+        : "professional-ana"
+    if (
+      [
+        "fulfillment-multiple",
+        "fulfillment-multi-professional",
+        "checkout-multi-professional",
+      ].includes(scenarioId)
+    ) {
       this.#sessions.set(session.id, {
         ...session,
         items: [
@@ -514,10 +591,18 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
         unavailableProfessionalIds: session.professionals.map(({ id }) => id),
       })
     }
-    if (scenarioId === "fulfillment-ready") {
+    if (scenarioId === "checkout-scheduled") {
       this.#sessions.set(session.id, {
         ...session,
-        finishedAt: session.now,
+        appointmentId: "kanban-05",
+        source: "scheduled",
+      })
+    }
+    if (scenarioId === "fulfillment-ready" || scenarioId.startsWith("checkout-")) {
+      const current = this.#sessions.get(session.id) ?? session
+      this.#sessions.set(session.id, {
+        ...current,
+        finishedAt: current.now,
         status: "ready-for-payment",
       })
     }
@@ -566,5 +651,7 @@ function serviceSessionScenarioFromId(sessionId: string): ServiceDeskScenarioId 
   const marker = "session-walk-in-"
   if (!sessionId.startsWith(marker)) return undefined
   const candidate = sessionId.slice(marker.length) as ServiceDeskScenarioId
-  return candidate.startsWith("fulfillment-") ? candidate : undefined
+  return candidate.startsWith("fulfillment-") || candidate.startsWith("checkout-")
+    ? candidate
+    : undefined
 }

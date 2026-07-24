@@ -13,6 +13,20 @@ reconstructs the selected deterministic scenario. There is no Dashboard fixture,
 source variable, fake HTTP layer, browser persistence, polling, or realtime
 subscription.
 
+When the revenue-operations source is present, supported received value, paid average, discounts,
+payment-method composition, and service/professional paid values derive from immutable paid-sale
+projections. The Dashboard does not substitute catalog price for a linked paid sale. Scheduling
+continues to own appointment counts, status, capacity, cancellations, and no-show facts. Walk-in
+paid sales contribute only to supported paid-sale visit and finance projections and never create
+an appointment.
+
+With a professional filter, paid values and walk-in completion counts include only matching
+paid-sale lines, including secondary-professional lines on an appointment whose original
+professional differs. Sale-level discount and payment-method composition are left unavailable
+because the accepted contract does not provide an exact per-professional allocation for those
+facts. Paid-sale timestamps are compared with Dashboard bounds in the browser's local operational
+date rather than by their UTC ISO prefix.
+
 The normal scheduling scenario keeps 42 current-day records, including six
 legitimate non-terminal appointments at 16:00, and 30 prior-day records. Agenda
 continues to show only the selected day. Dashboard requests the current bounds
@@ -93,9 +107,10 @@ uses zero when its denominator is zero.
 
 ## Truthful Unsupported Data
 
-Discounts, payment-method distribution, provider settlement, new-client status,
+Provider settlement, new-client status,
 first-visit history, acquisition, and long-term retention are unavailable in the
-current source. The Dashboard names those gaps explicitly; it never displays an
+current source. Discounts and payment-method distribution remain unavailable until at least one
+paid-sale projection exists. The Dashboard names unsupported gaps explicitly; it never displays an
 invented zero or derives a stronger business claim from appointment frequency.
 
 ## Actions And State

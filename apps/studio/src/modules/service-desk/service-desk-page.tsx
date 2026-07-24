@@ -497,7 +497,9 @@ function QueueCard({
           {professional ? ` · ${professional.name}` : ""}
         </p>
         <div className="flex flex-wrap gap-1.5">
-          <Badge variant="outline">{queueStageLabels[entry.stage]}</Badge>
+          <Badge variant="outline">
+            {entry.paymentStatus === "paid" ? "Concluído · Pago" : queueStageLabels[entry.stage]}
+          </Badge>
           <Badge variant="secondary">{queuePriorityLabels[entry.priority]}</Badge>
         </div>
         {entry.stage === "called" && entry.preferenceKind === "first-available" ? (
@@ -555,7 +557,11 @@ function QueueCard({
             onClick={() => onOpenSession(entry.sessionId ?? `session-${entry.id}`)}
           >
             <UserRoundCheckIcon data-icon="inline-start" aria-hidden="true" />
-            {entry.stage === "in-service" ? "Abrir atendimento" : "Revisar atendimento"}
+            {entry.stage === "in-service"
+              ? "Abrir atendimento"
+              : entry.paymentStatus === "paid"
+                ? "Ver pagamento"
+                : "Revisar atendimento"}
           </Button>
         ) : null}
       </CardFooter>
