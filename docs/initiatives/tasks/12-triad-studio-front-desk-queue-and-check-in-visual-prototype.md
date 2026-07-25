@@ -4,13 +4,10 @@
 
 - PRD:
   `docs/initiatives/prds/12-triad-studio-front-desk-queue-and-check-in-visual-prototype.md`
-- UX/product source: Maestri note `triad-studio-o-triad-stud`,
+- UX/product source: connected Maestri note `triad-studio-o-triad-stud`,
   especially queue lines 164-194, service-start lines 305-329, journeys lines
   527-537, and roadmap lines 566-600.
-- MLP tracker: Maestri note `triad-studio-acompanhament`.
-- Delivery limitation: neither named note was connected to the isolated ENG-46
-  floor. Their accepted decisions, already transcribed in the PRD and Linear
-  issue, were used; the notes themselves could not be re-read.
+- MLP tracker: connected Maestri note `triad-studio-acompanhament`.
 - Related delivered issues:
   - ENG-34 schedule visual prototype;
   - ENG-40 Agenda board visual prototype;
@@ -421,53 +418,24 @@ git diff --check
 
 Record evidence as tasks are completed:
 
-- Base commit: `3f12d09cbf642b243f563b6d82eb159d9016a164`
-  (`origin/staging`, including ENG-44 and ENG-45).
-- Feature commit: recorded after the intentional delivery commit.
-- Branch: `feature/eng-46-front-desk-queue-check-in`.
-- Pull request: recorded after publication against `staging`.
-- Studio unit/component tests: the final full run passed 36 files and 250
-  tests; focused service-desk projection/repository run passed 17 tests.
-- Focused service-desk tests: 4 Playwright tests passed.
-- Agenda/Dashboard regressions: the full browser run exposed 18 failures caused
-  by real-date/real-time assumptions. A detached `origin/staging` worktree
-  reproduced the representative Agenda count mismatch (42 expected, 30
-  received) and Dashboard upcoming-appointment failure unchanged.
-- Playwright: focused service desk passed 4/4; production preview passed 8/8;
-  full suite passed 44/62 with the 18 baseline failures described above.
-- Production-boundary scan: passed after removing scenario identifiers from
-  the production graph; the final workspace check scanned 50 files and
-  1,156,403 bytes.
-- Build/check: Studio build/check passed; the root check passed all four
-  packages after installing the frozen lockfile dependencies. Vite retains the
-  known main-chunk size warning at approximately 675 kB minified.
-- 1600x900 and 1440x900 visual review: 1600x900 browser screenshot assertion
-  passed; the responsive implementation also uses the existing Studio
-  breakpoint contracts. A separate 1440x900 manual screenshot was not retained.
-- 320 CSS-pixel and 200% zoom: automated 320-CSS-pixel reflow/overflow coverage
-  passed; physical browser 200% zoom was not run.
-- Keyboard/focus: Playwright covered keyboard form flow, first-invalid focus,
-  drawer close/focus return, and stable busy actions.
-- VoiceOver/NVDA: skipped because assistive technologies are unavailable in the
-  isolated CLI/browser environment; residual screen-reader risk remains.
-- Forced colors/reduced motion/coarse pointer: automated forced-colors and
-  reduced-motion coverage passed; physical touch-device testing was skipped.
-- Security/privacy review: URL allowlisting and production artifact tests passed;
-  customer names, phones, notes, payloads, and credentials are excluded from
-  URL state and application logs.
-- Documentation review: Studio README plus component, scheduling, testing, and
-  service-desk durable docs updated. Root, env, AGENTS, and skills do not change
-  because no workspace command, environment contract, or repeated convention
-  changed.
-- Notes: the named Maestri UX/progress notes were not connected. Accepted
-  decisions transcribed in the PRD and ENG-46 were used. Linear was deliberately
-  not modified because the orchestrator owns issue workflow. The first CI run
-  exposed three service-desk unit assertions that assumed the developer
-  timezone; their source-local test dates were made host-timezone-independent
-  and then passed under both `TZ=UTC` and `TZ=America/Recife`. The single Codex
-  review identified arrival ordering and a stale scheduled-start/reset race;
-  both were fixed together in the final review cycle with focused regression
-  coverage. No second automated review was requested.
+- Base commit:
+- Feature commit:
+- Branch:
+- Pull request:
+- Studio unit/component tests:
+- Focused service-desk tests:
+- Agenda/Dashboard regressions:
+- Playwright:
+- Production-boundary scan:
+- Build/check:
+- 1600x900 and 1440x900 visual review:
+- 320 CSS-pixel and 200% zoom:
+- Keyboard/focus:
+- VoiceOver/NVDA:
+- Forced colors/reduced motion/coarse pointer:
+- Security/privacy review:
+- Documentation review:
+- Notes:
 
 ## Risks And Follow-Ups
 
