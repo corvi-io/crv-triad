@@ -88,7 +88,7 @@ import scheduling or development-source internals.
 | Ocupação | Duration of all records except `canceled` and `no-show`, divided by available professional minutes. |
 | KPI comparison | Current KPI minus the immediately preceding equal-length period, with direction, absolute delta, relative percentage when the prior denominator is non-zero, and the named comparison period. A missing prior record set or invalid paid-average denominator renders a neutral unavailable baseline. |
 | Próximos atendimentos | Up to five non-terminal records at or after the source/query time, ordered by date and start. |
-| Atenção necessária | Derivable waiting, completed-pending, overrun in-progress, near scheduled, and overlap items, capped at four. |
+| Atenção necessária | Up to four active items from the shared operational-notification repository, ordered by severity, occurrence time, and stable ID. Each row follows its own typed Agenda, Service Desk, or checkout destination; `Ver todos` opens the notification center. |
 | Fluxo | Seven compact operational tiles. `scheduled` and `confirmed` are truthfully summed as “Agendados e confirmados”; the other six Agenda statuses remain separate. |
 | Ocupação dos barbeiros | Non-canceled/non-no-show booked minutes divided by each professional's available minutes; never ranked. Current state is shown only when the bounds include today, otherwise it is explicitly unavailable. |
 | Capacidade | Available, reserved, and non-negative free minutes, also projected into 08h–12h, 12h–18h, and 18h–22h bands. |
@@ -126,6 +126,14 @@ or second Dashboard route is introduced.
 Loading, delayed, empty, filtered-empty, error/retry, unsupported-data, and
 disabled-source states use Brazilian Portuguese copy. A full reload resets the
 local scheduling source.
+
+ENG-54 removes the Dashboard-owned attention fixture/projection. The shell,
+Dashboard, and `/notifications` now consume one notification repository.
+Dashboard attention distinguishes notification loading, error/retry,
+unavailable, loaded-empty, and loaded-item states without replacing its
+scheduling content. Each row retains its notification ID and typed destination;
+only `Ver todos` opens the center. Marking an item read never changes
+scheduling, service, or payment state.
 
 ## Accessibility And Responsive Contract
 

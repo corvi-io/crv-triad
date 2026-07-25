@@ -149,7 +149,7 @@ building block of a documented composition.
 | `workspace-overview/model.ts` | Presentation contract | Internal: scheduling-independent read-only Dashboard view model shared only across the projection/presentation boundary. |
 | `workspace-shell/breadcrumbs.tsx` | Shell companion | Internal: route-aware breadcrumb implementation private to the shell folder. |
 | `workspace-shell/content.tsx` | Shell companion | Internal: authenticated content inset implementation private to the shell folder. It is the single owner of outer page padding; nested module viewports and responsive boards must not duplicate that inset. |
-| `workspace-shell/header.tsx` | Shell companion | Internal: header/sidebar trigger implementation private to the shell folder. |
+| `workspace-shell/header.tsx` | Shell companion | Internal: header/sidebar trigger and optional route-composed action slot implementation private to the shell folder. The slot lets the authenticated route inject the operational notification trigger without making shared code import a product module. |
 | `workspace-shell/index.tsx` | Shell layout | Internal catalog: folder-root `WorkspaceShell` and `WorkspacePreviewShell` are exercised by route, shell, and sandbox tests. |
 | `workspace-shell/sidebar-primary-navigation.tsx` | Shell companion | Internal: registry-driven primary navigation private to the shell folder; active state uses shared selected surface/text plus a 2px logical leading indicator instead of a complete outline, preserving collapse/mobile geometry and semantic focus. |
 | `workspace-shell/sidebar-secondary-navigation.tsx` | Shell companion | Internal: registry-driven secondary navigation private to the shell folder. |
@@ -242,6 +242,12 @@ scheduling contract. Availability follows the scheduling memory boundary, so `hm
 disabled without a new environment variable. See `docs/studio/service-desk.md`.
 
 ## Primary Vendor References
+
+ENG-54 adds `virtual:studio-operational-notifications-source`. The authenticated
+route owns composition and injects the module-owned bell into the shell's
+optional action slot. Header, Dashboard, and `/notifications` share one
+repository while shared code remains independent from product modules and
+development adapters. See `docs/studio/operational-notifications.md`.
 
 - [React: You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect)
 - [TanStack Query](https://tanstack.com/query/latest/docs/framework/react/overview)

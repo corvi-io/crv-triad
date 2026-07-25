@@ -27,6 +27,22 @@ part of the theme migration.
 - Effects: use gradients and branded shadows only through named tokens on
   bounded brand surfaces. Dense operational UI remains predominantly solid.
 
+## Official Logo Assets
+
+The Studio serves the approved SVG artwork from `apps/studio/public/brand`.
+Descriptive filenames distinguish the horizontal and stacked compositions and
+their gold and white colorways. The authenticated shell and authentication
+screens use the gold artwork in light mode and the white artwork in dark mode.
+The collapsed shell and favicon use a symbol crop derived from the same
+official paths; the former provisional triangle icon is no longer part of the
+runtime brand.
+
+Authentication artwork also follows the active theme: the light companion uses
+a pale navy bounded surface behind the gold stacked mark, while dark mode uses
+the navy branded surface behind the white stacked mark. Every rendered logo is
+decorative because the owning link or labeled region supplies the accessible
+name.
+
 ## Designer Primitive Anchors
 
 These raw anchors were supplied in the temporary handoff and are preserved here

@@ -1,5 +1,5 @@
 import { CalendarDaysIcon, CircleAlertIcon, PlusIcon } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { EmptyState } from "@/modules/shared/components/feedback/empty-state"
@@ -68,6 +68,19 @@ export function SchedulePage({
     mode: DrawerMode
     slot?: { professionalId: string; start: string }
   } | null>(null)
+  const consumedAppointment = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    if (!search.appointment || !dayQuery.data || consumedAppointment.current === search.appointment)
+      return
+    consumedAppointment.current = search.appointment
+    const appointment = dayQuery.data.appointments.find(({ id }) => id === search.appointment)
+    if (appointment) {
+      setDrawer({ appointment, mode: "view" })
+      return
+    }
+    setAnnouncement("O agendamento indicado não está disponível neste período.")
+  }, [dayQuery.data, search.appointment])
 
   const result = useMemo(
     () =>
@@ -338,7 +351,11 @@ export function SchedulePage({
           selectedUnit={search.unit}
           services={dayQuery.data.services}
           onModeChange={(mode) => setDrawer((current) => (current ? { ...current, mode } : null))}
-          onOpenChange={(open) => !open && setDrawer(null)}
+          onOpenChange={(open) => {
+            if (open) return
+            setDrawer(null)
+            if (search.appointment) onSearchChange({ appointment: undefined })
+          }}
         />
       ) : null}
 
