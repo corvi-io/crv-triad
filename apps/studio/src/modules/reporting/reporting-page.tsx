@@ -350,8 +350,11 @@ function CancellationReport({ result }: { result: ReportingResult }) {
           Cancelamentos e ausências
         </CardTitle>
         <CardDescription id="cancellation-description">
-          Denominador: {integer.format(result.cancellations.denominator)} agendamento(s) no recorte.
-          Cancelamentos e ausências são taxas separadas.
+          Resultado: {integer.format(result.cancellations.cancellationCount)} cancelamento(s) (
+          {percent(result.cancellations.cancellationRateBasisPoints)}) e{" "}
+          {integer.format(result.cancellations.noShowCount)} ausência(s) (
+          {percent(result.cancellations.noShowRateBasisPoints)}). Denominador:{" "}
+          {integer.format(result.cancellations.denominator)} agendamento(s) no recorte.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex min-w-0 flex-col gap-4">

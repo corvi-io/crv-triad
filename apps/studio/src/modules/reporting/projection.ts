@@ -27,7 +27,9 @@ export function deriveReportingResult({
   sourceDate: string
 }): ReportingResult {
   const facets = deriveFacets(facts)
-  const matchingFacts = facts.filter((fact) => matchesFilters(fact, filters))
+  const matchingFacts = facts
+    .filter((fact) => matchesFilters(fact, filters))
+    .map((fact) => applyPaymentAllocation(fact, filters.paymentMethod))
   const scheduledFacts = matchingFacts.filter(({ saleId }) => !saleId)
   const paidFacts = matchingFacts.filter(
     ({ appointmentStatus, saleId }) => Boolean(saleId) && appointmentStatus === "completed",
@@ -136,14 +138,17 @@ function matchesFilters(fact: ReportingFactSnapshot, filters: ReportFilters) {
     fact.date <= filters.to &&
     (!filters.professionalId || fact.professionalId === filters.professionalId) &&
     (!filters.serviceId || fact.serviceId === filters.serviceId) &&
-    (!filters.paymentMethod || fact.paymentMethod === filters.paymentMethod)
+    (!filters.paymentMethod ||
+      fact.paymentAllocations.some(({ method }) => method === filters.paymentMethod))
   )
 }
 
 function deriveFacets(facts: readonly ReportingFactSnapshot[]): ReportingFacets {
   return {
     paymentMethods: [
-      ...new Set(facts.flatMap(({ paymentMethod }) => (paymentMethod ? [paymentMethod] : []))),
+      ...new Set(
+        facts.flatMap(({ paymentAllocations }) => paymentAllocations.map(({ method }) => method)),
+      ),
     ]
       .sort()
       .map((id) => ({ id, label: paymentLabels[id] })),
@@ -152,6 +157,21 @@ function deriveFacets(facts: readonly ReportingFactSnapshot[]): ReportingFacets 
     ),
     services: uniqueFacets(facts.map(({ serviceId: id, serviceName: label }) => ({ id, label }))),
   }
+}
+
+function applyPaymentAllocation(
+  fact: ReportingFactSnapshot,
+  paymentMethod: ReportFilters["paymentMethod"],
+) {
+  if (!paymentMethod) return fact
+  const allocation = fact.paymentAllocations.find(({ method }) => method === paymentMethod)
+  return allocation
+    ? {
+        ...fact,
+        commissionCents: allocation.commissionCents,
+        serviceNetCents: allocation.serviceNetCents,
+      }
+    : fact
 }
 
 function uniqueFacets(values: readonly { id: string; label: string }[]) {

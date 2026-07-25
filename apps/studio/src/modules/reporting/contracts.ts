@@ -45,7 +45,11 @@ export type ReportingFactSnapshot = {
   customerAnalysisKey?: string
   date: string
   id: string
-  paymentMethod?: TenderMethod
+  paymentAllocations: readonly {
+    commissionCents: MoneyCents
+    method: TenderMethod
+    serviceNetCents: MoneyCents
+  }[]
   professionalId: string
   professionalName: string
   saleId?: string

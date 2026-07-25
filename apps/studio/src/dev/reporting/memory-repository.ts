@@ -9,8 +9,8 @@ import { ReportingOperationInvalidatedError } from "@/modules/reporting/contract
 import { deriveReportingResult } from "@/modules/reporting/projection"
 import type {
   PaidSale,
+  PaymentTender,
   RevenueOperationsRepository,
-  TenderMethod,
 } from "@/modules/revenue-operations/contracts"
 import type { Appointment, SchedulingRepository } from "@/modules/scheduling/contracts"
 
@@ -164,6 +164,7 @@ function appointmentFact(
     customerAnalysisKey: appointment.clientId,
     date: appointment.date,
     id: `appointment-${appointment.id}`,
+    paymentAllocations: [],
     professionalId: appointment.professionalId,
     professionalName:
       professionalById.get(appointment.professionalId)?.name ?? "Profissional não identificado",
@@ -187,19 +188,19 @@ function saleFacts(
     acceptedAnalysisKey ??
     (appointment && knownClientIds.has(appointment.clientId) ? appointment.clientId : undefined)
   const commissionByLine = new Map(sale.commissions.map((snapshot) => [snapshot.lineId, snapshot]))
-  const paymentMethod = primaryPaymentMethod(sale)
 
   return sale.lines.map((line) => {
     const commission = commissionByLine.get(line.id)
+    const commissionCents = commission?.commissionCents ?? 0
     return {
       appointmentStatus: "completed",
-      commissionCents: commission?.commissionCents ?? 0,
+      commissionCents,
       commissionRateBasisPoints:
         commission?.rule.kind === "percentage" ? commission.rule.rateBasisPoints : 0,
       customerAnalysisKey,
       date,
       id: `${sale.id}-${line.id}`,
-      paymentMethod,
+      paymentAllocations: allocatePaymentAmounts(line.netCents, commissionCents, sale.tenders),
       professionalId: line.professionalId,
       professionalName: line.professionalName,
       saleId: sale.id,
@@ -210,11 +211,52 @@ function saleFacts(
   })
 }
 
-function primaryPaymentMethod(sale: PaidSale): TenderMethod | undefined {
-  return [...sale.tenders].sort(
-    (left, right) =>
-      right.appliedCents - left.appliedCents || left.method.localeCompare(right.method),
-  )[0]?.method
+function allocatePaymentAmounts(
+  serviceNetCents: number,
+  commissionCents: number,
+  tenders: readonly PaymentTender[],
+) {
+  const weights = [...new Map(tenders.map(({ method }) => [method, 0])).keys()]
+    .sort()
+    .map((method) => ({
+      method,
+      weight: tenders
+        .filter((tender) => tender.method === method)
+        .reduce((total, tender) => total + tender.appliedCents, 0),
+    }))
+  const serviceAllocations = allocateIntegerCents(serviceNetCents, weights)
+  const commissionAllocations = allocateIntegerCents(commissionCents, weights)
+  return weights.map(({ method }) => ({
+    commissionCents: commissionAllocations.get(method) ?? 0,
+    method,
+    serviceNetCents: serviceAllocations.get(method) ?? 0,
+  }))
+}
+
+function allocateIntegerCents(
+  totalCents: number,
+  weights: readonly { method: PaymentTender["method"]; weight: number }[],
+) {
+  const totalWeight = weights.reduce((total, { weight }) => total + weight, 0)
+  if (totalWeight === 0) return new Map<PaymentTender["method"], number>()
+  const allocations = weights.map(({ method, weight }) => {
+    const numerator = totalCents * weight
+    return {
+      allocatedCents: Math.floor(numerator / totalWeight),
+      method,
+      remainder: numerator % totalWeight,
+    }
+  })
+  let remaining =
+    totalCents - allocations.reduce((total, { allocatedCents }) => total + allocatedCents, 0)
+  for (const allocation of [...allocations].sort(
+    (left, right) => right.remainder - left.remainder || left.method.localeCompare(right.method),
+  )) {
+    if (remaining === 0) break
+    allocation.allocatedCents += 1
+    remaining -= 1
+  }
+  return new Map(allocations.map(({ allocatedCents, method }) => [method, allocatedCents]))
 }
 
 function factsForScenario(

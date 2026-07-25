@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 import type { ReportingFactSnapshot } from "@/modules/reporting/contracts"
-import { currentMonth, inclusiveDays, normalizeReportSearch } from "@/modules/reporting/filters"
+import {
+  currentMonth,
+  inclusiveDays,
+  normalizeReportSearch,
+  periodForPreset,
+  periodPreset,
+} from "@/modules/reporting/filters"
 import { deriveReportingResult } from "@/modules/reporting/projection"
 
 const filters = { from: "2026-07-01", to: "2026-07-31" }
@@ -36,6 +42,23 @@ describe("reporting filters", () => {
       service: undefined,
       to: "2026-07-31",
     })
+  })
+
+  it("keeps today, last-seven-days, and custom URL periods deterministic", () => {
+    expect(periodForPreset("today", "2026-07-24")).toEqual({
+      from: "2026-07-24",
+      to: "2026-07-24",
+    })
+    expect(periodForPreset("last-7-days", "2026-07-24")).toEqual({
+      from: "2026-07-18",
+      to: "2026-07-24",
+    })
+    const custom = normalizeReportSearch(
+      { from: "2026-07-09", scenario: "typical", to: "2026-07-17" },
+      "2026-07-24",
+    )
+    expect(custom).toMatchObject({ from: "2026-07-09", to: "2026-07-17" })
+    expect(periodPreset(custom, "2026-07-24")).toBe("custom")
   })
 })
 
@@ -113,6 +136,7 @@ function appointment(id: string, status: ReportingFactSnapshot["appointmentStatu
     customerAnalysisKey: id,
     date: "2026-07-05",
     id,
+    paymentAllocations: [],
     professionalId: "professional-ana",
     professionalName: "Ana",
     serviceId: "service-cut",
@@ -138,7 +162,13 @@ function sale(
     customerAnalysisKey,
     date,
     id,
-    paymentMethod: "pix",
+    paymentAllocations: [
+      {
+        commissionCents,
+        method: "pix",
+        serviceNetCents,
+      },
+    ],
     professionalId: "professional-ana",
     professionalName: "Ana",
     saleId,

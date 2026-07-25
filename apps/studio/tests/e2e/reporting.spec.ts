@@ -43,6 +43,24 @@ test("renders all seven reports and keeps canonical combined filters across relo
   await expect(page.getByText(/sem chave estável ficam fora das proporções/)).toBeVisible()
   await expect(page.getByRole("table")).toHaveCount(6)
 
+  await page.getByRole("button", { name: "Hoje" }).click()
+  await expect(page).toHaveURL(/from=2026-07-24/)
+  await expect(page).toHaveURL(/to=2026-07-24/)
+  await page.getByRole("button", { name: "Últimos 7 dias" }).click()
+  await expect(page).toHaveURL(/from=2026-07-18/)
+  await expect(page).toHaveURL(/to=2026-07-24/)
+  await page.getByRole("button", { name: "Personalizado" }).click()
+  await expect(page.getByLabel("Data inicial")).toBeVisible()
+  await selectReportDate(page, "Data inicial", "quinta-feira, 9 de julho de 2026")
+  await selectReportDate(page, "Data final", "sexta-feira, 17 de julho de 2026")
+  await expect(page).toHaveURL(/from=2026-07-09/)
+  await expect(page).toHaveURL(/to=2026-07-17/)
+  await expect(page.getByRole("button", { name: "Personalizado" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  )
+  await page.getByRole("button", { name: "Este mês" }).click()
+
   await page.getByRole("button", { name: "Profissional" }).click()
   await page.getByRole("menuitemradio", { name: "Ana Clara" }).click()
   await page.getByRole("button", { name: "Serviço" }).click()
@@ -80,6 +98,19 @@ test("normalizes invalid URL state and distinguishes loading, empty, fail-next, 
 
   await page.goto(reportsUrl("empty"))
   await expect(page.getByRole("heading", { name: "Nenhum dado encontrado" })).toBeVisible()
+
+  await page.goto(reportsUrl("unknown-customers"))
+  await expect(page.getByText(/0 cliente\(s\) identificável\(is\)/)).toBeVisible()
+  await expect(page.getByText(/4 cliente\(s\) sem chave estável/)).toBeVisible()
+
+  await page.goto(reportsUrl("long-labels"))
+  await expect(
+    page.getByText("Corte simples com acabamento detalhado e consultoria de estilo").first(),
+  ).toBeVisible()
+  await expect(
+    page.getByText("Ana Clara da Unidade Centro de Formação Profissional").first(),
+  ).toBeVisible()
+  await expectNoDocumentOverflow(page)
 
   await page.goto(reportsUrl("next-failure"))
   await expect(page.getByRole("alert")).toContainText("Não foi possível carregar os relatórios")
@@ -166,6 +197,15 @@ async function expectNoDocumentOverflow(page: Page) {
     viewport: innerWidth,
   }))
   expect(Math.max(geometry.body, geometry.root)).toBeLessThanOrEqual(geometry.viewport)
+}
+
+async function selectReportDate(page: Page, fieldLabel: string, dateName: string) {
+  const trigger = page.getByLabel(fieldLabel)
+  await trigger.click()
+  const calendar = page.getByRole("dialog", { name: "Selecionar data" }).last()
+  await expect(calendar).toBeVisible()
+  await calendar.getByRole("button", { name: dateName }).click()
+  await expect(calendar).toBeHidden()
 }
 
 async function expectMinimumTargets(page: Page) {

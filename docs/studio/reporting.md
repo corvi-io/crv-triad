@@ -76,6 +76,16 @@ Exact tests reconcile summary revenue with the revenue series, summary
 commission with professional commission rows, ticket numerator/denominator,
 and filtered repository results.
 
+Payment-method filtering preserves split tenders. Each service-line net value
+and immutable commission snapshot is allocated across the sale's tender methods
+in proportion to applied integer cents. Floor allocations are reconciled by
+deterministic largest remainder, then stable payment-method order. A filtered
+ticket is allocated revenue divided by distinct sales containing that method;
+service and ranking quantities count each paid item that contains the selected
+method. Therefore quantity counts across separate payment-method slices are not
+additive when one item was paid with more than one method, while revenue and
+commission cents reconcile exactly across all method slices.
+
 ## Presentation And Accessibility
 
 Reports remain distinct from the current-day Dashboard: the page leads with

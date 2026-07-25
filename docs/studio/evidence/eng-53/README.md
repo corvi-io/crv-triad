@@ -22,6 +22,11 @@ The same browser flow:
   limitation;
 - emulates forced colors and reduced motion;
 - verifies canonical combined filters and reload;
+- selects `Hoje`, `Últimos 7 dias`, and `Personalizado`, changes both custom
+  dates through their named calendar dialogs, and verifies the canonical
+  inclusive URL range;
+- verifies explicit unknown-customer and long-label scenarios without document
+  overflow;
 - verifies loading, empty, fail-next/retry, and persistent-error states.
 
 An actual VoiceOver/NVDA spoken-output session is not automated in this

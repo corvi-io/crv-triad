@@ -1,10 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { type ReactNode, StrictMode } from "react"
+import { type ReactNode, StrictMode, useState } from "react"
 import { beforeEach, describe, expect, it } from "vitest"
 import { createReportingRepository } from "@/dev/reporting/entry"
-import type { ReportingScenarioId } from "@/modules/reporting/contracts"
+import type { ReportingFacets, ReportingScenarioId } from "@/modules/reporting/contracts"
+import type { ReportSearch } from "@/modules/reporting/filters"
+import { ReportFiltersBar } from "@/modules/reporting/report-filters"
 import { ReportingPage } from "@/modules/reporting/reporting-page"
 import { ReportingRepositoryProvider } from "@/modules/reporting/repository-context"
 
@@ -30,7 +32,11 @@ describe("ReportingPage", () => {
     ]) {
       expect(screen.getByText(title)).toBeInTheDocument()
     }
-    expect(screen.getByText(/Denominador:/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Resultado: 1 cancelamento(s) (12,5%) e 1 ausência(s) (12,5%). Denominador: 8 agendamento(s) no recorte.",
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByText(/sem chave estável ficam fora das proporções/)).toBeInTheDocument()
     expect(screen.getAllByRole("table").length).toBeGreaterThanOrEqual(6)
     expect(screen.getAllByRole("img").length).toBeGreaterThanOrEqual(5)
@@ -45,7 +51,40 @@ describe("ReportingPage", () => {
     await user.click(retry)
     await waitFor(() => expect(screen.getByText("Faturamento por período")).toBeInTheDocument())
   })
+
+  it("opens Personalizado from a preset without changing the canonical range", async () => {
+    const user = userEvent.setup()
+    render(<FilterHarness />)
+
+    expect(screen.queryByLabelText("Data inicial")).not.toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Personalizado" }))
+    expect(screen.getByLabelText("Data inicial")).toHaveTextContent("01/07/2026")
+    expect(screen.getByLabelText("Data final")).toHaveTextContent("31/07/2026")
+    expect(screen.getByText("Período inclusivo de 01/07/2026 a 31/07/2026.")).toBeInTheDocument()
+  })
 })
+
+const emptyFacets: ReportingFacets = {
+  paymentMethods: [],
+  professionals: [],
+  services: [],
+}
+
+function FilterHarness() {
+  const [search, setSearch] = useState<ReportSearch>({
+    from: "2026-07-01",
+    scenario: "typical",
+    to: "2026-07-31",
+  })
+  return (
+    <ReportFiltersBar
+      facets={emptyFacets}
+      search={search}
+      sourceDate="2026-07-24"
+      onChange={(next) => setSearch((current) => ({ ...current, ...next }))}
+    />
+  )
+}
 
 function renderReport(scenarioId: ReportingScenarioId) {
   const queryClient = new QueryClient({

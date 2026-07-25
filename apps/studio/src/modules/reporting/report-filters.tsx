@@ -5,6 +5,7 @@ import {
   ScissorsIcon,
   UserRoundIcon,
 } from "lucide-react"
+import { useState } from "react"
 import { SingleSelectListFilter } from "@/modules/shared/components/data-display/list-filter"
 import { DatePicker } from "@/modules/shared/components/forms/date-picker"
 import { FilterBar } from "@/modules/shared/components/forms/filter-bar"
@@ -28,6 +29,7 @@ export function ReportFiltersBar({
   sourceDate: string
 }) {
   const preset = periodPreset(search, sourceDate)
+  const [customPeriodOpen, setCustomPeriodOpen] = useState(preset === "custom")
   const defaults = currentMonth(sourceDate)
   const hasNonDefaultFilters =
     search.from !== defaults.from ||
@@ -42,11 +44,16 @@ export function ReportFiltersBar({
             aria-label="Período dos relatórios"
             className="grid w-full grid-cols-2 lg:w-fit lg:grid-cols-4"
             spacing={0}
-            value={[preset]}
+            value={[customPeriodOpen ? "custom" : preset]}
             variant="outline"
             onValueChange={(values) => {
               const next = values[0] as PeriodPreset | undefined
-              if (!next || next === "custom") return
+              if (!next) return
+              if (next === "custom") {
+                setCustomPeriodOpen(true)
+                return
+              }
+              setCustomPeriodOpen(false)
               onChange(periodForPreset(next, sourceDate))
             }}
           >
@@ -121,7 +128,7 @@ export function ReportFiltersBar({
           </div>
         </div>
       </FilterBar>
-      {preset === "custom" ? (
+      {customPeriodOpen || preset === "custom" ? (
         <fieldset className="grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-2">
           <legend className="sr-only">Período personalizado</legend>
           <label className="flex min-w-0 flex-col gap-1 text-sm font-medium" htmlFor="report-from">
