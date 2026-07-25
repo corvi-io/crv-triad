@@ -424,38 +424,38 @@ component input and keep the current transport/provider boundary unchanged.
 
 ## Acceptance Criteria
 
-- [x] A newly created email/password invitation sends a React Email invitation
+- [ ] A newly created email/password invitation sends a React Email invitation
       with a cryptographically strong opaque link to the dedicated Studio
       acceptance route.
-- [x] IDP persists only a unique token digest and lifecycle metadata; raw
+- [ ] IDP persists only a unique token digest and lifecycle metadata; raw
       invitation tokens never appear in persistence or logs.
-- [x] Valid invitation proof is required for email/password first access, bound
+- [ ] Valid invitation proof is required for email/password first access, bound
       to one invitation/email/role, and consumed exactly once under concurrent
       submissions.
-- [x] Expired, revoked, used, superseded, malformed, and legacy pending
+- [ ] Expired, revoked, used, superseded, malformed, and legacy pending
       invitations cannot create credentials; resend rotates the secret.
-- [x] Successful invite acceptance proves mailbox control, creates the
+- [ ] Successful invite acceptance proves mailbox control, creates the
       Better Auth credential through a supported native integration seam,
       records acceptance, and returns to login without auto-sign-in.
-- [x] Existing active-user login and verified-Google invitation acceptance keep
+- [ ] Existing active-user login and verified-Google invitation acceptance keep
       their ENG-38 behavior without requiring the email invitation token.
-- [x] IDP enforces 15 to 256 characters plus whole-value common/compromised/
+- [ ] IDP enforces 15 to 256 characters plus whole-value common/compromised/
       context blocklist checks on signup, reset, and change password, with no
       mandatory composition rule and no password-hash migration.
-- [x] Invitation, reset, and preferences password forms use consistent
+- [ ] Invitation, reset, and preferences password forms use consistent
       Brazilian Portuguese guidance, accessible objective indicators,
       confirmation feedback, paste/autofill, and password-manager semantics.
-- [x] A reusable React Email layout and invitation, verification, and reset
+- [ ] A reusable React Email layout and invitation, verification, and reset
       templates render safe semantic HTML and matching plain text with TRIAD
       styling and no marketing/tracking content.
-- [x] Local email preview uses synthetic non-secret data; template and sender
+- [ ] Local email preview uses synthetic non-secret data; template and sender
       tests cover escaping, URL allowlisting, fallback text, and transport
       payloads without snapshotting live secrets.
-- [x] IDP migration, env parsing, access policy, rate limiting, invitation
+- [ ] IDP migration, env parsing, access policy, rate limiting, invitation
       lifecycle, Better Auth integration, Studio route/forms, accessibility,
       responsive behavior, email-client rendering, and production boundaries
       are verified and documented.
-- [x] ENG-39 remains the explicit follow-up for durable async email delivery;
+- [ ] ENG-39 remains the explicit follow-up for durable async email delivery;
       this task neither duplicates nor silently closes it.
 
 ## Verification Plan
@@ -504,12 +504,6 @@ component input and keep the current transport/provider boundary unchanged.
 - [x] Should a remote compromised-password provider be called in the auth
       request path? No. Start with a bounded reviewed local blocklist and record
       its source/update process.
-- [x] Which supported Better Auth request-proof seam is proven by the initial
-      implementation spike? Use request-scoped proof in Better Auth database
-      hooks and the public current transaction-adapter seam so validation,
-      conditional invitation consumption, native user creation, native hashing,
-      and credential-account insertion share one rollback boundary. The full
-      evidence and rejected endpoint-hook alternative are recorded in the
-      execution plan. Deterministic unit tests and an opt-in isolated
-      Better Auth/Drizzle/PostgreSQL suite prove both simultaneous one-winner
-      acceptance and rollback after post-consumption credential failure.
+- [ ] Which supported Better Auth request-proof seam is proven by the initial
+      implementation spike? Record the result in the execution plan before
+      persistence work is finalized; this does not change the product contract.

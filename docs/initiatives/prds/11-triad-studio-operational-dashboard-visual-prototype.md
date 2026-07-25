@@ -70,10 +70,6 @@ Execution plan:
 - The supplied 1600 × 900 screenshot was inspected as the hierarchy reference. The durable
   acceptance contract is this PRD plus the preserved verbatim Markdown, so literal screenshot
   pixels do not override existing tokens, accessibility rules, or truthful data labels.
-- The additional user-supplied reference received on 2026-07-23 was inspected directly before
-  final browser verification. It confirmed fold order, information density, alignment, and
-  relative visual weight only; its hard-coded numbers, unsupported finance/client facts, pixels,
-  raw colors, and parallel identity were not copied.
 
 ## Goals
 
@@ -147,10 +143,9 @@ domain or a collection of hard-coded KPI examples.
   - The current scheduling repository returns a bounded selected range, not precomputed dashboard
     aggregates. A pure projection is acceptable for local/dev fixtures but is not a production API
     architecture.
-  - Multiple simultaneous current/comparison queries would conflict with a query-relative mutable
-    scenario projection. The accepted refinement projects the canonical multi-day fixture once
-    against a repository-local date anchor and uses one bounded read containing the current and
-    immediately preceding equal-length periods.
+  - Multiple simultaneous current/comparison queries can conflict with a mutable scenario
+    projection. Previous-period comparisons must be omitted unless one stable repository read can
+    provide them without stale cross-query state.
   - The current overview component lives under shared shell ownership. It may consume a typed
     read-model input, but shared code must not import scheduling or development internals.
 - Data/model gaps:
@@ -222,10 +217,9 @@ parallel component system.
 | Faturamento realizado | Completed appointments marked `paid` | Sum of appointment prices labeled as visual paid state, not provider settlement |
 | Ticket médio | Completed appointments marked `paid` | Paid-state value divided by paid completed count; unavailable when count is zero |
 | Ocupação | Appointment durations and available schedule minutes | Non-canceled/non-no-show booked minutes divided by bounded available minutes |
-| KPI comparison | Current and immediately preceding equal-length scheduling bounds | Direction, absolute delta, relative percentage when defined, and named prior period; otherwise a neutral unavailable baseline |
-| Próximos atendimentos | Appointment date/start/status | Next five non-terminal records relative to selected/source time |
+| Próximos atendimentos | Appointment date/start/status | Next five or six non-terminal records relative to selected/source time |
 | Atenção necessária | Supported appointment/status conflicts | Waiting, completed-pending, overlapping occupancy, long-running in-progress, and upcoming scheduled records only when derivable |
-| Fluxo | Existing eight statuses | Seven tiles: `scheduled` plus `confirmed` as a truthful pre-arrival total, with the other six statuses separate |
+| Fluxo | Existing eight statuses | Current Agenda labels and semantic presentation; `scheduled` may remain a separate factual count |
 | Ocupação por profissional | Duration, availability, periods | Booked minutes divided by available minutes per professional; no ranking |
 | Capacidade | Business hours, professionals, blocked/break periods | Available, reserved, and free minutes; grouped into morning/afternoon/evening |
 | Previsto | Non-canceled/non-no-show appointment prices | Scheduled value, not forecast accounting revenue |
@@ -328,8 +322,8 @@ parallel component system.
 - One selected period drives one coherent Dashboard projection. Avoid one repository scan per card.
 - Use memoized pure maps/reductions over the loaded bounded range and stable lookup maps for
   professionals and services.
-- Upcoming appointments are capped at five; attention is capped at four; top services are capped at
-  five; histories and professional lists stay bounded to the current source.
+- Upcoming appointments are capped at six; attention and top services are capped at five; histories
+  and professional lists stay bounded to the current source.
 - Do not add polling, WebSockets, timers that rerender the full page, background refresh, or
   additional network requests.
 - Avoid chart libraries for progress, distributions, or KPIs that existing CSS and semantic markup
@@ -391,51 +385,51 @@ parallel component system.
   realtime contract.
 - Alerts and SLOs require measured backend behavior and are not defined by this visual prototype.
 
+## Acceptance Criteria
 
-- [x] The complete UX handoff is preserved verbatim in the repository and as a Linear document
+- [ ] The complete UX handoff is preserved verbatim in the repository and as a Linear document
       owned by the initiative, with matching SHA-256.
-- [x] The supplied 1600 × 900 hierarchy is represented through existing Studio tokens and
+- [ ] The supplied 1600 × 900 hierarchy is represented through existing Studio tokens and
       components without copying literal example data or creating a new identity.
-- [x] The existing authenticated `/overview` route becomes the Dashboard; no duplicate route or
+- [ ] The existing authenticated `/overview` route becomes the Dashboard; no duplicate route or
       navigation entry is added.
-- [x] Agenda presentation, rules, filters, DnD, statuses, mutations, and existing journeys remain
+- [ ] Agenda presentation, rules, filters, DnD, statuses, mutations, and existing journeys remain
       unchanged.
-- [x] Dashboard and Agenda reuse the same local/dev scheduling repository state without adding
+- [ ] Dashboard and Agenda reuse the same local/dev scheduling repository state without adding
       `src/dev/dashboard`, duplicate fixtures, a new source env variable, HTTP, or persistence.
-- [x] Period, unit, and professional filters update every block coherently and preserve safe
+- [ ] Period, unit, and professional filters update every block coherently and preserve safe
       shareable URL state.
-- [x] The five KPI surfaces render truthful appointment, completion, paid-state value, paid-state
-      average, and minute-based occupancy calculations, with bounded prior-period comparison or an
-      explicit unavailable baseline.
-- [x] Upcoming appointments, actionable supported attention items, appointment flow, professional
+- [ ] The five KPI surfaces render truthful appointment, completion, paid-state value, paid-state
+      average, and minute-based occupancy calculations.
+- [ ] Upcoming appointments, actionable supported attention items, appointment flow, professional
       occupancy, capacity, operational finance, services, cancellations/no-show, and clients render
       from current scheduling records.
-- [x] Discounts, payment methods, provider settlement, new-client count, and long-term retention are
+- [ ] Discounts, payment methods, provider settlement, new-client count, and long-term retention are
       never fabricated; unsupported values render an explicit neutral unavailable state.
-- [x] `Novo agendamento` and supported appointment actions reuse the existing scheduling drawer,
+- [ ] `Novo agendamento` and supported appointment actions reuse the existing scheduling drawer,
       mutations, validation, feedback, and rollback.
-- [x] KPI, status, professional, services, and optional client links reuse existing routes and
+- [ ] KPI, status, professional, services, and optional client links reuse existing routes and
       allowlisted filters; no new detail route is created.
-- [x] Loading, delayed, empty, filtered-empty, error, retry, unsupported-data, and disabled-source
+- [ ] Loading, delayed, empty, filtered-empty, error, retry, unsupported-data, and disabled-source
       states use Brazilian Portuguese copy and accessible semantics.
 - [ ] Large desktop, medium desktop, tablet, 320px reflow, 200% zoom, light/dark/system, forced
       colors, reduced motion, keyboard, focus, target-size, internal-overflow, and axe checks pass.
-      Automated evidence covers every item except actual browser 200% zoom, which remains manual.
-- [x] Browser-computed text, muted text, focus, status, progress, and meaningful non-text contrast
+- [ ] Browser-computed text, muted text, focus, status, progress, and meaningful non-text contrast
       meet WCAG 2.2 AA.
-- [x] Focused unit tests define every formula and prove filter coherence, bounds, sort order, caps,
-      unsupported fields and no duplicated source.
-- [x] Playwright covers the reference hierarchy, filters, drill-down navigation, existing drawer
+- [ ] Focused unit tests define every formula and prove filter coherence, bounds, sort order, caps,
+      unsupported fields, stale-result protection, and no duplicated source.
+- [ ] Playwright covers the reference hierarchy, filters, drill-down navigation, existing drawer
       reuse, shared state with Agenda, reload reset, representative scenarios, responsive behavior,
       accessibility, and visual themes.
-- [x] Production-boundary tests continue to exclude scheduling memory/scenarios from `hml`/`prd`;
+- [ ] Production-boundary tests continue to exclude scheduling memory/scenarios from `hml`/`prd`;
       no Dashboard source is introduced.
-- [x] Studio Dashboard, component-system, testing, and any changed scheduling/theme documentation is
+- [ ] Studio Dashboard, component-system, testing, and any changed scheduling/theme documentation is
       updated.
-- [x] Route generation, format, lint, typecheck, Vitest, focused/full Playwright,
+- [ ] Route generation, format, lint, typecheck, Vitest, focused/full Playwright,
       production-boundary, build, Studio check, root check, and `git diff --check` have recorded
       evidence.
 
+## Verification Plan
 
 - Unit tests:
   - Dashboard search/period validation, 31-day bound, unit/professional allowlists, safe URLs.

@@ -18,8 +18,8 @@ discounts, price editing, payment, commissions, cash, or daily closing.
   - ENG-46 and PR #27 establish `/service-desk`, the `Atendimentos` navigation
     entry, the service-desk repository, scheduled/walk-in queue entries, the
     shared scheduling catalogs, and the transition to `in-service`.
-  - ENG-46 is `Done`; PR #27 is merged into `staging` at
-    `fe624291c5938dcb5c5a3ad83368066b481f8937`.
+  - ENG-46 is in `Ready To Merge`; this initiative cannot be implemented until
+    it is merged to `staging`.
   - The official UX note defines an in-progress visit as a small command tab
     whose performed services and professionals evolve during service.
   - The visual MLP tracker identifies service fulfillment as the next delivery.
@@ -435,41 +435,41 @@ notes or customer contact data.
 
 ## Acceptance Criteria
 
-- [x] Implementation starts from `staging` after ENG-46/PR #27 is merged.
-- [x] An authenticated `/service-desk/$sessionId` workspace opens from an
+- [ ] Implementation starts from `staging` after ENG-46/PR #27 is merged.
+- [ ] An authenticated `/service-desk/$sessionId` workspace opens from an
       `Em atendimento` entry and keeps `Atendimentos` active.
-- [x] The initial service item and selected starting professional are preserved.
-- [x] Users can add service catalog items and attribute each item to an eligible
+- [ ] The initial service item and selected starting professional are preserved.
+- [ ] Users can add service catalog items and attribute each item to an eligible
       professional.
-- [x] Users can change a service item's professional while service is active.
-- [x] Users can remove added items, but not the initial item.
-- [x] Users can edit bounded service-session notes with explicit pt-BR
+- [ ] Users can change a service item's professional while service is active.
+- [ ] Users can remove added items, but not the initial item.
+- [ ] Users can edit bounded service-session notes with explicit pt-BR
       validation and sensitive-data guidance.
-- [x] Elapsed-time and state labels use the injected source clock and exact
+- [ ] Elapsed-time and state labels use the injected source clock and exact
       boundaries.
-- [x] Finishing validates completeness, confirms intent, is pending-safe, and
+- [ ] Finishing validates completeness, confirms intent, is pending-safe, and
       atomically transitions the session to `ready-for-payment`.
-- [x] `Pronto para pagamento` is visible as an operational handoff, with no
+- [ ] `Pronto para pagamento` is visible as an operational handoff, with no
       payment action, price editing, discount, commission, or cash behavior.
-- [x] A linked appointment remains `in-progress` and is not presented as paid,
+- [ ] A linked appointment remains `in-progress` and is not presented as paid,
       completed, or revenue-bearing.
-- [x] Normal, edge, slow, failure, ready, reset, and reload scenarios are
+- [ ] Normal, edge, slow, failure, ready, reset, and reload scenarios are
       deterministic.
-- [x] Failed or stale mutations preserve coherent prior state.
-- [x] No new source, public environment variable, API, IDP, persistence,
+- [ ] Failed or stale mutations preserve coherent prior state.
+- [ ] No new source, public environment variable, API, IDP, persistence,
       polling, or realtime behavior is added.
-- [x] `hml`/`prd` remain fail-closed and production artifacts exclude
+- [ ] `hml`/`prd` remain fail-closed and production artifacts exclude
       service-session fixtures/scenarios/adapter markers.
-- [x] Existing Studio components/tokens and pt-BR UX copy are used consistently.
-- [x] Keyboard, focus, screen-reader semantics, contrast, forced colors,
+- [ ] Existing Studio components/tokens and pt-BR UX copy are used consistently.
+- [ ] Keyboard, focus, screen-reader semantics, contrast, forced colors,
       reduced motion, 24px targets, 200% zoom, 320px reflow, coarse pointer, and
       axe evidence are recorded.
-- [x] Focused service-session tests, service-desk regressions, Agenda/Dashboard
+- [ ] Focused service-session tests, service-desk regressions, Agenda/Dashboard
       truthfulness, production boundary, build/check, Playwright, root check,
       and diff checks pass or isolate a pre-existing baseline.
-- [x] Durable Studio and initiative documentation is updated.
-- [x] Preflight passes, draft PR #28 targets `staging`, and no Linear mutation
-      was made in this bounded review batch.
+- [ ] Durable Studio and initiative documentation is updated.
+- [ ] Preflight passes, the PR targets `staging`, and Linear status changes are
+      evidence-based.
 
 ## Verification Plan
 
@@ -522,9 +522,9 @@ git diff --check
 - [x] Professional attribution is per service item.
 - [x] Price editing, discounts, and all payment behavior are excluded.
 - [x] Scheduled appointments remain `in-progress` at the handoff.
-- Future: the next initiative must define command-tab values, discounts, payment
+- [ ] The next initiative must define command-tab values, discounts, payment
       methods, payment registration, and the appointment completion boundary.
-- Future: a later initiative must define commissions.
-- Future production work must define canonical visit identity, API/persistence,
+- [ ] A later initiative must define commissions.
+- [ ] Production work must define canonical visit identity, API/persistence,
       tenant/unit authorization, actor permissions, audit, concurrency,
       idempotency, retention, realtime, and observability.

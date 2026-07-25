@@ -26,7 +26,7 @@ repository for scheduled appointments, and fails closed in `hml` and `prd`.
 
 ### Current State
 
-- The Maestri note `triad-studio-o-triad-stud` is the UX/product
+- The connected Maestri note `triad-studio-o-triad-stud` is the UX/product
   source for the first MLP. Its accepted operational cycle is:
   `configure -> schedule -> organize service -> fulfill -> pay -> calculate
   commission -> close the day`.
@@ -36,7 +36,7 @@ repository for scheduled appointments, and fails closed in `hml` and `prd`.
   - initial navigation and access expectations at lines 472-523;
   - the two primary journeys at lines 527-537;
   - construction priority at lines 566-600.
-- The Maestri note `triad-studio-acompanhament` tracks the visual MLP
+- The connected Maestri note `triad-studio-acompanhament` tracks the visual MLP
   with emoji statuses and identifies queue/check-in as the next planned
   delivery.
 - ENG-34, ENG-40, and ENG-43 established the Agenda, appointment drawer,
@@ -90,12 +90,8 @@ repository for scheduled appointments, and fails closed in `hml` and `prd`.
   [TRIAD Studio Front Desk Queue and Check-In Visual Prototype](https://linear.app/corvi-io/initiative/triad-studio-front-desk-queue-and-check-in-visual-prototype-41dad3f57b38).
 - Linear issue:
   [ENG-46: Build the TRIAD Studio front-desk queue and check-in visual prototype](https://linear.app/corvi-io/issue/ENG-46/build-the-triad-studio-front-desk-queue-and-check-in-visual-prototype).
-- Maestri UX note: `triad-studio-o-triad-stud`.
-- Maestri progress note: `triad-studio-acompanhament`.
-- ENG-46 implementation note: neither named Maestri note was connected to the
-  isolated implementation floor. The accepted decisions transcribed in this
-  PRD and the Linear issue were used as the source of truth; the notes
-  themselves could not be re-read during delivery.
+- Connected Maestri UX note: `triad-studio-o-triad-stud`.
+- Connected Maestri progress note: `triad-studio-acompanhament`.
 - `docs/initiatives/prds/03-triad-studio-schedule-visual-prototype.md`
 - `docs/initiatives/prds/06-triad-studio-agenda-kanban-visual-prototype.md`
 - `docs/initiatives/prds/10-triad-studio-client-management-visual-prototype.md`
@@ -598,53 +594,53 @@ None.
 
 ## Acceptance Criteria
 
-- [x] `/service-desk` is an authenticated Studio route labeled `Atendimentos`
+- [ ] `/service-desk` is an authenticated Studio route labeled `Atendimentos`
       and appears after Agenda and before Clients in expanded, collapsed, and
       mobile primary navigation.
-- [x] The page uses the accepted header, compact shared controls, textual
+- [ ] The page uses the accepted header, compact shared controls, textual
       operational summary, and `Aguardando`, `Chamados`, and `Em atendimento`
       stages without duplicating the Studio design system.
-- [x] Scheduled `arrived`/`waiting` appointments are projected from the shared
+- [ ] Scheduled `arrived`/`waiting` appointments are projected from the shared
       scheduling repository and are not copied into a second appointment
       fixture.
-- [x] A scheduled customer can move through waiting, called, and in-service;
+- [ ] A scheduled customer can move through waiting, called, and in-service;
       starting service transitions the original appointment to `in-progress`
       and remains coherent in Agenda and Dashboard during the session.
-- [x] Reception can add a walk-in with client snapshot, service, professional
+- [ ] Reception can add a walk-in with client snapshot, service, professional
       preference, arrival, priority, and notes through the shared
       `ActionDrawer`.
-- [x] Specific-professional and first-available paths enforce explicit,
+- [ ] Specific-professional and first-available paths enforce explicit,
       recoverable eligibility rules without automatic assignment claims.
-- [x] The delivery stops at `Em atendimento`; no fulfillment items, price
+- [ ] The delivery stops at `Em atendimento`; no fulfillment items, price
       editing, discount, payment, commission, cash, or close action is exposed.
-- [x] Search and filters use the shared list controls. Safe URL state is
+- [ ] Search and filters use the shared list controls. Safe URL state is
       allowlisted and customer-shaped text never enters the URL.
-- [x] Every visible count, current stage, wait duration, and drill-down subset
+- [ ] Every visible count, current stage, wait duration, and drill-down subset
       is derived from the same typed source/time bounds and matches the records
       shown.
-- [x] Every Zod validation path and min/max constraint renders explicit
+- [ ] Every Zod validation path and min/max constraint renders explicit
       Brazilian Portuguese copy, links errors correctly, and focuses the first
       invalid field.
-- [x] Normal, empty, filtered-empty, dense, long-wait,
+- [ ] Normal, empty, filtered-empty, dense, long-wait,
       specific-professional, first-available, unavailable-professional, slow,
       next-failure, and persistent-error scenarios are deterministic and
       resettable outside ordinary product chrome.
-- [x] Delayed and failed mutations are atomic, do not write across scenario
+- [ ] Delayed and failed mutations are atomic, do not write across scenario
       generations, prevent duplicate submission, preserve stable action labels,
       and offer recovery where supported.
-- [x] Existing components, Base UI composition, semantic tokens, neutral cards,
+- [ ] Existing components, Base UI composition, semantic tokens, neutral cards,
       status text/icon/badge signals, Lucide icon rules, direct imports, and
       `ModuleLayout` spacing contracts are followed.
-- [x] Light, dark, system, forced-colors, reduced-motion, 200% zoom,
+- [ ] Light, dark, system, forced-colors, reduced-motion, 200% zoom,
       320-CSS-pixel reflow, target size, focus visibility/return, keyboard flow,
       coarse pointer, and axe checks have recorded evidence.
-- [x] `hml` and `prd` resolve the disabled source. Production artifacts contain
+- [ ] `hml` and `prd` resolve the disabled source. Production artifacts contain
       no service-desk adapter, fixtures, scenarios, synthetic identities, or
       mutation implementation.
-- [x] Agenda, Dashboard, Clients, setup, authentication, API, IDP, and site
+- [ ] Agenda, Dashboard, Clients, setup, authentication, API, IDP, and site
       behavior remain unchanged outside the accepted route/navigation and
       scheduled-status coherence.
-- [x] Durable Studio, component-inventory, testing, and source-boundary docs are
+- [ ] Durable Studio, component-inventory, testing, and source-boundary docs are
       updated where their contracts change.
 
 ## Verification Plan
@@ -714,9 +710,9 @@ Record any baseline failure separately and prove whether the branch changes it.
 
 ## Accepted Decisions And Follow-Ups
 
-- [x] The UX source is the Maestri note
+- [x] The UX source is the connected Maestri note
       `triad-studio-o-triad-stud`.
-- [x] The progress tracker is the Maestri note
+- [x] The progress tracker is the connected Maestri note
       `triad-studio-acompanhament`.
 - [x] This initiative stops at `Em atendimento`.
 - [x] Queue/check-in is a separate `/service-desk` surface labeled

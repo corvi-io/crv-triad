@@ -276,9 +276,6 @@ dataset.
 - A discount cannot make the total negative.
 - Discount and surcharge allocation across service lines is proportional to
   each adjusted line value.
-- If every adjusted line value is zero, assign the complete non-negative net
-  adjustment to the first service item in stable order; reject a non-zero
-  adjustment when no service item exists.
 - Cent remainders are allocated by stable service-item order so reload and
   retry produce the same result.
 
@@ -588,22 +585,22 @@ gateway is an adapter and must not become the owner of TRIAD domain state.
 
 ### Delivery 1
 
-- [x] A `ready-for-payment` session opens a complete checkout workspace under
+- [ ] A `ready-for-payment` session opens a complete checkout workspace under
       `Atendimentos`.
-- [x] Exact service-line, adjustment, total, and remaining values are derived
+- [ ] Exact service-line, adjustment, total, and remaining values are derived
       in integer cents.
-- [x] Pix, cash, debit, credit, and exact mixed payment can be validated.
-- [x] Cash received and change are calculated truthfully.
-- [x] Invalid or incomplete tender combinations cannot be submitted.
-- [x] Item-level commission follows the documented precedence and exact-money
+- [ ] Pix, cash, debit, credit, and exact mixed payment can be validated.
+- [ ] Cash received and change are calculated truthfully.
+- [ ] Invalid or incomplete tender combinations cannot be submitted.
+- [ ] Item-level commission follows the documented precedence and exact-money
       rules.
-- [x] Successful payment atomically creates one paid sale and immutable
+- [ ] Successful payment atomically creates one paid sale and immutable
       commission snapshots.
-- [x] Scheduled payment completes and marks the linked appointment paid;
+- [ ] Scheduled payment completes and marks the linked appointment paid;
       walk-in payment creates no appointment.
-- [x] Dashboard supported financial facts derive from paid sales.
-- [x] Failure and duplicate submission cannot partially mutate state.
-- [x] Paid sales are read-only.
+- [ ] Dashboard supported financial facts derive from paid sales.
+- [ ] Failure and duplicate submission cannot partially mutate state.
+- [ ] Paid sales are read-only.
 
 ### Delivery 2
 

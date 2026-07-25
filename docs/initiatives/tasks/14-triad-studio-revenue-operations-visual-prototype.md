@@ -39,29 +39,29 @@ The accepted prototype:
 
 ## Shared Readiness Gate
 
-- [x] Confirm ENG-47 is `Done`.
-- [x] Confirm PR #28 is merged into `staging`.
-- [x] Fetch the latest `origin/staging`.
-- [x] Create an isolated checkout or Maestri floor from that revision.
-- [x] Record the base SHA.
-- [x] Read root and Studio AGENTS.
-- [x] Read the PRD and this plan completely.
-- [x] Read required skills:
-  - [x] `triad-initiative-workflow`;
-  - [x] `triad-architecture`;
-  - [x] `triad-studio-development`;
-  - [x] `accessibility`;
-  - [x] `shadcn`;
-  - [x] `tailwind-design-system`;
-  - [x] `vercel-composition-patterns`;
-  - [x] `vercel-react-best-practices`;
-  - [x] `react-useeffect`;
-  - [x] `ux-copy`.
-- [x] Inspect the merged ENG-47 contracts, routes, source composition, tests,
+- [ ] Confirm ENG-47 is `Done`.
+- [ ] Confirm PR #28 is merged into `staging`.
+- [ ] Fetch the latest `origin/staging`.
+- [ ] Create an isolated checkout or Maestri floor from that revision.
+- [ ] Record the base SHA.
+- [ ] Read root and Studio AGENTS.
+- [ ] Read the PRD and this plan completely.
+- [ ] Read required skills:
+  - [ ] `triad-initiative-workflow`;
+  - [ ] `triad-architecture`;
+  - [ ] `triad-studio-development`;
+  - [ ] `accessibility`;
+  - [ ] `shadcn`;
+  - [ ] `tailwind-design-system`;
+  - [ ] `vercel-composition-patterns`;
+  - [ ] `vercel-react-best-practices`;
+  - [ ] `react-useeffect`;
+  - [ ] `ux-copy`.
+- [ ] Inspect the merged ENG-47 contracts, routes, source composition, tests,
       and durable docs.
-- [x] Record any divergence between merged behavior and the planning contract
+- [ ] Record any divergence between merged behavior and the planning contract
       before editing.
-- [x] Run focused existing service-desk, scheduling, and Dashboard tests.
+- [ ] Run focused existing service-desk, scheduling, and Dashboard tests.
 
 ## Shared Implementation Principles
 
@@ -125,256 +125,217 @@ The accepted prototype:
 
 ### 1.1 Baseline And Design Audit
 
-- [x] Verify the dependency commit is present in the implementation base.
-- [x] Inspect `service-desk`, scheduling, Dashboard, catalog, and navigation
+- [ ] Verify the dependency commit is present in the implementation base.
+- [ ] Inspect `service-desk`, scheduling, Dashboard, catalog, and navigation
       public contracts.
-- [x] Inspect current shared components and the installed shadcn registry with
+- [ ] Inspect current shared components and the installed shadcn registry with
       Bun before adding primitives.
-- [x] Record why any new shared component is necessary.
-- [x] Define the route hierarchy and wide, medium, 320px, and 200%-zoom
+- [ ] Record why any new shared component is necessary.
+- [ ] Define the route hierarchy and wide, medium, 320px, and 200%-zoom
       compositions before JSX.
-- [x] Validate final pt-BR vocabulary for command tab, adjustment, commission,
+- [ ] Validate final pt-BR vocabulary for command tab, adjustment, commission,
       payment, change, remaining amount, and completion.
 
 ### 1.2 Revenue Domain Contracts
 
-- [x] Add contracts equivalent to:
-  - [x] `Checkout`;
-  - [x] `CheckoutLine`;
-  - [x] `CheckoutAdjustment`;
-  - [x] `PaymentTender`;
-  - [x] `PaidSale`;
-  - [x] `CommissionRule`;
-  - [x] `ItemCommissionSnapshot`;
-  - [x] repository inputs, results, and stable errors.
-- [x] Use opaque stable IDs and integer timestamps.
-- [x] Use integer cents for every monetary field.
-- [x] Use integer basis points for commission percentages.
-- [x] Add pure invariant helpers for non-negative values and exact
+- [ ] Add contracts equivalent to:
+  - [ ] `Checkout`;
+  - [ ] `CheckoutLine`;
+  - [ ] `CheckoutAdjustment`;
+  - [ ] `PaymentTender`;
+  - [ ] `PaidSale`;
+  - [ ] `CommissionRule`;
+  - [ ] `ItemCommissionSnapshot`;
+  - [ ] repository inputs, results, and stable errors.
+- [ ] Use opaque stable IDs and integer timestamps.
+- [ ] Use integer cents for every monetary field.
+- [ ] Use integer basis points for commission percentages.
+- [ ] Add pure invariant helpers for non-negative values and exact
       reconciliation.
-- [x] Keep customer data, values, reasons, and payment details out of route
+- [ ] Keep customer data, values, reasons, and payment details out of route
       search state.
 
 ### 1.3 Service-Session Handoff
 
-- [x] Define a narrow public handoff from a `ready-for-payment` service
+- [ ] Define a narrow public handoff from a `ready-for-payment` service
       session.
-- [x] Include session/optional appointment IDs, source, unit, customer
+- [ ] Include session/optional appointment IDs, source, unit, customer
       snapshot, performed lines, professionals, price snapshots, and time.
-- [x] Reject sessions that are absent, stale, not ready, already superseded, or
+- [ ] Reject sessions that are absent, stale, not ready, already superseded, or
       from an unavailable source.
-- [x] Preserve scheduled versus walk-in semantics.
-- [x] Do not import service-desk route components or `src/dev` fixtures.
-- [x] Add boundary tests for allowed module imports.
+- [ ] Preserve scheduled versus walk-in semantics.
+- [ ] Do not import service-desk route components or `src/dev` fixtures.
+- [ ] Add boundary tests for allowed module imports.
 
 ### 1.4 Exact Totals And Adjustments
 
-- [x] Derive base subtotal from accepted service price snapshots.
-- [x] Support authorized item-price override with a bounded reason.
-- [x] Support one fixed-cent command discount and one fixed-cent surcharge.
-- [x] Require bounded reasons for non-zero adjustments.
-- [x] Prevent negative line values and totals.
-- [x] Allocate adjustments proportionally by adjusted line value.
-- [x] Allocate cent remainders in stable item order.
-- [x] Add invariants proving line allocations reconcile exactly with the final
+- [ ] Derive base subtotal from accepted service price snapshots.
+- [ ] Support authorized item-price override with a bounded reason.
+- [ ] Support one fixed-cent command discount and one fixed-cent surcharge.
+- [ ] Require bounded reasons for non-zero adjustments.
+- [ ] Prevent negative line values and totals.
+- [ ] Allocate adjustments proportionally by adjusted line value.
+- [ ] Allocate cent remainders in stable item order.
+- [ ] Add invariants proving line allocations reconcile exactly with the final
       total.
-- [x] Keep unauthorized scenarios visible without claiming production RBAC.
+- [ ] Keep unauthorized scenarios visible without claiming production RBAC.
 
 ### 1.5 Commission Rules
 
-- [x] Support:
-  - [x] professional default percentage;
-  - [x] service/professional percentage override;
-  - [x] service/professional fixed-cent override;
-  - [x] explicit no commission.
-- [x] Implement precedence:
-  - [x] service/professional override;
-  - [x] professional default;
-  - [x] no commission.
-- [x] Calculate on each line's net allocated value.
-- [x] Cap fixed commission at the non-negative line base.
-- [x] Snapshot matched rule, source, base, rate/fixed amount, calculated value,
+- [ ] Support:
+  - [ ] professional default percentage;
+  - [ ] service/professional percentage override;
+  - [ ] service/professional fixed-cent override;
+  - [ ] explicit no commission.
+- [ ] Implement precedence:
+  - [ ] service/professional override;
+  - [ ] professional default;
+  - [ ] no commission.
+- [ ] Calculate on each line's net allocated value.
+- [ ] Cap fixed commission at the non-negative line base.
+- [ ] Snapshot matched rule, source, base, rate/fixed amount, calculated value,
       and professional.
-- [x] Reconcile gross, commission, and barbershop amounts exactly.
-- [x] Make it explicit that payout is outside the prototype.
+- [ ] Reconcile gross, commission, and barbershop amounts exactly.
+- [ ] Make it explicit that payout is outside the prototype.
 
 ### 1.6 Payment Tender Rules
 
-- [x] Support Pix, cash, debit, credit, and mixed registration.
-- [x] Represent mixed payment as two or more tender lines.
-- [x] Require tender applied amounts to equal the final total exactly.
-- [x] Derive exact remaining amount after each tender line.
-- [x] For cash, accept received cents greater than or equal to applied cents
+- [ ] Support Pix, cash, debit, credit, and mixed registration.
+- [ ] Represent mixed payment as two or more tender lines.
+- [ ] Require tender applied amounts to equal the final total exactly.
+- [ ] Derive exact remaining amount after each tender line.
+- [ ] For cash, accept received cents greater than or equal to applied cents
       and derive change.
-- [x] Reject negative, zero where invalid, excessive, incomplete, or duplicate
+- [ ] Reject negative, zero where invalid, excessive, incomplete, or duplicate
       tender inputs.
-- [x] Render no card number, CVV, token, QR, gateway, or terminal field.
-- [x] Keep any demonstration reference obviously synthetic and non-sensitive.
+- [ ] Render no card number, CVV, token, QR, gateway, or terminal field.
+- [ ] Keep any demonstration reference obviously synthetic and non-sensitive.
 
 ### 1.7 Repository And Memory Coordinator
 
-- [x] Add narrow repository methods equivalent to:
-  - [x] `getCheckout`;
-  - [x] `updateLinePrice`;
-  - [x] `updateAdjustments`;
-  - [x] `previewCommissions`;
-  - [x] `replaceTenders`;
-  - [x] `completePayment`;
-  - [x] `getPaidSale`.
-- [x] Build checkout from the accepted service-session handoff, not a duplicate
+- [ ] Add narrow repository methods equivalent to:
+  - [ ] `getCheckout`;
+  - [ ] `updateLinePrice`;
+  - [ ] `updateAdjustments`;
+  - [ ] `previewCommissions`;
+  - [ ] `replaceTenders`;
+  - [ ] `completePayment`;
+  - [ ] `getPaidSale`.
+- [ ] Build checkout from the accepted service-session handoff, not a duplicate
       fixture.
-- [x] Make payment completion atomic and idempotent.
-- [x] Fail before writes or restore the complete prior snapshot.
-- [x] On success, create one paid sale and immutable item commission snapshots.
-- [x] Coordinate scheduled appointment transition to `completed`/`paid`.
-- [x] Complete walk-in without creating an appointment.
-- [x] Update supported Dashboard projections from the same paid-sale source.
-- [x] Preserve the checkout unchanged on synthetic decline or repository
+- [ ] Make payment completion atomic and idempotent.
+- [ ] Fail before writes or restore the complete prior snapshot.
+- [ ] On success, create one paid sale and immutable item commission snapshots.
+- [ ] Coordinate scheduled appointment transition to `completed`/`paid`.
+- [ ] Complete walk-in without creating an appointment.
+- [ ] Update supported Dashboard projections from the same paid-sale source.
+- [ ] Preserve the checkout unchanged on synthetic decline or repository
       failure.
-- [x] Increment generation on scenario/reset and discard stale delayed work.
-- [x] Reconstruct selected scenario on full reload.
+- [ ] Increment generation on scenario/reset and discard stale delayed work.
+- [ ] Reconstruct selected scenario on full reload.
 
 ### 1.8 Query Composition
 
-- [x] Add stable exact checkout, sale, and commission query keys.
-- [x] Add focused queries and mutations over the repository port.
-- [x] Invalidate only affected checkout, service session, queue, appointment,
+- [ ] Add stable exact checkout, sale, and commission query keys.
+- [ ] Add focused queries and mutations over the repository port.
+- [ ] Invalidate only affected checkout, service session, queue, appointment,
       Dashboard, and future cash-summary keys.
-- [x] Start independent reads together.
-- [x] Avoid effect chains for totals, commission, remaining amount, and enabled
+- [ ] Start independent reads together.
+- [ ] Avoid effect chains for totals, commission, remaining amount, and enabled
       actions.
-- [x] Prevent stale route/session mutations from committing results.
+- [ ] Prevent stale route/session mutations from committing results.
 
 ### 1.9 Checkout Route And UI
 
-- [x] Add the authenticated child route
+- [ ] Add the authenticated child route
       `/service-desk/$sessionId/checkout`.
-- [x] Keep `Atendimentos` active in all navigation variants.
-- [x] Render breadcrumb semantics equivalent to
+- [ ] Keep `Atendimentos` active in all navigation variants.
+- [ ] Render breadcrumb semantics equivalent to
       `Atendimentos / Atendimento / Pagamento`.
-- [x] Compose:
-  - [x] customer/source/status header;
-  - [x] command lines;
-  - [x] adjustments;
-  - [x] commission preview;
-  - [x] payment method/tender editor;
-  - [x] exact summary;
-  - [x] completion action.
-- [x] Render loading, missing, persistent-error, open, pending, and paid states
+- [ ] Compose:
+  - [ ] customer/source/status header;
+  - [ ] command lines;
+  - [ ] adjustments;
+  - [ ] commission preview;
+  - [ ] payment method/tender editor;
+  - [ ] exact summary;
+  - [ ] completion action.
+- [ ] Render loading, missing, persistent-error, open, pending, and paid states
       with accepted shared anatomy.
-- [x] Keep fixture vocabulary out of ordinary product chrome.
-- [x] Keep focus visible and unobscured at all supported sizes.
+- [ ] Keep fixture vocabulary out of ordinary product chrome.
+- [ ] Keep focus visible and unobscured at all supported sizes.
 
 ### 1.10 Forms And Confirmation
 
-- [x] Use explicit React Hook Form/Zod schemas for non-trivial adjustment and
+- [ ] Use explicit React Hook Form/Zod schemas for non-trivial adjustment and
       tender forms.
-- [x] Provide explicit pt-BR validation messages for every constraint.
-- [x] Use `noValidate`, linked descriptions, `aria-invalid`, error summary
+- [ ] Provide explicit pt-BR validation messages for every constraint.
+- [ ] Use `noValidate`, linked descriptions, `aria-invalid`, error summary
       where useful, and first-invalid focus.
-- [x] Add guidance not to enter personal, card, credential, or sensitive data
+- [ ] Add guidance not to enter personal, card, credential, or sensitive data
       in reason fields.
-- [x] Use stable button labels and shared loading behavior.
-- [x] Add an accessible final confirmation with exact total and consequence.
-- [x] Trap and restore dialog focus correctly.
-- [x] Announce success or failure without PII or payment details.
+- [ ] Use stable button labels and shared loading behavior.
+- [ ] Add an accessible final confirmation with exact total and consequence.
+- [ ] Trap and restore dialog focus correctly.
+- [ ] Announce success or failure without PII or payment details.
 
 ### 1.11 Paid State And Dashboard
 
-- [x] Render a read-only paid summary without claiming a fiscal receipt.
-- [x] Prevent price, adjustment, tender, or commission mutation after payment.
-- [x] Return duplicate completion attempts to the existing paid result.
-- [x] Show the service-desk entry as completed/paid.
-- [x] Show a linked scheduled appointment as completed/paid.
-- [x] Keep walk-in truth explicit.
-- [x] Update only Dashboard metrics supported by the paid-sale projection.
-- [x] Prefer unavailable/unchanged states over fabricated financial metrics.
+- [ ] Render a read-only paid summary without claiming a fiscal receipt.
+- [ ] Prevent price, adjustment, tender, or commission mutation after payment.
+- [ ] Return duplicate completion attempts to the existing paid result.
+- [ ] Show the service-desk entry as completed/paid.
+- [ ] Show a linked scheduled appointment as completed/paid.
+- [ ] Keep walk-in truth explicit.
+- [ ] Update only Dashboard metrics supported by the paid-sale projection.
+- [ ] Prefer unavailable/unchanged states over fabricated financial metrics.
 
 ### 1.12 Task 1 Scenarios
 
-- [x] Add deterministic scenarios for:
-  - [x] typical Pix;
-  - [x] cash with change;
-  - [x] debit;
-  - [x] credit;
-  - [x] exact mixed tenders;
-  - [x] discount;
-  - [x] surcharge;
-  - [x] authorized item-price override;
-  - [x] unauthorized adjustment;
-  - [x] percentage commission;
-  - [x] fixed commission;
-  - [x] no commission;
-  - [x] multiple professionals;
-  - [x] scheduled completion;
-  - [x] walk-in completion;
-  - [x] synthetic decline;
-  - [x] slow load/payment;
-  - [x] fail-next mutation;
-  - [x] persistent error;
-  - [x] already paid;
-  - [x] long bounded content.
-- [x] Verify reset and reload for every stateful scenario.
+- [ ] Add deterministic scenarios for:
+  - [ ] typical Pix;
+  - [ ] cash with change;
+  - [ ] debit;
+  - [ ] credit;
+  - [ ] exact mixed tenders;
+  - [ ] discount;
+  - [ ] surcharge;
+  - [ ] authorized item-price override;
+  - [ ] unauthorized adjustment;
+  - [ ] percentage commission;
+  - [ ] fixed commission;
+  - [ ] no commission;
+  - [ ] multiple professionals;
+  - [ ] scheduled completion;
+  - [ ] walk-in completion;
+  - [ ] synthetic decline;
+  - [ ] slow load/payment;
+  - [ ] fail-next mutation;
+  - [ ] persistent error;
+  - [ ] already paid;
+  - [ ] long bounded content.
+- [ ] Verify reset and reload for every stateful scenario.
 
 ### 1.13 Task 1 Verification
 
-- [x] Unit-test money, allocation, commission, tender, transition, and
+- [ ] Unit-test money, allocation, commission, tender, transition, and
       idempotency invariants.
-- [x] Component-test forms, keyboard behavior, errors, pending state, and
+- [ ] Component-test forms, keyboard behavior, errors, pending state, and
       confirmation focus.
-- [x] Integration-test atomic cross-surface transitions.
-- [x] Route-test valid, missing, not-ready, paid, and unavailable-source states.
-- [x] Production-boundary-test no `src/dev`, backend, or provider leakage.
-- [x] Playwright-test Pix, cash, mixed, failure recovery, scenario switching,
-      and reload.
-- [x] Run automated axe checks.
+- [ ] Integration-test atomic cross-surface transitions.
+- [ ] Route-test valid, missing, not-ready, paid, and unavailable-source states.
+- [ ] Production-boundary-test no `src/dev`, backend, or provider leakage.
+- [ ] Playwright-test Pix, cash, mixed, failure recovery, reset, and reload.
+- [ ] Run automated axe checks.
 - [ ] Manually test keyboard, VoiceOver or NVDA, forced colors, reduced motion,
       coarse pointer, 320px, and 200% zoom.
-  - Automated evidence covers keyboard traversal, confirmation focus, forced
-    colors, reduced motion, 24px targets, 320 CSS pixels, and the
-    640px-at-200%-zoom layout equivalent. Real browser 200% zoom,
-    VoiceOver/NVDA, and a physical coarse-pointer device remain manual.
-- [x] Run from `apps/studio`:
-  - [x] `bun run test`;
-  - [x] `bun run check`;
-  - [x] `bun run build`.
-- [x] Capture light/dark desktop and narrow-screen evidence.
-- [x] Update durable Studio documentation.
-- [x] Move Task 1 through Linear workflow only with evidence.
-
-### Task 1 Verification Evidence
-
-- Base: `7a9504cc4e6971baaa73c2b15a79542636666faa`.
-- Implementation: `8d8279cb828eb45e26508066c6b57e0a48b4702c`.
-- PR: [#29](https://github.com/corvi-io/crv-triad/pull/29), targeting
-  `staging`; Linear ENG-48 moved to `PR Open` after the PR existed.
-- `bun run test`: 42 files, 308 tests passed.
-- `bun run check`: passed, including TypeScript, tests, production build, and
-  production-boundary scan across 55 files.
-- `bun run build`: passed with the existing-style Vite warning for a main
-  chunk over 500 kB.
-- `bunx playwright test tests/e2e/service-desk.spec.ts
-  tests/e2e/revenue-operations.spec.ts`: 13 passed, including focused axe.
-- Parameterized repository coverage reconstructs all 20 checkout scenarios
-  after reset and from a fresh repository, including deterministic error,
-  loading, failure, and paid states.
-- The complete 71-test Playwright run produced 53 passes. One branch-local
-  service-desk copy assertion was updated and now passes. The remaining 17
-  failures were isolated to pre-existing Agenda/theme fixtures fixed at
-  `2026-07-22`; on the 2026-07-24 execution date the preview intentionally
-  projected an empty date. The representative Agenda failure repeated
-  unchanged in isolation and was not retried again or repaired outside ENG-48.
-- Automated screenshots:
-  `docs/studio/evidence/eng-48/checkout-paid-light-1440x900.png`,
-  `checkout-open-dark-320x720.png`, and
-  `checkout-forced-colors-320x720.png`.
-- The bounded review batch added exact zero-subtotal surcharge allocation,
-  truthful nested-route mobile module identity, all-scenario reset/reload
-  reconstruction, and professional-filtered walk-in revenue. The latter two
-  money/Dashboard findings correspond to the initial Codex review threads.
-- The final bounded follow-up fixed local-date filtering for late-night paid
-  sales and independently aggregates matching secondary-professional lines
-  from scheduled paid sales. No third automated review is permitted.
+- [ ] Run from `apps/studio`:
+  - [ ] `bun run test`;
+  - [ ] `bun run check`;
+  - [ ] `bun run build`.
+- [ ] Capture light/dark desktop and narrow-screen evidence.
+- [ ] Update durable Studio documentation.
+- [ ] Move Task 1 through Linear workflow only with evidence.
 
 ## Task 2: Cash Operations And Daily Closing
 
@@ -585,29 +546,29 @@ The accepted prototype:
 
 ## Review Gate
 
-- [x] Confirm task scope did not expand into API, provider, real payment,
+- [ ] Confirm task scope did not expand into API, provider, real payment,
       refunds, settlement, accounting, or reporting.
-- [x] Confirm exact-money invariants and cross-surface truth.
-- [x] Confirm no sensitive payment field or secret exists in Studio.
-- [x] Confirm all UI/validation copy is pt-BR and technical artifacts are
+- [ ] Confirm exact-money invariants and cross-surface truth.
+- [ ] Confirm no sensitive payment field or secret exists in Studio.
+- [ ] Confirm all UI/validation copy is pt-BR and technical artifacts are
       English.
-- [x] Confirm semantic tokens and accepted component anatomy.
-- [x] Confirm no effect chain synchronizes derived financial state.
-- [x] Confirm focused query invalidation and stale-generation protection.
-- [x] Confirm presentation cannot import `src/dev`.
-- [x] Confirm local/configured-`dev` only and fail-closed production boundary.
-- [x] Confirm accessibility evidence.
-- [x] Confirm docs and Linear/GitHub evidence.
+- [ ] Confirm semantic tokens and accepted component anatomy.
+- [ ] Confirm no effect chain synchronizes derived financial state.
+- [ ] Confirm focused query invalidation and stale-generation protection.
+- [ ] Confirm presentation cannot import `src/dev`.
+- [ ] Confirm local/configured-`dev` only and fail-closed production boundary.
+- [ ] Confirm accessibility evidence.
+- [ ] Confirm docs and Linear/GitHub evidence.
 
 ## Handoff
 
 ### Task 1 Handoff
 
-- [x] Record implementation SHA and PR.
-- [x] Attach test/check/build output.
-- [x] Attach visual and accessibility evidence.
-- [x] Link durable docs.
-- [x] Mark MLP command tab/payment and commission items complete only after
+- [ ] Record implementation SHA and PR.
+- [ ] Attach test/check/build output.
+- [ ] Attach visual and accessibility evidence.
+- [ ] Link durable docs.
+- [ ] Mark MLP command tab/payment and commission items complete only after
       evidence.
 - [ ] Unblock Task 2 after merge.
 
