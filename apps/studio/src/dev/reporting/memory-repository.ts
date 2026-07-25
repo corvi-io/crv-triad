@@ -14,7 +14,7 @@ import type {
 } from "@/modules/revenue-operations/contracts"
 import type { Appointment, SchedulingRepository } from "@/modules/scheduling/contracts"
 
-const SOURCE_DATE = "2026-07-24"
+export const REPORTING_SOURCE_DATE = "2026-07-24"
 
 export class ReportingMemoryRepository implements ReportingRepository {
   private readonly clients: ClientRepository
@@ -36,7 +36,7 @@ export class ReportingMemoryRepository implements ReportingRepository {
   }
 
   today() {
-    return SOURCE_DATE
+    return REPORTING_SOURCE_DATE
   }
 
   async getReport(query: ReportingQuery) {
@@ -58,7 +58,7 @@ export class ReportingMemoryRepository implements ReportingRepository {
       customerDataAvailable: query.scenarioId !== "partial",
       facts: scenarioFacts,
       filters: query.filters,
-      sourceDate: SOURCE_DATE,
+      sourceDate: REPORTING_SOURCE_DATE,
     })
     this.assertGeneration(generation)
     return result
@@ -81,7 +81,7 @@ export class ReportingMemoryRepository implements ReportingRepository {
     await this.revenue.reset()
     const [schedule, clientPage] = await Promise.all([
       this.scheduling.getDay({
-        endDate: SOURCE_DATE,
+        endDate: REPORTING_SOURCE_DATE,
         scenarioId: "all-statuses",
         startDate: "2026-07-01",
         unitId: "centro",
@@ -104,7 +104,7 @@ export class ReportingMemoryRepository implements ReportingRepository {
       sessionId: "session-walk-in-checkout-scheduled",
     })
     await this.revenue.getOpenDaySummary({
-      date: SOURCE_DATE,
+      date: REPORTING_SOURCE_DATE,
       scenarioId: "cash-typical",
       unitId: "centro",
     })
@@ -118,11 +118,11 @@ export class ReportingMemoryRepository implements ReportingRepository {
     const scheduledFacts = appointments.map((appointment) =>
       appointmentFact(appointment, serviceById, professionalById),
     )
-    const saleDates = ["2026-07-03", "2026-07-10", "2026-07-17", SOURCE_DATE]
+    const saleDates = ["2026-07-03", "2026-07-10", "2026-07-17", REPORTING_SOURCE_DATE]
     const paidFacts = paidSales.flatMap((sale, index) =>
       saleFacts(
         sale,
-        saleDates[index % saleDates.length] ?? SOURCE_DATE,
+        saleDates[index % saleDates.length] ?? REPORTING_SOURCE_DATE,
         appointments,
         clientIds,
         sale.appointmentId ? "customer-kanban-05" : undefined,
