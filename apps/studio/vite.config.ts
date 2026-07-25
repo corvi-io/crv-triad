@@ -45,6 +45,9 @@ export default defineConfig(({ command, mode }) => {
     schedulingPrototypeEnabled && clientManagementSourceEnabled
       ? "./src/dev/reporting/entry.ts"
       : "./src/modules/shared/config/reporting-source-disabled.ts"
+  const operationalNotificationsSourceEntry = schedulingPrototypeEnabled
+    ? "./src/dev/operational-notifications/entry.ts"
+    : "./src/modules/shared/config/operational-notifications-source-disabled.ts"
 
   return {
     plugins: [
@@ -66,6 +69,10 @@ export default defineConfig(({ command, mode }) => {
           revenueOperationsSourceEntry,
         ),
         "virtual:studio-reporting-source": path.resolve(__dirname, reportingSourceEntry),
+        "virtual:studio-operational-notifications-source": path.resolve(
+          __dirname,
+          operationalNotificationsSourceEntry,
+        ),
         "virtual:studio-barbershop-setup-source": path.resolve(
           __dirname,
           barbershopSetupSourceEntry,

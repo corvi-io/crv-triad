@@ -217,7 +217,7 @@ export function deriveDashboard({
     }))
 
   return {
-    attention: deriveAttention(appointments, professionalNames, now),
+    attention: [],
     cancellations: {
       canceledCount,
       noShowCount,
@@ -466,86 +466,6 @@ function metricComparison(
   }
 }
 
-function deriveAttention(
-  appointments: readonly Appointment[],
-  professionalNames: ReadonlyMap<string, string>,
-  now: Date,
-): WorkspaceOverviewModel["attention"] {
-  const items: WorkspaceOverviewModel["attention"][number][] = []
-  const sorted = appointments.toSorted(compareAppointments)
-  for (const appointment of sorted) {
-    const scheduledAt = appointmentTime(appointment)
-    const endsAt = new Date(scheduledAt.getTime() + appointment.durationMinutes * 60_000)
-    if (appointment.status === "waiting") {
-      const waitMinutes = Math.max(0, Math.floor((now.getTime() - scheduledAt.getTime()) / 60_000))
-      items.push({
-        appointmentId: appointment.id,
-        description: `${appointment.start} com ${professionalNames.get(appointment.professionalId) ?? "profissional não informado"}.`,
-        id: `waiting-${appointment.id}`,
-        title:
-          waitMinutes > 0
-            ? `${appointment.customerName} aguarda há ${waitMinutes} min`
-            : `${appointment.customerName} está em espera`,
-        tone: "warning",
-      })
-    } else if (appointment.status === "completed" && appointment.paymentStatus === "pending") {
-      items.push({
-        appointmentId: appointment.id,
-        description: `${currency(appointment.priceCents)} em decisão visual de pagamento.`,
-        id: `payment-${appointment.id}`,
-        title: `Pagamento de ${appointment.customerName} está pendente`,
-        tone: "warning",
-      })
-    } else if (appointment.status === "in-progress" && endsAt < now) {
-      items.push({
-        appointmentId: appointment.id,
-        description: `Previsão de término às ${timeAfter(appointment.start, appointment.durationMinutes)}.`,
-        id: `running-${appointment.id}`,
-        title: `Atendimento de ${appointment.customerName} passou do horário previsto`,
-        tone: "danger",
-      })
-    } else if (
-      appointment.status === "scheduled" &&
-      scheduledAt >= now &&
-      scheduledAt.getTime() - now.getTime() <= 60 * 60_000
-    ) {
-      items.push({
-        appointmentId: appointment.id,
-        description: `${appointment.start} com ${professionalNames.get(appointment.professionalId) ?? "profissional não informado"}.`,
-        id: `scheduled-${appointment.id}`,
-        title: `${appointment.customerName} ainda não confirmou`,
-        tone: "info",
-      })
-    }
-  }
-
-  const appointmentsByProfessionalDate = new Map<string, Appointment[]>()
-  for (const appointment of sorted) {
-    if (appointment.status === "canceled" || appointment.status === "no-show") continue
-    const key = `${appointment.date}:${appointment.professionalId}`
-    const group = appointmentsByProfessionalDate.get(key) ?? []
-    group.push(appointment)
-    appointmentsByProfessionalDate.set(key, group)
-  }
-  for (const group of appointmentsByProfessionalDate.values()) {
-    let active = group[0]
-    for (const current of group.slice(1)) {
-      const activeEnd = appointmentEnd(active)
-      if (activeEnd > appointmentTime(current).getTime()) {
-        items.push({
-          appointmentId: current.id,
-          description: `${professionalNames.get(current.professionalId) ?? "Profissional"} tem horários sobrepostos.`,
-          id: `conflict-${active.id}-${current.id}`,
-          title: `Conflito de horário às ${current.start}`,
-          tone: "danger",
-        })
-      }
-      if (appointmentEnd(current) > activeEnd) active = current
-    }
-  }
-  return items.slice(0, 4)
-}
-
 function appointmentEnd(appointment: Appointment) {
   return appointmentTime(appointment).getTime() + appointment.durationMinutes * 60_000
 }
@@ -708,11 +628,6 @@ function minutesLabel(value: number) {
   const hours = Math.floor(value / 60)
   const minutes = value % 60
   return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}min`
-}
-
-function timeAfter(start: string, durationMinutes: number) {
-  const total = toMinutes(start) + durationMinutes
-  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`
 }
 
 function toMinutes(value: string) {

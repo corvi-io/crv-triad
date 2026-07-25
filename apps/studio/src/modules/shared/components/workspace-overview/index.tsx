@@ -59,6 +59,7 @@ type WorkspaceOverviewProps = {
   onFiltersChange: (next: Partial<DashboardFilters>) => void
   onNavigateAgenda: (filters?: { professionalId?: string; status?: string }) => void
   onNavigateClients?: () => void
+  onNavigateNotifications?: () => void
   onNavigateServices: () => void
   onNewAppointment: () => void
   onOpenAppointment: (id: string) => void
@@ -72,6 +73,7 @@ export function WorkspaceOverview({
   onFiltersChange,
   onNavigateAgenda,
   onNavigateClients,
+  onNavigateNotifications,
   onNavigateServices,
   onNewAppointment,
   onOpenAppointment,
@@ -106,6 +108,7 @@ export function WorkspaceOverview({
           onFiltersChange={onFiltersChange}
           onNavigateAgenda={onNavigateAgenda}
           onNavigateClients={onNavigateClients}
+          onNavigateNotifications={onNavigateNotifications}
           onNavigateServices={onNavigateServices}
           onNewAppointment={onNewAppointment}
           onOpenAppointment={onOpenAppointment}
@@ -121,6 +124,7 @@ function DashboardReady({
   onFiltersChange,
   onNavigateAgenda,
   onNavigateClients,
+  onNavigateNotifications,
   onNavigateServices,
   onNewAppointment,
   onOpenAppointment,
@@ -202,8 +206,7 @@ function DashboardReady({
         />
         <AttentionCard
           attention={model.attention}
-          onNavigateAgenda={onNavigateAgenda}
-          onOpenAppointment={onOpenAppointment}
+          onNavigateNotifications={onNavigateNotifications ?? (() => onNavigateAgenda())}
         />
       </div>
 
@@ -405,17 +408,15 @@ function UpcomingCard({
 
 function AttentionCard({
   attention,
-  onNavigateAgenda,
-  onOpenAppointment,
+  onNavigateNotifications,
 }: {
   attention: WorkspaceOverviewModel["attention"]
-  onNavigateAgenda: WorkspaceOverviewProps["onNavigateAgenda"]
-  onOpenAppointment: WorkspaceOverviewProps["onOpenAppointment"]
+  onNavigateNotifications: () => void
 }) {
   return (
     <DashboardCard
       action={
-        <Button type="button" size="sm" variant="ghost" onClick={() => onNavigateAgenda()}>
+        <Button type="button" size="sm" variant="ghost" onClick={onNavigateNotifications}>
           Ver todos
         </Button>
       }
@@ -440,9 +441,7 @@ function AttentionCard({
                       ? "border-feedback-warning-border/70"
                       : "border-feedback-info-border/70",
                 )}
-                onClick={() =>
-                  item.appointmentId ? onOpenAppointment(item.appointmentId) : onNavigateAgenda()
-                }
+                onClick={onNavigateNotifications}
               >
                 <span
                   aria-hidden="true"

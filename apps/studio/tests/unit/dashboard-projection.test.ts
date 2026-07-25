@@ -418,7 +418,7 @@ describe("Dashboard projection", () => {
 
   it("orders and caps operational collections and computes professional availability", () => {
     expect(model.upcoming.map(({ id }) => id)).toEqual(["upcoming"])
-    expect(model.attention.map(({ appointmentId }) => appointmentId)).toContain("pending")
+    expect(model.attention).toEqual([])
     expect(model.professionals).toEqual([
       expect.objectContaining({
         availableMinutes: 540,
@@ -498,7 +498,7 @@ describe("Dashboard projection", () => {
     ])
   })
 
-  it("detects conflicts inside date and professional groups despite interleaved records", () => {
+  it("does not recreate operational attention from scheduling rows", () => {
     const interleaved = deriveDashboard({
       bounds: { endDate: date, startDate: date },
       day: {
@@ -519,14 +519,7 @@ describe("Dashboard projection", () => {
       updatedAt: 0,
     })
 
-    expect(interleaved.attention).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          appointmentId: "one-overlap",
-          title: "Conflito de horário às 09:30",
-        }),
-      ]),
-    )
+    expect(interleaved.attention).toEqual([])
   })
 
   it("caps operational collections and returns safe values for zero denominators", () => {
@@ -556,7 +549,7 @@ describe("Dashboard projection", () => {
       updatedAt: 0,
     })
     expect(capped.upcoming).toHaveLength(5)
-    expect(capped.attention).toHaveLength(4)
+    expect(capped.attention).toEqual([])
     expect(capped.services).toHaveLength(5)
 
     const empty = deriveDashboard({

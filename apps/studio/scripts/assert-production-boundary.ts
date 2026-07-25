@@ -47,6 +47,10 @@ const forbiddenMarkers = [
   "ReportingMemoryRepository",
   "reporting-source",
   "reporting-scheduled-sale",
+  "OperationalNotificationsMemoryRepository",
+  "operational-notifications-source",
+  "fact-overflow-",
+  "event-appointment-changed",
   ".stories.",
 ]
 

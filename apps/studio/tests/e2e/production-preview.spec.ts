@@ -121,6 +121,21 @@ test("keeps Relatórios fail-closed and excludes reporting scenarios in producti
   await expect(page.getByText("Corte executivo premium com acabamento detalhado")).toHaveCount(0)
 })
 
+test("keeps Notificações fail-closed and excludes operational fixtures in production", async ({
+  page,
+}) => {
+  await page.unroute("**/api/auth/**")
+  await routeAuthenticatedSession(page)
+  await page.goto("/notifications?scenario=overflow")
+
+  await expect(page.getByText("Notificações indisponíveis")).toBeVisible()
+  await expect(
+    page.getByText("A fonte operacional não está habilitada neste ambiente."),
+  ).toBeVisible()
+  await expect(page.getByRole("button", { name: /Abrir notificações/ })).toHaveCount(0)
+  await expect(page.getByText("Cliente aguardando há muito tempo")).toHaveCount(0)
+})
+
 async function routeAuthenticatedSession(page: Page) {
   await page.route("**/api/auth/**", async (route) => {
     if (route.request().method() === "OPTIONS") {

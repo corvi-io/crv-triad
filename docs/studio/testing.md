@@ -122,6 +122,14 @@ the resolved class at the first animation frame, measures browser-computed contr
 semantic pairs, all four feedback roles, focus, input boundaries, and all eight schedule roles in
 both themes, and checks schedule labels plus boundaries under forced colors.
 
+`tests/e2e/operational-notifications.spec.ts` covers the authenticated header,
+Dashboard, and `/notifications` center with one source; exact accessible
+over-99 count; bounded popover; keyboard open/Escape focus restoration; every
+category; read state; resolved history; safe missing-target recovery; light
+desktop; dark 320px; forced colors; reduced motion; minimum targets; CSS 200%
+zoom simulation; no document overflow; screenshots; and focused axe WCAG 2.2
+A/AA. Native browser zoom and VoiceOver/NVDA remain separate manual evidence.
+
 The sandbox e2e test uses the real Studio shell and local repository adapter without intercepting
 authentication. Its focused axe scan fails on automatically detectable WCAG 2.0, 2.1, and 2.2
 Level A/AA violations. Keyboard coverage opens row actions with `Shift+F10`, operates the menu and

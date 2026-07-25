@@ -1,11 +1,18 @@
 import { Link } from "@tanstack/react-router"
+import type { ReactNode } from "react"
 
 import { SidebarTrigger } from "@/modules/shared/components/ui/sidebar"
 import { getWorkspaceRouteByPath } from "@/modules/shared/workspace/module-registry"
 
 import { Breadcrumbs } from "./breadcrumbs"
 
-export function WorkspaceShellHeader({ pathname }: { pathname: string }) {
+export function WorkspaceShellHeader({
+  actions,
+  pathname,
+}: {
+  actions?: ReactNode
+  pathname: string
+}) {
   const currentRoute = getWorkspaceRouteByPath(pathname)
 
   return (
@@ -26,6 +33,7 @@ export function WorkspaceShellHeader({ pathname }: { pathname: string }) {
           {currentRoute?.label ?? "Dashboard"}
         </Link>
       </div>
+      {actions ? <div className="ml-auto flex items-center">{actions}</div> : null}
     </header>
   )
 }
