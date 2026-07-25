@@ -17,6 +17,11 @@
 - Delivery tasks:
   - [ENG-53: Build the TRIAD Studio basic reports visual prototype](https://linear.app/corvi-io/issue/ENG-53/build-the-triad-studio-basic-reports-visual-prototype).
   - [ENG-54: Build the TRIAD Studio operational notifications visual prototype](https://linear.app/corvi-io/issue/ENG-54/build-the-triad-studio-operational-notifications-visual-prototype).
+- Current delivery status:
+  - ENG-53 is `Done`; [PR #33](https://github.com/corvi-io/crv-triad/pull/33)
+    merged into `staging` at
+    `ab99201aafcf6960878032e8f6f4aa3b13a37fe0`.
+  - ENG-54 is `Ready`, unblocked, and is the next delivery.
 
 ## Delivery Contract
 
@@ -25,9 +30,9 @@ Deliver two ordered frontend-only tasks:
 1. basic reports;
 2. operational notifications.
 
-Task 1 is blocked by ENG-49. Task 2 is blocked by Task 1 so implementation
-starts from the accepted management route/source-composition baseline and does
-not collide with shared shell/Dashboard work.
+Task 1 completed after ENG-49. Task 2 is now unblocked and must start from the
+merged Task 1 management route/source-composition baseline so it does not
+collide with shared shell/Dashboard work.
 
 Both deliveries:
 
@@ -89,9 +94,12 @@ Both deliveries:
 
 - Title: `Build the TRIAD Studio basic reports visual prototype`
 - Suggested branch: `feature/eng-53-basic-reports`
-- State: `Ready`
+- State: `Done`
 - Priority: `High`
-- Blocked by: ENG-49.
+- Completed dependency: ENG-49.
+- Merge evidence:
+  [PR #33](https://github.com/corvi-io/crv-triad/pull/33) at
+  `ab99201aafcf6960878032e8f6f4aa3b13a37fe0`.
 - Related:
   - ENG-48 checkout/payment/commissions;
   - ENG-45 operational Dashboard;
@@ -307,7 +315,8 @@ Both deliveries:
   `feature/eng-54-operational-notifications`
 - State: `Ready`
 - Priority: `High`
-- Blocked by: Task 1.
+- Completed dependency: ENG-53 / PR #33.
+- Active blockers: none.
 - Related:
   - ENG-45 operational Dashboard;
   - ENG-47 service fulfillment;

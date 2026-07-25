@@ -49,6 +49,11 @@ use deterministic, resettable in-memory data and remain unavailable in
 - Delivery tasks:
   - [ENG-53: Build the TRIAD Studio basic reports visual prototype](https://linear.app/corvi-io/issue/ENG-53/build-the-triad-studio-basic-reports-visual-prototype).
   - [ENG-54: Build the TRIAD Studio operational notifications visual prototype](https://linear.app/corvi-io/issue/ENG-54/build-the-triad-studio-operational-notifications-visual-prototype).
+- Current delivery status:
+  - ENG-53 is `Done`; [PR #33](https://github.com/corvi-io/crv-triad/pull/33)
+    merged into `staging` at
+    `ab99201aafcf6960878032e8f6f4aa3b13a37fe0`.
+  - ENG-54 is `Ready`, unblocked, and is the next delivery.
 
 ## Delivery Units
 

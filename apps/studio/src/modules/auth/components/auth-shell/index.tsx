@@ -20,11 +20,19 @@ export function AuthShell({ children, description, title }: AuthShellProps) {
     >
       <section className="flex min-h-svh flex-col p-6 md:p-10 lg:h-svh lg:min-h-0 lg:overflow-y-auto">
         <header>
-          <a className="flex w-fit items-center gap-2 text-sm font-medium" href="/">
-            <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground">
-              T
-            </span>
-            TRIAD Studio
+          <a aria-label="TRIAD Studio — ir para o início" className="block w-fit" href="/">
+            <img
+              alt=""
+              aria-hidden="true"
+              className="h-auto w-36 dark:hidden"
+              src="/brand/crv-triad-horizontal-gold.svg"
+            />
+            <img
+              alt=""
+              aria-hidden="true"
+              className="hidden h-auto w-36 dark:block"
+              src="/brand/crv-triad-horizontal-white.svg"
+            />
           </a>
         </header>
 
@@ -46,13 +54,20 @@ export function AuthShell({ children, description, title }: AuthShellProps) {
       </section>
 
       <section
-        className="auth-brand-surface relative hidden h-svh overflow-hidden lg:block"
+        className="auth-brand-surface relative hidden h-svh items-center justify-center overflow-hidden p-16 lg:flex"
         aria-label="Identidade visual do TRIAD Studio"
       >
         <img
-          src="/placeholder.svg"
           alt=""
-          className="absolute inset-0 size-full object-cover opacity-15 mix-blend-luminosity"
+          aria-hidden="true"
+          className="h-auto w-full max-w-xl dark:hidden"
+          src="/brand/crv-triad-stacked-gold.svg"
+        />
+        <img
+          alt=""
+          aria-hidden="true"
+          className="hidden h-auto w-full max-w-xl dark:block"
+          src="/brand/crv-triad-stacked-white.svg"
         />
       </section>
     </main>
