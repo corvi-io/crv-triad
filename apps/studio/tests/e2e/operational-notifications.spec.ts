@@ -68,6 +68,53 @@ test("isolates notification scenarios from module-specific scenario parameters",
   ).toBeVisible()
 })
 
+test("preserves the Dashboard notification scenario across navigation and reload", async ({
+  page,
+}) => {
+  await page.goto("/overview?notificationScenario=overflow")
+  const attention = page
+    .getByRole("heading", { name: "Atenção necessária" })
+    .locator('xpath=ancestor::*[@data-slot="card"]')
+  await attention.getByRole("button", { name: "Ver todos" }).click()
+  await expect(page).toHaveURL(/\/notifications\?notificationScenario=overflow$/)
+  await expect(
+    page.getByRole("button", {
+      name: "Abrir notificações. 105 notificações ativas não lidas.",
+    }),
+  ).toBeVisible()
+
+  await page.reload()
+  await expect(page).toHaveURL(/\/notifications\?notificationScenario=overflow$/)
+  await expect(
+    page.getByRole("button", {
+      name: "Abrir notificações. 105 notificações ativas não lidas.",
+    }),
+  ).toBeVisible()
+})
+
+test("announces a popover read failure and recovers on retry", async ({ page }) => {
+  await page.goto("/overview?notificationScenario=fail-next-read")
+  const bell = page.getByRole("button", {
+    name: "Abrir notificações. 7 notificações ativas não lidas.",
+  })
+  await bell.click()
+  await page.getByRole("button", { name: "Marcar como lida" }).first().click()
+  await expect(page.getByText("Não foi possível marcar como lida")).toBeVisible()
+  await expect(page.getByText("Não foi possível marcar a notificação como lida.")).toHaveClass(
+    /sr-only/,
+  )
+  await expect(bell).toHaveAccessibleName("Abrir notificações. 7 notificações ativas não lidas.")
+
+  await page.getByRole("button", { name: "Marcar como lida" }).first().click()
+  await expect(page.getByText("Não foi possível marcar como lida")).toHaveCount(0)
+  await expect(page.getByText("Notificação marcada como lida.")).toHaveClass(/sr-only/)
+  await expect(
+    page.getByRole("button", {
+      name: "Abrir notificações. 6 notificações ativas não lidas.",
+    }),
+  ).toBeVisible()
+})
+
 test("consumes typed Dashboard, Agenda, and Service Desk destinations with SPA state", async ({
   page,
 }) => {

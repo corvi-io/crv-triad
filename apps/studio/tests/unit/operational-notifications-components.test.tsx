@@ -91,4 +91,36 @@ describe("operational notification presentation", () => {
       await screen.findByRole("link", { name: "Destino indisponível · Abrir Agenda" }),
     ).toHaveAttribute("href", expect.stringMatching(/^\/agenda\?/))
   })
+
+  it("reports a popover read failure and recovers on retry", async () => {
+    const repository = new OperationalNotificationsMemoryRepository()
+    render(<OperationalNotificationTrigger scenarioId="fail-next-read" />, {
+      wrapper: ({ children }) => <Wrapper repository={repository}>{children}</Wrapper>,
+    })
+
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Abrir notificações. 7 notificações ativas não lidas.",
+      }),
+    )
+    await userEvent.click(screen.getAllByRole("button", { name: "Marcar como lida" })[0])
+    expect(await screen.findByText("Não foi possível marcar como lida")).toBeVisible()
+    expect(screen.getByText("Não foi possível marcar a notificação como lida.")).toHaveClass(
+      "sr-only",
+    )
+    expect(
+      screen.getByRole("button", {
+        name: "Abrir notificações. 7 notificações ativas não lidas.",
+      }),
+    ).toBeVisible()
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Marcar como lida" })[0])
+    expect(await screen.findByText("Notificação marcada como lida.")).toHaveClass("sr-only")
+    expect(screen.queryByText("Não foi possível marcar como lida")).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "Abrir notificações. 6 notificações ativas não lidas.",
+      }),
+    ).toBeVisible()
+  })
 })

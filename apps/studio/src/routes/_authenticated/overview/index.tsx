@@ -1,7 +1,7 @@
 import { createOperationalNotificationsRepository } from "virtual:studio-operational-notifications-source"
 import { createRevenueOperationsRepository } from "virtual:studio-revenue-operations-source"
 import { createSchedulingRepository } from "virtual:studio-scheduling-prototype"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useLocation } from "@tanstack/react-router"
 import { resolveNotificationDestination } from "@/modules/operational-notifications/destinations"
 import { useNotificationPreview } from "@/modules/operational-notifications/queries"
 import { useRevenueDashboardProjection } from "@/modules/revenue-operations/queries"
@@ -189,6 +189,10 @@ function DashboardWithNotifications({
 }) {
   const notifications = useNotificationPreview({ activeLimit: 4, historyLimit: 0 })
   const navigate = Route.useNavigate()
+  const notificationScenario = useLocation({
+    select: (location) =>
+      new URLSearchParams(location.searchStr).get("notificationScenario") ?? undefined,
+  })
   return children({
     notificationAttentionState: notifications.isPending
       ? "loading"
@@ -207,7 +211,7 @@ function DashboardWithNotifications({
             : "info",
     })),
     onNavigateNotifications: () =>
-      void navigate({ search: { notificationScenario: undefined }, to: "/notifications" }),
+      void navigate({ search: { notificationScenario }, to: "/notifications" }),
     onOpenNotification: (id) => {
       const notification = notifications.data?.active.find((item) => item.id === id)
       const destination = notification
