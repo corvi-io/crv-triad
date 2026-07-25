@@ -98,6 +98,7 @@ describe("agenda derivation", () => {
     expect(
       validateScheduleSearch(
         {
+          appointment: "../unsafe",
           client: "Maria Silva",
           customStart: "2026-02-30",
           date: "2026-02-30",
@@ -108,6 +109,7 @@ describe("agenda derivation", () => {
         "2026-07-21",
       ),
     ).toMatchObject({
+      appointment: undefined,
       client: undefined,
       customStart: undefined,
       date: "2026-07-21",
@@ -115,6 +117,9 @@ describe("agenda derivation", () => {
       unit: "centro",
       view: "board",
     })
+    expect(validateScheduleSearch({ appointment: "kanban-05" }, "2026-07-21").appointment).toBe(
+      "kanban-05",
+    )
   })
 })
 

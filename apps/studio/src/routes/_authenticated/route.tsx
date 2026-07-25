@@ -14,7 +14,8 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedRoute() {
   const scenarioId = useLocation({
-    select: (location) => new URLSearchParams(location.searchStr).get("scenario") ?? undefined,
+    select: (location) =>
+      new URLSearchParams(location.searchStr).get("notificationScenario") ?? undefined,
   })
   const content = (
     <AuthGate>

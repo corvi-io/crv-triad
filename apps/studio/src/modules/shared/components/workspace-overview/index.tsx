@@ -54,30 +54,36 @@ import type {
 export type { DashboardFilters, DashboardPeriod, WorkspaceOverviewModel } from "./model"
 
 type WorkspaceOverviewProps = {
+  attentionState?: "error" | "loading" | "ready" | "unavailable"
   hasActiveFilters?: boolean
   model?: WorkspaceOverviewModel
   onFiltersChange: (next: Partial<DashboardFilters>) => void
   onNavigateAgenda: (filters?: { professionalId?: string; status?: string }) => void
   onNavigateClients?: () => void
   onNavigateNotifications?: () => void
+  onOpenAttention?: (id: string) => void
   onNavigateServices: () => void
   onNewAppointment: () => void
   onOpenAppointment: (id: string) => void
   onRetry: () => void
+  onRetryAttention?: () => void
   state: "disabled" | "error" | "loading" | "ready"
 }
 
 export function WorkspaceOverview({
+  attentionState = "ready",
   hasActiveFilters = false,
   model,
   onFiltersChange,
   onNavigateAgenda,
   onNavigateClients,
   onNavigateNotifications,
+  onOpenAttention,
   onNavigateServices,
   onNewAppointment,
   onOpenAppointment,
   onRetry,
+  onRetryAttention,
   state,
 }: WorkspaceOverviewProps) {
   return (
@@ -109,9 +115,12 @@ export function WorkspaceOverview({
           onNavigateAgenda={onNavigateAgenda}
           onNavigateClients={onNavigateClients}
           onNavigateNotifications={onNavigateNotifications}
+          onOpenAttention={onOpenAttention}
           onNavigateServices={onNavigateServices}
           onNewAppointment={onNewAppointment}
           onOpenAppointment={onOpenAppointment}
+          onRetryAttention={onRetryAttention}
+          attentionState={attentionState}
         />
       ) : null}
     </ModuleLayout>
@@ -119,16 +128,20 @@ export function WorkspaceOverview({
 }
 
 function DashboardReady({
+  attentionState,
   hasActiveFilters,
   model,
   onFiltersChange,
   onNavigateAgenda,
   onNavigateClients,
   onNavigateNotifications,
+  onOpenAttention,
   onNavigateServices,
   onNewAppointment,
   onOpenAppointment,
-}: Omit<WorkspaceOverviewProps, "model" | "onRetry" | "state"> & {
+  onRetryAttention,
+}: Omit<WorkspaceOverviewProps, "attentionState" | "model" | "onRetry" | "state"> & {
+  attentionState: NonNullable<WorkspaceOverviewProps["attentionState"]>
   model: WorkspaceOverviewModel
 }) {
   const isEmpty = model.metrics[0]?.value === "0"
@@ -206,7 +219,10 @@ function DashboardReady({
         />
         <AttentionCard
           attention={model.attention}
+          state={attentionState}
           onNavigateNotifications={onNavigateNotifications ?? (() => onNavigateAgenda())}
+          onOpenAttention={onOpenAttention ?? (() => onNavigateNotifications?.())}
+          onRetry={onRetryAttention}
         />
       </div>
 
@@ -409,9 +425,15 @@ function UpcomingCard({
 function AttentionCard({
   attention,
   onNavigateNotifications,
+  onOpenAttention,
+  onRetry,
+  state,
 }: {
   attention: WorkspaceOverviewModel["attention"]
   onNavigateNotifications: () => void
+  onOpenAttention: (id: string) => void
+  onRetry?: () => void
+  state: NonNullable<WorkspaceOverviewProps["attentionState"]>
 }) {
   return (
     <DashboardCard
@@ -423,11 +445,37 @@ function AttentionCard({
       description="Somente situações sustentadas pelos dados atuais."
       title="Atenção necessária"
     >
-      {attention.length === 0 ? (
+      {state === "loading" ? (
+        <div aria-label="Carregando situações operacionais" className="grid gap-2" role="status">
+          <Skeleton className="h-11 w-full" />
+          <Skeleton className="h-11 w-full" />
+        </div>
+      ) : null}
+      {state === "error" || state === "unavailable" ? (
+        <div className="rounded-lg border border-dashed p-4 text-sm" role="status">
+          <p className="font-medium">
+            {state === "error"
+              ? "Não foi possível carregar as situações."
+              : "Situações operacionais indisponíveis."}
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            {state === "error"
+              ? "Tente novamente sem perder os demais dados do Dashboard."
+              : "A fonte de notificações não está habilitada neste ambiente."}
+          </p>
+          {state === "error" && onRetry ? (
+            <Button className="mt-3" size="sm" type="button" variant="outline" onClick={onRetry}>
+              Tentar novamente
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      {state === "ready" && attention.length === 0 ? (
         <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
           Nenhuma situação acionável no período.
         </p>
-      ) : (
+      ) : null}
+      {state === "ready" && attention.length > 0 ? (
         <ul className="flex flex-col gap-1">
           {attention.map((item) => (
             <li key={item.id}>
@@ -441,7 +489,7 @@ function AttentionCard({
                       ? "border-feedback-warning-border/70"
                       : "border-feedback-info-border/70",
                 )}
-                onClick={onNavigateNotifications}
+                onClick={() => onOpenAttention(item.id)}
               >
                 <span
                   aria-hidden="true"
@@ -467,7 +515,7 @@ function AttentionCard({
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </DashboardCard>
   )
 }

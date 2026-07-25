@@ -10,17 +10,24 @@ manual operational resolution.
 
 `src/modules/operational-notifications` owns contracts, pure projection rules,
 safe typed destinations, repository/query vocabulary, and presentation.
-`src/dev/operational-notifications` owns deterministic source facts, explicit
-appointment event snapshots, scenarios, read-state memory, and the development
-repository. `virtual:studio-operational-notifications-source` is the only
-composition seam. Production presentation never imports `src/dev`.
+Its source ports accept raw public scheduling records/periods/events, service
+queue/session records, and payment checkout/sale records. The rule layer, not
+the source, classifies those records. `src/dev/operational-notifications` owns
+deterministic raw snapshots behind the three ports, scenarios, read-state
+memory, and the development repository.
+`virtual:studio-operational-notifications-source` is the only composition seam.
+Production presentation never imports `src/dev`.
 
 The authenticated route provides one repository instance to the shell,
 Dashboard, and notification center. The header preview and history are bounded
 independently. The Dashboard `Atenção necessária` projection uses the same
 active IDs and ordering rather than its former scheduling-derived attention
-fixtures. A future production implementation must consume tenant/unit-bounded
-scheduling, service, payment, and event contracts through an authorized API.
+fixtures. Its rows retain each notification ID and follow that notification's
+typed destination; `Ver todos` alone opens the center. Loading, failed,
+unavailable, and loaded-empty notification states remain distinct without
+hiding the rest of the Dashboard. A future production implementation must
+consume tenant/unit-bounded scheduling, service, payment, and event contracts
+through an authorized API.
 
 ## Categories And Rules
 
@@ -28,13 +35,16 @@ The source covers:
 
 - excessive queue wait at 15 minutes;
 - an appointment inside the next 10 minutes;
-- an accepted scheduling conflict fact;
+- overlapping non-terminal appointments for one professional;
 - an open service past estimated duration plus 15 minutes;
 - a ready-for-payment unpaid session;
 - a relevant blocked slot;
 - an explicit appointment changed/canceled event snapshot.
 
-Stable dedupe keys collapse repeated source facts. Active ordering uses
+The rule constants define 15-minute excessive wait, a 10-minute upcoming
+window, and estimated service duration plus a 15-minute tolerance. Conflict,
+blocked period, unpaid checkout, and explicit appointment-event conditions are
+also derived from raw records. Stable dedupe keys collapse repeated source facts. Active ordering uses
 severity, occurrence time, then stable notification ID. Read/unread is
 presentation state only. Resolution is derived from the current source fact and
 never occurs when a user marks an item read or follows its destination.
@@ -42,15 +52,21 @@ Resolved items appear only in bounded history.
 
 Destinations are an allowlisted union for Agenda, Service Desk, checkout, and
 the notification center. Only opaque stable identifiers enter route paths or
-search. Invalid or missing targets render a bounded recovery link to Agenda.
-Names, contact data, notes, financial values, and arbitrary URLs are excluded.
+search. Internal TanStack Router navigation preserves the in-memory read state.
+Agenda links pass a consumed appointment/date contract and open the matching
+drawer; Service Desk and checkout links use session IDs materialized by their
+public routes. Invalid or missing targets render a bounded recovery link to
+Agenda. Names, contact data, notes, financial values, and arbitrary URLs are
+excluded.
 
 ## Scenarios And Generation Safety
 
 The deterministic source includes normal, empty, duplicate, over-99 unread,
 resolved, missing-target, slow load/read, fail-next-read, persistent-error, and
-long-content scenarios. The `scenario` search value exists only for test and
-review reproducibility; ordinary product chrome exposes no scenario picker.
+long-content scenarios. The namespaced `notificationScenario` search value
+exists only for test and review reproducibility; module-specific `scenario`
+parameters never select or reset notification state, and ordinary product
+chrome exposes no scenario picker.
 
 Scenario selection and reset increment a generation, reconstruct source/read
 state, and re-arm one-shot failure. Delayed reads and mark-read mutations verify
@@ -71,17 +87,23 @@ The center uses source-ordered headings, native links/buttons, shared
 `ModuleLayout`, `PageHeader`, `Alert`, `Empty`, `Skeleton`, `Badge`, `Button`,
 and semantic theme tokens. It reflows at 320 CSS pixels, keeps controls at
 least 24px, supports 200% CSS-zoom simulation, forced colors, reduced motion,
-and light/dark/system themes without document overflow.
+and light/dark/system themes without document overflow. `/notifications` is an
+auxiliary workspace route: it supplies the mobile title and breadcrumb but
+remains absent from primary and secondary navigation.
 
 ## Verification And Residual Manual Work
 
-Focused Vitest covers every category, dedupe, ordering, bounds, read/resolution
+Focused Vitest covers raw-port classification and thresholds, every category,
+dedupe, ordering, bounds, read/resolution
 separation, empty/error/reset/reload semantics, fail-next behavior,
-generation-stale work, destinations, exact over-99 count, popover content,
-center feedback, and missing-target recovery. Playwright covers the authenticated
-shell/Dashboard/center journey, keyboard popover focus restoration, seven
-categories, read state, axe WCAG 2.2 A/AA, light desktop, dark 320px, forced
-colors, reduced motion, minimum targets, and CSS 200% zoom simulation.
+generation-stale work, destination deep links, exact over-99 count, popover
+content, center feedback, and missing-target recovery. Playwright covers the
+authenticated shell/Dashboard/center journey, Dashboard destination retention
+and notification states, Agenda drawer and Service Desk route consumption,
+in-app read-state preservation, scenario namespace isolation, mobile title,
+keyboard popover focus restoration, seven categories, read state, axe WCAG 2.2
+A/AA, light desktop, dark 320px, forced colors, reduced motion, minimum targets,
+and CSS 200% zoom simulation.
 
 Automated semantics and screenshots do not prove VoiceOver/NVDA behavior,
 physical coarse-pointer behavior, or native browser 200% zoom. Those remain

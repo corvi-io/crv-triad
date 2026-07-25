@@ -11,16 +11,16 @@ const repository = createOperationalNotificationsRepository?.()
 export const Route = createFileRoute("/_authenticated/notifications/")({
   component: NotificationsRoute,
   validateSearch: (search: Record<string, unknown>) => ({
-    scenario:
-      typeof search.scenario === "string" &&
-      operationalNotificationScenarioIds.includes(search.scenario)
-        ? search.scenario
+    notificationScenario:
+      typeof search.notificationScenario === "string" &&
+      operationalNotificationScenarioIds.includes(search.notificationScenario)
+        ? search.notificationScenario
         : undefined,
   }),
 })
 
 function NotificationsRoute() {
-  const { scenario } = Route.useSearch()
+  const { notificationScenario } = Route.useSearch()
   if (!repository) {
     return (
       <Alert>
@@ -29,5 +29,5 @@ function NotificationsRoute() {
       </Alert>
     )
   }
-  return <NotificationCenterPage scenarioId={scenario} />
+  return <NotificationCenterPage scenarioId={notificationScenario} />
 }

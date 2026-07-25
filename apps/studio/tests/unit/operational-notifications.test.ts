@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest"
 import { OperationalNotificationsMemoryRepository } from "@/dev/operational-notifications/memory-repository"
-import { factsForScenario } from "@/dev/operational-notifications/scenarios"
+import { createOperationalNotificationSources } from "@/dev/operational-notifications/scenarios"
+import { RevenueOperationsMemoryRepository } from "@/dev/revenue-operations/memory-repository"
+import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
+import { ServiceDeskMemoryRepository } from "@/dev/service-desk/memory-repository"
 import {
   notificationCategories,
   OperationalNotificationError,
 } from "@/modules/operational-notifications/contracts"
 import { resolveNotificationDestination } from "@/modules/operational-notifications/destinations"
-import { projectOperationalNotifications } from "@/modules/operational-notifications/rules"
+import {
+  deriveNotificationSourceFacts,
+  projectOperationalNotifications,
+  readOperationalNotificationSources,
+} from "@/modules/operational-notifications/rules"
 
 describe("operational notification rules and repository", () => {
   it("covers every official category with stable dedupe, ordering, and bounded history", async () => {
@@ -21,11 +28,49 @@ describe("operational notification rules and repository", () => {
     ])
     expect(page.resolved).toHaveLength(1)
     await expect(repository.getNotification(page.active[0].id)).resolves.toEqual(page.active[0])
+    const duplicateSource = await readOperationalNotificationSources(
+      createOperationalNotificationSources(),
+      "duplicates",
+    )
     expect(
-      projectOperationalNotifications(factsForScenario("duplicates"), new Set()).filter(
-        ({ lifecycle }) => lifecycle === "active",
-      ),
+      projectOperationalNotifications(
+        deriveNotificationSourceFacts(duplicateSource),
+        new Set(),
+      ).filter(({ lifecycle }) => lifecycle === "active"),
     ).toHaveLength(7)
+  })
+
+  it("derives all seven conditions from raw scheduling, service, and payment source ports", async () => {
+    const source = await readOperationalNotificationSources(
+      createOperationalNotificationSources(),
+      "normal",
+    )
+    const facts = deriveNotificationSourceFacts(source)
+    expect(new Set(facts.filter(({ applies }) => applies).map(({ category }) => category))).toEqual(
+      new Set(notificationCategories),
+    )
+
+    const belowThresholds = structuredClone(source)
+    belowThresholds.service.queue[0].arrivalAt = "2026-07-24T15:21:00-03:00"
+    belowThresholds.service.sessions[0].startedAt = "2026-07-24T14:36:00-03:00"
+    belowThresholds.scheduling.appointments = [
+      {
+        ...belowThresholds.scheduling.appointments[0],
+        durationMinutes: 10,
+      },
+      {
+        ...belowThresholds.scheduling.appointments[1],
+        start: "16:00",
+      },
+      {
+        ...belowThresholds.scheduling.appointments[2],
+        start: "15:46",
+      },
+    ]
+    belowThresholds.scheduling.periods = []
+    belowThresholds.scheduling.events = []
+    belowThresholds.payments.checkouts = []
+    expect(deriveNotificationSourceFacts(belowThresholds)).toEqual([])
   })
 
   it("caps independent result windows while preserving exact unread count over 99", async () => {
@@ -89,11 +134,38 @@ describe("operational notification rules and repository", () => {
 
   it("resolves only typed allowlisted destinations with opaque identifiers", () => {
     expect(
-      resolveNotificationDestination({ kind: "agenda", appointmentId: "appointment-01" }),
-    ).toBe("/agenda?appointment=appointment-01")
-    expect(resolveNotificationDestination({ kind: "checkout", sessionId: "session-01" })).toBe(
-      "/service-desk/session-01/checkout",
+      resolveNotificationDestination({
+        appointmentId: "appointment-01",
+        date: "2026-07-19",
+        kind: "agenda",
+      }),
+    ).toEqual({ appointment: "appointment-01", date: "2026-07-19", kind: "agenda" })
+    expect(resolveNotificationDestination({ kind: "checkout", sessionId: "session-01" })).toEqual(
+      expect.objectContaining({ kind: "checkout", sessionId: "session-01" }),
     )
     expect(resolveNotificationDestination({ kind: "checkout", sessionId: "../private" })).toBeNull()
+    expect(
+      resolveNotificationDestination({
+        appointmentId: "appointment-01",
+        date: "not-a-date",
+        kind: "agenda",
+      }),
+    ).toBeNull()
+  })
+
+  it("uses session IDs consumed by the real Service Desk and checkout repositories", async () => {
+    const scheduling = new SchedulingMemoryRepository("2026-07-24")
+    const serviceDesk = new ServiceDeskMemoryRepository(scheduling)
+    const revenue = new RevenueOperationsMemoryRepository(serviceDesk, scheduling)
+    await expect(
+      serviceDesk.getSession("session-walk-in-fulfillment-long-running"),
+    ).resolves.toMatchObject({ status: "in-progress" })
+    await expect(
+      serviceDesk.getSession("session-walk-in-fulfillment-multiple"),
+    ).resolves.toMatchObject({ status: "in-progress" })
+    await expect(revenue.getCheckout("session-walk-in-fulfillment-ready")).resolves.toMatchObject({
+      id: "session-walk-in-fulfillment-ready",
+      status: "open",
+    })
   })
 })

@@ -105,8 +105,11 @@ authenticated `/notifications` center share one bounded operational notification
 repository. It covers seven accepted categories with stable dedupe, severity
 ordering, read state separate from source resolution, typed safe destinations,
 resolved history, exact accessible unread counts, and deterministic
-load/error/reset/reload scenarios. Its visible count caps at `99+`; `hml` and
-`prd` fail closed without a new environment variable. See
+load/error/reset/reload scenarios. Classification derives from raw scheduling,
+service, and payment source-port snapshots with explicit thresholds; Dashboard
+rows preserve their typed destination and their loading/error/unavailable/empty
+states. Its visible count caps at `99+`; `hml` and `prd` fail closed without a
+new environment variable. See
 `docs/studio/operational-notifications.md`.
 
 The authenticated barbershop setup module presents a guided overview, fill-height

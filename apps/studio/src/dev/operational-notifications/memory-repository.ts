@@ -5,9 +5,14 @@ import {
   OperationalNotificationError,
   type OperationalNotificationsRepository,
 } from "@/modules/operational-notifications/contracts"
-import { projectOperationalNotifications } from "@/modules/operational-notifications/rules"
 import {
-  factsForScenario,
+  deriveNotificationSourceFacts,
+  type OperationalNotificationSources,
+  projectOperationalNotifications,
+  readOperationalNotificationSources,
+} from "@/modules/operational-notifications/rules"
+import {
+  createOperationalNotificationSources,
   type OperationalNotificationScenarioId,
   operationalNotificationScenarioIds,
 } from "./scenarios"
@@ -23,6 +28,11 @@ export class OperationalNotificationsMemoryRepository
   #generation = 0
   #readIds = new Set<string>()
   #scenario: OperationalNotificationScenarioId = "normal"
+  private readonly sources: OperationalNotificationSources
+
+  constructor(sources: OperationalNotificationSources = createOperationalNotificationSources()) {
+    this.sources = sources
+  }
 
   scenarios() {
     return operationalNotificationScenarioIds.map((id) => ({
@@ -64,10 +74,7 @@ export class OperationalNotificationsMemoryRepository
         "mark-read-failed",
       )
     }
-    const notification = projectOperationalNotifications(
-      factsForScenario(this.#scenario),
-      this.#readIds,
-    ).find(({ id }) => id === input.id)
+    const notification = (await this.#project(generation)).find(({ id }) => id === input.id)
     if (!notification)
       throw new OperationalNotificationError("Notificação não encontrada.", "not-found")
     this.#readIds.add(input.id)
@@ -76,10 +83,10 @@ export class OperationalNotificationsMemoryRepository
 
   async markAllActiveRead(query: Pick<NotificationQuery, "scenarioId"> = {}) {
     this.#select(query.scenarioId)
-    const active = projectOperationalNotifications(
-      factsForScenario(this.#scenario),
-      this.#readIds,
-    ).filter(({ lifecycle }) => lifecycle === "active")
+    const generation = this.#generation
+    const active = (await this.#project(generation)).filter(
+      ({ lifecycle }) => lifecycle === "active",
+    )
     for (const item of active) this.#readIds.add(item.id)
     return active.length
   }
@@ -102,10 +109,7 @@ export class OperationalNotificationsMemoryRepository
         "Não foi possível carregar as notificações.",
         "load-failed",
       )
-    const projected = projectOperationalNotifications(
-      factsForScenario(this.#scenario),
-      this.#readIds,
-    )
+    const projected = await this.#project(generation)
     const allActive = projected.filter(({ lifecycle }) => lifecycle === "active")
     const activeLimit = Math.min(Math.max(query.activeLimit ?? ACTIVE_LIMIT, 0), ACTIVE_LIMIT)
     const historyLimit = Math.min(Math.max(query.historyLimit ?? HISTORY_LIMIT, 0), HISTORY_LIMIT)
@@ -127,6 +131,13 @@ export class OperationalNotificationsMemoryRepository
     this.#generation += 1
     this.#readIds.clear()
     this.#failNextRead = true
+  }
+
+  async #project(generation: number) {
+    const snapshot = await readOperationalNotificationSources(this.sources, this.#scenario)
+    if (generation !== this.#generation)
+      throw new OperationalNotificationError("A consulta ficou desatualizada.", "stale")
+    return projectOperationalNotifications(deriveNotificationSourceFacts(snapshot), this.#readIds)
   }
 }
 

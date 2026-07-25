@@ -13,7 +13,7 @@ export type NotificationSeverity = "informational" | "attention" | "critical"
 export type NotificationLifecycle = "active" | "resolved"
 
 export type NotificationDestination =
-  | { kind: "agenda"; appointmentId?: string }
+  | { kind: "agenda"; appointmentId?: string; date?: string }
   | { kind: "service-desk"; sessionId: string }
   | { kind: "checkout"; sessionId: string }
   | { kind: "notifications" }

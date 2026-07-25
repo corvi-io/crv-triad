@@ -1,12 +1,36 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import type { ReactNode } from "react"
-import { describe, expect, it } from "vitest"
+import { forwardRef, type ReactNode } from "react"
+import { describe, expect, it, vi } from "vitest"
 import { OperationalNotificationsMemoryRepository } from "@/dev/operational-notifications/memory-repository"
 import { NotificationCenterPage } from "@/modules/operational-notifications/notification-center-page"
 import { OperationalNotificationTrigger } from "@/modules/operational-notifications/notification-trigger"
 import { OperationalNotificationsRepositoryProvider } from "@/modules/operational-notifications/repository-context"
+
+vi.mock("@tanstack/react-router", () => ({
+  Link: forwardRef<
+    HTMLAnchorElement,
+    {
+      children?: ReactNode
+      params?: Record<string, string>
+      search?: Record<string, string | undefined>
+      to: string
+    }
+  >(function TestLink({ children, params, search, to, ...props }, ref) {
+    let href = to
+    for (const [key, value] of Object.entries(params ?? {}))
+      href = href.replace(`$${key}`, encodeURIComponent(value))
+    const query = new URLSearchParams()
+    for (const [key, value] of Object.entries(search ?? {}))
+      if (value !== undefined) query.set(key, value)
+    return (
+      <a {...props} href={`${href}${query.size > 0 ? `?${query}` : ""}`} ref={ref}>
+        {children}
+      </a>
+    )
+  }),
+}))
 
 function Wrapper({
   children,
@@ -41,7 +65,7 @@ describe("operational notification presentation", () => {
     expect(screen.getAllByText("Marcar como lida")).toHaveLength(4)
     expect(screen.getByRole("link", { name: "Ver todas as notificações" })).toHaveAttribute(
       "href",
-      "/notifications",
+      "/notifications?notificationScenario=overflow",
     )
   })
 
@@ -65,6 +89,6 @@ describe("operational notification presentation", () => {
     )
     expect(
       await screen.findByRole("link", { name: "Destino indisponível · Abrir Agenda" }),
-    ).toHaveAttribute("href", "/agenda")
+    ).toHaveAttribute("href", expect.stringMatching(/^\/agenda\?/))
   })
 })

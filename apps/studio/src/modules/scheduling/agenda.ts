@@ -29,6 +29,7 @@ export const agendaPeriodIds = [
 export type AgendaPeriodId = (typeof agendaPeriodIds)[number]
 
 export type ScheduleSearch = {
+  appointment?: string
   client?: string
   customEnd?: string
   customStart?: string
@@ -182,6 +183,10 @@ export function deriveAgendaResult(
   }
 }
 
+function validOpaqueId(value: unknown) {
+  return typeof value === "string" && /^[a-z0-9][a-z0-9-]{0,95}$/i.test(value) ? value : undefined
+}
+
 function normalize(value: string) {
   return value
     .normalize("NFD")
@@ -204,6 +209,7 @@ export function validateScheduleSearch(
 ): ScheduleSearch {
   const date = validDate(search.date) ?? fallbackDate
   return {
+    appointment: validOpaqueId(search.appointment),
     client: validIdList(search.client),
     customEnd: validDate(search.customEnd),
     customStart: validDate(search.customStart),

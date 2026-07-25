@@ -10,7 +10,7 @@ test("keeps header, Dashboard, and center consistent with keyboard-safe popover 
   page,
 }) => {
   await page.clock.setFixedTime(new Date("2026-07-24T15:35:00-03:00"))
-  await page.goto("/overview?scenario=normal")
+  await page.goto("/overview?notificationScenario=normal")
   const bell = page.getByRole("button", {
     name: "Abrir notificações. 7 notificações ativas não lidas.",
   })
@@ -36,6 +36,70 @@ test("keeps header, Dashboard, and center consistent with keyboard-safe popover 
   await expect(
     page.locator('[data-slot="workspace-primary-navigation-item"] a', { hasText: "Notificações" }),
   ).toHaveCount(0)
+  await page.getByRole("button", { name: "Marcar como lida" }).first().click()
+  await expect(
+    page.getByRole("button", {
+      name: "Abrir notificações. 6 notificações ativas não lidas.",
+    }),
+  ).toBeVisible()
+  await page
+    .getByRole("region", { name: "Ativas", exact: true })
+    .getByRole("link", { name: "Abrir destino" })
+    .first()
+    .click()
+  await expect(page).toHaveURL(/\/agenda\?.*appointment=kanban-01/)
+  await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeVisible()
+  await page.getByRole("button", { name: "Fechar" }).click()
+  await expect(
+    page.getByRole("button", {
+      name: "Abrir notificações. 6 notificações ativas não lidas.",
+    }),
+  ).toBeVisible()
+})
+
+test("isolates notification scenarios from module-specific scenario parameters", async ({
+  page,
+}) => {
+  await page.goto("/reports?scenario=persistent-error")
+  await expect(
+    page.getByRole("button", {
+      name: "Abrir notificações. 7 notificações ativas não lidas.",
+    }),
+  ).toBeVisible()
+})
+
+test("consumes typed Dashboard, Agenda, and Service Desk destinations with SPA state", async ({
+  page,
+}) => {
+  await page.goto("/overview?notificationScenario=normal")
+  const attention = page
+    .getByRole("heading", { name: "Atenção necessária" })
+    .locator('xpath=ancestor::*[@data-slot="card"]')
+  await attention.getByRole("button", { name: /Conflito identificado na Agenda/ }).click()
+  await expect(page).toHaveURL(/\/agenda\?.*appointment=kanban-01/)
+  await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeVisible()
+  await page.goBack()
+  await expect(page).toHaveURL(/\/overview/)
+
+  await attention.getByRole("button", { name: "Ver todos" }).click()
+  const waitingItem = page
+    .getByRole("heading", { name: "Cliente aguardando há muito tempo" })
+    .locator("xpath=ancestor::article")
+  await waitingItem.getByRole("button", { name: "Marcar como lida" }).click()
+  await expect(
+    page.getByRole("button", {
+      name: "Abrir notificações. 6 notificações ativas não lidas.",
+    }),
+  ).toBeVisible()
+  await waitingItem.getByRole("link", { name: "Abrir destino" }).click()
+  await expect(page).toHaveURL(/\/service-desk\/session-walk-in-fulfillment-long-running(?:\?|$)/)
+  await expect(page.getByRole("heading", { name: "Pessoa Longa Duração" })).toBeVisible()
+  await expect(page.getByText("Atendimento não encontrado")).toHaveCount(0)
+  await expect(
+    page.getByRole("button", {
+      name: "Abrir notificações. 6 notificações ativas não lidas.",
+    }),
+  ).toBeVisible()
 })
 
 test("renders all official categories, safe recovery, read state, and axe-clean desktop evidence", async ({
@@ -43,7 +107,7 @@ test("renders all official categories, safe recovery, read state, and axe-clean 
 }) => {
   await page.addInitScript(() => localStorage.setItem("triad-studio-theme", "light"))
   await page.setViewportSize({ height: 900, width: 1440 })
-  await page.goto("/notifications?scenario=normal")
+  await page.goto("/notifications?notificationScenario=normal")
   const categories = [
     "Cliente aguardando há muito tempo",
     "Próximo atendimento em 10 minutos",
@@ -69,10 +133,10 @@ test("renders all official categories, safe recovery, read state, and axe-clean 
     .analyze()
   expect(axe.violations).toEqual([])
 
-  await page.goto("/notifications?scenario=missing-target")
+  await page.goto("/notifications?notificationScenario=missing-target")
   await expect(
     page.getByRole("link", { name: "Destino indisponível · Abrir Agenda" }),
-  ).toHaveAttribute("href", "/agenda")
+  ).toHaveAttribute("href", /\/agenda\?.*scenario=normal/)
 })
 
 test("caps 105 unread visually and preserves narrow dark forced-color/reduced-motion reflow", async ({
@@ -81,7 +145,7 @@ test("caps 105 unread visually and preserves narrow dark forced-color/reduced-mo
   await page.addInitScript(() => localStorage.setItem("triad-studio-theme", "dark"))
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.setViewportSize({ height: 720, width: 320 })
-  await page.goto("/notifications?scenario=overflow")
+  await page.goto("/notifications?notificationScenario=overflow")
   const bell = page.getByRole("button", {
     name: "Abrir notificações. 105 notificações ativas não lidas.",
   })

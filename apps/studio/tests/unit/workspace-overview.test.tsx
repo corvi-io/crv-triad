@@ -120,4 +120,55 @@ describe("WorkspaceOverview", () => {
       screen.getByRole("heading", { name: "Nenhum resultado para os filtros" }),
     ).toBeInTheDocument()
   })
+
+  it("distinguishes notification loading, error, unavailable, empty, and destination actions", async () => {
+    const handlers = {
+      ...callbacks(),
+      onOpenAttention: vi.fn(),
+      onRetryAttention: vi.fn(),
+    }
+    const model = await dashboardModel()
+    const withAttention = {
+      ...model,
+      attention: [
+        {
+          description: "Revise o conflito.",
+          id: "notification:conflict",
+          title: "Conflito identificado",
+          tone: "danger" as const,
+        },
+      ],
+    }
+    const { rerender } = render(
+      <WorkspaceOverview {...handlers} attentionState="loading" model={model} state="ready" />,
+    )
+    expect(
+      screen.getByRole("status", { name: "Carregando situações operacionais" }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Nenhuma situação acionável no período.")).not.toBeInTheDocument()
+
+    rerender(<WorkspaceOverview {...handlers} attentionState="error" model={model} state="ready" />)
+    expect(screen.getByText("Não foi possível carregar as situações.")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Tentar novamente" }))
+    expect(handlers.onRetryAttention).toHaveBeenCalled()
+
+    rerender(
+      <WorkspaceOverview {...handlers} attentionState="unavailable" model={model} state="ready" />,
+    )
+    expect(screen.getByText("Situações operacionais indisponíveis.")).toBeInTheDocument()
+
+    rerender(<WorkspaceOverview {...handlers} attentionState="ready" model={model} state="ready" />)
+    expect(screen.getByText("Nenhuma situação acionável no período.")).toBeInTheDocument()
+
+    rerender(
+      <WorkspaceOverview
+        {...handlers}
+        attentionState="ready"
+        model={withAttention}
+        state="ready"
+      />,
+    )
+    await userEvent.click(screen.getByRole("button", { name: /Conflito identificado/ }))
+    expect(handlers.onOpenAttention).toHaveBeenCalledWith("notification:conflict")
+  })
 })

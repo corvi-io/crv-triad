@@ -2,6 +2,7 @@ import type { LucideIcon as LucideIconType } from "lucide-react"
 import {
   BanknoteIcon,
   BarChart3Icon,
+  BellIcon,
   Building2Icon,
   CalendarDaysIcon,
   ClipboardListIcon,
@@ -20,7 +21,11 @@ export type WorkspaceModulePath =
   | "/overview"
   | "/reports"
   | "/service-desk"
-export type WorkspaceRoutePath = WorkspaceModulePath | "/profile" | "/preferences"
+export type WorkspaceRoutePath =
+  | WorkspaceModulePath
+  | "/profile"
+  | "/preferences"
+  | "/notifications"
 
 type WorkspaceRoute = {
   id: string
@@ -202,7 +207,23 @@ export const workspaceAccountRoutes = [
   },
 ] as const satisfies readonly WorkspaceRoute[]
 
-const workspaceRoutes = [...workspaceModules, ...workspaceAccountRoutes] as const
+export const workspaceAuxiliaryRoutes = [
+  {
+    id: "notifications",
+    label: "Notificações",
+    path: "/notifications",
+    icon: BellIcon,
+    breadcrumbLabel: "Notificações",
+    description: "Situações operacionais ativas e histórico resolvido.",
+    commandKeywords: ["notificações", "alertas", "situações operacionais"],
+  },
+] as const satisfies readonly WorkspaceRoute[]
+
+const workspaceRoutes = [
+  ...workspaceModules,
+  ...workspaceAccountRoutes,
+  ...workspaceAuxiliaryRoutes,
+] as const
 
 export function isWorkspaceNavigationItemActive(item: WorkspaceNavigationItem, pathname: string) {
   return pathname === item.path || (item.path !== "/overview" && pathname.startsWith(item.path))

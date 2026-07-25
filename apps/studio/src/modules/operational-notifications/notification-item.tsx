@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import {
   BellRingIcon,
   CalendarClockIcon,
@@ -5,6 +6,8 @@ import {
   CreditCardIcon,
   TimerOffIcon,
 } from "lucide-react"
+import { defaultServiceDeskSearch } from "@/modules/service-desk/search"
+import { formatDateOnly } from "@/modules/shared/components/forms/date-picker"
 import { Badge } from "@/modules/shared/components/ui/badge"
 import { Button } from "@/modules/shared/components/ui/button"
 import { cn } from "@/modules/shared/lib/utils"
@@ -86,11 +89,24 @@ export function NotificationItem({
         ) : null}
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {destination ? (
-            <Button render={<a href={destination} />} size="sm" variant="outline">
-              Abrir destino
-            </Button>
+            <DestinationLink destination={destination} />
           ) : (
-            <Button render={<a href="/agenda" />} size="sm" variant="outline">
+            <Button
+              render={
+                <Link
+                  to="/agenda"
+                  search={{
+                    date: formatDateOnly(new Date()),
+                    period: "today",
+                    scenario: "normal",
+                    unit: "centro",
+                    view: "board",
+                  }}
+                />
+              }
+              size="sm"
+              variant="outline"
+            >
               Destino indisponível · Abrir Agenda
             </Button>
           )}
@@ -108,5 +124,78 @@ export function NotificationItem({
         </div>
       </div>
     </article>
+  )
+}
+
+function DestinationLink({
+  destination,
+}: {
+  destination: NonNullable<ReturnType<typeof resolveNotificationDestination>>
+}) {
+  if (destination.kind === "agenda") {
+    return (
+      <Button
+        render={
+          <Link
+            to="/agenda"
+            search={{
+              appointment: destination.appointment,
+              date: destination.date ?? formatDateOnly(new Date()),
+              period: "today",
+              scenario: "normal",
+              unit: "centro",
+              view: "board",
+            }}
+          />
+        }
+        size="sm"
+        variant="outline"
+      >
+        Abrir destino
+      </Button>
+    )
+  }
+  if (destination.kind === "checkout") {
+    return (
+      <Button
+        render={
+          <Link
+            params={{ sessionId: destination.sessionId }}
+            search={defaultServiceDeskSearch}
+            to="/service-desk/$sessionId/checkout"
+          />
+        }
+        size="sm"
+        variant="outline"
+      >
+        Abrir destino
+      </Button>
+    )
+  }
+  if (destination.kind === "service-desk") {
+    return (
+      <Button
+        render={
+          <Link
+            params={{ sessionId: destination.sessionId }}
+            search={defaultServiceDeskSearch}
+            to="/service-desk/$sessionId"
+          />
+        }
+        size="sm"
+        variant="outline"
+      >
+        Abrir destino
+      </Button>
+    )
+  }
+  return (
+    <Button
+      render={<Link search={{ notificationScenario: undefined }} to="/notifications" />}
+      size="sm"
+      variant="outline"
+    >
+      Abrir destino
+    </Button>
   )
 }

@@ -2,6 +2,7 @@ import { createOperationalNotificationsRepository } from "virtual:studio-operati
 import { createRevenueOperationsRepository } from "virtual:studio-revenue-operations-source"
 import { createSchedulingRepository } from "virtual:studio-scheduling-prototype"
 import { createFileRoute } from "@tanstack/react-router"
+import { resolveNotificationDestination } from "@/modules/operational-notifications/destinations"
 import { useNotificationPreview } from "@/modules/operational-notifications/queries"
 import { useRevenueDashboardProjection } from "@/modules/revenue-operations/queries"
 import { RevenueOperationsRepositoryProvider } from "@/modules/revenue-operations/repository-context"
@@ -11,6 +12,7 @@ import {
   validateDashboardSearch,
 } from "@/modules/scheduling/dashboard-search"
 import { SchedulingRepositoryProvider } from "@/modules/scheduling/repository-context"
+import { defaultServiceDeskSearch } from "@/modules/service-desk/search"
 import { formatDateOnly } from "@/modules/shared/components/forms/date-picker"
 import { WorkspaceOverview } from "@/modules/shared/components/workspace-overview"
 
@@ -177,13 +179,22 @@ function DashboardWithNotifications({
   children: (
     props: Pick<
       React.ComponentProps<typeof DashboardPage>,
-      "notificationAttention" | "onNavigateNotifications"
+      | "notificationAttention"
+      | "notificationAttentionState"
+      | "onNavigateNotifications"
+      | "onOpenNotification"
+      | "onRetryNotifications"
     >,
   ) => React.ReactNode
 }) {
   const notifications = useNotificationPreview({ activeLimit: 4, historyLimit: 0 })
   const navigate = Route.useNavigate()
   return children({
+    notificationAttentionState: notifications.isPending
+      ? "loading"
+      : notifications.isError
+        ? "error"
+        : "ready",
     notificationAttention: notifications.data?.active.map((item) => ({
       description: item.detail,
       id: item.id,
@@ -196,6 +207,44 @@ function DashboardWithNotifications({
             : "info",
     })),
     onNavigateNotifications: () =>
-      void navigate({ search: { scenario: undefined }, to: "/notifications" }),
+      void navigate({ search: { notificationScenario: undefined }, to: "/notifications" }),
+    onOpenNotification: (id) => {
+      const notification = notifications.data?.active.find((item) => item.id === id)
+      const destination = notification
+        ? resolveNotificationDestination(notification.destination)
+        : null
+      if (!destination || destination.kind === "notifications") {
+        void navigate({ search: { notificationScenario: undefined }, to: "/notifications" })
+        return
+      }
+      if (destination.kind === "agenda") {
+        void navigate({
+          search: {
+            appointment: destination.appointment,
+            date: destination.date ?? formatDateOnly(new Date()),
+            period: "today",
+            scenario: "normal",
+            unit: "centro",
+            view: "board",
+          },
+          to: "/agenda",
+        })
+        return
+      }
+      if (destination.kind === "checkout") {
+        void navigate({
+          params: { sessionId: destination.sessionId },
+          search: defaultServiceDeskSearch,
+          to: "/service-desk/$sessionId/checkout",
+        })
+        return
+      }
+      void navigate({
+        params: { sessionId: destination.sessionId },
+        search: defaultServiceDeskSearch,
+        to: "/service-desk/$sessionId",
+      })
+    },
+    onRetryNotifications: () => void notifications.refetch(),
   })
 }

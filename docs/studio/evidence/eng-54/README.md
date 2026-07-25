@@ -13,8 +13,10 @@ The committed screenshots were produced by
   layout viewport, equivalent to a 320px visible content width.
 
 The same Playwright run verifies exact accessible count, keyboard open/Escape
-focus return, 24px notification controls, no document overflow, and axe WCAG
-2.2 A/AA with zero violations.
+focus return, mobile notification title, typed Dashboard navigation, real
+Agenda drawer and Service Desk route consumption, SPA read-state preservation,
+scenario namespace isolation, 24px notification controls, no document
+overflow, and axe WCAG 2.2 A/AA with zero violations.
 
 Residual manual evidence: actual VoiceOver or NVDA, native browser 200% zoom,
 and physical coarse-pointer review were not executed by the automated run and

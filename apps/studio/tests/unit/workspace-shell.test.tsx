@@ -166,4 +166,20 @@ describe("authenticated workspace shell", () => {
       within(header as HTMLElement).getByRole("link", { name: "Atendimentos" }),
     ).toHaveAttribute("href", "/service-desk")
   })
+
+  it("identifies the notification center in the mobile title and desktop breadcrumb", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 320 })
+    const { container } = renderWorkspace("/notifications?notificationScenario=normal")
+    const header = await waitFor(() => {
+      const element = container.querySelector('[data-slot="workspace-header"]')
+      expect(element).not.toBeNull()
+      return element
+    })
+    expect(
+      within(header as HTMLElement).getByRole("link", { name: "Notificações" }),
+    ).toHaveAttribute("href", "/notifications")
+    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
+      "TRIAD StudioNotificações",
+    )
+  })
 })

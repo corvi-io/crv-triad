@@ -19,20 +19,26 @@ import {
 import { useScheduleDay } from "./queries"
 
 export function DashboardPage({
+  notificationAttentionState = "unavailable",
   onNavigateClients,
   onNavigateNotifications,
+  onOpenNotification,
   onNavigateServices,
   onSearchChange,
   paidSales,
   notificationAttention,
+  onRetryNotifications,
   search,
 }: {
+  notificationAttentionState?: "error" | "loading" | "ready" | "unavailable"
   onNavigateClients?: () => void
   onNavigateNotifications?: () => void
+  onOpenNotification?: (id: string) => void
   onNavigateServices: () => void
   onSearchChange: (next: Partial<DashboardSearch>) => void
   paidSales?: readonly RevenueDashboardProjection[]
   notificationAttention?: WorkspaceOverviewModel["attention"]
+  onRetryNotifications?: () => void
   search: DashboardSearch
 }) {
   const navigate = useNavigate()
@@ -137,6 +143,7 @@ export function DashboardPage({
   return (
     <>
       <WorkspaceOverview
+        attentionState={notificationAttentionState}
         hasActiveFilters={hasActiveFilters}
         model={model}
         state={
@@ -146,10 +153,12 @@ export function DashboardPage({
         onNavigateAgenda={navigateAgenda}
         onNavigateClients={onNavigateClients}
         onNavigateNotifications={onNavigateNotifications}
+        onOpenAttention={onOpenNotification}
         onNavigateServices={onNavigateServices}
         onNewAppointment={() => setDrawer({ mode: "create" })}
         onOpenAppointment={openAppointment}
         onRetry={() => void dayQuery.refetch()}
+        onRetryAttention={onRetryNotifications}
       />
       {dayQuery.data && drawer ? (
         <AppointmentDrawer

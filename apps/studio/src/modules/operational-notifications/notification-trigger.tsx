@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import { BellIcon } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/modules/shared/components/ui/alert"
 import { Button } from "@/modules/shared/components/ui/button"
@@ -72,7 +73,11 @@ export function OperationalNotificationTrigger({ scenarioId }: { scenarioId?: st
             </p>
           )}
         </div>
-        <Button className="mt-3 w-full" render={<a href="/notifications" />} variant="outline">
+        <Button
+          className="mt-3 w-full"
+          render={<Link search={{ notificationScenario: scenarioId }} to="/notifications" />}
+          variant="outline"
+        >
           Ver todas as notificações
         </Button>
       </PopoverContent>
