@@ -21,6 +21,7 @@ export function AuthShell({ children, description, title }: AuthShellProps) {
       <section className="flex min-h-svh flex-col p-6 md:p-10 lg:h-svh lg:min-h-0 lg:overflow-y-auto">
         <header>
           <a aria-label="TRIAD Studio — ir para o início" className="block w-fit" href="/">
+            <span className="sr-only">TRIAD Studio — ir para o início</span>
             <img
               alt=""
               aria-hidden="true"
