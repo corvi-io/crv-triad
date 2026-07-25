@@ -162,6 +162,7 @@ building block of a documented composition.
 | `ui/breadcrumb.tsx` | Primitive | Internal: building block documented through workspace breadcrumbs. |
 | `ui/button.tsx` | Primitive | Documented public contract: explicit variants, disabled/loading states, stable long labels, and keyboard activation. Agenda adds quiet `filter` and brand-selected `filter-active` variants for menu/popover triggers; state remains textual and exposed through the owning primitive. |
 | `ui/calendar.tsx` | Primitive | Internal: implementation detail of the shared date picker. |
+| `ui/chart.tsx` | Data display primitive | Documented public contract: reviewed official shadcn/Recharts 3 composition providing a responsive `ChartContainer`, semantic per-series token configuration, stable initial dimensions, and Recharts accessibility-layer compatibility. Charts remain supplementary: consuming modules must provide visible takeaways, programmatic title/description, non-color semantics where multiple series exist, and semantic table/list equivalents. ENG-53 is the first consumer and production-boundary, component, browser, and axe checks cover it. |
 | `ui/card.tsx` | Primitive | Internal: structural primitive documented through consuming composites. |
 | `ui/collapsible.tsx` | Primitive | Internal: implementation detail of drawer/form sections. |
 | `ui/dropdown-menu.tsx` | Primitive | Internal: implementation detail of menus and table controls. |

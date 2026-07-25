@@ -44,6 +44,9 @@ const forbiddenMarkers = [
   "revenue-operations-source",
   "checkout-multi-professional",
   "cash-dense-history",
+  "ReportingMemoryRepository",
+  "reporting-source",
+  "reporting-scheduled-sale",
   ".stories.",
 ]
 

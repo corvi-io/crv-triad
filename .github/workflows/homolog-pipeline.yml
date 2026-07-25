@@ -84,6 +84,7 @@ jobs:
 
       - name: Install Studio Playwright browser
         if: ${{ steps.affected.outputs.studio == 'true' }}
+        working-directory: apps/studio
         run: bunx playwright install --with-deps --only-shell chromium
 
       - name: Studio Quality Gate

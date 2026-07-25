@@ -41,6 +41,10 @@ export default defineConfig(({ command, mode }) => {
   const clientManagementSourceEntry = clientManagementSourceEnabled
     ? "./src/dev/clients/entry.ts"
     : "./src/modules/shared/config/client-management-source-disabled.ts"
+  const reportingSourceEntry =
+    schedulingPrototypeEnabled && clientManagementSourceEnabled
+      ? "./src/dev/reporting/entry.ts"
+      : "./src/modules/shared/config/reporting-source-disabled.ts"
 
   return {
     plugins: [
@@ -61,6 +65,7 @@ export default defineConfig(({ command, mode }) => {
           __dirname,
           revenueOperationsSourceEntry,
         ),
+        "virtual:studio-reporting-source": path.resolve(__dirname, reportingSourceEntry),
         "virtual:studio-barbershop-setup-source": path.resolve(
           __dirname,
           barbershopSetupSourceEntry,

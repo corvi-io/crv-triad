@@ -161,4 +161,19 @@ describe("routes", () => {
     expect(await screen.findByRole("heading", { name: "Caixa" })).toBeInTheDocument()
     await waitFor(() => expect(router.state.location.search.date).not.toBe("2026-02-31"))
   })
+
+  it("keeps reports private and normalizes invalid bounded URL filters", async () => {
+    const { router } = renderRoute(
+      "/reports?from=2025-01-01&to=2026-12-31&professional=../private&paymentMethod=crypto",
+      authenticatedState(),
+    )
+
+    expect(await screen.findByRole("heading", { name: "Relatórios" })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(router.state.location.search.professional).toBeUndefined()
+      expect(router.state.location.search.paymentMethod).toBeUndefined()
+      expect(router.state.location.search.from).not.toBe("2025-01-01")
+      expect(router.state.location.search.to).not.toBe("2026-12-31")
+    })
+  })
 })
