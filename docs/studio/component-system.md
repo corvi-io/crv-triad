@@ -253,3 +253,11 @@ development adapters. See `docs/studio/operational-notifications.md`.
 - [TanStack Query](https://tanstack.com/query/latest/docs/framework/react/overview)
 - [Vitest](https://vitest.dev/guide/)
 - [Playwright accessibility testing](https://playwright.dev/docs/accessibility-testing)
+
+## ENG-55 Composition Note
+
+ENG-55 composes the existing `Card`, `Field`, `Input`, `Select`, `Switch`, `ToggleGroup`,
+`DatePicker`, table/list, drawer, dialog, and feedback contracts for setup completion and weekly
+Agenda. The seven-day board and setup completion sections remain module-owned because their
+semantics are product-specific; no shared component, registry item, calendar/layout dependency, or
+design token was added.

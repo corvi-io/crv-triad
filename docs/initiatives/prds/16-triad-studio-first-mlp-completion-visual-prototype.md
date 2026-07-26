@@ -3,7 +3,8 @@
 ## Summary
 
 Complete the four items that remain partially covered in the first TRIAD Studio
-visual MLP through two ordered, frontend-only deliveries:
+visual MLP through one final frontend-only delivery with two internal
+workstreams:
 
 1. complete barbershop setup, service variations, and professional management;
 2. add the complete weekly Agenda experience.
@@ -16,10 +17,8 @@ production authorization, or identity-provider behavior.
 ## Context
 
 - Current state:
-  - The visual MLP tracker has eight completed features, five partial features,
-    and one next delivery.
-  - ENG-53 is implementing reports and ENG-54 will complete operational
-    notifications. After both, only setup, weekly Agenda, services, and
+  - The visual MLP tracker has 10 completed features and four partial features.
+  - ENG-53 and ENG-54 are complete. Only setup, weekly Agenda, services, and
     professionals remain partial.
   - `/barbershop-setup` already covers units, professionals, services,
     availability, guided progress, CRUD, relationships, archive/restore, and
@@ -56,13 +55,21 @@ production authorization, or identity-provider behavior.
   - `docs/initiatives/prds/15-triad-studio-management-insights-visual-prototype.md`.
 - Linear initiative:
   [TRIAD Studio First MLP Completion Visual Prototype](https://linear.app/corvi-io/initiative/triad-studio-first-mlp-completion-visual-prototype-5aa3efee6495).
-- Delivery tasks:
-  - [ENG-55: Complete the TRIAD Studio setup, services, and professionals visual prototype](https://linear.app/corvi-io/issue/ENG-55/complete-the-triad-studio-setup-services-and-professionals-visual).
-  - [ENG-56: Build the TRIAD Studio weekly Agenda visual prototype](https://linear.app/corvi-io/issue/ENG-56/build-the-triad-studio-weekly-agenda-visual-prototype).
+- Final delivery task:
+  [ENG-55: Complete all remaining TRIAD Studio first visual MLP features](https://linear.app/corvi-io/issue/ENG-55/complete-all-remaining-triad-studio-first-visual-mlp-features).
+- Absorbed task:
+  [ENG-56: Build the TRIAD Studio weekly Agenda visual prototype](https://linear.app/corvi-io/issue/ENG-56/build-the-triad-studio-weekly-agenda-visual-prototype)
+  is duplicate/superseded by ENG-55. Its complete scope is preserved here.
+- Current delivery status:
+  - ENG-54 is `Done`; [PR #35](https://github.com/corvi-io/crv-triad/pull/35)
+    merged into `staging` at
+    `2c367b21fc4c517da09f954db34b67c646b3750c`.
+  - ENG-55 is `Ready`, unblocked, and is the single final delivery.
+  - ENG-56 is duplicate/superseded by ENG-55.
 
-## Delivery Units
+## Final Delivery Workstreams
 
-### Delivery 1: Setup, Services, And Professionals Completion
+### Workstream 1: Setup, Services, And Professionals Completion
 
 Extend the existing barbershop setup module with a resumable first-use journey,
 barbershop identity and contact data, payment-method configuration,
@@ -74,7 +81,7 @@ commission, scheduling, and revenue facts through accepted public ports. It must
 not duplicate fixtures or present frontend settings as production
 authorization.
 
-### Delivery 2: Weekly Agenda Completion
+### Workstream 2: Weekly Agenda Completion
 
 Add a complete weekly time view to the accepted Agenda while preserving the
 daily board, list, appointment drawer, filters, status vocabulary, collision
@@ -84,9 +91,11 @@ The weekly experience must support both the general barbershop context and a
 professional-focused context without rendering an unbounded
 days-by-professionals-by-slots matrix.
 
-Delivery 1 begins after ENG-54. Delivery 2 begins from the merged Delivery 1
-baseline so the weekly Agenda consumes the accepted final professional,
-service-variation, payment-method, and availability presentation contracts.
+ENG-54 is complete, so ENG-55 is unblocked. Both workstreams ship through one
+branch, one PR, and one final merge. The implementation must keep commits,
+tests, and review evidence grouped by workstream while composing the weekly
+Agenda against the same final professional, service-variation, payment-method,
+and availability contracts.
 
 ## Goals
 
@@ -246,10 +255,12 @@ service-variation, payment-method, and availability presentation contracts.
 - Four separate tasks would map one-to-one to the tracker, but setup, services,
   and professionals share forms, relationships, and source composition. One
   coherent delivery is easier to review and less likely to duplicate state.
-- One giant implementation task for all four items would minimize Linear
-  overhead, but it would combine a broad setup-domain expansion with a complex
-  Agenda layout and drag surface. Two tasks create meaningful review and merge
-  boundaries.
+- One implementation task for all four items combines a broad setup-domain
+  expansion with a complex Agenda layout and drag surface, increasing review
+  and regression risk. The explicit product decision accepts that tradeoff to
+  make the next task the final MLP delivery. Internal workstreams, grouped
+  commits, focused verification, and one final all-scope gate mitigate the
+  risk.
 - A disposable onboarding wizard would mirror the first-access sequence
   quickly, but it would duplicate setup forms and leave no maintenance path.
   The existing hub should own both first-use progress and later edits.
@@ -276,13 +287,13 @@ service-variation, payment-method, and availability presentation contracts.
 | Option | Description | Pros | Cons | Decision |
 | --- | --- | --- | --- | --- |
 | A | Four initiatives/tasks matching tracker rows | Simple tracker mapping | Repeats setup context and source changes | Reject |
-| B | One initiative with two ordered tasks | Coherent final MLP outcome and reviewable merges | Requires a deliberate dependency chain | Accept |
-| C | One task for all remaining work | Lowest coordination overhead | Too broad for reliable visual and behavioral review | Reject |
+| B | One initiative with two ordered tasks | Coherent final MLP outcome and smaller review units | Requires a second delivery and merge | Superseded |
+| C | One task with two internal workstreams | Makes the next task the final delivery and removes handoff overhead | Larger PR and regression surface | Accept by explicit product decision |
 | D | Build API, RBAC, and persistence first | Production-truthful foundation | Premature and blocks visual validation | Future |
 
 ### Recommendation
 
-Choose Option B.
+Choose Option C.
 
 Keep `barbershop-setup` as the owner of first-use setup, service variations,
 professional profiles, and demonstrative business access settings. Reuse
@@ -290,9 +301,13 @@ accepted scheduling/revenue facts through narrow public ports rather than
 copying fixtures. Keep identity and authorization outside this initiative.
 
 Extend `scheduling` with an explicit bounded temporal scope and weekly
-projection after Delivery 1 merges. Preserve the daily board for fine-grained
+projection in the same delivery. Preserve the daily board for fine-grained
 professional allocation and use the weekly board for seven-day planning. Keep
 the list as the narrow/dense alternative.
+
+Use one Linear issue, branch, PR, and merge, but keep setup and weekly Agenda as
+separate internal workstreams with focused commits and verification. The issue
+cannot move to `Done` until both workstreams satisfy their acceptance criteria.
 
 ## Architecture And Boundaries
 
@@ -417,17 +432,17 @@ the list as the narrow/dense alternative.
 
 ### Initiative
 
-- [ ] Both delivery tasks begin from their confirmed merged dependencies.
+- [ ] The final task begins from the confirmed merged ENG-54 dependency.
 - [ ] MLP tracker items 1, 7, and 8 move from partial to completed only after
-      Delivery 1 has merged evidence.
-- [ ] MLP tracker item 3 moves from partial to completed only after Delivery 2
-      has merged evidence.
-- [ ] After ENG-53, ENG-54, and both deliveries, the visual MLP tracker records
+      ENG-55 has evidence for Workstream 1 and the combined PR is merged.
+- [ ] MLP tracker item 3 moves from partial to completed only after ENG-55 has
+      evidence for Workstream 2 and the combined PR is merged.
+- [ ] After ENG-53, ENG-54, and ENG-55, the visual MLP tracker records
       14 of 14 features completed.
 - [ ] All behavior remains frontend-only, deterministic, resettable, and
       unavailable in `hml`/`prd`.
 
-### Delivery 1
+### Workstream 1
 
 - [ ] The first-use journey covers barbershop data, hours, professionals,
       services, payments/commissions, and review/workspace entry.
@@ -451,7 +466,7 @@ the list as the narrow/dense alternative.
 - [ ] Normal, incomplete, complete, empty, dense, restricted, long-content,
       slow, fail-next, persistent-error, reset, and reload scenarios exist.
 
-### Delivery 2
+### Workstream 2
 
 - [ ] Agenda exposes separate temporal scope (`Dia`/`Semana`) and
       representation (`Quadro`/`Lista`) without invalid combinations.
@@ -526,7 +541,7 @@ the list as the narrow/dense alternative.
 
 ## Open Questions
 
-- [x] Delivery grouping: one initiative with two ordered tasks.
+- [x] Delivery grouping: one final task with two internal workstreams.
 - [x] Setup grouping: onboarding, services, and professionals remain one
       coherent delivery.
 - [x] Permission boundary: demonstrative business settings only; production

@@ -16,21 +16,33 @@
   [ENG-54: Build the TRIAD Studio operational notifications visual prototype](https://linear.app/corvi-io/issue/ENG-54/build-the-triad-studio-operational-notifications-visual-prototype).
 - Linear initiative:
   [TRIAD Studio First MLP Completion Visual Prototype](https://linear.app/corvi-io/initiative/triad-studio-first-mlp-completion-visual-prototype-5aa3efee6495).
-- Delivery tasks:
-  - [ENG-55: Complete the TRIAD Studio setup, services, and professionals visual prototype](https://linear.app/corvi-io/issue/ENG-55/complete-the-triad-studio-setup-services-and-professionals-visual).
-  - [ENG-56: Build the TRIAD Studio weekly Agenda visual prototype](https://linear.app/corvi-io/issue/ENG-56/build-the-triad-studio-weekly-agenda-visual-prototype).
+- Final delivery task:
+  [ENG-55: Complete all remaining TRIAD Studio first visual MLP features](https://linear.app/corvi-io/issue/ENG-55/complete-all-remaining-triad-studio-first-visual-mlp-features).
+- Absorbed task:
+  [ENG-56: Build the TRIAD Studio weekly Agenda visual prototype](https://linear.app/corvi-io/issue/ENG-56/build-the-triad-studio-weekly-agenda-visual-prototype)
+  is duplicate/superseded by ENG-55.
+- Current delivery status:
+  - ENG-54 is `Done`; [PR #35](https://github.com/corvi-io/crv-triad/pull/35)
+    merged into `staging` at
+    `2c367b21fc4c517da09f954db34b67c646b3750c`.
+  - ENG-55 is `Ready`, unblocked, and is the single final delivery.
+  - ENG-56 is duplicate/superseded by ENG-55.
 
 ## Delivery Contract
 
-Deliver two ordered frontend-only tasks:
+Deliver one final frontend-only task with two internal workstreams:
 
 1. setup, services, and professionals completion;
 2. weekly Agenda completion.
 
-Task 1 is blocked by ENG-54. Task 2 is blocked by Task 1. Both use
-deterministic, resettable in-memory data in `local`/`dev`, remain disabled in
-`hml`/`prd`, and introduce no backend, persistence, production authorization,
-provider, polling, or realtime behavior.
+ENG-54 is complete, so ENG-55 is unblocked. Both workstreams use deterministic,
+resettable in-memory data in `local`/`dev`, remain disabled in `hml`/`prd`, and
+introduce no backend, persistence, production authorization, provider, polling,
+or realtime behavior.
+
+Use one branch, one PR, and one final merge. Keep commits, focused checks, and
+review evidence grouped by workstream. Partial completion of one workstream is
+not sufficient for `Done`.
 
 ## Shared Readiness Gate
 
@@ -82,22 +94,23 @@ provider, polling, or realtime behavior.
 - Do not log PII, business payloads, schedules, financial values, permissions,
   credentials, tokens, cookies, or private headers.
 
-## Task 1: Setup, Services, And Professionals Completion
+## Final Task: Complete All Remaining Visual MLP Features
 
 ### Task Metadata
 
 - Title:
-  `Complete the TRIAD Studio setup, services, and professionals visual prototype`
+  `Complete all remaining TRIAD Studio first visual MLP features`
 - Suggested branch: assigned by Linear from the final issue identifier.
 - State: `Ready`.
 - Priority: `High`.
 - Assignee: Marcus Gabriel.
-- Blocked by: ENG-54.
+- Completed dependency: ENG-54 / PR #35.
+- Active blockers: none.
 - Linear:
-  [ENG-55](https://linear.app/corvi-io/issue/ENG-55/complete-the-triad-studio-setup-services-and-professionals-visual).
-- Closes visual MLP tracker items 1, 7, and 8.
+  [ENG-55](https://linear.app/corvi-io/issue/ENG-55/complete-all-remaining-triad-studio-first-visual-mlp-features).
+- Closes visual MLP tracker items 1, 3, 7, and 8.
 
-### Task 1 Scope
+### Final Task Scope
 
 - Complete the six-step first-use setup journey.
 - Add bounded barbershop identity/contact setup.
@@ -105,10 +118,11 @@ provider, polling, or realtime behavior.
 - Add per-professional service price/duration exceptions.
 - Complete professional details, demonstrative access settings, and operational
   view.
+- Add the complete seven-day Agenda board/list experience and weekly journeys.
 - Integrate accepted settings with scheduling, checkout, commission, and
   professional summaries through public contracts.
 
-### Task 1 Exclusions
+### Final Task Exclusions
 
 - API, database, durable storage, IDP roles, organizations, invitations, real
   RBAC, uploads, fiscal configuration, payment gateway behavior, payroll, or
@@ -250,7 +264,7 @@ provider, polling, or realtime behavior.
 - [ ] Reconstruct the selected deterministic scenario on reload.
 - [ ] Keep the source disabled and fixtures excluded in `hml`/`prd`.
 
-### 1.10 Task 1 Scenarios
+### 1.10 Workstream 1 Scenarios
 
 - [ ] Add deterministic scenarios for:
   - [ ] first use/incomplete;
@@ -272,7 +286,7 @@ provider, polling, or realtime behavior.
   - [ ] persistent error.
 - [ ] Verify reset and reload for all stateful scenarios.
 
-### 1.11 Task 1 Verification
+### 1.11 Workstream 1 Verification
 
 - [ ] Unit-test readiness, step ordering, field validation, payment rules,
       override resolution, access defaults, summaries, snapshots, and rollback.
@@ -297,21 +311,19 @@ provider, polling, or realtime behavior.
 - [ ] Move the Linear task only with evidence.
 - [ ] Update MLP tracker items 1, 7, and 8 only after merge evidence.
 
-## Task 2: Weekly Agenda Completion
+## Workstream 2: Weekly Agenda Completion
 
-### Task Metadata
+### Workstream Metadata
 
-- Title: `Build the TRIAD Studio weekly Agenda visual prototype`
-- Suggested branch: assigned by Linear from the final issue identifier.
-- State: `Ready`.
-- Priority: `High`.
-- Assignee: Marcus Gabriel.
-- Blocked by: Task 1.
-- Linear:
-  [ENG-56](https://linear.app/corvi-io/issue/ENG-56/build-the-triad-studio-weekly-agenda-visual-prototype).
-- Closes visual MLP tracker item 3.
+- Owner issue:
+  [ENG-55](https://linear.app/corvi-io/issue/ENG-55/complete-all-remaining-triad-studio-first-visual-mlp-features).
+- Absorbed issue:
+  [ENG-56](https://linear.app/corvi-io/issue/ENG-56/build-the-triad-studio-weekly-agenda-visual-prototype)
+  is duplicate/superseded.
+- Runs in the same branch and PR as Workstream 1.
+- Closes visual MLP tracker item 3 only when the combined PR is merged.
 
-### Task 2 Scope
+### Workstream 2 Scope
 
 - Add a complete seven-day Agenda view.
 - Preserve the accepted daily board and period list.
@@ -319,7 +331,7 @@ provider, polling, or realtime behavior.
 - Preserve creation, inspection, editing, cancellation, rescheduling,
   availability/conflict rules, and accessibility.
 
-### Task 2 Exclusions
+### Workstream 2 Exclusions
 
 - API, persistence, realtime, recurrence, month/year views, resize-to-duration,
   automatic scheduling, room/resources, or visible prototype controls.
@@ -328,8 +340,9 @@ provider, polling, or realtime behavior.
 
 ### 2.1 Dependency And Baseline Audit
 
-- [ ] Confirm Task 1 is `Done` with merged PR and branch-cleanup evidence.
-- [ ] Inspect the merged setup/professional/service contracts.
+- [ ] Confirm Workstream 1 contracts are implemented and locally verified
+      before integrating the weekly Agenda against them.
+- [ ] Inspect the setup/professional/service contracts from the same branch.
 - [ ] Inspect scheduling contracts, repository, controls, board, list, drawer,
       DnD sensors, collision rules, tests, and source composition.
 - [ ] Run focused Agenda and setup tests before changes.
@@ -439,7 +452,7 @@ provider, polling, or realtime behavior.
 - [ ] Prevent page-level horizontal overflow.
 - [ ] Respect reduced motion and forced colors.
 
-### 2.10 Task 2 Scenarios
+### 2.10 Workstream 2 Scenarios
 
 - [ ] Add deterministic scenarios for:
   - [ ] typical week;
@@ -461,7 +474,7 @@ provider, polling, or realtime behavior.
   - [ ] invalid URL state.
 - [ ] Verify reset and reload for all stateful scenarios.
 
-### 2.11 Task 2 Verification
+### 2.11 Workstream 2 Verification
 
 - [ ] Unit-test date bounds, URL normalization, filters, ordering, overlaps,
       layout, drop destinations, conflict rules, and rollback.
@@ -509,3 +522,28 @@ provider, polling, or realtime behavior.
       must not be presented as production capacity evidence.
 - [ ] Physical assistive-technology and target-device checks remain residual
       unless completed during implementation review.
+
+## ENG-55 Implementation Evidence
+
+The isolated implementation branch completed both workstreams against the
+confirmed ENG-54 baseline `2c367b21fc4c517da09f954db34b67c646b3750c`.
+
+- Workstream 1 implements the six-step resumable setup, barbershop facts,
+  payment policy, professional contact/access/commission presentation,
+  service overrides, operational summaries, future-checkout consumption, and
+  immutable paid snapshots.
+- Workstream 2 implements the exact seven-day range contract, separate
+  scope/representation controls, weekly board/list, dated periods, open-slot
+  creation, professional-preserving drag, drawer alternative, and bounded
+  destination rejection.
+- `bun --filter studio check`: passed; 50 files and 367 tests passed, production
+  build passed, and the disabled-source boundary verified 64 files.
+- Focused Playwright: 2 tests passed with axe WCAG 2.2 A/AA and 320 CSS-pixel
+  overflow coverage.
+- `bun run check`: passed for API, IDP, site, and Studio after restoring
+  lockfile dependencies with `bun install --frozen-lockfile`.
+- `git diff --check`: passed.
+- Visual evidence lives in `docs/studio/evidence/eng-55`.
+
+Merge-only tracker updates and task completion remain intentionally unchecked
+until the combined PR is reviewed and merged into `staging`.

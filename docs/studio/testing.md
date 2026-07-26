@@ -145,3 +145,14 @@ focus return, VoiceOver basics, real browser 200% zoom, 320 CSS-pixel reflow, re
 visible/unobscured focus, target size, and visual light/dark review. Record any skipped manual
 checks and residual risk in the PR; headless forced-colors and computed-contrast coverage do not
 replace assistive-technology review.
+
+## ENG-55 Coverage
+
+Focused coverage adds six-step readiness, payment combinations, demonstrative access normalization,
+service override restoration, appointment catalog consumption, immutable paid snapshots, exact
+weekly bounds, deterministic overlap layout, dated blocked periods, and weekly destination
+rejection. Component tests cover setup facts and separate scope/representation controls.
+Playwright adds the complete setup/payment surface and a seven-day board-to-list journey with
+focused axe and 320 CSS-pixel overflow assertions. Manual VoiceOver/NVDA, physical coarse pointer,
+native 200% browser zoom, and visual forced-colors inspection remain explicit residual checks unless
+recorded under `docs/studio/evidence/eng-55`.
