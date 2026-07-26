@@ -5,6 +5,7 @@ import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
 import { ServiceDeskMemoryRepository } from "@/dev/service-desk/memory-repository"
 import { serviceDeskScenarioIds } from "@/dev/service-desk/scenarios"
 import { createDefaultPaymentMethods } from "@/modules/barbershop-setup/completion"
+import { firstEnabledTenderMethod } from "@/modules/revenue-operations/checkout-page"
 import type { ServiceDeskRepository } from "@/modules/service-desk/contracts"
 
 const now = new Date("2026-07-23T11:30:00-03:00")
@@ -38,8 +39,37 @@ describe("revenue operations memory coordinator", () => {
       operationId: "complete-configured-pix",
       sessionId: checkout.id,
     })
+    expect(paid.commissions[0]?.rule).toMatchObject({
+      rateBasisPoints: 5_000,
+      source: "professional-default",
+    })
 
     await setup.updatePaymentMethods({ settings: createDefaultPaymentMethods(["cash"]) })
+    const professional = (
+      await setup.list({
+        kind: "professional",
+        page: 1,
+        pageSize: 10,
+        scenarioId: "single-unit",
+        search: "",
+        sort: { direction: "asc", field: "name" },
+        status: "all",
+      })
+    ).items.find(({ id }) => id === "professional-charlie")
+    expect(professional?.kind).toBe("professional")
+    if (professional?.kind !== "professional") return
+    await setup.update("professional", professional.id, {
+      accountAccess: professional.accountAccess,
+      accessPolicy: professional.accessPolicy,
+      commissionBasisPoints: 2_500,
+      contactEmail: professional.contactEmail,
+      contactPhone: professional.contactPhone,
+      name: professional.name,
+      role: professional.role,
+      serviceIds: professional.serviceIds,
+      specialties: professional.specialties,
+      unitIds: professional.unitIds,
+    })
     await setup.setProfessionalServiceOverride({
       priceCents: 9_000,
       professionalId: "professional-alpha",
@@ -49,6 +79,13 @@ describe("revenue operations memory coordinator", () => {
 
     const future = await revenue.getCheckout("session-walk-in-checkout-cash")
     expect(future.availableTenderMethods).toEqual(["cash"])
+    expect((await revenue.previewCommissions(future.id))[0]?.rule).toMatchObject({
+      rateBasisPoints: 2_500,
+      source: "professional-default",
+    })
+    expect((await revenue.getPaidSale(checkout.id))?.commissions[0]?.rule).toMatchObject({
+      rateBasisPoints: 5_000,
+    })
     await expect(
       revenue.replaceTenders({
         operationId: "reject-disabled-pix",
@@ -56,6 +93,11 @@ describe("revenue operations memory coordinator", () => {
         tenders: [{ appliedCents: future.totalCents, id: "pix-disabled", method: "pix" }],
       }),
     ).rejects.toThrow("não está disponível")
+  })
+
+  it("selects the first enabled tender after reset when Pix is disabled", () => {
+    expect(firstEnabledTenderMethod(["cash", "debit"])).toBe("cash")
+    expect(() => firstEnabledTenderMethod([])).toThrow("Nenhuma forma")
   })
 
   it("hydrates checkout from the ready service-session handoff", async () => {

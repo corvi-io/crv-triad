@@ -13,6 +13,7 @@ import type {
   RevenueOperationsRepository,
 } from "@/modules/revenue-operations/contracts"
 import type { Appointment, SchedulingRepository } from "@/modules/scheduling/contracts"
+import { getScheduleRange } from "@/modules/scheduling/range"
 
 export const REPORTING_SOURCE_DATE = "2026-07-24"
 
@@ -80,7 +81,7 @@ export class ReportingMemoryRepository implements ReportingRepository {
 
     await this.revenue.reset()
     const [schedule, clientPage] = await Promise.all([
-      this.scheduling.getRange({
+      getScheduleRange(this.scheduling, {
         endDate: REPORTING_SOURCE_DATE,
         scenarioId: "all-statuses",
         startDate: "2026-07-01",

@@ -142,6 +142,47 @@ describe("first visual MLP completion contracts", () => {
     expect(summary.unavailableReason).toBeUndefined()
   })
 
+  it("maps setup professionals by stable identity and reports archived identities truthfully", async () => {
+    const scheduling = new SchedulingMemoryRepository("2026-07-26")
+    const repository = new BarbershopSetupMemoryRepository(scheduling, {
+      "professional-alpha": "professional-joao",
+    })
+    const mapped = await repository.getProfessionalOperationalSummary(
+      "professional-alpha",
+      "2026-07-26",
+    )
+    expect(mapped.agendaProfessionalId).toBe("professional-joao")
+
+    const professional = (
+      await repository.list({
+        kind: "professional",
+        page: 1,
+        pageSize: 10,
+        scenarioId: "single-unit",
+        search: "",
+        sort: { direction: "asc", field: "name" },
+        status: "all",
+      })
+    ).items.find(({ id }) => id === "professional-alpha")
+    expect(professional?.kind).toBe("professional")
+    if (professional?.kind !== "professional") return
+    await repository.update("professional", professional.id, {
+      accountAccess: professional.accountAccess,
+      name: professional.name,
+      role: professional.role,
+      serviceIds: [],
+      unitIds: professional.unitIds,
+    })
+    await repository.setArchived("professional", "professional-alpha", true)
+    const archived = await repository.getProfessionalOperationalSummary(
+      "professional-alpha",
+      "2026-07-26",
+    )
+    expect(archived.agendaProfessionalId).toBeUndefined()
+    expect(archived.appointments).toEqual([])
+    expect(archived.unavailableReason).toContain("arquivado")
+  })
+
   it("normalizes safe weekly URL state and returns exactly seven dates", () => {
     const search = validateScheduleSearch(
       {

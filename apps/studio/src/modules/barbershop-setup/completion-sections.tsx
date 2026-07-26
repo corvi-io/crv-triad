@@ -1,5 +1,5 @@
 import { CircleAlertIcon, SaveIcon, Trash2Icon } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Alert, AlertDescription, AlertTitle } from "@/modules/shared/components/ui/alert"
 import { Button } from "@/modules/shared/components/ui/button"
@@ -69,26 +69,40 @@ function BusinessProfileForm({
   const mutation = useUpdateBarbershopProfile()
   const [values, setValues] = useState(initial)
   const [error, setError] = useState("")
+  const [attempted, setAttempted] = useState(false)
+  const [focusRequest, setFocusRequest] = useState(0)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  const displayInvalid = values.displayName.trim().length < 2
+  const phoneInvalid = !/^\d{10,11}$/.test(values.phone.replace(/\D/g, ""))
+  const emailInvalid = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)
+  const unitInvalid = !values.primaryUnitId || !units.some(({ id }) => id === values.primaryUnitId)
+
+  useEffect(() => {
+    if (focusRequest === 0) return
+    formRef.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus()
+  }, [focusRequest])
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError("")
+    setAttempted(true)
+    if (displayInvalid || phoneInvalid || emailInvalid || unitInvalid) {
+      setError("Preencha todos os campos obrigatórios com dados válidos.")
+      setFocusRequest((current) => current + 1)
+      return
+    }
     try {
       await mutation.mutateAsync(values)
       toast.success("Dados da barbearia atualizados.")
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar os dados.")
-      requestAnimationFrame(() =>
-        event.currentTarget.querySelector<HTMLElement>("[aria-invalid=true]")?.focus(),
-      )
+      setFocusRequest((current) => current + 1)
     }
   }
 
-  const phoneInvalid =
-    values.phone.length > 0 && !/^\d{10,11}$/.test(values.phone.replace(/\D/g, ""))
-  const emailInvalid = values.email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)
   return (
-    <form noValidate className="grid gap-4 pb-4" onSubmit={submit}>
+    <form ref={formRef} noValidate className="grid gap-4 pb-4" onSubmit={submit}>
       <Card>
         <CardHeader>
           <CardTitle>
@@ -100,20 +114,28 @@ function BusinessProfileForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          <Field>
+          <Field data-invalid={(attempted && displayInvalid) || undefined}>
             <FieldLabel htmlFor="barbershop-display-name" required>
               Nome de exibição
             </FieldLabel>
             <Input
               id="barbershop-display-name"
               value={values.displayName}
-              aria-invalid={values.displayName.trim().length < 2}
+              aria-invalid={attempted && displayInvalid}
+              aria-describedby={
+                attempted && displayInvalid ? "barbershop-display-name-error" : undefined
+              }
               onChange={(event) =>
                 setValues((current) => ({ ...current, displayName: event.target.value }))
               }
             />
+            {attempted && displayInvalid ? (
+              <FieldError id="barbershop-display-name-error">
+                Informe o nome de exibição da barbearia.
+              </FieldError>
+            ) : null}
           </Field>
-          <Field data-invalid={phoneInvalid || undefined}>
+          <Field data-invalid={(attempted && phoneInvalid) || undefined}>
             <FieldLabel htmlFor="barbershop-phone" required>
               Telefone
             </FieldLabel>
@@ -121,8 +143,8 @@ function BusinessProfileForm({
               id="barbershop-phone"
               inputMode="tel"
               value={values.phone}
-              aria-invalid={phoneInvalid}
-              aria-describedby={phoneInvalid ? "barbershop-phone-error" : undefined}
+              aria-invalid={attempted && phoneInvalid}
+              aria-describedby={attempted && phoneInvalid ? "barbershop-phone-error" : undefined}
               onChange={(event) =>
                 setValues((current) => ({
                   ...current,
@@ -130,11 +152,11 @@ function BusinessProfileForm({
                 }))
               }
             />
-            {phoneInvalid ? (
+            {attempted && phoneInvalid ? (
               <FieldError id="barbershop-phone-error">Informe um telefone válido.</FieldError>
             ) : null}
           </Field>
-          <Field data-invalid={emailInvalid || undefined}>
+          <Field data-invalid={(attempted && emailInvalid) || undefined}>
             <FieldLabel htmlFor="barbershop-email" required>
               E-mail
             </FieldLabel>
@@ -142,17 +164,17 @@ function BusinessProfileForm({
               id="barbershop-email"
               type="email"
               value={values.email}
-              aria-invalid={emailInvalid}
-              aria-describedby={emailInvalid ? "barbershop-email-error" : undefined}
+              aria-invalid={attempted && emailInvalid}
+              aria-describedby={attempted && emailInvalid ? "barbershop-email-error" : undefined}
               onChange={(event) =>
                 setValues((current) => ({ ...current, email: event.target.value }))
               }
             />
-            {emailInvalid ? (
+            {attempted && emailInvalid ? (
               <FieldError id="barbershop-email-error">Informe um e-mail válido.</FieldError>
             ) : null}
           </Field>
-          <Field>
+          <Field data-invalid={(attempted && unitInvalid) || undefined}>
             <FieldLabel htmlFor="barbershop-primary-unit" required>
               Unidade principal
             </FieldLabel>
@@ -165,7 +187,15 @@ function BusinessProfileForm({
                 }))
               }
             >
-              <SelectTrigger id="barbershop-primary-unit">
+              <SelectTrigger
+                id="barbershop-primary-unit"
+                aria-invalid={attempted && unitInvalid}
+                aria-describedby={
+                  attempted && unitInvalid
+                    ? "barbershop-primary-unit-description barbershop-primary-unit-error"
+                    : "barbershop-primary-unit-description"
+                }
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -178,10 +208,15 @@ function BusinessProfileForm({
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <FieldDescription>
+            <FieldDescription id="barbershop-primary-unit-description">
               {units.find(({ id }) => id === values.primaryUnitId)?.address ??
                 "Cadastre uma unidade para definir o endereço."}
             </FieldDescription>
+            {attempted && unitInvalid ? (
+              <FieldError id="barbershop-primary-unit-error">
+                Selecione uma unidade principal válida.
+              </FieldError>
+            ) : null}
           </Field>
           {error ? (
             <Alert className="md:col-span-2" variant="destructive">
@@ -332,6 +367,12 @@ function ServiceOverrideForm({
   )
   const mutation = useSetProfessionalServiceOverride()
 
+  function hydrate(nextServiceId: string, nextProfessionalId: string) {
+    const draft = professionalServiceOverrideDraft(overrides, nextServiceId, nextProfessionalId)
+    setPrice(draft.price)
+    setDuration(draft.duration)
+  }
+
   async function save(clear = false) {
     if (!serviceId || !professionalId) return
     try {
@@ -370,10 +411,16 @@ function ServiceOverrideForm({
           <Select
             value={serviceId}
             onValueChange={(value) => {
-              setServiceId(value ?? "")
-              setProfessionalId("")
-              setPrice("")
-              setDuration("")
+              const nextServiceId = value ?? ""
+              const nextService = eligibleServices.find(({ id }) => id === nextServiceId)
+              const nextProfessionalId =
+                professionals.find(
+                  ({ id, status }) =>
+                    status === "active" && nextService?.professionalIds.includes(id),
+                )?.id ?? ""
+              setServiceId(nextServiceId)
+              setProfessionalId(nextProfessionalId)
+              hydrate(nextServiceId, nextProfessionalId)
             }}
           >
             <SelectTrigger id="override-service">
@@ -395,9 +442,9 @@ function ServiceOverrideForm({
           <Select
             value={professionalId}
             onValueChange={(value) => {
-              setProfessionalId(value ?? "")
-              setPrice("")
-              setDuration("")
+              const nextProfessionalId = value ?? ""
+              setProfessionalId(nextProfessionalId)
+              hydrate(serviceId, nextProfessionalId)
             }}
           >
             <SelectTrigger id="override-professional">
@@ -463,6 +510,20 @@ function ServiceOverrideForm({
       </CardFooter>
     </Card>
   )
+}
+
+export function professionalServiceOverrideDraft(
+  overrides: readonly ProfessionalServiceOverride[],
+  serviceId: string,
+  professionalId: string,
+) {
+  const override = overrides.find(
+    (item) => item.serviceId === serviceId && item.professionalId === professionalId,
+  )
+  return {
+    duration: override?.durationMinutes !== undefined ? String(override.durationMinutes) : "",
+    price: override?.priceCents !== undefined ? String(override.priceCents / 100) : "",
+  }
 }
 
 function CompletionLoading() {

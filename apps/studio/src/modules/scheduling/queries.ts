@@ -7,6 +7,7 @@ import type {
   ScheduleDay,
   ScheduleDayQuery,
 } from "./contracts"
+import { getScheduleRange } from "./range"
 import { useSchedulingRepository } from "./repository-context"
 
 export const schedulingQueryKeys = {
@@ -18,7 +19,7 @@ export function useScheduleDay(query: ScheduleDayQuery) {
   const repository = useSchedulingRepository()
   return useQuery({
     queryKey: schedulingQueryKeys.day(query),
-    queryFn: () => repository.getRange(query),
+    queryFn: () => getScheduleRange(repository, query),
   })
 }
 

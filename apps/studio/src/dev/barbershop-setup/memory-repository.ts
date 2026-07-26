@@ -48,6 +48,7 @@ import {
   SetupValidationError,
 } from "@/modules/barbershop-setup/contracts"
 import type { SchedulingRepository } from "@/modules/scheduling/contracts"
+import { schedulingToSetupProfessionalId, setupToSchedulingProfessionalId } from "./identity-map"
 import { barbershopSetupScenarios } from "./scenarios"
 
 export class BarbershopSetupMemoryRepository implements BarbershopSetupRepository {
@@ -63,9 +64,14 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
   #failNextMutation = false
   #operationGeneration = 0
   readonly #schedulingRepository?: SchedulingRepository
+  readonly #professionalIdentityMap: Readonly<Record<string, string>>
 
-  constructor(schedulingRepository?: SchedulingRepository) {
+  constructor(
+    schedulingRepository?: SchedulingRepository,
+    professionalIdentityMap: Readonly<Record<string, string>> = setupToSchedulingProfessionalId,
+  ) {
     this.#schedulingRepository = schedulingRepository
+    this.#professionalIdentityMap = professionalIdentityMap
     this.#normalizeProfessionalServiceRelations()
   }
 
@@ -198,6 +204,20 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
       .map(({ id }) => id)
   }
 
+  async getProfessionalCommissionBasisPoints(professionalId: string) {
+    const professional = this.#engine.get(professionalId)
+    if (professional?.kind !== "professional" || professional.status !== "active")
+      throw new SetupValidationError("Profissional ativo não encontrado.")
+    return professional.commissionBasisPoints ?? 0
+  }
+
+  async getCommissionRateBasisPoints(professionalId: string) {
+    const setupProfessionalId = schedulingToSetupProfessionalId[professionalId]
+    return setupProfessionalId
+      ? this.getProfessionalCommissionBasisPoints(setupProfessionalId)
+      : undefined
+  }
+
   async updateProfile(input: BarbershopProfile) {
     return this.#mutate("update", () => {
       const normalized = {
@@ -313,19 +333,19 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
       startDate: date,
       unitId: "centro",
     })
-    const setupProfessionals = this.#engine
-      .values()
-      .filter(
-        (record): record is SetupProfessional =>
-          record.kind === "professional" && record.status === "active",
-      )
     const agendaProfessionalId =
-      range.professionals[setupProfessionals.findIndex(({ id }) => id === professionalId)]?.id
+      professional.status === "active" ? this.#professionalIdentityMap[professionalId] : undefined
+    const agendaProfessionalAvailable = range.professionals.some(
+      ({ id }) => id === agendaProfessionalId,
+    )
     return {
-      agendaProfessionalId,
+      agendaProfessionalId: agendaProfessionalAvailable ? agendaProfessionalId : undefined,
       agendaDate: date,
       appointments: range.appointments
-        .filter((appointment) => appointment.professionalId === agendaProfessionalId)
+        .filter(
+          (appointment) =>
+            agendaProfessionalAvailable && appointment.professionalId === agendaProfessionalId,
+        )
         .map(({ customerName, id, start, status }) => ({ customerName, id, start, status })),
       availabilityLabel: availability.some(({ closed }) => !closed)
         ? "Disponibilidade configurada"
@@ -333,6 +353,11 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
       commissionLabel: `${(professional.commissionBasisPoints ?? 0) / 100}% padrão`,
       professionalId,
       serviceAssignments,
+      unavailableReason: agendaProfessionalAvailable
+        ? undefined
+        : professional.status !== "active"
+          ? "O profissional está arquivado e não aparece na Agenda."
+          : "Não há uma identidade correspondente disponível na Agenda.",
     }
   }
 

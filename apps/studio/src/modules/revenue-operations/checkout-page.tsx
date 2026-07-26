@@ -94,6 +94,12 @@ const adjustmentSchema = z
 
 type AdjustmentValues = z.infer<typeof adjustmentSchema>
 
+export function firstEnabledTenderMethod(methods: readonly TenderMethod[]) {
+  const first = methods[0]
+  if (!first) throw new Error("Nenhuma forma de pagamento está habilitada.")
+  return first
+}
+
 const tenderSchema = z
   .object({
     applied: z.string().regex(moneyPattern, "Informe um valor em reais válido."),
@@ -572,11 +578,12 @@ function CommissionPreview({
 }
 
 function PaymentSection({ checkout, readOnly }: { checkout: Checkout; readOnly: boolean }) {
+  const firstEnabledMethod = firstEnabledTenderMethod(checkout.availableTenderMethods)
   const mutation = useReplaceTenders(checkout.id)
   const form = useForm<TenderValues>({
     defaultValues: {
       applied: centsInput(checkout.totalCents),
-      method: checkout.availableTenderMethods[0] ?? "pix",
+      method: firstEnabledMethod,
       received: "",
     },
     resolver: zodResolver(tenderSchema),
@@ -648,7 +655,7 @@ function PaymentSection({ checkout, readOnly }: { checkout: Checkout; readOnly: 
                 await save([...checkout.tenders, tender])
                 form.reset({
                   applied: centsInput(Math.max(0, summary.remainingCents)),
-                  method: "pix",
+                  method: firstEnabledMethod,
                   received: "",
                 })
               })}
@@ -659,7 +666,7 @@ function PaymentSection({ checkout, readOnly }: { checkout: Checkout; readOnly: 
                   <Select
                     value={method}
                     onValueChange={(value) =>
-                      form.setValue("method", (value ?? "pix") as TenderMethod, {
+                      form.setValue("method", (value ?? firstEnabledMethod) as TenderMethod, {
                         shouldValidate: true,
                       })
                     }

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest"
 import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
 import type { AppointmentInput, ScheduleDayQuery } from "@/modules/scheduling/contracts"
-import { ScheduleConflictError } from "@/modules/scheduling/contracts"
+import { ScheduleConflictError, ScheduleRangeError } from "@/modules/scheduling/contracts"
 import { applyAppointmentReschedule } from "@/modules/scheduling/queries"
+import { getScheduleRange } from "@/modules/scheduling/range"
 
 const SELECTED_AGENDA_DATE = "2026-07-22"
 const createRepository = () => new SchedulingMemoryRepository(SELECTED_AGENDA_DATE)
@@ -57,9 +58,57 @@ describe("scheduling memory repository", () => {
     expect(day.occupancies[0]).not.toHaveProperty("status")
   })
 
+  it("rejects every repository interval except an exact day or seven days", async () => {
+    const repository = createRepository()
+    await expect(
+      repository.getRange({
+        ...query(),
+        endDate: "2026-07-23",
+        startDate: "2026-07-22",
+      }),
+    ).rejects.toBeInstanceOf(ScheduleRangeError)
+    await expect(
+      repository.getRange({
+        ...query(),
+        endDate: "2026-07-27",
+        startDate: "2026-07-22",
+      }),
+    ).rejects.toThrow("intervalos exatos de um ou sete dias")
+  })
+
+  it("applies every appointment filter in the repository while retaining hidden occupancies", async () => {
+    const repository = createRepository()
+    const full = await repository.getRange(query())
+    const seed = full.appointments[0]
+    expect(seed).toBeDefined()
+    if (!seed) return
+    const filtered = await repository.getRange({
+      ...query(),
+      clientIds: [seed.clientId],
+      professionalIds: [seed.professionalId],
+      search: seed.customerName,
+      serviceIds: [seed.serviceId],
+      statusIds: [seed.status],
+    })
+
+    expect(filtered.appointments.length).toBeGreaterThan(0)
+    expect(
+      filtered.appointments.every(
+        (appointment) =>
+          appointment.clientId === seed.clientId &&
+          appointment.professionalId === seed.professionalId &&
+          appointment.serviceId === seed.serviceId &&
+          appointment.status === seed.status &&
+          appointment.customerName === seed.customerName,
+      ),
+    ).toBe(true)
+    expect(filtered.professionals.map(({ id }) => id)).toEqual([seed.professionalId])
+    expect(filtered.occupancies).toEqual(full.occupancies)
+  })
+
   it("keeps the prior canonical day identical across Dashboard and subsequent Agenda reads", async () => {
     const repository = createRepository()
-    const day = await repository.getRange({
+    const day = await getScheduleRange(repository, {
       endDate: SELECTED_AGENDA_DATE,
       focusDate: SELECTED_AGENDA_DATE,
       scenarioId: "normal",

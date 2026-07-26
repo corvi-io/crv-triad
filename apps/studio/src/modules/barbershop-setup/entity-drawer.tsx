@@ -76,7 +76,9 @@ export const professionalFormSchema = z.object({
     (value) => Math.round(Number(value) * 100),
     z.number().int().min(0).max(10_000),
   ),
-  specialties: z.array(z.string()),
+  specialties: z
+    .array(z.string().trim().min(2, "Informe especialidades com pelo menos 2 caracteres."))
+    .min(1, "Informe pelo menos uma especialidade."),
   accessPolicy: z.object({
     "own-schedule-only": z.boolean(),
     "create-appointments": z.boolean(),
@@ -567,6 +569,33 @@ function ProfessionalFields({ formId, form }: FormFieldsProps) {
         />
       </FormField>
       <FormField
+        id={`${formId}-specialties`}
+        label="Especialidades"
+        required
+        description="Separe as especialidades por vírgulas."
+        error={fieldMessage(form.formState.errors, "specialties")}
+      >
+        <Controller
+          control={form.control}
+          name="specialties"
+          render={({ field, fieldState }) => (
+            <SpecialtiesInput
+              id={`${formId}-specialties`}
+              describedBy={getFieldDescriptionIds(
+                `${formId}-specialties`,
+                true,
+                fieldState.invalid,
+              )}
+              initialValue={field.value}
+              inputRef={field.ref}
+              invalid={fieldState.invalid}
+              onBlur={field.onBlur}
+              onValueChange={field.onChange}
+            />
+          )}
+        />
+      </FormField>
+      <FormField
         id={`${formId}-access`}
         label="Acesso à conta"
         description="Situação atual do acesso deste profissional."
@@ -630,6 +659,46 @@ function ProfessionalFields({ formId, form }: FormFieldsProps) {
         </div>
       </FieldSet>
     </>
+  )
+}
+
+function SpecialtiesInput({
+  describedBy,
+  id,
+  initialValue,
+  inputRef,
+  invalid,
+  onBlur,
+  onValueChange,
+}: {
+  describedBy?: string
+  id: string
+  initialValue: readonly string[]
+  inputRef: (element: HTMLInputElement | null) => void
+  invalid: boolean
+  onBlur: () => void
+  onValueChange: (value: string[]) => void
+}) {
+  const [text, setText] = useState(initialValue.join(", "))
+  return (
+    <Input
+      id={id}
+      ref={inputRef}
+      value={text}
+      aria-invalid={invalid}
+      aria-describedby={describedBy}
+      onBlur={onBlur}
+      onChange={(event) => {
+        const next = event.target.value
+        setText(next)
+        onValueChange(
+          next
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean),
+        )
+      }}
+    />
   )
 }
 

@@ -162,6 +162,16 @@ describe("schedule page", () => {
     expect(screen.getAllByText("14/07/2026").length).toBeGreaterThan(0)
   }, 10_000)
 
+  it("keeps weekly free-slot creation available when the week has no appointments", async () => {
+    renderSchedule(
+      <ScheduleHarness initialSearch={{ ...baseSearch, scenario: "empty", scope: "week" }} />,
+    )
+
+    expect(await screen.findByRole("region", { name: /Agenda semanal de/ })).toBeVisible()
+    expect(screen.getAllByRole("button", { name: /Criar agendamento/ }).length).toBeGreaterThan(0)
+    expect(screen.queryByText("Agenda livre no período")).not.toBeInTheDocument()
+  })
+
   it("completes the non-drag status path from the appointment menu", async () => {
     const user = userEvent.setup()
     renderSchedule(<SchedulePage search={baseSearch} onSearchChange={vi.fn()} />)

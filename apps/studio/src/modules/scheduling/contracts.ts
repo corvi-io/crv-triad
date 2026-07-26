@@ -82,10 +82,15 @@ export type ScheduleOccupancy = Pick<
 >
 
 export type ScheduleRangeQuery = {
+  clientIds?: readonly string[]
   endDate: string
   focusDate?: string
+  professionalIds?: readonly string[]
   scenarioId?: string
+  search?: string
+  serviceIds?: readonly string[]
   startDate: string
+  statusIds?: readonly AppointmentStatus[]
   unitId: SchedulingUnitId
 }
 
@@ -128,5 +133,12 @@ export class ScheduleConflictError extends Error {
   constructor(message: string) {
     super(message)
     this.name = "ScheduleConflictError"
+  }
+}
+
+export class ScheduleRangeError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "ScheduleRangeError"
   }
 }

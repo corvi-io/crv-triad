@@ -279,6 +279,7 @@ export interface BarbershopSetupRepository {
     professionalId: string,
     date: string,
   ): Promise<ProfessionalOperationalSummary>
+  getProfessionalCommissionBasisPoints(professionalId: string): Promise<number>
   list(query: SetupListQuery): Promise<SetupEntityPage>
   resolveProfessionalService(
     serviceId: string,

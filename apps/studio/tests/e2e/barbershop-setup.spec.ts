@@ -115,6 +115,16 @@ test("exposes the six-step setup facts and payment policy without claiming autho
     fullPage: true,
     path: "../../docs/studio/evidence/eng-55/setup-payments-light-1440.png",
   })
+
+  await page.getByRole("button", { name: "Profissionais" }).click()
+  await page.getByRole("button", { name: "Novo profissional" }).click()
+  const specialties = page.getByLabel("Especialidades")
+  await expect(specialties).toBeEditable()
+  await specialties.fill("Corte, Barba e acabamento")
+  await expect(specialties).toHaveValue("Corte, Barba e acabamento")
+  await page.getByRole("dialog", { name: "Novo profissional" }).screenshot({
+    path: "../../docs/studio/evidence/eng-55/setup-professional-specialties-light-1440.png",
+  })
 })
 
 test("shows and operates catalog scrollbars only for real body overflow", async ({ page }) => {

@@ -152,7 +152,11 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
 
   async previewCommissions(sessionId: string) {
     const checkout = await this.getCheckout(sessionId)
-    return checkout.lines.map((line) => calculateCommission(line, commissionRule(line, sessionId)))
+    return Promise.all(
+      checkout.lines.map(async (line) =>
+        calculateCommission(line, await this.#commissionRule(line, sessionId)),
+      ),
+    )
   }
 
   async completePayment(input: CompletePaymentInput) {
@@ -183,8 +187,10 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     }
     if (scenario === "checkout-slow") await delay(900)
     this.#assertGeneration(generation)
-    const commissions = checkout.lines.map((line) =>
-      calculateCommission(line, commissionRule(line, input.sessionId)),
+    const commissions = await Promise.all(
+      checkout.lines.map(async (line) =>
+        calculateCommission(line, await this.#commissionRule(line, input.sessionId)),
+      ),
     )
     const completedAt = this.#clock.now().toISOString()
     const sale: PaidSale = {
@@ -213,6 +219,39 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
 
   async getPaidSale(sessionId: string) {
     return structuredClone(this.#paidSales.get(sessionId))
+  }
+
+  async #commissionRule(line: CheckoutLine, sessionId: string): Promise<CommissionRule> {
+    const scenario = scenarioFromSession(sessionId)
+    if (scenario === "checkout-no-commission") {
+      return { id: "rule-no-commission", kind: "none", source: "service-professional" }
+    }
+    if (scenario === "checkout-surcharge") {
+      return {
+        id: "rule-service-professional-percentage",
+        kind: "percentage",
+        rateBasisPoints: 4_500,
+        source: "service-professional",
+      }
+    }
+    if (scenario === "checkout-fixed-commission" || line.serviceId === "service-fade") {
+      return {
+        fixedCents: 1200,
+        id: "rule-service-professional-fixed",
+        kind: "fixed",
+        source: "service-professional",
+      }
+    }
+    return {
+      id: "rule-professional-default",
+      kind: "percentage",
+      rateBasisPoints:
+        (await this.#checkoutPolicy.getCommissionRateBasisPoints(
+          line.professionalId,
+          line.serviceId,
+        )) ?? 4_000,
+      source: "professional-default",
+    }
   }
 
   async listPaidSales() {
@@ -569,35 +608,6 @@ function projectLines(
   return lines.map((line) => ({ ...line, netCents: allocations.get(line.id) ?? 0 }))
 }
 
-function commissionRule(line: CheckoutLine, sessionId: string): CommissionRule {
-  const scenario = scenarioFromSession(sessionId)
-  if (scenario === "checkout-no-commission") {
-    return { id: "rule-no-commission", kind: "none", source: "service-professional" }
-  }
-  if (scenario === "checkout-surcharge") {
-    return {
-      id: "rule-service-professional-percentage",
-      kind: "percentage",
-      rateBasisPoints: 4_500,
-      source: "service-professional",
-    }
-  }
-  if (scenario === "checkout-fixed-commission" || line.serviceId === "service-fade") {
-    return {
-      fixedCents: 1200,
-      id: "rule-service-professional-fixed",
-      kind: "fixed",
-      source: "service-professional",
-    }
-  }
-  return {
-    id: "rule-professional-default",
-    kind: "percentage",
-    rateBasisPoints: 4_000,
-    source: "professional-default",
-  }
-}
-
 function scenarioTenders(scenario: string, totalCents: number): PaymentTender[] {
   if (scenario === "checkout-cash") {
     return [
@@ -659,6 +669,9 @@ function localDate(date: Date) {
 const defaultCheckoutPolicy: PrototypeCheckoutPolicy = {
   async getActivePaymentMethodIds() {
     return ["pix", "cash", "debit", "credit"]
+  },
+  async getCommissionRateBasisPoints() {
+    return undefined
   },
 }
 

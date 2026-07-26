@@ -11,7 +11,7 @@ import type {
   SchedulingRepository,
   Service,
 } from "@/modules/scheduling/contracts"
-import { ScheduleConflictError } from "@/modules/scheduling/contracts"
+import { ScheduleConflictError, ScheduleRangeError } from "@/modules/scheduling/contracts"
 import { SCHEDULING_FIXTURE_DATE, schedulingScenarios } from "./scenarios"
 
 const baseProfessionals: readonly Professional[] = [
@@ -75,6 +75,14 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   }
 
   async getRange(query: ScheduleDayQuery): Promise<ScheduleDay> {
+    const rangeLength = differenceInCalendarDays(parseISO(query.endDate), parseISO(query.startDate))
+    if (
+      !Number.isFinite(rangeLength) ||
+      (rangeLength !== 0 && rangeLength !== 6) ||
+      (query.focusDate && (query.focusDate < query.startDate || query.focusDate > query.endDate))
+    ) {
+      throw new ScheduleRangeError("A Agenda aceita intervalos exatos de um ou sete dias.")
+    }
     if (query.scenarioId && query.scenarioId !== this.#engine.snapshot.scenarioId) {
       this.#engine.selectScenario(query.scenarioId)
       if (query.scenarioId === "next-failure") this.#engine.failNext()
@@ -85,17 +93,38 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
     const scenarioAppointments = this.#engine.values()
     const professionals = scenarioId === "many-professionals" ? allProfessionals : baseProfessionals
     return this.#engine.execute("list", () => {
-      const dayAppointments = scenarioAppointments.filter(
+      const boundedAppointments = scenarioAppointments.filter(
         (item) =>
           item.date >= query.startDate &&
           item.date <= query.endDate &&
           item.unitId === query.unitId,
       )
+      const professionalNames = new Map(professionals.map(({ id, name }) => [id, name]))
+      const serviceNames = new Map(services.map(({ id, name }) => [id, name]))
+      const needle = query.search?.trim().toLocaleLowerCase("pt-BR") ?? ""
+      const dayAppointments = boundedAppointments.filter(
+        (item) =>
+          (!query.professionalIds?.length || query.professionalIds.includes(item.professionalId)) &&
+          (!query.statusIds?.length || query.statusIds.includes(item.status)) &&
+          (!query.serviceIds?.length || query.serviceIds.includes(item.serviceId)) &&
+          (!query.clientIds?.length || query.clientIds.includes(item.clientId)) &&
+          (needle.length === 0 ||
+            [
+              item.customerName,
+              item.customerPhone,
+              professionalNames.get(item.professionalId),
+              serviceNames.get(item.serviceId),
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLocaleLowerCase("pt-BR")
+              .includes(needle)),
+      )
       return {
         appointments: dayAppointments,
         date: query.focusDate ?? query.startDate,
         endTime: "18:00",
-        occupancies: dayAppointments
+        occupancies: boundedAppointments
           .filter((item) => item.status !== "canceled" && item.status !== "no-show")
           .map(({ date, durationMinutes, id, professionalId, start }) => ({
             date,
@@ -107,7 +136,9 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
         periods: periodsFor(scenarioId, this.#projectionDate).filter(
           ({ date }) => date >= query.startDate && date <= query.endDate,
         ),
-        professionals,
+        professionals: query.professionalIds?.length
+          ? professionals.filter(({ id }) => query.professionalIds?.includes(id))
+          : professionals,
         services,
         startTime: "08:00",
         unitName: query.unitId === "centro" ? "Centro" : "Artesão",

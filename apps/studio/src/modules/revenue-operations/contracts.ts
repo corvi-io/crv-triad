@@ -199,6 +199,10 @@ export type CompletePaymentInput = {
 
 export type PrototypeCheckoutPolicy = {
   getActivePaymentMethodIds(): Promise<readonly TenderMethod[]>
+  getCommissionRateBasisPoints(
+    professionalId: string,
+    serviceId: string,
+  ): Promise<number | undefined>
 }
 
 export type RevenueOperationsRepository = {

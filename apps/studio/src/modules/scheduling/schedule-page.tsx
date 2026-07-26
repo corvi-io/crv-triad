@@ -47,19 +47,24 @@ export function SchedulePage({
   onSearchChange: (next: Partial<ScheduleSearch>) => void
   search: ScheduleSearch
 }) {
+  const [searchText, setSearchText] = useState("")
+  const debouncedSearchText = useDebouncedValue(searchText, 250)
   const bounds = visibleScheduleBounds(search)
   const query: ScheduleDayQuery = {
+    clientIds: parseIdList(search.client),
     endDate: bounds.endDate,
+    professionalIds: parseIdList(search.professional),
     scenarioId: search.scenario,
+    search: debouncedSearchText,
+    serviceIds: parseIdList(search.service),
     startDate: bounds.startDate,
+    statusIds: parseIdList(search.status) as AppointmentStatus[],
     unitId: search.unit,
   }
   const dayQuery = useScheduleDay(query)
   const scenarios = useScenarioActions(query)
   const transitionMutation = useTransitionAppointment()
   const rescheduleMutation = useRescheduleAppointment()
-  const [searchText, setSearchText] = useState("")
-  const debouncedSearchText = useDebouncedValue(searchText, 250)
   const [announcement, setAnnouncement] = useState("")
   const [transitionRequest, setTransitionRequest] = useState<{
     appointment: Appointment
@@ -91,43 +96,29 @@ export function SchedulePage({
         dayQuery.data?.professionals ?? [],
         dayQuery.data?.services ?? [],
         {
-          clientIds: parseIdList(search.client),
+          clientIds: [],
           endDate: bounds.endDate,
-          professionalIds: parseIdList(search.professional),
-          searchText: debouncedSearchText,
-          serviceIds: parseIdList(search.service),
+          professionalIds: [],
+          searchText: "",
+          serviceIds: [],
           startDate: bounds.startDate,
-          statusIds: parseIdList(search.status) as AppointmentStatus[],
+          statusIds: [],
           unitId: search.unit,
         },
       ),
-    [
-      bounds.endDate,
-      bounds.startDate,
-      dayQuery.data,
-      debouncedSearchText,
-      search.client,
-      search.professional,
-      search.service,
-      search.status,
-      search.unit,
-    ],
+    [bounds.endDate, bounds.startDate, dayQuery.data, search.unit],
   )
 
   const boardDay = useMemo(() => {
     if (!dayQuery.data) return undefined
-    const selectedProfessionalIds = parseIdList(search.professional)
     return {
       ...dayQuery.data,
       appointments: result.appointments.filter(({ date }) => date === bounds.startDate),
       date: bounds.startDate,
       occupancies: dayQuery.data.occupancies.filter(({ date }) => date === bounds.startDate),
-      professionals:
-        selectedProfessionalIds.length > 0
-          ? dayQuery.data.professionals.filter(({ id }) => selectedProfessionalIds.includes(id))
-          : dayQuery.data.professionals,
+      professionals: dayQuery.data.professionals,
     }
-  }, [bounds.startDate, dayQuery.data, result.appointments, search.professional])
+  }, [bounds.startDate, dayQuery.data, result.appointments])
 
   async function selectScenario(id: string) {
     await scenarios.select(id)
@@ -312,7 +303,15 @@ export function SchedulePage({
       ) : dayQuery.isError ? (
         <ScheduleError onRetry={() => dayQuery.refetch()} />
       ) : dayQuery.data && boardDay ? (
-        result.total === 0 ? (
+        search.view === "board" && search.scope === "week" ? (
+          <WeeklyBoard
+            appointments={result.appointments}
+            range={{ ...dayQuery.data, date: bounds.startDate }}
+            onAppointment={(appointment) => setDrawer({ appointment, mode: "view" })}
+            onCreate={(slot) => setDrawer({ mode: "create", slot })}
+            onDropAppointment={rescheduleWeeklyAppointment}
+          />
+        ) : result.total === 0 ? (
           <EmptyState
             action={
               hasActiveFilters ? (
@@ -333,14 +332,6 @@ export function SchedulePage({
             }
             icon={CalendarDaysIcon}
             title={hasActiveFilters ? "Nenhum agendamento encontrado" : "Agenda livre no período"}
-          />
-        ) : search.view === "board" && search.scope === "week" ? (
-          <WeeklyBoard
-            appointments={result.appointments}
-            range={{ ...dayQuery.data, date: bounds.startDate }}
-            onAppointment={(appointment) => setDrawer({ appointment, mode: "view" })}
-            onCreate={(slot) => setDrawer({ mode: "create", slot })}
-            onDropAppointment={rescheduleWeeklyAppointment}
           />
         ) : search.view === "board" ? (
           <AgendaBoard

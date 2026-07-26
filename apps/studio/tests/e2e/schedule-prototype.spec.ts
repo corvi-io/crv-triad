@@ -90,6 +90,30 @@ test("renders the exact weekly interval with a complete accessible list alternat
   })
 })
 
+test("keeps empty-week free slots creatable at 320px and passes axe", async ({ page }) => {
+  await page.setViewportSize({ height: 760, width: 320 })
+  await page.goto("/workspace-preview/agenda?date=2026-07-22&scenario=empty&scope=week&view=board")
+
+  const week = page.getByRole("region", {
+    name: "Agenda semanal de 20/07/2026 a 26/07/2026",
+  })
+  await expect(week).toBeVisible()
+  const firstSlot = week.getByRole("button", { name: /Criar agendamento/ }).first()
+  await expect(firstSlot).toBeVisible()
+  await firstSlot.click()
+  await expect(page.getByRole("dialog", { name: "Novo agendamento" })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+  const results = await new AxeBuilder({ page })
+    .include("#main-content")
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze()
+  expect(results.violations).toEqual([])
+  await page.screenshot({
+    fullPage: true,
+    path: "../../docs/studio/evidence/eng-55/agenda-empty-week-create-320.png",
+  })
+})
+
 test.describe("current-time marker", () => {
   test.use({ timezoneId: "America/Recife" })
 
