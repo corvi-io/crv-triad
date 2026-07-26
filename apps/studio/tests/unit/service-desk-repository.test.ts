@@ -72,7 +72,7 @@ describe("service desk memory repository", () => {
     const finished = await repository.finishSession(finishInput)
     expect(finished.status).toBe("ready-for-payment")
     expect((await repository.finishSession(finishInput)).status).toBe("ready-for-payment")
-    const day = await scheduling.getDay({
+    const day = await scheduling.getRange({
       endDate: "2026-07-23",
       startDate: "2026-07-23",
       unitId: "centro",
@@ -255,7 +255,7 @@ describe("service desk memory repository", () => {
     const started = await repository.start({ entryId: scheduled.id })
     expect(started.stage).toBe("in-service")
     expect((await repository.start({ entryId: scheduled.id })).stage).toBe("in-service")
-    const day = await scheduling.getDay({
+    const day = await scheduling.getRange({
       endDate: "2026-07-23",
       startDate: "2026-07-23",
       unitId: "centro",
@@ -267,7 +267,7 @@ describe("service desk memory repository", () => {
 
   it("keeps walk-ins out of Agenda and requires a human assignment", async () => {
     const { repository, scheduling } = createRepository()
-    const before = await scheduling.getDay({
+    const before = await scheduling.getRange({
       endDate: "2026-07-23",
       startDate: "2026-07-23",
       unitId: "centro",
@@ -294,7 +294,7 @@ describe("service desk memory repository", () => {
       source: "walk-in",
       stage: "in-service",
     })
-    const after = await scheduling.getDay({
+    const after = await scheduling.getRange({
       endDate: "2026-07-23",
       startDate: "2026-07-23",
       unitId: "centro",
@@ -384,7 +384,7 @@ describe("service desk memory repository", () => {
     await expect(staleStart).rejects.toThrow("A fila mudou durante a operação")
     await reset
 
-    const day = await scheduling.getDay({
+    const day = await scheduling.getRange({
       endDate: "2026-07-23",
       startDate: "2026-07-23",
       unitId: "centro",

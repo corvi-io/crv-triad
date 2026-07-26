@@ -1,3 +1,4 @@
+import { createBarbershopSetupRepository } from "@/dev/barbershop-setup/entry"
 import { createSchedulingRepository } from "@/dev/scheduling/entry"
 import { createServiceDeskRepository } from "@/dev/service-desk/entry"
 import { RevenueOperationsMemoryRepository } from "./memory-repository"
@@ -5,6 +6,8 @@ import { RevenueOperationsMemoryRepository } from "./memory-repository"
 const revenueOperationsRepository = new RevenueOperationsMemoryRepository(
   createServiceDeskRepository(),
   createSchedulingRepository(),
+  undefined,
+  createBarbershopSetupRepository(),
 )
 
 export const cashScenarioIds = [

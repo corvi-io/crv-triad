@@ -68,6 +68,27 @@ describe("barbershop setup module", () => {
     ).toBeVisible()
   })
 
+  it("renders the six-step journey and editable business and payment facts", async () => {
+    const user = userEvent.setup()
+    renderSetup("single-unit")
+    for (const step of [
+      "Dados da barbearia",
+      "Horários",
+      "Profissionais",
+      "Serviços",
+      "Pagamentos e comissões",
+      "Revisão",
+    ]) {
+      expect((await screen.findAllByText(step)).length).toBeGreaterThan(0)
+    }
+    await user.click(screen.getByRole("button", { name: "Dados" }))
+    expect(await screen.findByLabelText("Nome de exibição")).toHaveValue("Barbearia TRIAD")
+    await user.click(screen.getByRole("button", { name: "Pagamentos" }))
+    expect(await screen.findByRole("heading", { name: "Formas de pagamento" })).toBeVisible()
+    expect(screen.getByRole("switch", { name: "Aceitar Pagamento misto" })).toBeChecked()
+    expect(screen.getByRole("heading", { name: "Exceção por profissional" })).toBeVisible()
+  }, 10_000)
+
   it("shows field errors in Portuguese and focuses the first invalid field", async () => {
     const user = userEvent.setup()
     renderSetup("new-business", "units")

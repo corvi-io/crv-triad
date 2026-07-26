@@ -13,6 +13,8 @@ export type AppointmentStatus = (typeof appointmentStatuses)[number]
 
 export const agendaViews = ["board", "list"] as const
 export type AgendaView = (typeof agendaViews)[number]
+export const agendaTemporalScopes = ["day", "week"] as const
+export type AgendaTemporalScope = (typeof agendaTemporalScopes)[number]
 
 export const schedulingUnitIds = ["centro", "artesao"] as const
 export type SchedulingUnitId = (typeof schedulingUnitIds)[number]
@@ -33,6 +35,7 @@ export type Service = {
 }
 
 export type SchedulePeriod = {
+  date: string
   end: string
   id: string
   kind: "break" | "blocked" | "walk-in"
@@ -64,12 +67,21 @@ export type Appointment = {
 
 export type AppointmentInput = Omit<Appointment, "id">
 
+export type AppointmentCatalogPort = {
+  resolveAppointmentService(input: {
+    durationMinutes: number
+    priceCents: number
+    professionalId: string
+    serviceId: string
+  }): Promise<{ durationMinutes: number; priceCents: number }>
+}
+
 export type ScheduleOccupancy = Pick<
   Appointment,
   "date" | "durationMinutes" | "id" | "professionalId" | "start"
 >
 
-export type ScheduleDayQuery = {
+export type ScheduleRangeQuery = {
   endDate: string
   focusDate?: string
   scenarioId?: string
@@ -77,7 +89,7 @@ export type ScheduleDayQuery = {
   unitId: SchedulingUnitId
 }
 
-export type ScheduleDay = {
+export type ScheduleRange = {
   appointments: readonly Appointment[]
   date: string
   endTime: string
@@ -88,6 +100,9 @@ export type ScheduleDay = {
   startTime: string
   unitName: string
 }
+
+export type ScheduleDayQuery = ScheduleRangeQuery
+export type ScheduleDay = ScheduleRange
 
 export type SchedulingScenario = { description: string; id: string; label: string }
 
@@ -101,7 +116,7 @@ export type AppointmentTransitionInput = {
 export type SchedulingRepository = {
   cancel(id: string, reason: Exclude<CancellationReason, "no-show">): Promise<Appointment>
   create(input: AppointmentInput): Promise<Appointment>
-  getDay(query: ScheduleDayQuery): Promise<ScheduleDay>
+  getRange(query: ScheduleRangeQuery): Promise<ScheduleRange>
   reset(): Promise<void>
   scenarios(): readonly SchedulingScenario[]
   selectScenario(id: string): Promise<void>

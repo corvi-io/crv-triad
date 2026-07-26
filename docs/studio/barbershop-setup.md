@@ -149,3 +149,26 @@ focus, and dark mode.
 
 VoiceOver/NVDA, physical coarse-pointer hardware, and OS-native forced-colors visual inspection
 remain manual residual checks unless later evidence records them as completed.
+
+## ENG-55 First MLP Completion
+
+The setup overview now derives six resumable steps from required operational facts: barbershop
+data, hours, professionals, services, payments and commissions, and review. The same sections
+remain available after completion, so onboarding does not create a second maintenance surface.
+Barbershop data is intentionally limited to display name, phone, email, and the address of the
+selected primary unit.
+
+Professional records include contact, specialties, linked units/services, commission, account
+presentation, and the seven official demonstrative access choices. The access switches describe
+business policy only and never grant routes, sessions, IDP accounts, or server authorization.
+Contradictory “own Agenda only” and “other professionals” choices are normalized in the form and
+rejected by the repository boundary. The professional detail surface reads current-day Agenda,
+availability, resolved service overrides, and commission facts through narrow public ports.
+
+Payment configuration requires one active base method; mixed payment requires two. A development
+checkout created after a settings change snapshots the active base methods and rejects disabled
+tenders. Service resolution applies at most one price and/or duration override for an active,
+eligible professional/service pair. Clearing it restores the service default. The development
+scheduling coordinator consumes that resolved value when creating or reallocating an appointment.
+Already-paid sale and commission snapshots are copied at completion and never rewritten by later
+setup changes.

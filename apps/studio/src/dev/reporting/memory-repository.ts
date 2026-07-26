@@ -80,7 +80,7 @@ export class ReportingMemoryRepository implements ReportingRepository {
 
     await this.revenue.reset()
     const [schedule, clientPage] = await Promise.all([
-      this.scheduling.getDay({
+      this.scheduling.getRange({
         endDate: REPORTING_SOURCE_DATE,
         scenarioId: "all-statuses",
         startDate: "2026-07-01",

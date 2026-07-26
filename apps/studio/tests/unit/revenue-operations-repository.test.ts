@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest"
+import { BarbershopSetupMemoryRepository } from "@/dev/barbershop-setup/memory-repository"
 import { RevenueOperationsMemoryRepository } from "@/dev/revenue-operations/memory-repository"
 import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
 import { ServiceDeskMemoryRepository } from "@/dev/service-desk/memory-repository"
 import { serviceDeskScenarioIds } from "@/dev/service-desk/scenarios"
+import { createDefaultPaymentMethods } from "@/modules/barbershop-setup/completion"
 import type { ServiceDeskRepository } from "@/modules/service-desk/contracts"
 
 const now = new Date("2026-07-23T11:30:00-03:00")
@@ -18,6 +20,44 @@ function createRepositories() {
 }
 
 describe("revenue operations memory coordinator", () => {
+  it("consumes configured payment methods for future checkouts without rewriting paid snapshots", async () => {
+    const scheduling = new SchedulingMemoryRepository("2026-07-23")
+    const serviceDesk = new ServiceDeskMemoryRepository(scheduling, { now: () => new Date(now) })
+    const setup = new BarbershopSetupMemoryRepository()
+    await setup.updatePaymentMethods({ settings: createDefaultPaymentMethods(["pix"]) })
+    const revenue = new RevenueOperationsMemoryRepository(
+      serviceDesk,
+      scheduling,
+      { now: () => new Date(now) },
+      setup,
+    )
+
+    const checkout = await revenue.getCheckout("session-walk-in-checkout-pix")
+    expect(checkout.availableTenderMethods).toEqual(["pix"])
+    const paid = await revenue.completePayment({
+      operationId: "complete-configured-pix",
+      sessionId: checkout.id,
+    })
+
+    await setup.updatePaymentMethods({ settings: createDefaultPaymentMethods(["cash"]) })
+    await setup.setProfessionalServiceOverride({
+      priceCents: 9_000,
+      professionalId: "professional-alpha",
+      serviceId: "service-classic",
+    })
+    expect(await revenue.getPaidSale(checkout.id)).toEqual(paid)
+
+    const future = await revenue.getCheckout("session-walk-in-checkout-cash")
+    expect(future.availableTenderMethods).toEqual(["cash"])
+    await expect(
+      revenue.replaceTenders({
+        operationId: "reject-disabled-pix",
+        sessionId: future.id,
+        tenders: [{ appliedCents: future.totalCents, id: "pix-disabled", method: "pix" }],
+      }),
+    ).rejects.toThrow("não está disponível")
+  })
+
   it("hydrates checkout from the ready service-session handoff", async () => {
     const { revenue } = createRepositories()
     const checkout = await revenue.getCheckout("session-walk-in-checkout-multi-professional")
@@ -36,7 +76,7 @@ describe("revenue operations memory coordinator", () => {
   it("atomically completes a walk-in once without creating an appointment", async () => {
     const { revenue, scheduling, serviceDesk } = createRepositories()
     const sessionId = "session-walk-in-checkout-pix"
-    const before = await scheduling.getDay({
+    const before = await scheduling.getRange({
       endDate: "2026-07-23",
       startDate: "2026-07-23",
       unitId: "centro",
@@ -51,7 +91,7 @@ describe("revenue operations memory coordinator", () => {
     expect((await serviceDesk.getSession(sessionId)).status).toBe("paid")
     expect(
       (
-        await scheduling.getDay({
+        await scheduling.getRange({
           endDate: "2026-07-23",
           startDate: "2026-07-23",
           unitId: "centro",
@@ -68,7 +108,7 @@ describe("revenue operations memory coordinator", () => {
       sessionId: "session-walk-in-checkout-scheduled",
     })
     expect(sale.appointmentId).toBe("kanban-05")
-    const day = await scheduling.getDay({
+    const day = await scheduling.getRange({
       endDate: "2026-07-23",
       startDate: "2026-07-23",
       unitId: "centro",
@@ -84,7 +124,7 @@ describe("revenue operations memory coordinator", () => {
       const { revenue, scheduling, serviceDesk } = createRepositories()
       const sessionId = `session-walk-in-${scenario}`
       const checkout = await revenue.getCheckout(sessionId)
-      const day = await scheduling.getDay({
+      const day = await scheduling.getRange({
         endDate: "2026-07-23",
         startDate: "2026-07-23",
         unitId: "centro",
@@ -97,7 +137,7 @@ describe("revenue operations memory coordinator", () => {
       expect((await serviceDesk.getSession(sessionId)).status).toBe("ready-for-payment")
       expect(
         (
-          await scheduling.getDay({
+          await scheduling.getRange({
             endDate: "2026-07-23",
             startDate: "2026-07-23",
             unitId: "centro",

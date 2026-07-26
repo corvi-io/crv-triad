@@ -574,7 +574,11 @@ function CommissionPreview({
 function PaymentSection({ checkout, readOnly }: { checkout: Checkout; readOnly: boolean }) {
   const mutation = useReplaceTenders(checkout.id)
   const form = useForm<TenderValues>({
-    defaultValues: { applied: centsInput(checkout.totalCents), method: "pix", received: "" },
+    defaultValues: {
+      applied: centsInput(checkout.totalCents),
+      method: checkout.availableTenderMethods[0] ?? "pix",
+      received: "",
+    },
     resolver: zodResolver(tenderSchema),
   })
   const method = form.watch("method")
@@ -668,7 +672,7 @@ function PaymentSection({ checkout, readOnly }: { checkout: Checkout; readOnly: 
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {(["pix", "cash", "debit", "credit"] as const).map((value) => (
+                        {checkout.availableTenderMethods.map((value) => (
                           <SelectItem key={value} value={value}>
                             {tenderLabel(value)}
                           </SelectItem>

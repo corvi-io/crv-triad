@@ -1,6 +1,7 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns"
 import { MemoryScenarioEngine } from "@/dev/mock-engine/memory-scenario-engine"
 import type {
+  AppointmentCatalogPort,
   AppointmentInput,
   AppointmentTransitionInput,
   Professional,
@@ -61,17 +62,19 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   readonly #engine = new MemoryScenarioEngine(schedulingScenarios, "normal")
   #mutationFailureArmed = false
   readonly #projectionDate: string
+  readonly #catalog?: AppointmentCatalogPort
   #projectedScenarioId?: string
 
-  constructor(projectionDate = format(new Date(), "yyyy-MM-dd")) {
+  constructor(projectionDate = format(new Date(), "yyyy-MM-dd"), catalog?: AppointmentCatalogPort) {
     this.#projectionDate = projectionDate
+    this.#catalog = catalog
   }
 
   scenarios() {
     return schedulingScenarios.map(({ description, id, label }) => ({ description, id, label }))
   }
 
-  async getDay(query: ScheduleDayQuery): Promise<ScheduleDay> {
+  async getRange(query: ScheduleDayQuery): Promise<ScheduleDay> {
     if (query.scenarioId && query.scenarioId !== this.#engine.snapshot.scenarioId) {
       this.#engine.selectScenario(query.scenarioId)
       if (query.scenarioId === "next-failure") this.#engine.failNext()
@@ -101,7 +104,9 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
             professionalId,
             start,
           })),
-        periods: periodsFor(scenarioId),
+        periods: periodsFor(scenarioId, this.#projectionDate).filter(
+          ({ date }) => date >= query.startDate && date <= query.endDate,
+        ),
         professionals,
         services,
         startTime: "08:00",
@@ -111,9 +116,11 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   }
 
   async create(input: AppointmentInput) {
+    const resolved = await this.#catalog?.resolveAppointmentService(input)
+    const next = { ...input, ...resolved }
     return this.#engine.execute("create", () => {
-      this.#assertValid(input)
-      return this.#engine.create(input, "appointment")
+      this.#assertValid(next)
+      return this.#engine.create(next, "appointment")
     })
   }
 
@@ -122,7 +129,7 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
       this.#mutationFailureArmed = false
       this.#engine.failNext()
     }
-    return this.#engine.execute("update", () => {
+    return this.#engine.execute("update", async () => {
       const current = this.#engine.get(id)
       if (!current) throw new Error("Agendamento não encontrado.")
       if (
@@ -147,8 +154,12 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
       ) {
         throw new ScheduleConflictError("Agendamentos finalizados não podem ser remarcados.")
       }
-      if (allocationChanged) this.#assertValid(input, id)
-      const updated = this.#engine.update(id, input)
+      const resolved = allocationChanged
+        ? await this.#catalog?.resolveAppointmentService(input)
+        : undefined
+      const next = { ...input, ...resolved }
+      if (allocationChanged) this.#assertValid(next, id)
+      const updated = this.#engine.update(id, next)
       if (!updated) throw new Error("Agendamento não encontrado.")
       return updated
     })
@@ -244,8 +255,12 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
         "Escolha um horário dentro do funcionamento, das 08:00 às 18:00.",
       )
     }
-    const overlapsUnavailablePeriod = periodsFor(this.#engine.snapshot.scenarioId).some(
+    const overlapsUnavailablePeriod = periodsFor(
+      this.#engine.snapshot.scenarioId,
+      this.#projectionDate,
+    ).some(
       (period) =>
+        period.date === input.date &&
         period.kind !== "walk-in" &&
         period.professionalId === input.professionalId &&
         start < minutes(period.end) &&
@@ -276,10 +291,11 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   }
 }
 
-function periodsFor(scenarioId: string): readonly SchedulePeriod[] {
+function periodsFor(scenarioId: string, date: string): readonly SchedulePeriod[] {
   const base: SchedulePeriod[] = []
   if (scenarioId === "walk-in")
     base.push({
+      date,
       id: "walk-in-ana",
       kind: "walk-in",
       label: "Encaixe aguardando",
@@ -290,6 +306,7 @@ function periodsFor(scenarioId: string): readonly SchedulePeriod[] {
   if (scenarioId === "blocked")
     base.push(
       {
+        date,
         id: "break-bruno",
         kind: "break",
         label: "Pausa",
@@ -298,6 +315,7 @@ function periodsFor(scenarioId: string): readonly SchedulePeriod[] {
         end: "13:00",
       },
       {
+        date,
         id: "blocked-ana",
         kind: "blocked",
         label: "Indisponível",

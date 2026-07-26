@@ -19,6 +19,7 @@ import type {
   OperationalDayQuery,
   PaidSale,
   PaymentTender,
+  PrototypeCheckoutPolicy,
   ReplaceTendersInput,
   RevenueDashboardProjection,
   RevenueOperationsRepository,
@@ -43,6 +44,7 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
   readonly #serviceDesk: ServiceDeskRepository
   readonly #scheduling: SchedulingRepository
   readonly #clock: Clock
+  readonly #checkoutPolicy: PrototypeCheckoutPolicy
   #generation = 0
   #failedNext = new Set<string>()
   readonly #seedingPaid = new Set<string>()
@@ -55,10 +57,13 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     serviceDesk: ServiceDeskRepository,
     schedulingOrClock: SchedulingRepository | Clock = emptySchedulingRepository,
     clock: Clock = { now: () => new Date() },
+    checkoutPolicy: PrototypeCheckoutPolicy = defaultCheckoutPolicy,
   ) {
     this.#serviceDesk = serviceDesk
-    this.#scheduling = "getDay" in schedulingOrClock ? schedulingOrClock : emptySchedulingRepository
+    this.#scheduling =
+      "getRange" in schedulingOrClock ? schedulingOrClock : emptySchedulingRepository
     this.#clock = "now" in schedulingOrClock ? schedulingOrClock : clock
+    this.#checkoutPolicy = checkoutPolicy
   }
 
   async getCheckout(sessionId: string) {
@@ -135,6 +140,12 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
 
   async replaceTenders(input: ReplaceTendersInput) {
     const checkout = await this.#openCheckout(input.sessionId)
+    if (input.tenders.some(({ method }) => !checkout.availableTenderMethods.includes(method))) {
+      throw new RevenueOperationsError(
+        "A forma de pagamento não está disponível nesta barbearia.",
+        "invalid-tender",
+      )
+    }
     tenderSummary(input.tenders, checkout.totalCents)
     return this.#commitCheckout(input.sessionId, { ...checkout, tenders: [...input.tenders] })
   }
@@ -430,7 +441,7 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
   }
 
   async #projectOpenDay(query: OperationalDayQuery): Promise<OpenDaySummary> {
-    const schedulingDay = await this.#scheduling.getDay({
+    const schedulingDay = await this.#scheduling.getRange({
       endDate: query.date,
       focusDate: query.date,
       scenarioId: "all-statuses",
@@ -480,9 +491,11 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     }))
     const lines = projectLines(rawLines, adjustments.discountCents, adjustments.surchargeCents)
     const totalCents = lines.reduce((sum, line) => sum + line.netCents, 0)
+    const availableTenderMethods = await this.#checkoutPolicy.getActivePaymentMethodIds()
     return {
       adjustmentAuthorized: scenario !== "checkout-unauthorized",
       adjustments,
+      availableTenderMethods,
       appointmentId: handoff.appointmentId,
       customerName: handoff.customerName,
       finishedAt: handoff.finishedAt,
@@ -643,6 +656,12 @@ function localDate(date: Date) {
   return `${year}-${month}-${day}`
 }
 
+const defaultCheckoutPolicy: PrototypeCheckoutPolicy = {
+  async getActivePaymentMethodIds() {
+    return ["pix", "cash", "debit", "credit"]
+  },
+}
+
 function shiftDate(date: string, days: number) {
   const value = new Date(`${date}T12:00:00`)
   value.setDate(value.getDate() + days)
@@ -656,7 +675,7 @@ const emptySchedulingRepository: SchedulingRepository = {
   async create() {
     throw new Error("Scheduling is unavailable.")
   },
-  async getDay(query) {
+  async getRange(query) {
     return {
       appointments: [],
       date: query.focusDate ?? query.startDate,

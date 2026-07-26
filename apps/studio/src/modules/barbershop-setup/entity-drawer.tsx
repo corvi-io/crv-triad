@@ -19,7 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/modules/shared/components/ui/select"
+import { Switch } from "@/modules/shared/components/ui/switch"
 import { Textarea } from "@/modules/shared/components/ui/textarea"
+import { createDefaultAccessPolicy, normalizeAccessPolicy } from "./completion"
 import type {
   AccountAccessStatus,
   ProfessionalInput,
@@ -33,6 +35,8 @@ import type {
   UnitInput,
   Weekday,
 } from "./contracts"
+import { professionalAccessChoices } from "./contracts"
+import { useProfessionalOperationalSummary } from "./queries"
 
 const baseSchema = {
   name: z.string().trim().min(2, "Informe um nome com pelo menos 2 caracteres."),
@@ -66,6 +70,22 @@ export const professionalFormSchema = z.object({
   ...baseSchema,
   role: z.string().trim().min(2, "Informe a função do profissional."),
   accountAccess: z.enum(["connected", "invited", "not-configured"]),
+  contactEmail: z.string().email("Informe um e-mail válido.").or(z.literal("")),
+  contactPhone: z.string().regex(/^\d{10,11}$/, "Informe um telefone válido."),
+  commissionBasisPoints: z.preprocess(
+    (value) => Math.round(Number(value) * 100),
+    z.number().int().min(0).max(10_000),
+  ),
+  specialties: z.array(z.string()),
+  accessPolicy: z.object({
+    "own-schedule-only": z.boolean(),
+    "create-appointments": z.boolean(),
+    "change-prices": z.boolean(),
+    "register-payments": z.boolean(),
+    "view-revenue": z.boolean(),
+    "view-commissions": z.boolean(),
+    "access-other-professionals": z.boolean(),
+  }),
   unitIds: z.array(z.string()).min(1, "Selecione pelo menos uma unidade."),
   serviceIds: z.array(z.string()),
 })
@@ -506,6 +526,47 @@ function ProfessionalFields({ formId, form }: FormFieldsProps) {
         />
       </FormField>
       <FormField
+        id={`${formId}-phone`}
+        label="Telefone"
+        required
+        error={fieldMessage(form.formState.errors, "contactPhone")}
+      >
+        <Input
+          id={`${formId}-phone`}
+          inputMode="tel"
+          aria-invalid={Boolean(fieldMessage(form.formState.errors, "contactPhone"))}
+          {...form.register("contactPhone")}
+        />
+      </FormField>
+      <FormField
+        id={`${formId}-email`}
+        label="E-mail"
+        error={fieldMessage(form.formState.errors, "contactEmail")}
+      >
+        <Input
+          id={`${formId}-email`}
+          type="email"
+          aria-invalid={Boolean(fieldMessage(form.formState.errors, "contactEmail"))}
+          {...form.register("contactEmail")}
+        />
+      </FormField>
+      <FormField
+        id={`${formId}-commission`}
+        label="Comissão padrão (%)"
+        required
+        error={fieldMessage(form.formState.errors, "commissionBasisPoints")}
+      >
+        <Input
+          id={`${formId}-commission`}
+          type="number"
+          min={0}
+          max={100}
+          step="0.01"
+          aria-invalid={Boolean(fieldMessage(form.formState.errors, "commissionBasisPoints"))}
+          {...form.register("commissionBasisPoints", { valueAsNumber: true })}
+        />
+      </FormField>
+      <FormField
         id={`${formId}-access`}
         label="Acesso à conta"
         description="Situação atual do acesso deste profissional."
@@ -531,6 +592,43 @@ function ProfessionalFields({ formId, form }: FormFieldsProps) {
           )}
         />
       </FormField>
+      <FieldSet>
+        <FieldLegend variant="label">Acesso demonstrativo</FieldLegend>
+        <p className="text-sm text-muted-foreground">
+          Estas escolhas descrevem política de negócio. Elas não alteram login, rotas nem
+          autorização do servidor.
+        </p>
+        <div className="grid gap-2">
+          {professionalAccessChoices.map((choice) => (
+            <Controller
+              control={form.control}
+              key={choice}
+              name={`accessPolicy.${choice}`}
+              render={({ field }) => (
+                <div className="flex min-h-10 items-center justify-between gap-3 rounded-md border px-3 py-2">
+                  <span>{professionalAccessLabels[choice]}</span>
+                  <Switch
+                    checked={field.value}
+                    aria-label={professionalAccessLabels[choice]}
+                    onCheckedChange={(checked) => {
+                      const normalized = normalizeAccessPolicy({
+                        ...form.getValues("accessPolicy"),
+                        [choice]: checked,
+                      })
+                      for (const accessChoice of professionalAccessChoices) {
+                        form.setValue(`accessPolicy.${accessChoice}`, normalized[accessChoice], {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                    }}
+                  />
+                </div>
+              )}
+            />
+          ))}
+        </div>
+      </FieldSet>
     </>
   )
 }
@@ -743,6 +841,13 @@ function EntityDetails({
             ["Unidades", namesFor(entity.unitIds, units)],
             ["Serviços", namesFor(entity.serviceIds, services)],
             ["Acesso", accessLabels[entity.accountAccess]],
+            [
+              "Contato",
+              [entity.contactPhone, entity.contactEmail].filter(Boolean).join(" · ") || "-",
+            ],
+            ["Especialidades", entity.specialties?.join(", ") || "-"],
+            ["Comissão", `${(entity.commissionBasisPoints ?? 0) / 100}%`],
+            ["Política de acesso", "Demonstrativa; não concede autorização real."],
           ]
         : [
             ["Categoria", entity.category],
@@ -774,7 +879,93 @@ function EntityDetails({
           </Detail>
         ))}
       </dl>
+      {entity.kind === "professional" ? (
+        <ProfessionalOperationDetails professional={entity} services={services} />
+      ) : null}
     </ActionDrawer>
+  )
+}
+
+function ProfessionalOperationDetails({
+  professional,
+  services,
+}: {
+  professional: SetupProfessional
+  services: readonly SetupService[]
+}) {
+  const today = new Intl.DateTimeFormat("en-CA").format(new Date())
+  const summary = useProfessionalOperationalSummary(professional.id, today)
+  return (
+    <div className="mt-5 grid gap-4 border-t pt-4">
+      <section aria-labelledby="professional-operation-title" className="grid gap-2">
+        <h3 id="professional-operation-title" className="font-heading font-medium">
+          Operação de hoje
+        </h3>
+        {summary.isPending ? (
+          <p className="text-sm text-muted-foreground">Carregando Agenda e disponibilidade…</p>
+        ) : summary.isError ? (
+          <p className="text-sm text-destructive">
+            Não foi possível carregar o resumo operacional.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm">
+              {summary.data.availabilityLabel} · {summary.data.commissionLabel}
+            </p>
+            {summary.data.unavailableReason ? (
+              <p className="text-sm text-muted-foreground">{summary.data.unavailableReason}</p>
+            ) : summary.data.appointments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum agendamento para hoje.</p>
+            ) : (
+              <ul className="grid gap-1 text-sm">
+                {summary.data.appointments.slice(0, 5).map((appointment) => (
+                  <li key={appointment.id}>
+                    {appointment.start} · {appointment.customerName} · {appointment.status}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <a
+              className="w-fit rounded-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              href={`/agenda?date=${today}&period=today&scope=day&view=board&unit=centro&professional=${summary.data.agendaProfessionalId ?? professional.id}`}
+            >
+              Abrir Agenda deste profissional
+            </a>
+          </>
+        )}
+      </section>
+      <section aria-labelledby="professional-services-title" className="grid gap-2">
+        <h3 id="professional-services-title" className="font-heading font-medium">
+          Serviços e exceções
+        </h3>
+        <ul className="grid gap-1 text-sm text-muted-foreground">
+          {(summary.data?.serviceAssignments ?? []).map((assignment) => (
+            <li key={assignment.serviceId}>
+              {services.find(({ id }) => id === assignment.serviceId)?.name ?? assignment.serviceId}
+              : {assignment.durationMinutes} min · {formatMoney(assignment.priceCents)}
+              {assignment.source === "professional-override" ? " · Exceção" : " · Padrão"}
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section aria-labelledby="professional-access-title" className="grid gap-2">
+        <h3 id="professional-access-title" className="font-heading font-medium">
+          Acesso demonstrativo
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          Esta apresentação não concede acesso real, não altera sessões e não substitui autorização
+          no servidor.
+        </p>
+        <ul className="grid gap-1 text-sm">
+          {professionalAccessChoices.map((choice) => (
+            <li key={choice}>
+              {professional.accessPolicy?.[choice] ? "Permitido" : "Não permitido"} ·{" "}
+              {professionalAccessLabels[choice]}
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
   )
 }
 
@@ -811,8 +1002,13 @@ function getDefaultValues(kind: SetupEntityKind, entity?: SetupEntity): SetupEnt
       name: professional?.name ?? "",
       role: professional?.role ?? "Profissional de atendimento",
       accountAccess: professional?.accountAccess ?? "not-configured",
+      accessPolicy: professional?.accessPolicy ?? createDefaultAccessPolicy(),
+      commissionBasisPoints: (professional?.commissionBasisPoints ?? 5000) / 100,
+      contactEmail: professional?.contactEmail ?? "",
+      contactPhone: professional?.contactPhone ?? "",
       unitIds: [...(professional?.unitIds ?? [])],
       serviceIds: [...(professional?.serviceIds ?? [])],
+      specialties: [...(professional?.specialties ?? [])],
     }
   }
   const service = entity?.kind === "service" ? entity : undefined
@@ -888,5 +1084,15 @@ const accessLabels: Record<AccountAccessStatus, string> = {
   invited: "Convite pendente",
   "not-configured": "Não configurado",
 }
+
+const professionalAccessLabels = {
+  "own-schedule-only": "Visualizar apenas a própria Agenda",
+  "create-appointments": "Criar agendamentos",
+  "change-prices": "Alterar preços",
+  "register-payments": "Registrar pagamentos",
+  "view-revenue": "Visualizar faturamento",
+  "view-commissions": "Visualizar comissões",
+  "access-other-professionals": "Acessar dados de outros profissionais",
+} as const
 
 export type { EntityDrawerState }

@@ -6,13 +6,25 @@ import {
   isCanonicalDate,
   weekdayForDate,
 } from "@/modules/barbershop-setup/availability-dates"
+import {
+  createDefaultPaymentMethods,
+  deriveSetupReadiness,
+  resolveProfessionalService,
+  validatePaymentMethods,
+  validateProfessionalServiceOverride,
+} from "@/modules/barbershop-setup/completion"
 import type {
   AvailabilityBlockType,
   AvailabilityQuery,
   AvailabilityResult,
   AvailabilityTimeBlock,
+  BarbershopProfile,
   BarbershopSetupRepository,
   CopyAvailabilityToWeekdaysInput,
+  PaymentMethodSetting,
+  ProfessionalOperationalSummary,
+  ProfessionalServiceOverride,
+  ResolvedProfessionalService,
   SetupAvailability,
   SetupEntity,
   SetupEntityInput,
@@ -27,6 +39,7 @@ import type {
   SetupUnit,
   TimeRange,
   UpdateAvailabilityBatchInput,
+  UpdatePaymentMethodsInput,
   Weekday,
 } from "@/modules/barbershop-setup/contracts"
 import {
@@ -34,14 +47,25 @@ import {
   SetupOperationInvalidatedError,
   SetupValidationError,
 } from "@/modules/barbershop-setup/contracts"
+import type { SchedulingRepository } from "@/modules/scheduling/contracts"
 import { barbershopSetupScenarios } from "./scenarios"
 
 export class BarbershopSetupMemoryRepository implements BarbershopSetupRepository {
   readonly #engine = new MemoryScenarioEngine<SetupRecord>(barbershopSetupScenarios, "single-unit")
+  readonly #completionByScenario = new Map<
+    string,
+    {
+      paymentMethods: readonly PaymentMethodSetting[]
+      profile: BarbershopProfile
+      serviceOverrides: readonly ProfessionalServiceOverride[]
+    }
+  >()
   #failNextMutation = false
   #operationGeneration = 0
+  readonly #schedulingRepository?: SchedulingRepository
 
-  constructor() {
+  constructor(schedulingRepository?: SchedulingRepository) {
+    this.#schedulingRepository = schedulingRepository
     this.#normalizeProfessionalServiceRelations()
   }
 
@@ -136,6 +160,180 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
         totalCount: items.length,
       }
     })
+  }
+
+  async getCompletion(scenarioId: SetupScenarioId) {
+    this.#ensureScenario(scenarioId)
+    return this.#engine.execute("list", () => {
+      const state = this.#completionState(scenarioId)
+      const records = this.#engine.values()
+      const units = records.filter((record): record is SetupUnit => record.kind === "unit")
+      const professionals = records.filter(
+        (record): record is SetupProfessional => record.kind === "professional",
+      )
+      const services = records.filter((record): record is SetupService => record.kind === "service")
+      const availability = records.filter(
+        (record): record is SetupAvailability => record.kind === "availability",
+      )
+      return {
+        ...structuredClone(state),
+        readiness: deriveSetupReadiness({
+          availability,
+          paymentMethods: state.paymentMethods,
+          profile: state.profile,
+          professionals,
+          services,
+          units,
+        }),
+      }
+    })
+  }
+
+  async getActivePaymentMethodIds() {
+    return this.#completionState()
+      .paymentMethods.filter(
+        (setting): setting is PaymentMethodSetting & { id: "pix" | "cash" | "debit" | "credit" } =>
+          setting.active && setting.id !== "mixed",
+      )
+      .map(({ id }) => id)
+  }
+
+  async updateProfile(input: BarbershopProfile) {
+    return this.#mutate("update", () => {
+      const normalized = {
+        ...input,
+        displayName: input.displayName.trim(),
+        email: input.email.trim().toLocaleLowerCase("pt-BR"),
+        phone: input.phone.replace(/\D/g, ""),
+      }
+      if (normalized.displayName.length < 2)
+        throw new SetupValidationError("Informe o nome de exibição da barbearia.")
+      if (!/^\d{10,11}$/.test(normalized.phone))
+        throw new SetupValidationError("Informe um telefone válido.")
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized.email))
+        throw new SetupValidationError("Informe um e-mail válido.")
+      const primaryUnit = normalized.primaryUnitId
+        ? this.#engine.get(normalized.primaryUnitId)
+        : undefined
+      if (primaryUnit?.kind !== "unit" || primaryUnit.status !== "active")
+        throw new SetupValidationError("Selecione uma unidade principal ativa.")
+      this.#completionState().profile = normalized
+      return structuredClone(normalized)
+    })
+  }
+
+  async updatePaymentMethods(input: UpdatePaymentMethodsInput) {
+    return this.#mutate("update", () => {
+      const settings = validatePaymentMethods(input.settings)
+      this.#completionState().paymentMethods = settings
+      return structuredClone(settings)
+    })
+  }
+
+  async setProfessionalServiceOverride(input: ProfessionalServiceOverride) {
+    return this.#mutate("update", () => {
+      const state = this.#completionState()
+      const service = this.#engine.get(input.serviceId)
+      const professional = this.#engine.get(input.professionalId)
+      if (service?.kind !== "service" || professional?.kind !== "professional")
+        throw new SetupValidationError("Serviço ou profissional não encontrado.")
+      const withoutPair = state.serviceOverrides.filter(
+        (candidate) =>
+          candidate.serviceId !== input.serviceId ||
+          candidate.professionalId !== input.professionalId,
+      )
+      if (input.priceCents === undefined && input.durationMinutes === undefined) {
+        state.serviceOverrides = withoutPair
+        return undefined
+      }
+      resolveProfessionalService(service, professional, input)
+      const override = validateProfessionalServiceOverride(input)
+      state.serviceOverrides = [...withoutPair, override]
+      return structuredClone(override)
+    })
+  }
+
+  async resolveProfessionalService(
+    serviceId: string,
+    professionalId: string,
+  ): Promise<ResolvedProfessionalService> {
+    const service = this.#engine.get(serviceId)
+    const professional = this.#engine.get(professionalId)
+    if (service?.kind !== "service" || professional?.kind !== "professional")
+      throw new SetupValidationError("Serviço ou profissional não encontrado.")
+    const override = this.#completionState().serviceOverrides.find(
+      (candidate) =>
+        candidate.serviceId === serviceId && candidate.professionalId === professionalId,
+    )
+    return resolveProfessionalService(service, professional, override)
+  }
+
+  async getProfessionalOperationalSummary(
+    professionalId: string,
+    date: string,
+  ): Promise<ProfessionalOperationalSummary> {
+    const professional = this.#engine.get(professionalId)
+    if (professional?.kind !== "professional")
+      throw new SetupValidationError("Profissional não encontrado.")
+    const services = this.#engine
+      .values()
+      .filter(
+        (record): record is SetupService =>
+          record.kind === "service" && professional.serviceIds.includes(record.id),
+      )
+    const serviceAssignments = services.map((service) => {
+      const override = this.#completionState().serviceOverrides.find(
+        (candidate) =>
+          candidate.serviceId === service.id && candidate.professionalId === professional.id,
+      )
+      return resolveProfessionalService(service, professional, override)
+    })
+    const availability = this.#engine
+      .values()
+      .filter(
+        (record): record is SetupAvailability =>
+          record.kind === "availability" && record.professionalId === professionalId,
+      )
+    if (!this.#schedulingRepository) {
+      return {
+        agendaDate: date,
+        appointments: [],
+        availabilityLabel: availability.some(({ closed }) => !closed)
+          ? "Disponibilidade configurada"
+          : "Sem disponibilidade configurada",
+        commissionLabel: `${(professional.commissionBasisPoints ?? 0) / 100}% padrão`,
+        professionalId,
+        serviceAssignments,
+        unavailableReason: "A Agenda está indisponível nesta composição.",
+      }
+    }
+    const range = await this.#schedulingRepository.getRange({
+      endDate: date,
+      focusDate: date,
+      startDate: date,
+      unitId: "centro",
+    })
+    const setupProfessionals = this.#engine
+      .values()
+      .filter(
+        (record): record is SetupProfessional =>
+          record.kind === "professional" && record.status === "active",
+      )
+    const agendaProfessionalId =
+      range.professionals[setupProfessionals.findIndex(({ id }) => id === professionalId)]?.id
+    return {
+      agendaProfessionalId,
+      agendaDate: date,
+      appointments: range.appointments
+        .filter((appointment) => appointment.professionalId === agendaProfessionalId)
+        .map(({ customerName, id, start, status }) => ({ customerName, id, start, status })),
+      availabilityLabel: availability.some(({ closed }) => !closed)
+        ? "Disponibilidade configurada"
+        : "Sem disponibilidade configurada",
+      commissionLabel: `${(professional.commissionBasisPoints ?? 0) / 100}% padrão`,
+      professionalId,
+      serviceAssignments,
+    }
   }
 
   async list(query: SetupListQuery): Promise<SetupEntityPage> {
@@ -352,6 +550,7 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
   async reset() {
     this.#operationGeneration += 1
     this.#engine.reset()
+    this.#completionByScenario.delete(this.#engine.snapshot.scenarioId)
     this.#failNextMutation = this.#engine.snapshot.scenarioId === "next-failure"
     this.#normalizeProfessionalServiceRelations()
   }
@@ -363,6 +562,28 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
       this.#failNextMutation = id === "next-failure"
       this.#normalizeProfessionalServiceRelations()
     }
+  }
+
+  #completionState(scenarioId = this.#engine.snapshot.scenarioId) {
+    const existing = this.#completionByScenario.get(scenarioId)
+    if (existing) return existing
+    const records = this.#engine.values()
+    const primaryUnit = records.find(
+      (record): record is SetupUnit => record.kind === "unit" && record.status === "active",
+    )
+    const incomplete = scenarioId === "new-business" || scenarioId === "incomplete-setup"
+    const state = {
+      paymentMethods: createDefaultPaymentMethods(incomplete ? [] : undefined),
+      profile: {
+        displayName: incomplete ? "" : "Barbearia TRIAD",
+        email: incomplete ? "" : "contato@example.test",
+        phone: incomplete ? "" : "81999990000",
+        primaryUnitId: primaryUnit?.id,
+      },
+      serviceOverrides: [] as readonly ProfessionalServiceOverride[],
+    }
+    this.#completionByScenario.set(scenarioId, state)
+    return state
   }
 
   async #mutate<TResult>(operation: "create" | "update", action: () => TResult) {
@@ -411,6 +632,27 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
     }
     if (kind === "professional") {
       const professional = input as SetupProfessional
+      if (professional.contactPhone && !/^\d{10,11}$/.test(professional.contactPhone))
+        throw new SetupValidationError("Informe um telefone profissional válido.")
+      if (
+        professional.contactEmail &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(professional.contactEmail)
+      )
+        throw new SetupValidationError("Informe um e-mail profissional válido.")
+      if (
+        professional.commissionBasisPoints !== undefined &&
+        (!Number.isInteger(professional.commissionBasisPoints) ||
+          professional.commissionBasisPoints < 0 ||
+          professional.commissionBasisPoints > 10_000)
+      )
+        throw new SetupValidationError("Informe uma comissão entre 0% e 100%.")
+      if (
+        professional.accessPolicy?.["own-schedule-only"] &&
+        professional.accessPolicy["access-other-professionals"]
+      )
+        throw new SetupValidationError(
+          "O acesso somente à própria Agenda não permite dados de outros profissionais.",
+        )
       this.#assertActiveRelations("unit", professional.unitIds)
       this.#assertActiveRelations("service", professional.serviceIds)
       this.#assertServicesServeUnits(professional.serviceIds, professional.unitIds)

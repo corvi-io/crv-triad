@@ -10,7 +10,7 @@ const date = "2026-07-23"
 
 async function dashboardModel(scenarioId = "normal") {
   const repository = new SchedulingMemoryRepository(date)
-  const day = await repository.getDay({
+  const day = await repository.getRange({
     endDate: date,
     focusDate: date,
     scenarioId,

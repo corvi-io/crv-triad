@@ -2,8 +2,13 @@ import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tansta
 import type {
   AvailabilityQuery,
   AvailabilityResult,
+  BarbershopProfile,
   CopyAvailabilityToWeekdaysInput,
+  PaymentMethodSetting,
+  ProfessionalOperationalSummary,
+  ProfessionalServiceOverride,
   SetupAvailability,
+  SetupCompletion,
   SetupEntity,
   SetupEntityInput,
   SetupEntityKind,
@@ -29,9 +34,21 @@ export const barbershopSetupQueryKeys = {
   all: ["barbershop-setup"] as const,
   availability: (query: AvailabilityQuery) =>
     [...barbershopSetupQueryKeys.all, "availability", query] as const,
+  completion: (scenarioId: SetupScenarioId) =>
+    [...barbershopSetupQueryKeys.all, "completion", scenarioId] as const,
   list: (query: SetupListQuery) => [...barbershopSetupQueryKeys.all, "list", query] as const,
   overview: (scenarioId: SetupScenarioId) =>
     [...barbershopSetupQueryKeys.all, "overview", scenarioId] as const,
+  professionalSummary: (professionalId: string, date: string) =>
+    [...barbershopSetupQueryKeys.all, "professional-summary", professionalId, date] as const,
+}
+
+export function useSetupCompletion(scenarioId: SetupScenarioId) {
+  const repository = useBarbershopSetupRepository()
+  return useQuery({
+    queryKey: barbershopSetupQueryKeys.completion(scenarioId),
+    queryFn: () => repository.getCompletion(scenarioId),
+  })
 }
 
 export function useSetupOverview(scenarioId: SetupScenarioId) {
@@ -39,6 +56,14 @@ export function useSetupOverview(scenarioId: SetupScenarioId) {
   return useQuery({
     queryKey: barbershopSetupQueryKeys.overview(scenarioId),
     queryFn: () => repository.getOverview(scenarioId),
+  })
+}
+
+export function useProfessionalOperationalSummary(professionalId: string, date: string) {
+  const repository = useBarbershopSetupRepository()
+  return useQuery<ProfessionalOperationalSummary>({
+    queryKey: barbershopSetupQueryKeys.professionalSummary(professionalId, date),
+    queryFn: () => repository.getProfessionalOperationalSummary(professionalId, date),
   })
 }
 
@@ -76,6 +101,39 @@ export function useCreateSetupEntity() {
   const repository = useBarbershopSetupRepository()
   return useEntityMutation(({ kind, input }: { kind: SetupEntityKind; input: SetupEntityInput }) =>
     repository.create(kind, input),
+  )
+}
+
+function useCompletionMutation<TVariables, TResult>(
+  mutationFn: (variables: TVariables) => Promise<TResult>,
+) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn,
+    onMutate: () => ({ generation: getQueryGeneration(queryClient) }),
+    onSuccess: (_data, _variables, context) => {
+      if (isCurrentGeneration(queryClient, context.generation))
+        return queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all })
+    },
+  })
+}
+
+export function useUpdateBarbershopProfile() {
+  const repository = useBarbershopSetupRepository()
+  return useCompletionMutation((input: BarbershopProfile) => repository.updateProfile(input))
+}
+
+export function useUpdatePaymentMethods() {
+  const repository = useBarbershopSetupRepository()
+  return useCompletionMutation((settings: readonly PaymentMethodSetting[]) =>
+    repository.updatePaymentMethods({ settings }),
+  )
+}
+
+export function useSetProfessionalServiceOverride() {
+  const repository = useBarbershopSetupRepository()
+  return useCompletionMutation((input: ProfessionalServiceOverride) =>
+    repository.setProfessionalServiceOverride(input),
   )
 }
 
@@ -223,4 +281,4 @@ export async function resetSetupQueries(queryClient: QueryClient) {
   queryClient.removeQueries({ queryKey: barbershopSetupQueryKeys.all })
 }
 
-export type { SetupOverview }
+export type { SetupCompletion, SetupOverview }

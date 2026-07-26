@@ -8,6 +8,7 @@ import {
   EyeIcon,
   PencilIcon,
   PlusIcon,
+  ReceiptTextIcon,
   ScissorsIcon,
   SlidersHorizontalIcon,
   Undo2Icon,
@@ -47,6 +48,7 @@ import {
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import { cn } from "@/modules/shared/lib/utils"
 import { AvailabilityCalendar } from "./availability-calendar"
+import { BusinessProfileSection, PaymentsSection } from "./completion-sections"
 import type {
   SetupEntity,
   SetupEntityInput,
@@ -72,6 +74,7 @@ import {
   useCreateSetupEntity,
   useSetSetupEntityArchived,
   useSetupAvailability,
+  useSetupCompletion,
   useSetupEntities,
   useSetupOverview,
   useUpdateSetupEntity,
@@ -81,9 +84,11 @@ import type { BarbershopSetupSearch } from "./search"
 const sectionItems: ReadonlyArray<{ icon: typeof Building2Icon; id: SetupSection; label: string }> =
   [
     { id: "overview", label: "Visão geral", icon: CheckCircle2Icon },
+    { id: "business", label: "Dados", icon: Building2Icon },
     { id: "units", label: "Unidades", icon: Building2Icon },
     { id: "professionals", label: "Profissionais", icon: UserRoundIcon },
     { id: "services", label: "Serviços", icon: ScissorsIcon },
+    { id: "payments", label: "Pagamentos", icon: ReceiptTextIcon },
     { id: "availability", label: "Disponibilidade", icon: CalendarClockIcon },
   ]
 
@@ -152,12 +157,16 @@ function SetupSectionContent({
   switch (search.section) {
     case "overview":
       return <OverviewSection scenarioId={search.scenario} onSectionChange={onSectionChange} />
+    case "business":
+      return <BusinessProfileSection scenarioId={search.scenario} />
     case "units":
       return <EntitySection kind="unit" scenarioId={search.scenario} />
     case "professionals":
       return <EntitySection kind="professional" scenarioId={search.scenario} />
     case "services":
       return <EntitySection kind="service" scenarioId={search.scenario} />
+    case "payments":
+      return <PaymentsSection scenarioId={search.scenario} />
     case "availability":
       return (
         <AvailabilityCalendar
@@ -177,17 +186,28 @@ function OverviewSection({
   scenarioId: SetupScenarioId
   onSectionChange: (section: SetupSection) => void
 }) {
+  const completion = useSetupCompletion(scenarioId)
   const overview = useSetupOverview(scenarioId)
-  if (overview.isPending) return <LoadingCards label="Carregando visão geral…" />
-  if (overview.isError)
+  if (overview.isPending || completion.isPending)
+    return <LoadingCards label="Carregando visão geral…" />
+  if (overview.isError || completion.isError)
     return (
       <ErrorState
         title="Não foi possível carregar a visão geral"
-        onRetry={() => overview.refetch()}
+        onRetry={() => Promise.all([overview.refetch(), completion.refetch()])}
       />
     )
-  const nextItem = overview.data.items.find(({ complete }) => !complete) ?? overview.data.items[0]
-  const progress = Math.round((overview.data.completedCount / overview.data.totalCount) * 100)
+  const nextItem = completion.data.readiness.steps.find(({ complete }) => !complete) ??
+    completion.data.readiness.steps.at(-1) ?? {
+      complete: false,
+      description: "Revise os dados da configuração.",
+      id: "review",
+      section: "overview",
+      title: "Revisão",
+    }
+  const progress = Math.round(
+    (completion.data.readiness.completedCount / completion.data.readiness.totalCount) * 100,
+  )
   return (
     <section aria-labelledby="overview-title" className="grid gap-5 pb-4">
       <Card className="overflow-hidden border-primary/20 bg-linear-to-br from-primary/8 via-card to-card">
@@ -203,7 +223,7 @@ function OverviewSection({
           </div>
           <CardAction>
             <StatusBadge tone={progress === 100 ? "success" : "info"}>
-              {`${overview.data.completedCount} de ${overview.data.totalCount}`}
+              {`${completion.data.readiness.completedCount} de ${completion.data.readiness.totalCount}`}
             </StatusBadge>
           </CardAction>
         </CardHeader>
@@ -242,8 +262,8 @@ function OverviewSection({
         </p>
       </div>
       <ol className="grid gap-3 md:grid-cols-2">
-        {overview.data.items.map((item, index) => (
-          <li key={item.section}>
+        {completion.data.readiness.steps.map((item, index) => (
+          <li key={item.id}>
             <Card className="h-full">
               <CardHeader>
                 <div className="flex size-9 items-center justify-center rounded-full border bg-muted text-sm font-semibold">
@@ -268,7 +288,7 @@ function OverviewSection({
                 </CardAction>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                {overviewStepPurpose[item.section]}
+                {item.description}
               </CardContent>
               <CardFooter className="justify-end">
                 <Button
@@ -284,15 +304,24 @@ function OverviewSection({
           </li>
         ))}
       </ol>
+      {progress === 100 ? (
+        <Card>
+          <CardHeader>
+            <h3 className="font-heading text-base font-medium">Configuração pronta para operar</h3>
+            <CardDescription>
+              Revise qualquer etapa quando a operação mudar. As escolhas deste protótipo permanecem
+              somente na sessão local.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="justify-end">
+            <Button nativeButton={false} render={<a href="/overview" />}>
+              Entrar no espaço de trabalho
+            </Button>
+          </CardFooter>
+        </Card>
+      ) : null}
     </section>
   )
-}
-
-const overviewStepPurpose: Record<Exclude<SetupSection, "overview">, string> = {
-  units: "Define onde os atendimentos acontecem e os limites de funcionamento.",
-  professionals: "Conecta a equipe às unidades e aos serviços que cada pessoa realiza.",
-  services: "Organiza duração, preço e quem pode executar cada atendimento.",
-  availability: "Determina quando cada profissional pode receber novos agendamentos.",
 }
 
 type RowMenuState = {

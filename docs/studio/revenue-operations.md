@@ -122,3 +122,11 @@ persistence, idempotency keys, concurrency, audit attribution, provider adapters
 webhook verification/fetch-back, asynchronous payment states, reconciliation, privacy retention,
 observability, and indexed queries. The internal paid-sale ledger remains product truth; a payment
 provider is an adapter rather than a domain owner.
+
+## Setup Policy Consumption
+
+ENG-55 adds a narrow checkout policy port. Each future in-memory checkout snapshots the active Pix,
+cash, debit, and credit choices from barbershop setup; the payment form lists only those choices and
+the repository rejects a disabled tender even if called directly. “Mixed” remains a derived
+capability represented by two or more accepted tender lines. Changing setup after payment does not
+rewrite the paid sale, its service-line values, tenders, or commission snapshots.
