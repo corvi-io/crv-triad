@@ -52,6 +52,44 @@ test("renders the reference-aligned temporal board and passes axe", async ({ pag
   expect(results.violations).toEqual([])
 })
 
+test("renders the exact weekly interval with a complete accessible list alternative", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 900, width: 1440 })
+  await page.goto(
+    "/workspace-preview/agenda?date=2026-07-22&scenario=typical-week&scope=week&view=board",
+  )
+
+  await expect(page.getByText("Semana visível: 20/07 a 26/07")).toBeVisible()
+  const week = page.getByRole("region", {
+    name: "Agenda semanal de 20/07/2026 a 26/07/2026",
+  })
+  await expect(week).toBeVisible()
+  await expect(week.getByRole("heading", { level: 2 })).toHaveCount(7)
+  await expect(page.getByRole("button", { name: "Semana anterior" })).toBeEnabled()
+  await expect(page.getByRole("button", { name: "Próxima semana" })).toBeEnabled()
+  await page.screenshot({
+    fullPage: true,
+    path: "../../docs/studio/evidence/eng-55/agenda-week-light-1440.png",
+  })
+
+  await page.getByRole("button", { name: "Visualizar como lista" }).click()
+  await expect(page.getByRole("table", { name: /Agendamentos filtrados/ })).toBeVisible()
+  const results = await new AxeBuilder({ page })
+    .include("#main-content")
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze()
+  expect(results.violations).toEqual([])
+
+  await page.setViewportSize({ height: 760, width: 320 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+  await expect(page.getByRole("table", { name: /Agendamentos filtrados/ })).toBeVisible()
+  await page.screenshot({
+    fullPage: true,
+    path: "../../docs/studio/evidence/eng-55/agenda-week-list-320.png",
+  })
+})
+
 test.describe("current-time marker", () => {
   test.use({ timezoneId: "America/Recife" })
 

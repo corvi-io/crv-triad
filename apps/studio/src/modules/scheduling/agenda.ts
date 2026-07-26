@@ -8,6 +8,7 @@ import {
   startOfWeek,
 } from "date-fns"
 import type {
+  AgendaTemporalScope,
   AgendaView,
   Appointment,
   AppointmentStatus,
@@ -15,7 +16,12 @@ import type {
   SchedulingUnitId,
   Service,
 } from "./contracts"
-import { agendaViews, appointmentStatuses, schedulingUnitIds } from "./contracts"
+import {
+  agendaTemporalScopes,
+  agendaViews,
+  appointmentStatuses,
+  schedulingUnitIds,
+} from "./contracts"
 
 export const agendaPeriodIds = [
   "today",
@@ -37,10 +43,22 @@ export type ScheduleSearch = {
   period: AgendaPeriodId
   professional?: string
   scenario: string
+  scope?: AgendaTemporalScope
   service?: string
   status?: string
   unit: SchedulingUnitId
   view: AgendaView
+}
+
+export function visibleScheduleBounds(search: ScheduleSearch) {
+  if (search.scope === "week") {
+    const anchor = parseISO(search.date)
+    return {
+      startDate: format(startOfWeek(anchor, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+      endDate: format(endOfWeek(anchor, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+    }
+  }
+  return periodBounds(search.date, search.period, search.customStart, search.customEnd)
 }
 
 export type AgendaColumnId =
@@ -220,6 +238,11 @@ export function validateScheduleSearch(
         : "today",
     professional: validIdList(search.professional),
     scenario: typeof search.scenario === "string" ? search.scenario : "normal",
+    scope:
+      typeof search.scope === "string" &&
+      agendaTemporalScopes.includes(search.scope as AgendaTemporalScope)
+        ? (search.scope as AgendaTemporalScope)
+        : "day",
     service: validIdList(search.service),
     status: validStatusList(search.status),
     unit:

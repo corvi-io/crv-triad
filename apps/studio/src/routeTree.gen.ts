@@ -10,24 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as WorkspacePreviewIndexRouteImport } from './routes/workspace-preview/index'
-import { Route as ResetPasswordIndexRouteImport } from './routes/reset-password/index'
-import { Route as LoginIndexRouteImport } from './routes/login/index'
-import { Route as ForgotPasswordIndexRouteImport } from './routes/forgot-password/index'
-import { Route as AcceptInvitationIndexRouteImport } from './routes/accept-invitation/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
-import { Route as WorkspacePreviewSandboxIndexRouteImport } from './routes/workspace-preview/sandbox/index'
-import { Route as WorkspacePreviewAgendaIndexRouteImport } from './routes/workspace-preview/agenda/index'
-import { Route as AuthenticatedServiceDeskIndexRouteImport } from './routes/_authenticated/service-desk/index'
-import { Route as AuthenticatedReportsIndexRouteImport } from './routes/_authenticated/reports/index'
-import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
-import { Route as AuthenticatedPreferencesIndexRouteImport } from './routes/_authenticated/preferences/index'
-import { Route as AuthenticatedOverviewIndexRouteImport } from './routes/_authenticated/overview/index'
-import { Route as AuthenticatedNotificationsIndexRouteImport } from './routes/_authenticated/notifications/index'
-import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated/clients/index'
-import { Route as AuthenticatedCashIndexRouteImport } from './routes/_authenticated/cash/index'
-import { Route as AuthenticatedBarbershopSetupIndexRouteImport } from './routes/_authenticated/barbershop-setup/index'
+import { Route as AcceptInvitationIndexRouteImport } from './routes/accept-invitation/index'
+import { Route as ForgotPasswordIndexRouteImport } from './routes/forgot-password/index'
+import { Route as LoginIndexRouteImport } from './routes/login/index'
+import { Route as ResetPasswordIndexRouteImport } from './routes/reset-password/index'
+import { Route as WorkspacePreviewIndexRouteImport } from './routes/workspace-preview/index'
 import { Route as AuthenticatedAgendaIndexRouteImport } from './routes/_authenticated/agenda/index'
+import { Route as AuthenticatedBarbershopSetupIndexRouteImport } from './routes/_authenticated/barbershop-setup/index'
+import { Route as AuthenticatedCashIndexRouteImport } from './routes/_authenticated/cash/index'
+import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated/clients/index'
+import { Route as AuthenticatedNotificationsIndexRouteImport } from './routes/_authenticated/notifications/index'
+import { Route as AuthenticatedOverviewIndexRouteImport } from './routes/_authenticated/overview/index'
+import { Route as AuthenticatedPreferencesIndexRouteImport } from './routes/_authenticated/preferences/index'
+import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
+import { Route as AuthenticatedReportsIndexRouteImport } from './routes/_authenticated/reports/index'
+import { Route as AuthenticatedServiceDeskIndexRouteImport } from './routes/_authenticated/service-desk/index'
+import { Route as WorkspacePreviewAgendaIndexRouteImport } from './routes/workspace-preview/agenda/index'
+import { Route as WorkspacePreviewSandboxIndexRouteImport } from './routes/workspace-preview/sandbox/index'
 import { Route as AuthenticatedServiceDeskSessionIdIndexRouteImport } from './routes/_authenticated/service-desk/$sessionId/index'
 import { Route as AuthenticatedServiceDeskSessionIdCheckoutIndexRouteImport } from './routes/_authenticated/service-desk/$sessionId/checkout/index'
 
@@ -35,19 +35,14 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkspacePreviewIndexRoute = WorkspacePreviewIndexRouteImport.update({
-  id: '/workspace-preview/',
-  path: '/workspace-preview/',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const ResetPasswordIndexRoute = ResetPasswordIndexRouteImport.update({
-  id: '/reset-password/',
-  path: '/reset-password/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginIndexRoute = LoginIndexRouteImport.update({
-  id: '/login/',
-  path: '/login/',
+const AcceptInvitationIndexRoute = AcceptInvitationIndexRouteImport.update({
+  id: '/accept-invitation/',
+  path: '/accept-invitation/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordIndexRoute = ForgotPasswordIndexRouteImport.update({
@@ -55,56 +50,42 @@ const ForgotPasswordIndexRoute = ForgotPasswordIndexRouteImport.update({
   path: '/forgot-password/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AcceptInvitationIndexRoute = AcceptInvitationIndexRouteImport.update({
-  id: '/accept-invitation/',
-  path: '/accept-invitation/',
+const LoginIndexRoute = LoginIndexRouteImport.update({
+  id: '/login/',
+  path: '/login/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ResetPasswordIndexRoute = ResetPasswordIndexRouteImport.update({
+  id: '/reset-password/',
+  path: '/reset-password/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkspacePreviewIndexRoute = WorkspacePreviewIndexRouteImport.update({
+  id: '/workspace-preview/',
+  path: '/workspace-preview/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAgendaIndexRoute =
+  AuthenticatedAgendaIndexRouteImport.update({
+    id: '/agenda/',
+    path: '/agenda/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedBarbershopSetupIndexRoute =
+  AuthenticatedBarbershopSetupIndexRouteImport.update({
+    id: '/barbershop-setup/',
+    path: '/barbershop-setup/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCashIndexRoute = AuthenticatedCashIndexRouteImport.update({
+  id: '/cash/',
+  path: '/cash/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const WorkspacePreviewSandboxIndexRoute =
-  WorkspacePreviewSandboxIndexRouteImport.update({
-    id: '/workspace-preview/sandbox/',
-    path: '/workspace-preview/sandbox/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const WorkspacePreviewAgendaIndexRoute =
-  WorkspacePreviewAgendaIndexRouteImport.update({
-    id: '/workspace-preview/agenda/',
-    path: '/workspace-preview/agenda/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AuthenticatedServiceDeskIndexRoute =
-  AuthenticatedServiceDeskIndexRouteImport.update({
-    id: '/service-desk/',
-    path: '/service-desk/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedReportsIndexRoute =
-  AuthenticatedReportsIndexRouteImport.update({
-    id: '/reports/',
-    path: '/reports/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedProfileIndexRoute =
-  AuthenticatedProfileIndexRouteImport.update({
-    id: '/profile/',
-    path: '/profile/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedPreferencesIndexRoute =
-  AuthenticatedPreferencesIndexRouteImport.update({
-    id: '/preferences/',
-    path: '/preferences/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedOverviewIndexRoute =
-  AuthenticatedOverviewIndexRouteImport.update({
-    id: '/overview/',
-    path: '/overview/',
+const AuthenticatedClientsIndexRoute =
+  AuthenticatedClientsIndexRouteImport.update({
+    id: '/clients/',
+    path: '/clients/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedNotificationsIndexRoute =
@@ -113,28 +94,47 @@ const AuthenticatedNotificationsIndexRoute =
     path: '/notifications/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedClientsIndexRoute =
-  AuthenticatedClientsIndexRouteImport.update({
-    id: '/clients/',
-    path: '/clients/',
+const AuthenticatedOverviewIndexRoute =
+  AuthenticatedOverviewIndexRouteImport.update({
+    id: '/overview/',
+    path: '/overview/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedCashIndexRoute = AuthenticatedCashIndexRouteImport.update({
-  id: '/cash/',
-  path: '/cash/',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedBarbershopSetupIndexRoute =
-  AuthenticatedBarbershopSetupIndexRouteImport.update({
-    id: '/barbershop-setup/',
-    path: '/barbershop-setup/',
+const AuthenticatedPreferencesIndexRoute =
+  AuthenticatedPreferencesIndexRouteImport.update({
+    id: '/preferences/',
+    path: '/preferences/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedAgendaIndexRoute =
-  AuthenticatedAgendaIndexRouteImport.update({
-    id: '/agenda/',
-    path: '/agenda/',
+const AuthenticatedProfileIndexRoute =
+  AuthenticatedProfileIndexRouteImport.update({
+    id: '/profile/',
+    path: '/profile/',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReportsIndexRoute =
+  AuthenticatedReportsIndexRouteImport.update({
+    id: '/reports/',
+    path: '/reports/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedServiceDeskIndexRoute =
+  AuthenticatedServiceDeskIndexRouteImport.update({
+    id: '/service-desk/',
+    path: '/service-desk/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const WorkspacePreviewAgendaIndexRoute =
+  WorkspacePreviewAgendaIndexRouteImport.update({
+    id: '/workspace-preview/agenda/',
+    path: '/workspace-preview/agenda/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const WorkspacePreviewSandboxIndexRoute =
+  WorkspacePreviewSandboxIndexRouteImport.update({
+    id: '/workspace-preview/sandbox/',
+    path: '/workspace-preview/sandbox/',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedServiceDeskSessionIdIndexRoute =
   AuthenticatedServiceDeskSessionIdIndexRouteImport.update({
@@ -307,25 +307,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/workspace-preview/': {
-      id: '/workspace-preview/'
-      path: '/workspace-preview'
-      fullPath: '/workspace-preview/'
-      preLoaderRoute: typeof WorkspacePreviewIndexRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/': {
+      id: '/_authenticated/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/reset-password/': {
-      id: '/reset-password/'
-      path: '/reset-password'
-      fullPath: '/reset-password/'
-      preLoaderRoute: typeof ResetPasswordIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login/': {
-      id: '/login/'
-      path: '/login'
-      fullPath: '/login/'
-      preLoaderRoute: typeof LoginIndexRouteImport
+    '/accept-invitation/': {
+      id: '/accept-invitation/'
+      path: '/accept-invitation'
+      fullPath: '/accept-invitation/'
+      preLoaderRoute: typeof AcceptInvitationIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password/': {
@@ -335,88 +328,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/accept-invitation/': {
-      id: '/accept-invitation/'
-      path: '/accept-invitation'
-      fullPath: '/accept-invitation/'
-      preLoaderRoute: typeof AcceptInvitationIndexRouteImport
+    '/login/': {
+      id: '/login/'
+      path: '/login'
+      fullPath: '/login/'
+      preLoaderRoute: typeof LoginIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/': {
-      id: '/_authenticated/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/workspace-preview/sandbox/': {
-      id: '/workspace-preview/sandbox/'
-      path: '/workspace-preview/sandbox'
-      fullPath: '/workspace-preview/sandbox/'
-      preLoaderRoute: typeof WorkspacePreviewSandboxIndexRouteImport
+    '/reset-password/': {
+      id: '/reset-password/'
+      path: '/reset-password'
+      fullPath: '/reset-password/'
+      preLoaderRoute: typeof ResetPasswordIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/workspace-preview/agenda/': {
-      id: '/workspace-preview/agenda/'
-      path: '/workspace-preview/agenda'
-      fullPath: '/workspace-preview/agenda/'
-      preLoaderRoute: typeof WorkspacePreviewAgendaIndexRouteImport
+    '/workspace-preview/': {
+      id: '/workspace-preview/'
+      path: '/workspace-preview'
+      fullPath: '/workspace-preview/'
+      preLoaderRoute: typeof WorkspacePreviewIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/service-desk/': {
-      id: '/_authenticated/service-desk/'
-      path: '/service-desk'
-      fullPath: '/service-desk/'
-      preLoaderRoute: typeof AuthenticatedServiceDeskIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/reports/': {
-      id: '/_authenticated/reports/'
-      path: '/reports'
-      fullPath: '/reports/'
-      preLoaderRoute: typeof AuthenticatedReportsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/profile/': {
-      id: '/_authenticated/profile/'
-      path: '/profile'
-      fullPath: '/profile/'
-      preLoaderRoute: typeof AuthenticatedProfileIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/preferences/': {
-      id: '/_authenticated/preferences/'
-      path: '/preferences'
-      fullPath: '/preferences/'
-      preLoaderRoute: typeof AuthenticatedPreferencesIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/overview/': {
-      id: '/_authenticated/overview/'
-      path: '/overview'
-      fullPath: '/overview/'
-      preLoaderRoute: typeof AuthenticatedOverviewIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/notifications/': {
-      id: '/_authenticated/notifications/'
-      path: '/notifications'
-      fullPath: '/notifications/'
-      preLoaderRoute: typeof AuthenticatedNotificationsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/clients/': {
-      id: '/_authenticated/clients/'
-      path: '/clients'
-      fullPath: '/clients/'
-      preLoaderRoute: typeof AuthenticatedClientsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/cash/': {
-      id: '/_authenticated/cash/'
-      path: '/cash'
-      fullPath: '/cash/'
-      preLoaderRoute: typeof AuthenticatedCashIndexRouteImport
+    '/_authenticated/agenda/': {
+      id: '/_authenticated/agenda/'
+      path: '/agenda'
+      fullPath: '/agenda/'
+      preLoaderRoute: typeof AuthenticatedAgendaIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/barbershop-setup/': {
@@ -426,12 +363,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBarbershopSetupIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/agenda/': {
-      id: '/_authenticated/agenda/'
-      path: '/agenda'
-      fullPath: '/agenda/'
-      preLoaderRoute: typeof AuthenticatedAgendaIndexRouteImport
+    '/_authenticated/cash/': {
+      id: '/_authenticated/cash/'
+      path: '/cash'
+      fullPath: '/cash/'
+      preLoaderRoute: typeof AuthenticatedCashIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/clients/': {
+      id: '/_authenticated/clients/'
+      path: '/clients'
+      fullPath: '/clients/'
+      preLoaderRoute: typeof AuthenticatedClientsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notifications/': {
+      id: '/_authenticated/notifications/'
+      path: '/notifications'
+      fullPath: '/notifications/'
+      preLoaderRoute: typeof AuthenticatedNotificationsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/overview/': {
+      id: '/_authenticated/overview/'
+      path: '/overview'
+      fullPath: '/overview/'
+      preLoaderRoute: typeof AuthenticatedOverviewIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/preferences/': {
+      id: '/_authenticated/preferences/'
+      path: '/preferences'
+      fullPath: '/preferences/'
+      preLoaderRoute: typeof AuthenticatedPreferencesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/profile/': {
+      id: '/_authenticated/profile/'
+      path: '/profile'
+      fullPath: '/profile/'
+      preLoaderRoute: typeof AuthenticatedProfileIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reports/': {
+      id: '/_authenticated/reports/'
+      path: '/reports'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof AuthenticatedReportsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/service-desk/': {
+      id: '/_authenticated/service-desk/'
+      path: '/service-desk'
+      fullPath: '/service-desk/'
+      preLoaderRoute: typeof AuthenticatedServiceDeskIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/workspace-preview/agenda/': {
+      id: '/workspace-preview/agenda/'
+      path: '/workspace-preview/agenda'
+      fullPath: '/workspace-preview/agenda/'
+      preLoaderRoute: typeof WorkspacePreviewAgendaIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workspace-preview/sandbox/': {
+      id: '/workspace-preview/sandbox/'
+      path: '/workspace-preview/sandbox'
+      fullPath: '/workspace-preview/sandbox/'
+      preLoaderRoute: typeof WorkspacePreviewSandboxIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/service-desk/$sessionId/': {
       id: '/_authenticated/service-desk/$sessionId/'
