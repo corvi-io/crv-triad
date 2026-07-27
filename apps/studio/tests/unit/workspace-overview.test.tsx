@@ -4,13 +4,14 @@ import { describe, expect, it, vi } from "vitest"
 
 import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
 import { deriveDashboard } from "@/modules/scheduling/dashboard-projection"
+import { getScheduleRange } from "@/modules/scheduling/range"
 import { WorkspaceOverview } from "@/modules/shared/components/workspace-overview"
 
 const date = "2026-07-23"
 
 async function dashboardModel(scenarioId = "normal") {
   const repository = new SchedulingMemoryRepository(date)
-  const day = await repository.getDay({
+  const day = await getScheduleRange(repository, {
     endDate: date,
     focusDate: date,
     scenarioId,

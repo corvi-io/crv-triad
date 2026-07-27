@@ -89,6 +89,44 @@ test("shares stable sections, renders the complete overview, and passes focused 
   expect(results.violations).toEqual([])
 })
 
+test("exposes the six-step setup facts and payment policy without claiming authorization", async ({
+  page,
+}) => {
+  await page.goto(setupUrl())
+  for (const step of [
+    "Dados da barbearia",
+    "Horários",
+    "Profissionais",
+    "Serviços",
+    "Pagamentos e comissões",
+    "Revisão",
+  ]) {
+    await expect(page.getByText(step).first()).toBeVisible()
+  }
+
+  await page.getByRole("button", { name: "Dados" }).click()
+  await expect(page.getByLabel("Nome de exibição")).toHaveValue("Barbearia TRIAD")
+  await page.getByRole("button", { name: "Pagamentos" }).click()
+  await expect(page.getByRole("heading", { name: "Formas de pagamento" })).toBeVisible()
+  await expect(page.getByRole("switch", { name: "Aceitar Pagamento misto" })).toBeChecked()
+  await expect(page.getByText(/não processa pagamentos/i)).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Exceção por profissional" })).toBeVisible()
+  await page.screenshot({
+    fullPage: true,
+    path: "../../docs/studio/evidence/eng-55/setup-payments-light-1440.png",
+  })
+
+  await page.getByRole("button", { name: "Profissionais" }).click()
+  await page.getByRole("button", { name: "Novo profissional" }).click()
+  const specialties = page.getByLabel("Especialidades")
+  await expect(specialties).toBeEditable()
+  await specialties.fill("Corte, Barba e acabamento")
+  await expect(specialties).toHaveValue("Corte, Barba e acabamento")
+  await page.getByRole("dialog", { name: "Novo profissional" }).screenshot({
+    path: "../../docs/studio/evidence/eng-55/setup-professional-specialties-light-1440.png",
+  })
+})
+
 test("shows and operates catalog scrollbars only for real body overflow", async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 620 })
   await page.goto(setupUrl("dense-catalogs", "services"))

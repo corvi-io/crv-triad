@@ -19,6 +19,7 @@ import type {
   OperationalDayQuery,
   PaidSale,
   PaymentTender,
+  PrototypeCheckoutPolicy,
   ReplaceTendersInput,
   RevenueDashboardProjection,
   RevenueOperationsRepository,
@@ -43,6 +44,7 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
   readonly #serviceDesk: ServiceDeskRepository
   readonly #scheduling: SchedulingRepository
   readonly #clock: Clock
+  readonly #checkoutPolicy: PrototypeCheckoutPolicy
   #generation = 0
   #failedNext = new Set<string>()
   readonly #seedingPaid = new Set<string>()
@@ -55,10 +57,13 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     serviceDesk: ServiceDeskRepository,
     schedulingOrClock: SchedulingRepository | Clock = emptySchedulingRepository,
     clock: Clock = { now: () => new Date() },
+    checkoutPolicy: PrototypeCheckoutPolicy = defaultCheckoutPolicy,
   ) {
     this.#serviceDesk = serviceDesk
-    this.#scheduling = "getDay" in schedulingOrClock ? schedulingOrClock : emptySchedulingRepository
+    this.#scheduling =
+      "getRange" in schedulingOrClock ? schedulingOrClock : emptySchedulingRepository
     this.#clock = "now" in schedulingOrClock ? schedulingOrClock : clock
+    this.#checkoutPolicy = checkoutPolicy
   }
 
   async getCheckout(sessionId: string) {
@@ -135,13 +140,23 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
 
   async replaceTenders(input: ReplaceTendersInput) {
     const checkout = await this.#openCheckout(input.sessionId)
+    if (input.tenders.some(({ method }) => !checkout.availableTenderMethods.includes(method))) {
+      throw new RevenueOperationsError(
+        "A forma de pagamento não está disponível nesta barbearia.",
+        "invalid-tender",
+      )
+    }
     tenderSummary(input.tenders, checkout.totalCents)
     return this.#commitCheckout(input.sessionId, { ...checkout, tenders: [...input.tenders] })
   }
 
   async previewCommissions(sessionId: string) {
     const checkout = await this.getCheckout(sessionId)
-    return checkout.lines.map((line) => calculateCommission(line, commissionRule(line, sessionId)))
+    return Promise.all(
+      checkout.lines.map(async (line) =>
+        calculateCommission(line, await this.#commissionRule(line, sessionId)),
+      ),
+    )
   }
 
   async completePayment(input: CompletePaymentInput) {
@@ -172,8 +187,10 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     }
     if (scenario === "checkout-slow") await delay(900)
     this.#assertGeneration(generation)
-    const commissions = checkout.lines.map((line) =>
-      calculateCommission(line, commissionRule(line, input.sessionId)),
+    const commissions = await Promise.all(
+      checkout.lines.map(async (line) =>
+        calculateCommission(line, await this.#commissionRule(line, input.sessionId)),
+      ),
     )
     const completedAt = this.#clock.now().toISOString()
     const sale: PaidSale = {
@@ -202,6 +219,39 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
 
   async getPaidSale(sessionId: string) {
     return structuredClone(this.#paidSales.get(sessionId))
+  }
+
+  async #commissionRule(line: CheckoutLine, sessionId: string): Promise<CommissionRule> {
+    const scenario = scenarioFromSession(sessionId)
+    if (scenario === "checkout-no-commission") {
+      return { id: "rule-no-commission", kind: "none", source: "service-professional" }
+    }
+    if (scenario === "checkout-surcharge") {
+      return {
+        id: "rule-service-professional-percentage",
+        kind: "percentage",
+        rateBasisPoints: 4_500,
+        source: "service-professional",
+      }
+    }
+    if (scenario === "checkout-fixed-commission" || line.serviceId === "service-fade") {
+      return {
+        fixedCents: 1200,
+        id: "rule-service-professional-fixed",
+        kind: "fixed",
+        source: "service-professional",
+      }
+    }
+    return {
+      id: "rule-professional-default",
+      kind: "percentage",
+      rateBasisPoints:
+        (await this.#checkoutPolicy.getCommissionRateBasisPoints(
+          line.professionalId,
+          line.serviceId,
+        )) ?? 4_000,
+      source: "professional-default",
+    }
   }
 
   async listPaidSales() {
@@ -430,7 +480,7 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
   }
 
   async #projectOpenDay(query: OperationalDayQuery): Promise<OpenDaySummary> {
-    const schedulingDay = await this.#scheduling.getDay({
+    const schedulingDay = await this.#scheduling.getRange({
       endDate: query.date,
       focusDate: query.date,
       scenarioId: "all-statuses",
@@ -480,9 +530,11 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     }))
     const lines = projectLines(rawLines, adjustments.discountCents, adjustments.surchargeCents)
     const totalCents = lines.reduce((sum, line) => sum + line.netCents, 0)
+    const availableTenderMethods = await this.#checkoutPolicy.getActivePaymentMethodIds()
     return {
       adjustmentAuthorized: scenario !== "checkout-unauthorized",
       adjustments,
+      availableTenderMethods,
       appointmentId: handoff.appointmentId,
       customerName: handoff.customerName,
       finishedAt: handoff.finishedAt,
@@ -556,35 +608,6 @@ function projectLines(
   return lines.map((line) => ({ ...line, netCents: allocations.get(line.id) ?? 0 }))
 }
 
-function commissionRule(line: CheckoutLine, sessionId: string): CommissionRule {
-  const scenario = scenarioFromSession(sessionId)
-  if (scenario === "checkout-no-commission") {
-    return { id: "rule-no-commission", kind: "none", source: "service-professional" }
-  }
-  if (scenario === "checkout-surcharge") {
-    return {
-      id: "rule-service-professional-percentage",
-      kind: "percentage",
-      rateBasisPoints: 4_500,
-      source: "service-professional",
-    }
-  }
-  if (scenario === "checkout-fixed-commission" || line.serviceId === "service-fade") {
-    return {
-      fixedCents: 1200,
-      id: "rule-service-professional-fixed",
-      kind: "fixed",
-      source: "service-professional",
-    }
-  }
-  return {
-    id: "rule-professional-default",
-    kind: "percentage",
-    rateBasisPoints: 4_000,
-    source: "professional-default",
-  }
-}
-
 function scenarioTenders(scenario: string, totalCents: number): PaymentTender[] {
   if (scenario === "checkout-cash") {
     return [
@@ -643,6 +666,15 @@ function localDate(date: Date) {
   return `${year}-${month}-${day}`
 }
 
+const defaultCheckoutPolicy: PrototypeCheckoutPolicy = {
+  async getActivePaymentMethodIds() {
+    return ["pix", "cash", "debit", "credit"]
+  },
+  async getCommissionRateBasisPoints() {
+    return undefined
+  },
+}
+
 function shiftDate(date: string, days: number) {
   const value = new Date(`${date}T12:00:00`)
   value.setDate(value.getDate() + days)
@@ -656,13 +688,14 @@ const emptySchedulingRepository: SchedulingRepository = {
   async create() {
     throw new Error("Scheduling is unavailable.")
   },
-  async getDay(query) {
+  async getRange(query) {
     return {
       appointments: [],
       date: query.focusDate ?? query.startDate,
       endTime: "18:00",
       occupancies: [],
       periods: [],
+      professionalOptions: [],
       professionals: [],
       services: [],
       startTime: "08:00",

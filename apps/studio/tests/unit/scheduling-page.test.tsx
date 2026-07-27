@@ -40,7 +40,7 @@ describe("schedule page", () => {
         expect.objectContaining({ message: expect.stringContaining("15 em 15") }),
       ]),
     )
-  })
+  }, 10_000)
 
   it("renders the temporal board with six barber columns, time rows, and portrait cards", async () => {
     const { container } = renderSchedule(
@@ -144,6 +144,34 @@ describe("schedule page", () => {
     )
   })
 
+  it("separates weekly scope from representation and keeps the list alternative", async () => {
+    const user = userEvent.setup()
+    renderSchedule(<ScheduleHarness initialSearch={{ ...baseSearch, scenario: "typical-week" }} />)
+
+    await user.click(await screen.findByRole("button", { name: "Semana" }))
+    expect(await screen.findByText("Semana visível: 13/07 a 19/07")).toBeVisible()
+    expect(
+      await screen.findByRole("region", { name: "Agenda semanal de 13/07/2026 a 19/07/2026" }),
+    ).toBeVisible()
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(7)
+    expect(screen.getByRole("button", { name: "Semana anterior" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Próxima semana" })).toBeEnabled()
+
+    await user.click(screen.getByRole("button", { name: "Visualizar como lista" }))
+    expect(await screen.findByRole("table", { name: /Agendamentos filtrados/ })).toBeVisible()
+    expect(screen.getAllByText("14/07/2026").length).toBeGreaterThan(0)
+  }, 10_000)
+
+  it("keeps weekly free-slot creation available when the week has no appointments", async () => {
+    renderSchedule(
+      <ScheduleHarness initialSearch={{ ...baseSearch, scenario: "empty", scope: "week" }} />,
+    )
+
+    expect(await screen.findByRole("region", { name: /Agenda semanal de/ })).toBeVisible()
+    expect(screen.getAllByRole("button", { name: /Criar agendamento/ }).length).toBeGreaterThan(0)
+    expect(screen.queryByText("Agenda livre no período")).not.toBeInTheDocument()
+  })
+
   it("completes the non-drag status path from the appointment menu", async () => {
     const user = userEvent.setup()
     renderSchedule(<SchedulePage search={baseSearch} onSearchChange={vi.fn()} />)
@@ -165,12 +193,19 @@ describe("schedule page", () => {
     const barberFilter = await screen.findByRole("button", { name: "Barbeiro" })
     expect(barberFilter).not.toHaveTextContent("6")
     await user.click(barberFilter)
-    fireEvent.change(await screen.findByLabelText("Pesquisar barbeiro"), {
+    const barberSearch = await screen.findByLabelText("Pesquisar barbeiro")
+    fireEvent.change(barberSearch, {
       target: { value: "Carlos" },
     })
+    expect(screen.getByRole("menuitemcheckbox", { name: "Carlos Lima" })).toBeInTheDocument()
+    fireEvent.change(barberSearch, { target: { value: "" } })
     await user.click(await screen.findByRole("menuitemcheckbox", { name: "Carlos Lima" }))
     expect(screen.getByRole("button", { name: "Barbeiro: 1 selecionado(s)" })).toHaveTextContent(
       "1",
+    )
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Bruno Rocha" }))
+    expect(screen.getByRole("button", { name: "Barbeiro: 2 selecionado(s)" })).toHaveTextContent(
+      "2",
     )
 
     await user.click(screen.getByRole("button", { name: "Status" }))

@@ -91,6 +91,7 @@ const day: ScheduleDay = {
   occupancies: [],
   periods: [
     {
+      date,
       end: "12:00",
       id: "break-one",
       kind: "break",
@@ -99,6 +100,7 @@ const day: ScheduleDay = {
       start: "11:00",
     },
   ],
+  professionalOptions: professionals,
   professionals,
   services,
   startTime: "08:00",

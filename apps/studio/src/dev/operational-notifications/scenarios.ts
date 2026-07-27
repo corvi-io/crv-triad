@@ -47,6 +47,7 @@ const upcoming = {
   professionalId: "professional-ana",
 }
 const blockedPeriod: SchedulePeriod = {
+  date: "2026-07-24",
   end: "17:00",
   id: "blocked-slot",
   kind: "blocked",
@@ -230,6 +231,7 @@ function checkout(id: string, status: Checkout["status"]): Checkout {
   return {
     adjustmentAuthorized: true,
     adjustments: { discountCents: 0, surchargeCents: 0 },
+    availableTenderMethods: ["pix", "cash", "debit", "credit"],
     customerName: "Pessoa em pagamento",
     finishedAt: "2026-07-24T14:50:00-03:00",
     id,

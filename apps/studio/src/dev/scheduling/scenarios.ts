@@ -190,6 +190,15 @@ const priorNormalFixtures: readonly Appointment[] = approvedBoardFixtures
     id: `normal-prior-${String(index + 1).padStart(2, "0")}`,
   }))
 
+const weeklyNormalFixtures: readonly Appointment[] = Array.from({ length: 4 }, (_, dayIndex) =>
+  approvedBoardFixtures.slice(dayIndex * 2, dayIndex * 2 + 3).map((source, itemIndex) => ({
+    ...source,
+    clientId: `${source.clientId}-week-${dayIndex}-${itemIndex}`,
+    date: `2026-07-${String(14 + dayIndex).padStart(2, "0")}`,
+    id: `normal-week-${dayIndex + 1}-${itemIndex + 1}`,
+  })),
+).flat()
+
 export const normalSchedulingFixtures: readonly Appointment[] = [
   ...approvedBoardFixtures,
   ...priorNormalFixtures,
@@ -217,6 +226,12 @@ export const schedulingScenarios: readonly ScenarioDefinition<Appointment>[] = [
     description:
       "Seis barbeiros, jornada atual preenchida e período anterior comparável para a avaliação principal.",
     records: normalSchedulingFixtures,
+  },
+  {
+    id: "typical-week",
+    label: "Semana típica",
+    description: "Agendamentos distribuídos pelos sete dias visíveis.",
+    records: [...approvedBoardFixtures.slice(0, 6), ...weeklyNormalFixtures],
   },
   { id: "empty", label: "Vazio", description: "Período sem agendamentos.", records: [] },
   {

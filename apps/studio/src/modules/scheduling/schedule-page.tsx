@@ -12,9 +12,9 @@ import {
   type AgendaColumnId,
   deriveAgendaResult,
   parseIdList,
-  periodBounds,
   primaryStatusForColumn,
   type ScheduleSearch,
+  visibleScheduleBounds,
 } from "./agenda"
 import { AgendaBoard, type AgendaDropDestination, makeSlots, toMinutes } from "./agenda-board"
 import { AgendaControls } from "./agenda-controls"
@@ -35,6 +35,8 @@ import {
 } from "./queries"
 import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
 import { TransitionDialog } from "./transition-dialog"
+import { type WeeklyDropDestination, weeklyDropError } from "./weekly-agenda"
+import { WeeklyBoard } from "./weekly-board"
 
 export type { ScheduleSearch } from "./agenda"
 
@@ -45,19 +47,24 @@ export function SchedulePage({
   onSearchChange: (next: Partial<ScheduleSearch>) => void
   search: ScheduleSearch
 }) {
-  const bounds = periodBounds(search.date, search.period, search.customStart, search.customEnd)
+  const [searchText, setSearchText] = useState("")
+  const debouncedSearchText = useDebouncedValue(searchText, 250)
+  const bounds = visibleScheduleBounds(search)
   const query: ScheduleDayQuery = {
+    clientIds: parseIdList(search.client),
     endDate: bounds.endDate,
+    professionalIds: parseIdList(search.professional),
     scenarioId: search.scenario,
+    search: debouncedSearchText,
+    serviceIds: parseIdList(search.service),
     startDate: bounds.startDate,
+    statusIds: parseIdList(search.status) as AppointmentStatus[],
     unitId: search.unit,
   }
   const dayQuery = useScheduleDay(query)
   const scenarios = useScenarioActions(query)
   const transitionMutation = useTransitionAppointment()
   const rescheduleMutation = useRescheduleAppointment()
-  const [searchText, setSearchText] = useState("")
-  const debouncedSearchText = useDebouncedValue(searchText, 250)
   const [announcement, setAnnouncement] = useState("")
   const [transitionRequest, setTransitionRequest] = useState<{
     appointment: Appointment
@@ -66,7 +73,7 @@ export function SchedulePage({
   const [drawer, setDrawer] = useState<{
     appointment?: Appointment
     mode: DrawerMode
-    slot?: { professionalId: string; start: string }
+    slot?: { date?: string; professionalId: string; start: string }
   } | null>(null)
   const consumedAppointment = useRef<string | undefined>(undefined)
 
@@ -89,43 +96,29 @@ export function SchedulePage({
         dayQuery.data?.professionals ?? [],
         dayQuery.data?.services ?? [],
         {
-          clientIds: parseIdList(search.client),
+          clientIds: [],
           endDate: bounds.endDate,
-          professionalIds: parseIdList(search.professional),
-          searchText: debouncedSearchText,
-          serviceIds: parseIdList(search.service),
+          professionalIds: [],
+          searchText: "",
+          serviceIds: [],
           startDate: bounds.startDate,
-          statusIds: parseIdList(search.status) as AppointmentStatus[],
+          statusIds: [],
           unitId: search.unit,
         },
       ),
-    [
-      bounds.endDate,
-      bounds.startDate,
-      dayQuery.data,
-      debouncedSearchText,
-      search.client,
-      search.professional,
-      search.service,
-      search.status,
-      search.unit,
-    ],
+    [bounds.endDate, bounds.startDate, dayQuery.data, search.unit],
   )
 
   const boardDay = useMemo(() => {
     if (!dayQuery.data) return undefined
-    const selectedProfessionalIds = parseIdList(search.professional)
     return {
       ...dayQuery.data,
       appointments: result.appointments.filter(({ date }) => date === bounds.startDate),
       date: bounds.startDate,
       occupancies: dayQuery.data.occupancies.filter(({ date }) => date === bounds.startDate),
-      professionals:
-        selectedProfessionalIds.length > 0
-          ? dayQuery.data.professionals.filter(({ id }) => selectedProfessionalIds.includes(id))
-          : dayQuery.data.professionals,
+      professionals: dayQuery.data.professionals,
     }
-  }, [bounds.startDate, dayQuery.data, result.appointments, search.professional])
+  }, [bounds.startDate, dayQuery.data, result.appointments])
 
   async function selectScenario(id: string) {
     await scenarios.select(id)
@@ -201,7 +194,7 @@ export function SchedulePage({
 
   async function rescheduleAppointment(
     appointment: Appointment,
-    destination: AgendaDropDestination,
+    destination: AgendaDropDestination & { date?: string },
   ) {
     if (rescheduleMutation.isPending) {
       setAnnouncement("Aguarde a remarcação atual terminar.")
@@ -213,6 +206,7 @@ export function SchedulePage({
     }
     if (
       appointment.professionalId === destination.professionalId &&
+      appointment.date === (destination.date ?? appointment.date) &&
       appointment.start === destination.start
     ) {
       setAnnouncement("O agendamento já está nesse horário e barbeiro.")
@@ -240,7 +234,7 @@ export function SchedulePage({
       await rescheduleMutation.mutateAsync({ appointment, ...destination })
       toast.success(`Agendamento remarcado para ${destination.start} com ${professional.name}.`)
       setAnnouncement(
-        `${appointment.customerName} remarcado para ${destination.start} com ${professional.name}. O status não foi alterado.`,
+        `${appointment.customerName} remarcado para ${destination.date ?? appointment.date} às ${destination.start} com ${professional.name}. O status não foi alterado.`,
       )
     } catch (error) {
       const reason =
@@ -257,6 +251,20 @@ export function SchedulePage({
           ?.focus()
       })
     }
+  }
+
+  function rescheduleWeeklyAppointment(
+    appointment: Appointment,
+    destination: WeeklyDropDestination,
+  ) {
+    if (!dayQuery.data) return
+    const error = weeklyDropError(dayQuery.data, appointment, destination)
+    if (error) {
+      toast.error(`${error} O agendamento foi restaurado.`)
+      setAnnouncement(`${error} O agendamento foi restaurado.`)
+      return
+    }
+    void rescheduleAppointment(appointment, destination)
   }
 
   return (
@@ -276,7 +284,7 @@ export function SchedulePage({
           />
           <AgendaControls
             appointments={dayQuery.data?.appointments ?? []}
-            professionals={dayQuery.data?.professionals ?? []}
+            professionals={dayQuery.data?.professionalOptions ?? []}
             scenarios={scenarios.scenarios}
             search={search}
             searchText={searchText}
@@ -295,7 +303,15 @@ export function SchedulePage({
       ) : dayQuery.isError ? (
         <ScheduleError onRetry={() => dayQuery.refetch()} />
       ) : dayQuery.data && boardDay ? (
-        result.total === 0 ? (
+        search.view === "board" && search.scope === "week" ? (
+          <WeeklyBoard
+            appointments={result.appointments}
+            range={{ ...dayQuery.data, date: bounds.startDate }}
+            onAppointment={(appointment) => setDrawer({ appointment, mode: "view" })}
+            onCreate={(slot) => setDrawer({ mode: "create", slot })}
+            onDropAppointment={rescheduleWeeklyAppointment}
+          />
+        ) : result.total === 0 ? (
           <EmptyState
             action={
               hasActiveFilters ? (
@@ -347,7 +363,7 @@ export function SchedulePage({
           isOpen
           mode={drawer.mode}
           professionals={dayQuery.data.professionals}
-          selectedDate={bounds.startDate}
+          selectedDate={drawer.slot?.date ?? bounds.startDate}
           selectedUnit={search.unit}
           services={dayQuery.data.services}
           onModeChange={(mode) => setDrawer((current) => (current ? { ...current, mode } : null))}

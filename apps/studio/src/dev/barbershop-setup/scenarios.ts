@@ -1,4 +1,5 @@
 import type { ScenarioDefinition } from "@/dev/mock-engine"
+import { createDefaultAccessPolicy } from "@/modules/barbershop-setup/completion"
 import type {
   AccountAccessStatus,
   AvailabilityTimeBlock,
@@ -45,10 +46,15 @@ function professional(
   accountAccess: AccountAccessStatus = "connected",
 ): SetupProfessional {
   return {
+    accessPolicy: createDefaultAccessPolicy(),
     id,
     kind: "professional",
     name,
     role: "Profissional de atendimento",
+    contactEmail: `${id}@example.test`,
+    contactPhone: "81999990000",
+    commissionBasisPoints: 5000,
+    specialties: ["Corte", "Barba"],
     unitIds,
     serviceIds,
     accountAccess,

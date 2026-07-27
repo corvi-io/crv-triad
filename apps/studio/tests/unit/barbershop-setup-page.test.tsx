@@ -6,8 +6,13 @@ import { describe, expect, it } from "vitest"
 import { resolveBarbershopSetupScenario } from "@/dev/barbershop-setup/entry"
 import { BarbershopSetupMemoryRepository } from "@/dev/barbershop-setup/memory-repository"
 import { projectAvailability } from "@/modules/barbershop-setup/availability-dates"
+import { professionalServiceOverrideDraft } from "@/modules/barbershop-setup/completion-sections"
 import type { SetupScenarioId, SetupSection } from "@/modules/barbershop-setup/contracts"
-import { serviceFormSchema, unitFormSchema } from "@/modules/barbershop-setup/entity-drawer"
+import {
+  professionalFormSchema,
+  serviceFormSchema,
+  unitFormSchema,
+} from "@/modules/barbershop-setup/entity-drawer"
 import { barbershopSetupQueryKeys } from "@/modules/barbershop-setup/queries"
 import { BarbershopSetupRepositoryProvider } from "@/modules/barbershop-setup/repository-context"
 import type { BarbershopSetupSearch } from "@/modules/barbershop-setup/search"
@@ -68,6 +73,27 @@ describe("barbershop setup module", () => {
     ).toBeVisible()
   })
 
+  it("renders the six-step journey and editable business and payment facts", async () => {
+    const user = userEvent.setup()
+    renderSetup("single-unit")
+    for (const step of [
+      "Dados da barbearia",
+      "Horários",
+      "Profissionais",
+      "Serviços",
+      "Pagamentos e comissões",
+      "Revisão",
+    ]) {
+      expect((await screen.findAllByText(step)).length).toBeGreaterThan(0)
+    }
+    await user.click(screen.getByRole("button", { name: "Dados" }))
+    expect(await screen.findByLabelText("Nome de exibição")).toHaveValue("Barbearia TRIAD")
+    await user.click(screen.getByRole("button", { name: "Pagamentos" }))
+    expect(await screen.findByRole("heading", { name: "Formas de pagamento" })).toBeVisible()
+    expect(screen.getByRole("switch", { name: "Aceitar Pagamento misto" })).toBeChecked()
+    expect(screen.getByRole("heading", { name: "Exceção por profissional" })).toBeVisible()
+  }, 10_000)
+
   it("shows field errors in Portuguese and focuses the first invalid field", async () => {
     const user = userEvent.setup()
     renderSetup("new-business", "units")
@@ -77,6 +103,81 @@ describe("barbershop setup module", () => {
     expect(await screen.findByText("Informe um nome com pelo menos 2 caracteres.")).toBeVisible()
     expect(name).toHaveAttribute("aria-invalid", "true")
     expect(name).toHaveFocus()
+  })
+
+  it("focuses each first invalid required business contact and Select field", async () => {
+    const user = userEvent.setup()
+    renderSetup("new-business", "business")
+    const name = await screen.findByLabelText("Nome de exibição")
+    await user.type(name, "Barbearia Teste")
+    const save = screen.getByRole("button", { name: "Salvar dados" })
+
+    await user.click(save)
+    const phone = screen.getByLabelText("Telefone")
+    expect(phone).toHaveFocus()
+    expect(phone).toHaveAttribute("aria-describedby", "barbershop-phone-error")
+    await user.type(phone, "81999999999")
+    await user.click(save)
+    const email = screen.getByLabelText("E-mail")
+    expect(email).toHaveFocus()
+    expect(email).toHaveAttribute("aria-describedby", "barbershop-email-error")
+    await user.type(email, "teste@example.com")
+    await user.click(save)
+    const unit = screen.getByRole("combobox", { name: "Unidade principal" })
+    expect(unit).toHaveFocus()
+    expect(unit).toHaveAttribute("aria-invalid", "true")
+    expect(unit).toHaveAttribute("aria-describedby", expect.stringContaining("error"))
+  })
+
+  it("hydrates existing professional overrides instead of silently clearing them", () => {
+    expect(
+      professionalServiceOverrideDraft(
+        [
+          {
+            durationMinutes: 60,
+            priceCents: 7_500,
+            professionalId: "professional-alpha",
+            serviceId: "service-classic",
+          },
+        ],
+        "service-classic",
+        "professional-alpha",
+      ),
+    ).toEqual({ duration: "60", price: "75" })
+  })
+
+  it("renders an editable specialties control with Portuguese validation", async () => {
+    const user = userEvent.setup()
+    renderSetup("single-unit", "professionals")
+    await user.click(await screen.findByRole("button", { name: "Novo profissional" }))
+    const specialties = await screen.findByLabelText("Especialidades")
+    await user.type(specialties, "Corte, Barba")
+    expect(specialties).toHaveValue("Corte, Barba")
+    expect(
+      professionalFormSchema
+        .safeParse({
+          accessPolicy: {
+            "access-other-professionals": false,
+            "change-prices": false,
+            "create-appointments": true,
+            "own-schedule-only": true,
+            "register-payments": false,
+            "view-commissions": false,
+            "view-revenue": false,
+          },
+          accountAccess: "not-configured",
+          commissionBasisPoints: 50,
+          contactEmail: "",
+          contactPhone: "81999999999",
+          kind: "professional",
+          name: "Pessoa Teste",
+          role: "Barbeiro",
+          serviceIds: [],
+          specialties: [],
+          unitIds: ["unit-center"],
+        })
+        .error?.issues.map(({ message }) => message),
+    ).toContain("Informe pelo menos uma especialidade.")
   })
 
   it("uses filtered availability keys and hides conflicts outside the visible relationship", async () => {

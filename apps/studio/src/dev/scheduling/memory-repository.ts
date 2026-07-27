@@ -1,6 +1,7 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns"
 import { MemoryScenarioEngine } from "@/dev/mock-engine/memory-scenario-engine"
 import type {
+  AppointmentCatalogPort,
   AppointmentInput,
   AppointmentTransitionInput,
   Professional,
@@ -10,7 +11,7 @@ import type {
   SchedulingRepository,
   Service,
 } from "@/modules/scheduling/contracts"
-import { ScheduleConflictError } from "@/modules/scheduling/contracts"
+import { ScheduleConflictError, ScheduleRangeError } from "@/modules/scheduling/contracts"
 import { SCHEDULING_FIXTURE_DATE, schedulingScenarios } from "./scenarios"
 
 const baseProfessionals: readonly Professional[] = [
@@ -61,17 +62,27 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   readonly #engine = new MemoryScenarioEngine(schedulingScenarios, "normal")
   #mutationFailureArmed = false
   readonly #projectionDate: string
+  readonly #catalog?: AppointmentCatalogPort
   #projectedScenarioId?: string
 
-  constructor(projectionDate = format(new Date(), "yyyy-MM-dd")) {
+  constructor(projectionDate = format(new Date(), "yyyy-MM-dd"), catalog?: AppointmentCatalogPort) {
     this.#projectionDate = projectionDate
+    this.#catalog = catalog
   }
 
   scenarios() {
     return schedulingScenarios.map(({ description, id, label }) => ({ description, id, label }))
   }
 
-  async getDay(query: ScheduleDayQuery): Promise<ScheduleDay> {
+  async getRange(query: ScheduleDayQuery): Promise<ScheduleDay> {
+    const rangeLength = differenceInCalendarDays(parseISO(query.endDate), parseISO(query.startDate))
+    if (
+      !Number.isFinite(rangeLength) ||
+      (rangeLength !== 0 && rangeLength !== 6) ||
+      (query.focusDate && (query.focusDate < query.startDate || query.focusDate > query.endDate))
+    ) {
+      throw new ScheduleRangeError("A Agenda aceita intervalos exatos de um ou sete dias.")
+    }
     if (query.scenarioId && query.scenarioId !== this.#engine.snapshot.scenarioId) {
       this.#engine.selectScenario(query.scenarioId)
       if (query.scenarioId === "next-failure") this.#engine.failNext()
@@ -82,17 +93,38 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
     const scenarioAppointments = this.#engine.values()
     const professionals = scenarioId === "many-professionals" ? allProfessionals : baseProfessionals
     return this.#engine.execute("list", () => {
-      const dayAppointments = scenarioAppointments.filter(
+      const boundedAppointments = scenarioAppointments.filter(
         (item) =>
           item.date >= query.startDate &&
           item.date <= query.endDate &&
           item.unitId === query.unitId,
       )
+      const professionalNames = new Map(professionals.map(({ id, name }) => [id, name]))
+      const serviceNames = new Map(services.map(({ id, name }) => [id, name]))
+      const needle = query.search?.trim().toLocaleLowerCase("pt-BR") ?? ""
+      const dayAppointments = boundedAppointments.filter(
+        (item) =>
+          (!query.professionalIds?.length || query.professionalIds.includes(item.professionalId)) &&
+          (!query.statusIds?.length || query.statusIds.includes(item.status)) &&
+          (!query.serviceIds?.length || query.serviceIds.includes(item.serviceId)) &&
+          (!query.clientIds?.length || query.clientIds.includes(item.clientId)) &&
+          (needle.length === 0 ||
+            [
+              item.customerName,
+              item.customerPhone,
+              professionalNames.get(item.professionalId),
+              serviceNames.get(item.serviceId),
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLocaleLowerCase("pt-BR")
+              .includes(needle)),
+      )
       return {
         appointments: dayAppointments,
         date: query.focusDate ?? query.startDate,
         endTime: "18:00",
-        occupancies: dayAppointments
+        occupancies: boundedAppointments
           .filter((item) => item.status !== "canceled" && item.status !== "no-show")
           .map(({ date, durationMinutes, id, professionalId, start }) => ({
             date,
@@ -101,8 +133,13 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
             professionalId,
             start,
           })),
-        periods: periodsFor(scenarioId),
-        professionals,
+        periods: periodsFor(scenarioId, this.#projectionDate).filter(
+          ({ date }) => date >= query.startDate && date <= query.endDate,
+        ),
+        professionalOptions: professionals,
+        professionals: query.professionalIds?.length
+          ? professionals.filter(({ id }) => query.professionalIds?.includes(id))
+          : professionals,
         services,
         startTime: "08:00",
         unitName: query.unitId === "centro" ? "Centro" : "Artesão",
@@ -111,9 +148,11 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   }
 
   async create(input: AppointmentInput) {
+    const resolved = await this.#catalog?.resolveAppointmentService(input)
+    const next = { ...input, ...resolved }
     return this.#engine.execute("create", () => {
-      this.#assertValid(input)
-      return this.#engine.create(input, "appointment")
+      this.#assertValid(next)
+      return this.#engine.create(next, "appointment")
     })
   }
 
@@ -122,7 +161,7 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
       this.#mutationFailureArmed = false
       this.#engine.failNext()
     }
-    return this.#engine.execute("update", () => {
+    return this.#engine.execute("update", async () => {
       const current = this.#engine.get(id)
       if (!current) throw new Error("Agendamento não encontrado.")
       if (
@@ -147,8 +186,12 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
       ) {
         throw new ScheduleConflictError("Agendamentos finalizados não podem ser remarcados.")
       }
-      if (allocationChanged) this.#assertValid(input, id)
-      const updated = this.#engine.update(id, input)
+      const resolved = allocationChanged
+        ? await this.#catalog?.resolveAppointmentService(input)
+        : undefined
+      const next = { ...input, ...resolved }
+      if (allocationChanged) this.#assertValid(next, id)
+      const updated = this.#engine.update(id, next)
       if (!updated) throw new Error("Agendamento não encontrado.")
       return updated
     })
@@ -244,8 +287,12 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
         "Escolha um horário dentro do funcionamento, das 08:00 às 18:00.",
       )
     }
-    const overlapsUnavailablePeriod = periodsFor(this.#engine.snapshot.scenarioId).some(
+    const overlapsUnavailablePeriod = periodsFor(
+      this.#engine.snapshot.scenarioId,
+      this.#projectionDate,
+    ).some(
       (period) =>
+        period.date === input.date &&
         period.kind !== "walk-in" &&
         period.professionalId === input.professionalId &&
         start < minutes(period.end) &&
@@ -276,10 +323,11 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
   }
 }
 
-function periodsFor(scenarioId: string): readonly SchedulePeriod[] {
+function periodsFor(scenarioId: string, date: string): readonly SchedulePeriod[] {
   const base: SchedulePeriod[] = []
   if (scenarioId === "walk-in")
     base.push({
+      date,
       id: "walk-in-ana",
       kind: "walk-in",
       label: "Encaixe aguardando",
@@ -290,6 +338,7 @@ function periodsFor(scenarioId: string): readonly SchedulePeriod[] {
   if (scenarioId === "blocked")
     base.push(
       {
+        date,
         id: "break-bruno",
         kind: "break",
         label: "Pausa",
@@ -298,6 +347,7 @@ function periodsFor(scenarioId: string): readonly SchedulePeriod[] {
         end: "13:00",
       },
       {
+        date,
         id: "blocked-ana",
         kind: "blocked",
         label: "Indisponível",

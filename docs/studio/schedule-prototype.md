@@ -135,6 +135,27 @@ axe WCAG 2.2 A/AA checks. Real-device
 touch, VoiceOver/NVDA, and authenticated deployed `dev` review remain manual
 follow-ups.
 
+## ENG-55 Weekly Agenda
+
+Agenda URL state keeps temporal scope (`Dia` or `Semana`) separate from representation (`Quadro` or
+`Lista`). Weekly scope always queries exactly the Monday-through-Sunday interval containing the
+selected date. Previous week, next week, today, and direct date selection update only allowlisted,
+non-PII route values and announce the exact visible interval.
+
+The weekly board has seven day columns and bounded operating-hour rows. Cards expose date, time,
+professional, service, status, and overlap context; dated blocked, break, and walk-in periods are
+shown with their professional; open rows offer creation with date/time prefilled. General and
+professional-filtered weeks share the same derived result as the complete list alternative. At
+narrow widths the board owns horizontal scrolling while the list remains the keyboard and
+assistive-technology presentation.
+
+Eligible non-terminal pointer drag changes weekly date/time while preserving the professional.
+Professional changes remain in the appointment drawer, which is also the non-drag WCAG 2.5.7
+rescheduling path. Weekly destination validation rejects no-op, out-of-interval, closed-hours,
+blocked, conflict, insufficient-space, cross-professional, and terminal moves with pt-BR feedback.
+The repository generation and existing optimistic mutation contracts continue to handle stale
+operations, failure rollback, and reset.
+
 ## Backend And Observability Follow-ups
 
 A production API must define authorization, bounded server filtering, conflict detection,

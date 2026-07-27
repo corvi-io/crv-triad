@@ -7,6 +7,7 @@ import type {
   ScheduleDay,
   ScheduleDayQuery,
 } from "./contracts"
+import { getScheduleRange } from "./range"
 import { useSchedulingRepository } from "./repository-context"
 
 export const schedulingQueryKeys = {
@@ -18,7 +19,7 @@ export function useScheduleDay(query: ScheduleDayQuery) {
   const repository = useSchedulingRepository()
   return useQuery({
     queryKey: schedulingQueryKeys.day(query),
-    queryFn: () => repository.getDay(query),
+    queryFn: () => getScheduleRange(repository, query),
   })
 }
 
@@ -100,16 +101,19 @@ export function useTransitionAppointment() {
 
 export type AppointmentRescheduleInput = {
   appointment: Appointment
+  date?: string
   professionalId: string
   start: string
 }
 
 export function applyAppointmentReschedule(
   day: ScheduleDay,
-  { appointment: source, professionalId, start }: AppointmentRescheduleInput,
+  { appointment: source, date, professionalId, start }: AppointmentRescheduleInput,
 ): ScheduleDay {
   const appointments = day.appointments.map((appointment) =>
-    appointment.id === source.id ? { ...appointment, professionalId, start } : appointment,
+    appointment.id === source.id
+      ? { ...appointment, date: date ?? appointment.date, professionalId, start }
+      : appointment,
   )
   return {
     ...day,
@@ -130,8 +134,13 @@ export function useRescheduleAppointment() {
   const repository = useSchedulingRepository()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ appointment, professionalId, start }: AppointmentRescheduleInput) =>
-      repository.update(appointment.id, { ...appointment, professionalId, start }),
+    mutationFn: ({ appointment, date, professionalId, start }: AppointmentRescheduleInput) =>
+      repository.update(appointment.id, {
+        ...appointment,
+        date: date ?? appointment.date,
+        professionalId,
+        start,
+      }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: schedulingQueryKeys.all })
       const snapshots = queryClient.getQueriesData<ScheduleDay>({

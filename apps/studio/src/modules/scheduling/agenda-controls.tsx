@@ -1,7 +1,9 @@
-import { format } from "date-fns"
+import { addDays, format, parseISO } from "date-fns"
 import {
   BriefcaseBusinessIcon,
   CalendarRangeIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   Columns3Icon,
   ListIcon,
   MapPinIcon,
@@ -21,7 +23,11 @@ import {
   SingleSelectListFilter,
 } from "@/modules/shared/components/data-display/list-filter"
 import { ListSearchField } from "@/modules/shared/components/data-display/list-search-field"
-import { formatDateOnly, parseDateOnly } from "@/modules/shared/components/forms/date-picker"
+import {
+  DatePicker,
+  formatDateOnly,
+  parseDateOnly,
+} from "@/modules/shared/components/forms/date-picker"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Calendar } from "@/modules/shared/components/ui/calendar"
 import {
@@ -45,7 +51,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/modules/shared/components/ui/toggle-group"
 
 import type { ScheduleSearch } from "./agenda"
-import { parseIdList, periodBounds, serializeIdList } from "./agenda"
+import { parseIdList, periodBounds, serializeIdList, visibleScheduleBounds } from "./agenda"
 import type {
   Appointment,
   AppointmentStatus,
@@ -131,97 +137,172 @@ export function AgendaControls({
     search.unit !== "centro"
 
   return (
-    <fieldset className="flex min-w-0 items-center gap-1.5 overflow-x-auto rounded-lg border bg-card p-2">
-      <legend className="sr-only">Pesquisa, filtros e visualização da agenda</legend>
-      <ListSearchField
-        ref={searchRef}
-        aria-label="Buscar na agenda"
-        placeholder="Buscar cliente, barbeiro, serviço..."
-        value={searchText}
-        onChange={(event) => onSearchTextChange(event.currentTarget.value)}
-      >
-        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[0.65rem]">⌘K</kbd>
-      </ListSearchField>
-
-      <MultiSelectListFilter
-        icon={BriefcaseBusinessIcon}
-        id="professional-filter"
-        label="Barbeiro"
-        options={professionals.map(({ id, name }) => ({ label: name, value: id }))}
-        search={{ label: "Pesquisar barbeiro" }}
-        values={professionalIds}
-        onValuesChange={(values) => onSearchChange({ professional: serializeIdList(values) })}
-      />
-      <MultiSelectListFilter
-        icon={UsersIcon}
-        id="client-filter"
-        label="Cliente"
-        options={clients}
-        search={{ label: "Pesquisar cliente" }}
-        values={clientIds}
-        onValuesChange={(values) => onSearchChange({ client: serializeIdList(values) })}
-      />
-      <MultiSelectListFilter
-        icon={ScissorsIcon}
-        id="service-filter"
-        label="Serviço"
-        options={services.map(({ id, name }) => ({ label: name, value: id }))}
-        values={serviceIds}
-        onValuesChange={(values) => onSearchChange({ service: serializeIdList(values) })}
-      />
-      <MultiSelectListFilter
-        icon={SlidersHorizontalIcon}
-        id="status-filter"
-        label="Status"
-        options={statusOptions}
-        values={statusIds}
-        onValuesChange={(values) => onSearchChange({ status: serializeIdList(values) })}
-      />
-      <PeriodFilter search={search} onSearchChange={onSearchChange} />
-      <SingleSelectListFilter
-        icon={MapPinIcon}
-        id="unit-filter"
-        inactiveValue="centro"
-        label="Unidade"
-        options={[
-          { label: "Centro", value: "centro" },
-          { label: "Artesão", value: "artesao" },
-        ]}
-        value={search.unit}
-        onValueChange={(unit) => onSearchChange({ unit })}
-      />
-
-      <div className="ml-auto flex shrink-0 items-center gap-2">
+    <div className="grid min-w-0 gap-2">
+      <fieldset className="flex min-w-0 items-center gap-1.5 overflow-x-auto rounded-lg border bg-card p-2">
+        <legend className="sr-only">Pesquisa, filtros e visualização da agenda</legend>
         <ToggleGroup
-          aria-label="Visualização da agenda"
+          aria-label="Escopo temporal"
           spacing={0}
-          value={[search.view]}
+          value={[search.scope ?? "day"]}
           variant="brand"
           onValueChange={(values) => {
-            const view = values[0] as ScheduleSearch["view"] | undefined
-            if (view) onSearchChange({ view })
+            const scope = values[0] as ScheduleSearch["scope"] | undefined
+            if (scope) onSearchChange({ scope, period: scope === "week" ? "this-week" : "today" })
           }}
         >
-          <ToggleGroupItem aria-label="Visualizar como lista" className="min-w-20" value="list">
-            <ListIcon data-icon="inline-start" />
-            Lista
-          </ToggleGroupItem>
-          <ToggleGroupItem aria-label="Visualizar como quadro" className="min-w-20" value="board">
-            <Columns3Icon data-icon="inline-start" />
-            Quadro
-          </ToggleGroupItem>
+          <ToggleGroupItem value="day">Dia</ToggleGroupItem>
+          <ToggleGroupItem value="week">Semana</ToggleGroupItem>
         </ToggleGroup>
+        <ListSearchField
+          ref={searchRef}
+          aria-label="Buscar na agenda"
+          placeholder="Buscar cliente, barbeiro, serviço..."
+          value={searchText}
+          onChange={(event) => onSearchTextChange(event.currentTarget.value)}
+        >
+          <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[0.65rem]">⌘K</kbd>
+        </ListSearchField>
 
-        <DevelopmentMenu
-          hasActiveFilters={hasActiveFilters}
-          onClearFilters={onClearFilters}
-          onReset={onReset}
-          onScenarioChange={onScenarioChange}
-          scenarios={scenarios}
-          selectedScenario={search.scenario}
+        <MultiSelectListFilter
+          icon={BriefcaseBusinessIcon}
+          id="professional-filter"
+          label="Barbeiro"
+          options={professionals.map(({ id, name }) => ({ label: name, value: id }))}
+          search={{ label: "Pesquisar barbeiro" }}
+          values={professionalIds}
+          onValuesChange={(values) => onSearchChange({ professional: serializeIdList(values) })}
+        />
+        <MultiSelectListFilter
+          icon={UsersIcon}
+          id="client-filter"
+          label="Cliente"
+          options={clients}
+          search={{ label: "Pesquisar cliente" }}
+          values={clientIds}
+          onValuesChange={(values) => onSearchChange({ client: serializeIdList(values) })}
+        />
+        <MultiSelectListFilter
+          icon={ScissorsIcon}
+          id="service-filter"
+          label="Serviço"
+          options={services.map(({ id, name }) => ({ label: name, value: id }))}
+          values={serviceIds}
+          onValuesChange={(values) => onSearchChange({ service: serializeIdList(values) })}
+        />
+        <MultiSelectListFilter
+          icon={SlidersHorizontalIcon}
+          id="status-filter"
+          label="Status"
+          options={statusOptions}
+          values={statusIds}
+          onValuesChange={(values) => onSearchChange({ status: serializeIdList(values) })}
+        />
+        {(search.scope ?? "day") === "day" ? (
+          <PeriodFilter search={search} onSearchChange={onSearchChange} />
+        ) : null}
+        <SingleSelectListFilter
+          icon={MapPinIcon}
+          id="unit-filter"
+          inactiveValue="centro"
+          label="Unidade"
+          options={[
+            { label: "Centro", value: "centro" },
+            { label: "Artesão", value: "artesao" },
+          ]}
+          value={search.unit}
+          onValueChange={(unit) => onSearchChange({ unit })}
+        />
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <ToggleGroup
+            aria-label="Visualização da agenda"
+            spacing={0}
+            value={[search.view]}
+            variant="brand"
+            onValueChange={(values) => {
+              const view = values[0] as ScheduleSearch["view"] | undefined
+              if (view) onSearchChange({ view })
+            }}
+          >
+            <ToggleGroupItem aria-label="Visualizar como lista" className="min-w-20" value="list">
+              <ListIcon data-icon="inline-start" />
+              Lista
+            </ToggleGroupItem>
+            <ToggleGroupItem aria-label="Visualizar como quadro" className="min-w-20" value="board">
+              <Columns3Icon data-icon="inline-start" />
+              Quadro
+            </ToggleGroupItem>
+          </ToggleGroup>
+
+          <DevelopmentMenu
+            hasActiveFilters={hasActiveFilters}
+            onClearFilters={onClearFilters}
+            onReset={onReset}
+            onScenarioChange={onScenarioChange}
+            scenarios={scenarios}
+            selectedScenario={search.scenario}
+          />
+        </div>
+      </fieldset>
+      {search.scope === "week" ? (
+        <WeekNavigation search={search} onSearchChange={onSearchChange} />
+      ) : null}
+    </div>
+  )
+}
+
+function WeekNavigation({
+  search,
+  onSearchChange,
+}: {
+  search: ScheduleSearch
+  onSearchChange: (next: Partial<ScheduleSearch>) => void
+}) {
+  const bounds = visibleScheduleBounds(search)
+  const interval = `${formatDate(bounds.startDate)} a ${formatDate(bounds.endDate)}`
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2">
+      <Button
+        aria-label="Semana anterior"
+        size="icon-sm"
+        type="button"
+        variant="outline"
+        onClick={() =>
+          onSearchChange({ date: format(addDays(parseISO(search.date), -7), "yyyy-MM-dd") })
+        }
+      >
+        <ChevronLeftIcon />
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => onSearchChange({ date: formatDateOnly(new Date()) })}
+      >
+        Hoje
+      </Button>
+      <Button
+        aria-label="Próxima semana"
+        size="icon-sm"
+        type="button"
+        variant="outline"
+        onClick={() =>
+          onSearchChange({ date: format(addDays(parseISO(search.date), 7), "yyyy-MM-dd") })
+        }
+      >
+        <ChevronRightIcon />
+      </Button>
+      <div className="w-44">
+        <DatePicker
+          id="agenda-week-date"
+          placeholder="Escolher data"
+          value={search.date}
+          onValueChange={(date) => onSearchChange({ date })}
         />
       </div>
-    </fieldset>
+      <p aria-live="polite" className="text-sm font-medium">
+        Semana visível: {interval}
+      </p>
+    </div>
   )
 }
 

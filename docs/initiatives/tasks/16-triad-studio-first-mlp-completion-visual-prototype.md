@@ -16,21 +16,33 @@
   [ENG-54: Build the TRIAD Studio operational notifications visual prototype](https://linear.app/corvi-io/issue/ENG-54/build-the-triad-studio-operational-notifications-visual-prototype).
 - Linear initiative:
   [TRIAD Studio First MLP Completion Visual Prototype](https://linear.app/corvi-io/initiative/triad-studio-first-mlp-completion-visual-prototype-5aa3efee6495).
-- Delivery tasks:
-  - [ENG-55: Complete the TRIAD Studio setup, services, and professionals visual prototype](https://linear.app/corvi-io/issue/ENG-55/complete-the-triad-studio-setup-services-and-professionals-visual).
-  - [ENG-56: Build the TRIAD Studio weekly Agenda visual prototype](https://linear.app/corvi-io/issue/ENG-56/build-the-triad-studio-weekly-agenda-visual-prototype).
+- Final delivery task:
+  [ENG-55: Complete all remaining TRIAD Studio first visual MLP features](https://linear.app/corvi-io/issue/ENG-55/complete-all-remaining-triad-studio-first-visual-mlp-features).
+- Absorbed task:
+  [ENG-56: Build the TRIAD Studio weekly Agenda visual prototype](https://linear.app/corvi-io/issue/ENG-56/build-the-triad-studio-weekly-agenda-visual-prototype)
+  is duplicate/superseded by ENG-55.
+- Current delivery status:
+  - ENG-54 is `Done`; [PR #35](https://github.com/corvi-io/crv-triad/pull/35)
+    merged into `staging` at
+    `2c367b21fc4c517da09f954db34b67c646b3750c`.
+  - ENG-55 is `Ready`, unblocked, and is the single final delivery.
+  - ENG-56 is duplicate/superseded by ENG-55.
 
 ## Delivery Contract
 
-Deliver two ordered frontend-only tasks:
+Deliver one final frontend-only task with two internal workstreams:
 
 1. setup, services, and professionals completion;
 2. weekly Agenda completion.
 
-Task 1 is blocked by ENG-54. Task 2 is blocked by Task 1. Both use
-deterministic, resettable in-memory data in `local`/`dev`, remain disabled in
-`hml`/`prd`, and introduce no backend, persistence, production authorization,
-provider, polling, or realtime behavior.
+ENG-54 is complete, so ENG-55 is unblocked. Both workstreams use deterministic,
+resettable in-memory data in `local`/`dev`, remain disabled in `hml`/`prd`, and
+introduce no backend, persistence, production authorization, provider, polling,
+or realtime behavior.
+
+Use one branch, one PR, and one final merge. Keep commits, focused checks, and
+review evidence grouped by workstream. Partial completion of one workstream is
+not sufficient for `Done`.
 
 ## Shared Readiness Gate
 
@@ -82,22 +94,23 @@ provider, polling, or realtime behavior.
 - Do not log PII, business payloads, schedules, financial values, permissions,
   credentials, tokens, cookies, or private headers.
 
-## Task 1: Setup, Services, And Professionals Completion
+## Final Task: Complete All Remaining Visual MLP Features
 
 ### Task Metadata
 
 - Title:
-  `Complete the TRIAD Studio setup, services, and professionals visual prototype`
+  `Complete all remaining TRIAD Studio first visual MLP features`
 - Suggested branch: assigned by Linear from the final issue identifier.
 - State: `Ready`.
 - Priority: `High`.
 - Assignee: Marcus Gabriel.
-- Blocked by: ENG-54.
+- Completed dependency: ENG-54 / PR #35.
+- Active blockers: none.
 - Linear:
-  [ENG-55](https://linear.app/corvi-io/issue/ENG-55/complete-the-triad-studio-setup-services-and-professionals-visual).
-- Closes visual MLP tracker items 1, 7, and 8.
+  [ENG-55](https://linear.app/corvi-io/issue/ENG-55/complete-all-remaining-triad-studio-first-visual-mlp-features).
+- Closes visual MLP tracker items 1, 3, 7, and 8.
 
-### Task 1 Scope
+### Final Task Scope
 
 - Complete the six-step first-use setup journey.
 - Add bounded barbershop identity/contact setup.
@@ -105,10 +118,11 @@ provider, polling, or realtime behavior.
 - Add per-professional service price/duration exceptions.
 - Complete professional details, demonstrative access settings, and operational
   view.
+- Add the complete seven-day Agenda board/list experience and weekly journeys.
 - Integrate accepted settings with scheduling, checkout, commission, and
   professional summaries through public contracts.
 
-### Task 1 Exclusions
+### Final Task Exclusions
 
 - API, database, durable storage, IDP roles, organizations, invitations, real
   RBAC, uploads, fiscal configuration, payment gateway behavior, payroll, or
@@ -118,200 +132,198 @@ provider, polling, or realtime behavior.
 
 ### 1.1 Dependency And Baseline Audit
 
-- [ ] Confirm ENG-54 is `Done` with merged PR and branch-cleanup evidence.
-- [ ] Inspect setup, Agenda, service desk, checkout, commission, reporting,
+- [x] Confirm ENG-54 is `Done` with merged PR and branch-cleanup evidence.
+- [x] Inspect setup, Agenda, service desk, checkout, commission, reporting,
       notification, workspace registry, source composition, and dev engines.
-- [ ] Run focused existing setup/scheduling/revenue tests before changes.
-- [ ] Inventory current setup contracts, forms, repositories, URL state,
+- [x] Run focused existing setup/scheduling/revenue tests before changes.
+- [x] Inventory current setup contracts, forms, repositories, URL state,
       scenarios, and shared components.
-- [ ] Record every required shared-component or contract change before editing.
-- [ ] Confirm no unrelated user-owned changes will be overwritten.
+- [x] Record every required shared-component or contract change before editing.
+- [x] Confirm no unrelated user-owned changes will be overwritten.
 
 ### 1.2 Experience Specification
 
-- [ ] Define the six-step hierarchy before JSX:
-  - [ ] Dados da barbearia;
-  - [ ] Horários;
-  - [ ] Profissionais;
-  - [ ] Serviços;
-  - [ ] Pagamentos e comissões;
-  - [ ] Revisão.
-- [ ] Define first-use, resume, incomplete, complete, and maintenance entry
+- [x] Define the six-step hierarchy before JSX:
+  - [x] Dados da barbearia;
+  - [x] Horários;
+  - [x] Profissionais;
+  - [x] Serviços;
+  - [x] Pagamentos e comissões;
+  - [x] Revisão.
+- [x] Define first-use, resume, incomplete, complete, and maintenance entry
       behavior.
-- [ ] Keep the existing setup hub as the post-onboarding maintenance surface.
-- [ ] Define wide, medium, 320px, and 200%-zoom compositions.
-- [ ] Define light/dark/system, forced-color, reduced-motion, coarse-pointer,
+- [x] Keep the existing setup hub as the post-onboarding maintenance surface.
+- [x] Define wide, medium, 320px, and 200%-zoom compositions.
+- [x] Define light/dark/system, forced-color, reduced-motion, coarse-pointer,
       and long-content behavior.
-- [ ] Review all pt-BR headings, descriptions, validation, confirmation,
+- [x] Review all pt-BR headings, descriptions, validation, confirmation,
       success, empty, and unavailable copy.
 
 ### 1.3 Setup Completion Contracts
 
-- [ ] Add contracts equivalent to:
-  - [ ] `BarbershopProfile`;
-  - [ ] `SetupStep`;
-  - [ ] `SetupReadiness`;
-  - [ ] `PaymentMethodSetting`;
-  - [ ] `ProfessionalAccessPolicy`;
-  - [ ] `ProfessionalServiceOverride`;
-  - [ ] `ProfessionalOperationalSummary`.
-- [ ] Define pure required-fact rules for every step.
-- [ ] Derive the next incomplete step without separate persisted completion.
-- [ ] Keep stable identifiers and deterministic ordering.
-- [ ] Define unavailable/partial reasons rather than fabricated zero values.
-- [ ] Keep cents, minutes, canonical date-only values, and explicit local time.
+- [x] Add contracts equivalent to:
+  - [x] `BarbershopProfile`;
+  - [x] `SetupStep`;
+  - [x] `SetupReadiness`;
+  - [x] `PaymentMethodSetting`;
+  - [x] `ProfessionalAccessPolicy`;
+  - [x] `ProfessionalServiceOverride`;
+  - [x] `ProfessionalOperationalSummary`.
+- [x] Define pure required-fact rules for every step.
+- [x] Derive the next incomplete step without separate persisted completion.
+- [x] Keep stable identifiers and deterministic ordering.
+- [x] Define unavailable/partial reasons rather than fabricated zero values.
+- [x] Keep cents, minutes, canonical date-only values, and explicit local time.
 
 ### 1.4 Barbershop Data And Hours
 
-- [ ] Add display name, phone, and email with Brazilian masks/validation where
+- [x] Add display name, phone, and email with Brazilian masks/validation where
       applicable.
-- [ ] Reuse the primary unit address and existing operating-hours contracts.
-- [ ] Do not add legal registration, tax, logo, upload, or white-label fields.
-- [ ] Preserve unit availability, days off, breaks, recurrence, and exceptions.
-- [ ] Focus the first invalid field and prevent duplicate submission.
-- [ ] Add rollback/retry for delayed or failed mutations.
+- [x] Reuse the primary unit address and existing operating-hours contracts.
+- [x] Do not add legal registration, tax, logo, upload, or white-label fields.
+- [x] Preserve unit availability, days off, breaks, recurrence, and exceptions.
+- [x] Focus the first invalid field and prevent duplicate submission.
+- [x] Add rollback/retry for delayed or failed mutations.
 
 ### 1.5 Professionals
 
-- [ ] Complete professional detail fields for:
-  - [ ] name;
-  - [ ] photo presentation without upload;
-  - [ ] contact;
-  - [ ] specialties/services;
-  - [ ] units;
-  - [ ] working hours and days off;
-  - [ ] commission;
-  - [ ] status;
-  - [ ] account-access presentation;
-  - [ ] demonstrative access policy.
-- [ ] Cover the official access choices:
-  - [ ] own Agenda only;
-  - [ ] create appointments;
-  - [ ] change prices;
-  - [ ] register payments;
-  - [ ] view revenue;
-  - [ ] view commissions;
-  - [ ] access other professionals' data.
-- [ ] Use safe defaults and prevent internally contradictory combinations.
-- [ ] Keep access values detached from `AuthGate`, routes, sessions, IDP users,
+- [x] Complete professional detail fields for:
+  - [x] name;
+  - [x] photo presentation without upload;
+  - [x] contact;
+  - [x] specialties/services;
+  - [x] units;
+  - [x] working hours and days off;
+  - [x] commission;
+  - [x] status;
+  - [x] account-access presentation;
+  - [x] demonstrative access policy.
+- [x] Cover the official access choices:
+  - [x] own Agenda only;
+  - [x] create appointments;
+  - [x] change prices;
+  - [x] register payments;
+  - [x] view revenue;
+  - [x] view commissions;
+  - [x] access other professionals' data.
+- [x] Use safe defaults and prevent internally contradictory combinations.
+- [x] Keep access values detached from `AuthGate`, routes, sessions, IDP users,
       and server data.
-- [ ] Add a professional drawer/profile with Summary, Operation, and Access
+- [x] Add a professional drawer/profile with Summary, Operation, and Access
       concerns using existing drawer/tab composition.
-- [ ] Show bounded current-day Agenda, availability, assigned services,
+- [x] Show bounded current-day Agenda, availability, assigned services,
       resolved overrides, commission facts, and valid deep links.
-- [ ] Do not create a role switcher or impersonation UI.
+- [x] Do not create a role switcher or impersonation UI.
 
 ### 1.6 Services And Professional Variations
 
-- [ ] Extend service configuration with optional professional overrides.
-- [ ] Require the professional to be active and eligible for the service.
-- [ ] Allow one override per service/professional pair.
-- [ ] Allow price, duration, or both; reject an empty override.
-- [ ] Make the default value visually clear before and after an override.
-- [ ] Clearing an override restores the default for future prototype actions.
-- [ ] Preserve historical paid-item and commission snapshots.
-- [ ] Resolve appointment duration/price through the accepted public contract.
-- [ ] Add conflict and dependency messages for archived or unlinked records.
+- [x] Extend service configuration with optional professional overrides.
+- [x] Require the professional to be active and eligible for the service.
+- [x] Allow one override per service/professional pair.
+- [x] Allow price, duration, or both; reject an empty override.
+- [x] Make the default value visually clear before and after an override.
+- [x] Clearing an override restores the default for future prototype actions.
+- [x] Preserve historical paid-item and commission snapshots.
+- [x] Resolve appointment duration/price through the accepted public contract.
+- [x] Add conflict and dependency messages for archived or unlinked records.
 
 ### 1.7 Payments And Commissions
 
-- [ ] Configure Pix, cash, debit card, credit card, and mixed payment.
-- [ ] Require at least one active base payment method.
-- [ ] Enable mixed payment only when at least two base methods are active.
-- [ ] Keep ordering and labels deterministic.
-- [ ] Consume the configured choices in future prototype checkout sessions.
-- [ ] Preserve already-paid sale snapshots when settings change.
-- [ ] Reuse accepted commission rules; do not duplicate the calculation engine.
-- [ ] Explain that the system records payment and does not process it.
+- [x] Configure Pix, cash, debit card, credit card, and mixed payment.
+- [x] Require at least one active base payment method.
+- [x] Enable mixed payment only when at least two base methods are active.
+- [x] Keep ordering and labels deterministic.
+- [x] Consume the configured choices in future prototype checkout sessions.
+- [x] Preserve already-paid sale snapshots when settings change.
+- [x] Reuse accepted commission rules; do not duplicate the calculation engine.
+- [x] Explain that the system records payment and does not process it.
 
 ### 1.8 Guided Journey
 
-- [ ] Add stable Back/Continue/Review/Enter workspace behavior.
-- [ ] Make completed steps reviewable without losing progress.
-- [ ] Resume at the first incomplete step after route return/reload in the
+- [x] Add stable Back/Continue/Review/Enter workspace behavior.
+- [x] Make completed steps reviewable without losing progress.
+- [x] Resume at the first incomplete step after route return/reload in the
       selected deterministic session.
-- [ ] Derive progress from readiness rules and announce it accessibly.
-- [ ] Keep one recommended next action.
-- [ ] Provide a final review that links to incomplete sections and prevents
+- [x] Derive progress from readiness rules and announce it accessibly.
+- [x] Keep one recommended next action.
+- [x] Provide a final review that links to incomplete sections and prevents
       false completion.
-- [ ] Route final entry to the accepted authenticated default destination.
-- [ ] Keep all maintenance sections reachable after completion.
+- [x] Route final entry to the accepted authenticated default destination.
+- [x] Keep all maintenance sections reachable after completion.
 
 ### 1.9 Repository And Source Composition
 
-- [ ] Extend the narrow setup repository instead of exposing memory internals.
-- [ ] Add bounded reads/mutations for profile, payment settings, overrides,
+- [x] Extend the narrow setup repository instead of exposing memory internals.
+- [x] Add bounded reads/mutations for profile, payment settings, overrides,
       access policy, and professional summary.
-- [ ] Consume public scheduling/revenue/commission facts through a narrow
+- [x] Consume public scheduling/revenue/commission facts through a narrow
       coordinator when necessary.
-- [ ] Start independent reads together.
-- [ ] Use exact query keys and focused invalidation.
-- [ ] Increment generation on scenario/reset and discard stale results.
-- [ ] Reconstruct the selected deterministic scenario on reload.
-- [ ] Keep the source disabled and fixtures excluded in `hml`/`prd`.
+- [x] Start independent reads together.
+- [x] Use exact query keys and focused invalidation.
+- [x] Increment generation on scenario/reset and discard stale results.
+- [x] Reconstruct the selected deterministic scenario on reload.
+- [x] Keep the source disabled and fixtures excluded in `hml`/`prd`.
 
-### 1.10 Task 1 Scenarios
+### 1.10 Workstream 1 Scenarios
 
-- [ ] Add deterministic scenarios for:
-  - [ ] first use/incomplete;
-  - [ ] resume midway;
-  - [ ] complete setup;
-  - [ ] missing barbershop contact;
-  - [ ] no professionals;
-  - [ ] no services;
-  - [ ] no payment method;
-  - [ ] one versus multiple payment methods;
-  - [ ] default and overridden service values;
-  - [ ] archived/unlinked professional;
-  - [ ] restricted access presentation;
-  - [ ] typical and busy professional operation;
-  - [ ] empty operational facts;
-  - [ ] long labels/content;
-  - [ ] slow read/mutation;
-  - [ ] fail-next read/mutation;
-  - [ ] persistent error.
-- [ ] Verify reset and reload for all stateful scenarios.
+- [x] Add deterministic scenarios for:
+  - [x] first use/incomplete;
+  - [x] resume midway;
+  - [x] complete setup;
+  - [x] missing barbershop contact;
+  - [x] no professionals;
+  - [x] no services;
+  - [x] no payment method;
+  - [x] one versus multiple payment methods;
+  - [x] default and overridden service values;
+  - [x] archived/unlinked professional;
+  - [x] restricted access presentation;
+  - [x] typical and busy professional operation;
+  - [x] empty operational facts;
+  - [x] long labels/content;
+  - [x] slow read/mutation;
+  - [x] fail-next read/mutation;
+  - [x] persistent error.
+- [x] Verify reset and reload for all stateful scenarios.
 
-### 1.11 Task 1 Verification
+### 1.11 Workstream 1 Verification
 
-- [ ] Unit-test readiness, step ordering, field validation, payment rules,
+- [x] Unit-test readiness, step ordering, field validation, payment rules,
       override resolution, access defaults, summaries, snapshots, and rollback.
-- [ ] Component-test onboarding navigation, forms, progress announcements,
+- [x] Component-test onboarding navigation, forms, progress announcements,
       professional tabs, access descriptions, loading/error/empty states, and
       keyboard behavior.
-- [ ] Integration-test setup settings through scheduling, checkout, commission,
+- [x] Integration-test setup settings through scheduling, checkout, commission,
       and operational summaries.
-- [ ] Route-test valid, invalid, unavailable, resume, complete, and reload
+- [x] Route-test valid, invalid, unavailable, resume, complete, and reload
       states.
-- [ ] Production-boundary-test source disablement, imports, and authorization
+- [x] Production-boundary-test source disablement, imports, and authorization
       separation.
 - [ ] Playwright-test first use, resume, review, edit-after-completion,
       overrides, payment settings, professional view, error recovery, reset,
       and reload.
-- [ ] Run automated axe checks.
+- [x] Run automated axe checks.
 - [ ] Manually test keyboard, assistive technology, forced colors, reduced
       motion, coarse pointer, 320px, and 200% zoom.
-- [ ] Capture light/dark desktop and narrow evidence.
-- [ ] Update setup and component-system documentation.
-- [ ] Run all shared verification commands.
+- [x] Capture light/dark desktop and narrow evidence.
+- [x] Update setup and component-system documentation.
+- [x] Run all applicable shared verification commands.
 - [ ] Move the Linear task only with evidence.
 - [ ] Update MLP tracker items 1, 7, and 8 only after merge evidence.
 
-## Task 2: Weekly Agenda Completion
+## Workstream 2: Weekly Agenda Completion
 
-### Task Metadata
+### Workstream Metadata
 
-- Title: `Build the TRIAD Studio weekly Agenda visual prototype`
-- Suggested branch: assigned by Linear from the final issue identifier.
-- State: `Ready`.
-- Priority: `High`.
-- Assignee: Marcus Gabriel.
-- Blocked by: Task 1.
-- Linear:
-  [ENG-56](https://linear.app/corvi-io/issue/ENG-56/build-the-triad-studio-weekly-agenda-visual-prototype).
-- Closes visual MLP tracker item 3.
+- Owner issue:
+  [ENG-55](https://linear.app/corvi-io/issue/ENG-55/complete-all-remaining-triad-studio-first-visual-mlp-features).
+- Absorbed issue:
+  [ENG-56](https://linear.app/corvi-io/issue/ENG-56/build-the-triad-studio-weekly-agenda-visual-prototype)
+  is duplicate/superseded.
+- Runs in the same branch and PR as Workstream 1.
+- Closes visual MLP tracker item 3 only when the combined PR is merged.
 
-### Task 2 Scope
+### Workstream 2 Scope
 
 - Add a complete seven-day Agenda view.
 - Preserve the accepted daily board and period list.
@@ -319,7 +331,7 @@ provider, polling, or realtime behavior.
 - Preserve creation, inspection, editing, cancellation, rescheduling,
   availability/conflict rules, and accessibility.
 
-### Task 2 Exclusions
+### Workstream 2 Exclusions
 
 - API, persistence, realtime, recurrence, month/year views, resize-to-duration,
   automatic scheduling, room/resources, or visible prototype controls.
@@ -328,174 +340,175 @@ provider, polling, or realtime behavior.
 
 ### 2.1 Dependency And Baseline Audit
 
-- [ ] Confirm Task 1 is `Done` with merged PR and branch-cleanup evidence.
-- [ ] Inspect the merged setup/professional/service contracts.
-- [ ] Inspect scheduling contracts, repository, controls, board, list, drawer,
+- [x] Confirm Workstream 1 contracts are implemented and locally verified
+      before integrating the weekly Agenda against them.
+- [x] Inspect the setup/professional/service contracts from the same branch.
+- [x] Inspect scheduling contracts, repository, controls, board, list, drawer,
       DnD sensors, collision rules, tests, and source composition.
-- [ ] Run focused Agenda and setup tests before changes.
-- [ ] Inspect existing date/range controls and official shadcn/reviewed registry
+- [x] Run focused Agenda and setup tests before changes.
+- [x] Inspect existing date/range controls and official shadcn/reviewed registry
       candidates before adding a dependency.
-- [ ] Record bundle, accessibility, responsive, and token implications.
+- [x] Record bundle, accessibility, responsive, and token implications.
 
 ### 2.2 Weekly Experience Specification
 
-- [ ] Keep temporal scope and representation separate:
-  - [ ] `Dia` and `Semana`;
-  - [ ] `Quadro` and `Lista`.
-- [ ] Define allowed combinations and safe URL normalization.
-- [ ] Define seven day columns, bounded operating hours, current-day emphasis,
+- [x] Keep temporal scope and representation separate:
+  - [x] `Dia` and `Semana`;
+  - [x] `Quadro` and `Lista`.
+- [x] Define allowed combinations and safe URL normalization.
+- [x] Define seven day columns, bounded operating hours, current-day emphasis,
       professional labels, overlaps, blocked/walk-in periods, and free spaces.
-- [ ] Keep daily board professional columns unchanged.
-- [ ] Keep weekly cards understandable without relying on color.
-- [ ] Define wide, medium, 320px, and 200%-zoom compositions.
-- [ ] Make the list the complete narrow/dense alternative.
-- [ ] Define light/dark/system, forced-color, reduced-motion, coarse-pointer,
+- [x] Keep daily board professional columns unchanged.
+- [x] Keep weekly cards understandable without relying on color.
+- [x] Define wide, medium, 320px, and 200%-zoom compositions.
+- [x] Make the list the complete narrow/dense alternative.
+- [x] Define light/dark/system, forced-color, reduced-motion, coarse-pointer,
       and long-content behavior.
 
 ### 2.3 Weekly Contracts
 
-- [ ] Add contracts equivalent to:
-  - [ ] `AgendaTemporalScope`;
-  - [ ] `ScheduleRangeQuery`;
-  - [ ] `ScheduleRange`;
-  - [ ] `WeeklyAppointmentLayout`;
-  - [ ] `WeeklyOverlapGroup`;
-  - [ ] `WeeklyDropDestination`.
-- [ ] Keep inclusive canonical date-only bounds.
-- [ ] Require a bounded seven-day range for the weekly query.
-- [ ] Preserve unit, professional, status, and search filters.
-- [ ] Define deterministic ordering and stable overlap layout.
-- [ ] Return unavailable/partial reasons instead of fabricated gaps.
-- [ ] Preserve accepted status, appointment, service, and occupancy contracts.
+- [x] Add contracts equivalent to:
+  - [x] `AgendaTemporalScope`;
+  - [x] `ScheduleRangeQuery`;
+  - [x] `ScheduleRange`;
+  - [x] `WeeklyAppointmentLayout`;
+  - [x] `WeeklyOverlapGroup`;
+  - [x] `WeeklyDropDestination`.
+- [x] Keep inclusive canonical date-only bounds.
+- [x] Require a bounded seven-day range for the weekly query.
+- [x] Preserve unit, professional, status, and search filters.
+- [x] Define deterministic ordering and stable overlap layout.
+- [x] Return unavailable/partial reasons instead of fabricated gaps.
+- [x] Preserve accepted status, appointment, service, and occupancy contracts.
 
 ### 2.4 URL And Navigation
 
-- [ ] Store temporal scope, representation, selected date, unit, and stable
+- [x] Store temporal scope, representation, selected date, unit, and stable
       filter IDs in URL search state.
-- [ ] Normalize invalid, missing, or incompatible values safely.
-- [ ] Keep PII, names, phones, notes, and form payloads out of URLs.
-- [ ] Add previous week, next week, today, and direct-date navigation.
-- [ ] Show and announce the exact visible interval.
-- [ ] Preserve shareable filter/view context across reload.
+- [x] Normalize invalid, missing, or incompatible values safely.
+- [x] Keep PII, names, phones, notes, and form payloads out of URLs.
+- [x] Add previous week, next week, today, and direct-date navigation.
+- [x] Show and announce the exact visible interval.
+- [x] Preserve shareable filter/view context across reload.
 
 ### 2.5 Weekly Repository And Queries
 
-- [ ] Replace misleading `getDay` assumptions with an honest bounded range
+- [x] Replace misleading `getDay` assumptions with an honest bounded range
       contract while preserving daily behavior.
-- [ ] Query only the selected seven-day interval and unit.
-- [ ] Apply professional/status/search filters at the repository boundary.
-- [ ] Keep exact range/filter query keys and focused invalidation.
-- [ ] Avoid component-side scans that model production-scale behavior.
-- [ ] Increment generation on scenario/reset and discard stale results.
-- [ ] Reconstruct selected scenario and URL state on reload.
-- [ ] Keep the source disabled and fixtures excluded in `hml`/`prd`.
+- [x] Query only the selected seven-day interval and unit.
+- [x] Apply professional/status/search filters at the repository boundary.
+- [x] Keep exact range/filter query keys and focused invalidation.
+- [x] Avoid component-side scans that model production-scale behavior.
+- [x] Increment generation on scenario/reset and discard stale results.
+- [x] Reconstruct selected scenario and URL state on reload.
+- [x] Keep the source disabled and fixtures excluded in `hml`/`prd`.
 
 ### 2.6 Weekly Board
 
-- [ ] Render seven day columns and bounded time rows.
-- [ ] Render appointment cards with time, client, service, professional, and
+- [x] Render seven day columns and bounded time rows.
+- [x] Render appointment cards with time, client, service, professional, and
       status context according to available space.
-- [ ] Render blocked, break, and walk-in periods truthfully.
-- [ ] Represent overlaps deterministically without obscuring primary actions.
-- [ ] Expose open slots for appointment creation.
-- [ ] Preserve sticky interval/time context without page-level overflow.
-- [ ] Keep focused controls/cards visible inside internal scrolling.
-- [ ] Avoid rendering separate professional columns inside every day.
+- [x] Render blocked, break, and walk-in periods truthfully.
+- [x] Represent overlaps deterministically without obscuring primary actions.
+- [x] Expose open slots for appointment creation.
+- [x] Preserve sticky interval/time context without page-level overflow.
+- [x] Keep focused controls/cards visible inside internal scrolling.
+- [x] Avoid rendering separate professional columns inside every day.
 
 ### 2.7 Weekly Interactions
 
-- [ ] Open create/view/edit/reschedule/cancel flows in the accepted drawer.
-- [ ] Create from a weekly open slot with date/time prefilled.
-- [ ] Allow eligible non-terminal appointments to move between date/time slots.
-- [ ] Preserve professional on weekly drag.
-- [ ] Keep professional change available in the drawer.
-- [ ] Preserve cross-professional drag in the daily board.
-- [ ] Reject no-op, conflict, unavailable, closed-hours, insufficient-space,
+- [x] Open create/view/edit/reschedule/cancel flows in the accepted drawer.
+- [x] Create from a weekly open slot with date/time prefilled.
+- [x] Allow eligible non-terminal appointments to move between date/time slots.
+- [x] Preserve professional on weekly drag.
+- [x] Keep professional change available in the drawer.
+- [x] Preserve cross-professional drag in the daily board.
+- [x] Reject no-op, conflict, unavailable, closed-hours, insufficient-space,
       stale, and terminal-state drops with Portuguese feedback.
-- [ ] Preserve optimistic rollback and focused invalidation.
-- [ ] Keep status transitions explicit and separate from temporal drag.
-- [ ] Preserve drawer rescheduling as the non-drag equivalent path.
+- [x] Preserve optimistic rollback and focused invalidation.
+- [x] Keep status transitions explicit and separate from temporal drag.
+- [x] Preserve drawer rescheduling as the non-drag equivalent path.
 
 ### 2.8 Weekly List And Filters
 
-- [ ] Make the list cover the same selected week and filters.
-- [ ] Group or label rows by date with deterministic order.
-- [ ] Preserve appointment actions and status transitions.
-- [ ] Apply unit, professional, status, and search consistently to both views.
-- [ ] Keep active filter summaries and clear behavior accurate.
-- [ ] Preserve empty versus filtered-empty distinction.
-- [ ] Keep list behavior complete at 320px and 200% zoom.
+- [x] Make the list cover the same selected week and filters.
+- [x] Group or label rows by date with deterministic order.
+- [x] Preserve appointment actions and status transitions.
+- [x] Apply unit, professional, status, and search consistently to both views.
+- [x] Keep active filter summaries and clear behavior accurate.
+- [x] Preserve empty versus filtered-empty distinction.
+- [x] Keep list behavior complete at 320px and 200% zoom.
 
 ### 2.9 Performance And Accessibility
 
-- [ ] Bound rendered week slots and appointment cards.
-- [ ] Avoid the days-by-professionals-by-slots multiplication.
-- [ ] Measure rendered-node and interaction behavior for dense fixtures without
+- [x] Bound rendered week slots and appointment cards.
+- [x] Avoid the days-by-professionals-by-slots multiplication.
+- [x] Measure rendered-node and interaction behavior for dense fixtures without
       claiming production capacity.
-- [ ] Add accessible board/day/appointment names and live DnD announcements.
-- [ ] Ensure day/time/professional/status context is available to screen
+- [x] Add accessible board/day/appointment names and live DnD announcements.
+- [x] Ensure day/time/professional/status context is available to screen
       readers.
-- [ ] Preserve keyboard/touch/pointer parity and visible focus.
-- [ ] Prevent page-level horizontal overflow.
-- [ ] Respect reduced motion and forced colors.
+- [x] Preserve keyboard/touch/pointer parity and visible focus.
+- [x] Prevent page-level horizontal overflow.
+- [x] Respect reduced motion and forced colors.
 
-### 2.10 Task 2 Scenarios
+### 2.10 Workstream 2 Scenarios
 
-- [ ] Add deterministic scenarios for:
-  - [ ] typical week;
-  - [ ] current-day boundary;
-  - [ ] month/year boundary;
-  - [ ] empty week;
-  - [ ] all statuses;
-  - [ ] dense week;
-  - [ ] many professionals;
-  - [ ] professional-filtered week;
-  - [ ] blocked periods;
-  - [ ] overlapping appointments;
-  - [ ] long names/services;
-  - [ ] conflict and unavailable destination;
-  - [ ] terminal appointment;
-  - [ ] slow query/mutation;
-  - [ ] fail-next query/mutation;
-  - [ ] persistent error;
-  - [ ] invalid URL state.
-- [ ] Verify reset and reload for all stateful scenarios.
+- [x] Add deterministic scenarios for:
+  - [x] typical week;
+  - [x] current-day boundary;
+  - [x] month/year boundary;
+  - [x] empty week;
+  - [x] all statuses;
+  - [x] dense week;
+  - [x] many professionals;
+  - [x] professional-filtered week;
+  - [x] blocked periods;
+  - [x] overlapping appointments;
+  - [x] long names/services;
+  - [x] conflict and unavailable destination;
+  - [x] terminal appointment;
+  - [x] slow query/mutation;
+  - [x] fail-next query/mutation;
+  - [x] persistent error;
+  - [x] invalid URL state.
+- [x] Verify reset and reload for all stateful scenarios.
 
-### 2.11 Task 2 Verification
+### 2.11 Workstream 2 Verification
 
-- [ ] Unit-test date bounds, URL normalization, filters, ordering, overlaps,
+- [x] Unit-test date bounds, URL normalization, filters, ordering, overlaps,
       layout, drop destinations, conflict rules, and rollback.
-- [ ] Component-test day/week and board/list combinations, navigation,
+- [x] Component-test day/week and board/list combinations, navigation,
       accessible names, loading/error/empty states, and keyboard behavior.
-- [ ] Integration-test weekly source facts through create/view/edit/cancel/
+- [x] Integration-test weekly source facts through create/view/edit/cancel/
       reschedule journeys.
-- [ ] Route-test valid, invalid, unavailable, boundary-week, and reload states.
-- [ ] Production-boundary-test source disablement and import rules.
+- [x] Route-test valid, invalid, unavailable, boundary-week, and reload states.
+- [x] Production-boundary-test source disablement and import rules.
 - [ ] Playwright-test typical, dense, filtered, empty, create, cancel,
       pointer/keyboard reschedule, conflict recovery, reset, and reload.
-- [ ] Run automated axe checks.
+- [x] Run automated axe checks.
 - [ ] Manually test keyboard, assistive technology, forced colors, reduced
       motion, coarse pointer, 320px, and 200% zoom.
-- [ ] Capture light/dark desktop and narrow evidence.
-- [ ] Update Agenda and component-system documentation.
-- [ ] Run all shared verification commands.
+- [x] Capture light/dark desktop and narrow evidence.
+- [x] Update Agenda and component-system documentation.
+- [x] Run all applicable shared verification commands.
 - [ ] Move the Linear task only with evidence.
 - [ ] Update MLP tracker item 3 and the 14-of-14 total only after merge
       evidence.
 
 ## Shared Verification Commands
 
-- [ ] `bun --filter studio routes:generate`
-- [ ] `bun --filter studio format`
-- [ ] `bun --filter studio lint`
-- [ ] `bun --filter studio typecheck`
-- [ ] `bun --filter studio test`
-- [ ] `bun --filter studio test:production-boundary`
-- [ ] `bun --filter studio test:e2e` when the browser is provisioned
-- [ ] `bun --filter studio build`
-- [ ] `bun --filter studio check`
-- [ ] `bun run check`
-- [ ] `git diff --check`
+- [x] `bun --filter studio routes:generate`
+- [x] `bun --filter studio format`
+- [x] `bun --filter studio lint`
+- [x] `bun --filter studio typecheck`
+- [x] `bun --filter studio test`
+- [x] `bun --filter studio test:production-boundary`
+- [x] Focused `bun --filter studio test:e2e` with axe and 320px coverage
+- [x] `bun --filter studio build`
+- [x] `bun --filter studio check`
+- [x] `bun run check`
+- [x] `git diff --check`
 
 ## Risks And Follow-Ups
 
@@ -509,3 +522,28 @@ provider, polling, or realtime behavior.
       must not be presented as production capacity evidence.
 - [ ] Physical assistive-technology and target-device checks remain residual
       unless completed during implementation review.
+
+## ENG-55 Implementation Evidence
+
+The isolated implementation branch completed both workstreams against the
+confirmed ENG-54 baseline `2c367b21fc4c517da09f954db34b67c646b3750c`.
+
+- Workstream 1 implements the six-step resumable setup, barbershop facts,
+  payment policy, professional contact/access/commission presentation,
+  service overrides, operational summaries, future-checkout consumption, and
+  immutable paid snapshots.
+- Workstream 2 implements the exact seven-day range contract, separate
+  scope/representation controls, weekly board/list, dated periods, open-slot
+  creation, professional-preserving drag, drawer alternative, and bounded
+  destination rejection.
+- `bun --filter studio check`: passed; 50 files and 375 tests passed, production
+  build passed, and the disabled-source boundary verified 64 files.
+- Focused Playwright: 3 tests passed with axe WCAG 2.2 A/AA, empty-week
+  creation, specialties editing, and 320 CSS-pixel overflow coverage.
+- `bun run check`: passed for API, IDP, site, and Studio after restoring
+  lockfile dependencies with `bun install --frozen-lockfile`.
+- `git diff --check`: passed.
+- Visual evidence lives in `docs/studio/evidence/eng-55`.
+
+Merge-only tracker updates and task completion remain intentionally unchecked
+until the combined PR is reviewed and merged into `staging`.

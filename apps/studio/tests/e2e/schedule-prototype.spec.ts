@@ -52,6 +52,68 @@ test("renders the reference-aligned temporal board and passes axe", async ({ pag
   expect(results.violations).toEqual([])
 })
 
+test("renders the exact weekly interval with a complete accessible list alternative", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 900, width: 1440 })
+  await page.goto(
+    "/workspace-preview/agenda?date=2026-07-22&scenario=typical-week&scope=week&view=board",
+  )
+
+  await expect(page.getByText("Semana visível: 20/07 a 26/07")).toBeVisible()
+  const week = page.getByRole("region", {
+    name: "Agenda semanal de 20/07/2026 a 26/07/2026",
+  })
+  await expect(week).toBeVisible()
+  await expect(week.getByRole("heading", { level: 2 })).toHaveCount(7)
+  await expect(page.getByRole("button", { name: "Semana anterior" })).toBeEnabled()
+  await expect(page.getByRole("button", { name: "Próxima semana" })).toBeEnabled()
+  await page.screenshot({
+    fullPage: true,
+    path: "../../docs/studio/evidence/eng-55/agenda-week-light-1440.png",
+  })
+
+  await page.getByRole("button", { name: "Visualizar como lista" }).click()
+  await expect(page.getByRole("table", { name: /Agendamentos filtrados/ })).toBeVisible()
+  const results = await new AxeBuilder({ page })
+    .include("#main-content")
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze()
+  expect(results.violations).toEqual([])
+
+  await page.setViewportSize({ height: 760, width: 320 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+  await expect(page.getByRole("table", { name: /Agendamentos filtrados/ })).toBeVisible()
+  await page.screenshot({
+    fullPage: true,
+    path: "../../docs/studio/evidence/eng-55/agenda-week-list-320.png",
+  })
+})
+
+test("keeps empty-week free slots creatable at 320px and passes axe", async ({ page }) => {
+  await page.setViewportSize({ height: 760, width: 320 })
+  await page.goto("/workspace-preview/agenda?date=2026-07-22&scenario=empty&scope=week&view=board")
+
+  const week = page.getByRole("region", {
+    name: "Agenda semanal de 20/07/2026 a 26/07/2026",
+  })
+  await expect(week).toBeVisible()
+  const firstSlot = week.getByRole("button", { name: /Criar agendamento/ }).first()
+  await expect(firstSlot).toBeVisible()
+  await firstSlot.click()
+  await expect(page.getByRole("dialog", { name: "Novo agendamento" })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+  const results = await new AxeBuilder({ page })
+    .include("#main-content")
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze()
+  expect(results.violations).toEqual([])
+  await page.screenshot({
+    fullPage: true,
+    path: "../../docs/studio/evidence/eng-55/agenda-empty-week-create-320.png",
+  })
+})
+
 test.describe("current-time marker", () => {
   test.use({ timezoneId: "America/Recife" })
 
@@ -424,15 +486,33 @@ test("keeps the sticky time axis above cards after horizontal scrolling", async 
 })
 
 test("filters from button menus, selects a period, and switches to Lista", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-07-22T10:00:00-03:00"))
   await page.goto(agendaUrl())
 
   const barber = page.getByRole("button", { name: "Barbeiro" })
-  await expect(barber).toContainText("6")
+  await expect(barber).toHaveAccessibleName("Barbeiro")
+  await expect(page.getByRole("button", { name: /Barbeiro: \d+ selecionado/ })).toHaveCount(0)
   await barber.click()
-  await page.getByLabel("Pesquisar barbeiro").fill("Carlos")
+  const barberSearch = page.getByLabel("Pesquisar barbeiro")
+  await barberSearch.fill("Carlos")
   await page.getByRole("menuitemcheckbox", { name: "Carlos Lima" }).click()
-  await expect(page).toHaveURL(/professional=professional-carlos/)
-  await expect(barber).toContainText("1")
+  await expect(page).toHaveURL((url) => {
+    return url.searchParams.get("professional") === "professional-carlos"
+  })
+  await expect(barber).toHaveAccessibleName("Barbeiro: 1 selecionado(s)")
+
+  await barberSearch.clear()
+  await page.getByRole("menuitemcheckbox", { name: "Bruno Rocha" }).click()
+  await expect(page).toHaveURL((url) => {
+    return url.searchParams.get("professional") === "professional-bruno,professional-carlos"
+  })
+  await expect(barber).toHaveAccessibleName("Barbeiro: 2 selecionado(s)")
+
+  await page.getByRole("menuitemcheckbox", { name: "Bruno Rocha" }).click()
+  await expect(page).toHaveURL((url) => {
+    return url.searchParams.get("professional") === "professional-carlos"
+  })
+  await expect(barber).toHaveAccessibleName("Barbeiro: 1 selecionado(s)")
   await page.keyboard.press("Escape")
 
   await page.getByRole("button", { name: "Status" }).click()

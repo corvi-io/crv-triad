@@ -66,6 +66,7 @@ export type CheckoutStatus = "open" | "paid"
 export type Checkout = {
   adjustmentAuthorized: boolean
   adjustments: CheckoutAdjustment
+  availableTenderMethods: readonly TenderMethod[]
   appointmentId?: string
   customerName: string
   finishedAt: string
@@ -194,6 +195,14 @@ export type ReplaceTendersInput = {
 export type CompletePaymentInput = {
   operationId: string
   sessionId: string
+}
+
+export type PrototypeCheckoutPolicy = {
+  getActivePaymentMethodIds(): Promise<readonly TenderMethod[]>
+  getCommissionRateBasisPoints(
+    professionalId: string,
+    serviceId: string,
+  ): Promise<number | undefined>
 }
 
 export type RevenueOperationsRepository = {

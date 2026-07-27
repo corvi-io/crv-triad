@@ -65,7 +65,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
           this.#assertGeneration(generation)
           this.#schedulingResetRequired = false
         }
-        return this.#scheduling.getDay({
+        return this.#scheduling.getRange({
           endDate: date,
           focusDate: date,
           scenarioId: schedulingScenario(query.scenarioId),
