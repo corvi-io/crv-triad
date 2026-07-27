@@ -496,17 +496,15 @@ test("filters from button menus, selects a period, and switches to Lista", async
   const barberSearch = page.getByLabel("Pesquisar barbeiro")
   await barberSearch.fill("Carlos")
   await page.getByRole("menuitemcheckbox", { name: "Carlos Lima" }).click()
-  await expect(page).toHaveURL(/professional=professional-carlos/)
+  await expect(page).toHaveURL((url) => {
+    return url.searchParams.get("professional") === "professional-carlos"
+  })
   await expect(barber).toHaveAccessibleName("Barbeiro: 1 selecionado(s)")
 
   await barberSearch.clear()
   await page.getByRole("menuitemcheckbox", { name: "Bruno Rocha" }).click()
   await expect(page).toHaveURL((url) => {
-    const selectedProfessionals = url.searchParams.get("professional")?.split(",")
-    return (
-      selectedProfessionals?.includes("professional-carlos") === true &&
-      selectedProfessionals.includes("professional-bruno")
-    )
+    return url.searchParams.get("professional") === "professional-bruno,professional-carlos"
   })
   await expect(barber).toHaveAccessibleName("Barbeiro: 2 selecionado(s)")
 
