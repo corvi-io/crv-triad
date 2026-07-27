@@ -486,15 +486,35 @@ test("keeps the sticky time axis above cards after horizontal scrolling", async 
 })
 
 test("filters from button menus, selects a period, and switches to Lista", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-07-22T10:00:00-03:00"))
   await page.goto(agendaUrl())
 
   const barber = page.getByRole("button", { name: "Barbeiro" })
-  await expect(barber).toContainText("6")
+  await expect(barber).toHaveAccessibleName("Barbeiro")
+  await expect(page.getByRole("button", { name: /Barbeiro: \d+ selecionado/ })).toHaveCount(0)
   await barber.click()
-  await page.getByLabel("Pesquisar barbeiro").fill("Carlos")
+  const barberSearch = page.getByLabel("Pesquisar barbeiro")
+  await barberSearch.fill("Carlos")
   await page.getByRole("menuitemcheckbox", { name: "Carlos Lima" }).click()
   await expect(page).toHaveURL(/professional=professional-carlos/)
-  await expect(barber).toContainText("1")
+  await expect(barber).toHaveAccessibleName("Barbeiro: 1 selecionado(s)")
+
+  await barberSearch.clear()
+  await page.getByRole("menuitemcheckbox", { name: "Bruno Rocha" }).click()
+  await expect(page).toHaveURL((url) => {
+    const selectedProfessionals = url.searchParams.get("professional")?.split(",")
+    return (
+      selectedProfessionals?.includes("professional-carlos") === true &&
+      selectedProfessionals.includes("professional-bruno")
+    )
+  })
+  await expect(barber).toHaveAccessibleName("Barbeiro: 2 selecionado(s)")
+
+  await page.getByRole("menuitemcheckbox", { name: "Bruno Rocha" }).click()
+  await expect(page).toHaveURL((url) => {
+    return url.searchParams.get("professional") === "professional-carlos"
+  })
+  await expect(barber).toHaveAccessibleName("Barbeiro: 1 selecionado(s)")
   await page.keyboard.press("Escape")
 
   await page.getByRole("button", { name: "Status" }).click()
