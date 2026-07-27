@@ -203,7 +203,6 @@ describe("schedule page", () => {
     expect(screen.getByRole("button", { name: "Barbeiro: 1 selecionado(s)" })).toHaveTextContent(
       "1",
     )
-    await user.click(screen.getByRole("button", { name: "Barbeiro: 1 selecionado(s)" }))
     await user.click(await screen.findByRole("menuitemcheckbox", { name: "Bruno Rocha" }))
     expect(screen.getByRole("button", { name: "Barbeiro: 2 selecionado(s)" })).toHaveTextContent(
       "2",
