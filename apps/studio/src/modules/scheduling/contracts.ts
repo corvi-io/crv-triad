@@ -100,6 +100,7 @@ export type ScheduleRange = {
   endTime: string
   occupancies: readonly ScheduleOccupancy[]
   periods: readonly SchedulePeriod[]
+  professionalOptions: readonly Professional[]
   professionals: readonly Professional[]
   services: readonly Service[]
   startTime: string

@@ -103,6 +103,8 @@ describe("scheduling memory repository", () => {
       ),
     ).toBe(true)
     expect(filtered.professionals.map(({ id }) => id)).toEqual([seed.professionalId])
+    expect(filtered.professionalOptions).toEqual(full.professionalOptions)
+    expect(filtered.professionalOptions.length).toBeGreaterThan(filtered.professionals.length)
     expect(filtered.occupancies).toEqual(full.occupancies)
   })
 

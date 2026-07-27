@@ -284,7 +284,7 @@ export function SchedulePage({
           />
           <AgendaControls
             appointments={dayQuery.data?.appointments ?? []}
-            professionals={dayQuery.data?.professionals ?? []}
+            professionals={dayQuery.data?.professionalOptions ?? []}
             scenarios={scenarios.scenarios}
             search={search}
             searchText={searchText}

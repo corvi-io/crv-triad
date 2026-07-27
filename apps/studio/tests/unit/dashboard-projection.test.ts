@@ -100,6 +100,7 @@ const day: ScheduleDay = {
       start: "11:00",
     },
   ],
+  professionalOptions: professionals,
   professionals,
   services,
   startTime: "08:00",

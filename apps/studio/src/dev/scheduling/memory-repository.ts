@@ -136,6 +136,7 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
         periods: periodsFor(scenarioId, this.#projectionDate).filter(
           ({ date }) => date >= query.startDate && date <= query.endDate,
         ),
+        professionalOptions: professionals,
         professionals: query.professionalIds?.length
           ? professionals.filter(({ id }) => query.professionalIds?.includes(id))
           : professionals,

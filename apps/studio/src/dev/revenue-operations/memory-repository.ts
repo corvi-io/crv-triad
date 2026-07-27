@@ -695,6 +695,7 @@ const emptySchedulingRepository: SchedulingRepository = {
       endTime: "18:00",
       occupancies: [],
       periods: [],
+      professionalOptions: [],
       professionals: [],
       services: [],
       startTime: "08:00",

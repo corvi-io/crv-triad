@@ -193,12 +193,20 @@ describe("schedule page", () => {
     const barberFilter = await screen.findByRole("button", { name: "Barbeiro" })
     expect(barberFilter).not.toHaveTextContent("6")
     await user.click(barberFilter)
-    fireEvent.change(await screen.findByLabelText("Pesquisar barbeiro"), {
+    const barberSearch = await screen.findByLabelText("Pesquisar barbeiro")
+    fireEvent.change(barberSearch, {
       target: { value: "Carlos" },
     })
+    expect(screen.getByRole("menuitemcheckbox", { name: "Carlos Lima" })).toBeInTheDocument()
+    fireEvent.change(barberSearch, { target: { value: "" } })
     await user.click(await screen.findByRole("menuitemcheckbox", { name: "Carlos Lima" }))
     expect(screen.getByRole("button", { name: "Barbeiro: 1 selecionado(s)" })).toHaveTextContent(
       "1",
+    )
+    await user.click(screen.getByRole("button", { name: "Barbeiro: 1 selecionado(s)" }))
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Bruno Rocha" }))
+    expect(screen.getByRole("button", { name: "Barbeiro: 2 selecionado(s)" })).toHaveTextContent(
+      "2",
     )
 
     await user.click(screen.getByRole("button", { name: "Status" }))
