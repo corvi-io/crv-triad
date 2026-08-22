@@ -26,10 +26,10 @@
     "hooks:install": "lefthook install"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.15",
-    "@commitlint/cli": "^21.0.1",
-    "@commitlint/config-conventional": "^21.0.1",
+    "@biomejs/biome": "^2.5.9",
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
     "lefthook": "^2.1.6",
-    "turbo": "^2.9.14"
+    "turbo": "^2.10.11"
   }
 }
