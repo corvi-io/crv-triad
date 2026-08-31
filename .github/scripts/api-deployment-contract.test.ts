@@ -40,7 +40,7 @@ describe("API deployment contract", () => {
   })
 
   it("maps the development deployment comment to the script CICD contract", () => {
-    const workflow = readFileSync(".github/workflows/reusable-delivery.yml", "utf8")
+    const workflow = readFileSync(".github/workflows/develop-pipeline.yml", "utf8")
     const requiredNames = [
       "CICD__API_DEPLOYED",
       "CICD__API_HEALTH_URL",

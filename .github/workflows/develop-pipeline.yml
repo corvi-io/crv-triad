@@ -16,11 +16,35 @@ jobs:
     uses: ./.github/workflows/reusable-delivery.yml
     with:
       base-sha: ${{ github.event.pull_request.base.sha }}
-      comment-deploy: true
       deploy: true
       environment: dev
       head-sha: ${{ github.event.pull_request.head.sha }}
       target: dev
+  comment:
+    name: Comment deployment
+    needs: delivery
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions: { contents: read, issues: write, pull-requests: write }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Comment deployment
+        env:
+          CICD__API_DEPLOYED: ${{ needs.delivery.outputs.api-deployed == 'true' }}
+          CICD__API_HEALTH_URL: https://api-dev.assinetriad.com.br/health
+          CICD__API_URL: https://api-dev.assinetriad.com.br
+          CICD__COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+          CICD__ENV_CODE: DEV
+          CICD__ENV_NAME: DEVELOPMENT
+          CICD__GITHUB_TOKEN: ${{ github.token }}
+          CICD__PR_NUMBER: ${{ github.event.pull_request.number }}
+          CICD__RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CICD__SITE_DEPLOYED: ${{ needs.delivery.outputs.site-deployed == 'true' }}
+          CICD__SITE_URL: https://dev.assinetriad.com.br
+          CICD__STUDIO_DEPLOYED: ${{ needs.delivery.outputs.studio-deployed == 'true' }}
+          CICD__STUDIO_URL: https://studio-dev.assinetriad.com.br
+        run: python .github/scripts/comment-pr-api-deploy.py
   required-check:
     name: Develop Pipeline
     if: ${{ always() }}
