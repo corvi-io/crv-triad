@@ -104,6 +104,9 @@ const envSchema = z
       ),
     LEAD_HOURLY_LIMIT: z.coerce.number().int().positive().default(5),
     LEAD_DAILY_LIMIT: z.coerce.number().int().positive().default(20),
+    POSTHOG_UPSTREAM_URL: z
+      .enum(["https://us.i.posthog.com", "https://eu.i.posthog.com"])
+      .default("https://us.i.posthog.com"),
   })
   .superRefine((value, context) => {
     if (!value.AUTH_TRUSTED_ORIGINS.includes(value.IDP_STUDIO_URL)) {

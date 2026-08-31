@@ -32,6 +32,7 @@ apps:
       - { source: API__LEAD_RATE_LIMIT_SECRET, runtime: LEAD_RATE_LIMIT_SECRET, github: secret, required: true }
       - { source: API__LEAD_TURNSTILE_SECRET_KEY, runtime: LEAD_TURNSTILE_SECRET_KEY, github: secret, required: true }
       - { source: API__LEAD_TURNSTILE_HOSTNAMES, runtime: LEAD_TURNSTILE_HOSTNAMES, github: variable, required: true }
+      - { source: API__POSTHOG_UPSTREAM_URL, runtime: POSTHOG_UPSTREAM_URL, github: variable, required: false }
   site:
     owner: apps/site
     runtime: cloudflare-pages-static
@@ -43,6 +44,8 @@ apps:
       - { source: SITE__PUBLIC_SITE_URL, runtime: PUBLIC_SITE_URL, github: variable, required: true }
       - { source: SITE__PUBLIC_API_BASE_URL, runtime: PUBLIC_API_BASE_URL, github: variable, required: true }
       - { source: SITE__PUBLIC_TURNSTILE_SITE_KEY, runtime: PUBLIC_TURNSTILE_SITE_KEY, github: variable, required: true }
+      - { source: SITE__PUBLIC_APP_ENV, runtime: PUBLIC_APP_ENV, github: variable, required: false }
+      - { source: SITE__PUBLIC_POSTHOG_KEY, runtime: PUBLIC_POSTHOG_KEY, github: variable, required: false }
   studio:
     owner: apps/studio
     runtime: cloudflare-pages-static

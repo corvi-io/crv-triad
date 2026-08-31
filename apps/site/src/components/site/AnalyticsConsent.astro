@@ -1,0 +1,25 @@
+<aside class="analytics-consent" aria-labelledby="analytics-consent-title" data-analytics-consent hidden>
+  <div>
+    <h2 id="analytics-consent-title">Sua privacidade importa</h2>
+    <p>Usamos analytics opcionais para entender como o site é utilizado. Nenhum dado preenchido no formulário é enviado.</p>
+  </div>
+  <div class="analytics-consent-actions">
+    <button type="button" class="button secondary" data-analytics-deny>Só essenciais</button>
+    <button type="button" class="button" data-analytics-allow>Permitir analytics</button>
+  </div>
+</aside>
+
+<script>
+  const consent = document.querySelector<HTMLElement>("[data-analytics-consent]")
+  const savedChoice = localStorage.getItem("triad_analytics_consent")
+  if (consent && !savedChoice) consent.hidden = false
+
+  consent?.querySelector("[data-analytics-deny]")?.addEventListener("click", () => {
+    window.triadAnalytics?.consent(false)
+    consent.hidden = true
+  })
+  consent?.querySelector("[data-analytics-allow]")?.addEventListener("click", () => {
+    window.triadAnalytics?.consent(true)
+    consent.hidden = true
+  })
+</script>

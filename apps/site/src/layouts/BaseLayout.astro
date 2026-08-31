@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css"
+import AnalyticsConsent from "../components/site/AnalyticsConsent.astro"
 
 interface Props {
   title?: string
@@ -16,10 +17,14 @@ const {
 } = Astro.props
 
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? "https://example.com")
+const posthogKey = import.meta.env.PUBLIC_POSTHOG_KEY || ""
+const apiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "")
+const posthogHost = `${apiBaseUrl}/e`
+const analyticsEnvironment = import.meta.env.PUBLIC_APP_ENV || "development"
 ---
 
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-posthog-key={posthogKey} data-posthog-host={posthogHost} data-analytics-environment={analyticsEnvironment}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
@@ -41,5 +46,7 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? "https://example.
   <body class={bodyClass}>
     <a class="skip-link" href="#main-content">Ir para o conteúdo principal</a>
     <slot />
+    <AnalyticsConsent />
+    <script src="../scripts/analytics.ts"></script>
   </body>
 </html>

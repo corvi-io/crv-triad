@@ -11,6 +11,7 @@ dist/
 .maestri/
 coverage/
 .coverage
+.artifacts/
 
 # Environment files
 .env

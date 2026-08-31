@@ -1,11 +1,19 @@
 ---
 const questions = [
-  ["O que é o TRIAD?", "O TRIAD é um sistema operacional para barbearias que conecta agenda, atendimento, clientes, caixa, comissões e resultados em um único fluxo de trabalho."],
-  ["Qual é a diferença entre o Studio e o Pro Barber?", "O Studio oferece a visão de gestão para proprietários e recepção. O Pro Barber entrega a cada profissional uma experiência mobile com agenda pessoal, próximo cliente, serviços, produção, comissão e comunicados."],
-  ["Studio e Pro Barber trabalham juntos?", "Sim. As duas experiências compartilham a mesma operação: mudanças na agenda e no atendimento chegam a quem precisa, enquanto o resultado retorna para a gestão sem separar o contexto."],
-  ["Quais etapas da rotina podem ser acompanhadas?", "O fluxo parte do agendamento e passa por confirmação, chegada, atendimento, serviços realizados, pagamento, comissão e análise dos resultados da operação."],
-  ["O TRIAD serve para a recepção e para os barbeiros?", "Sim. O dono e a recepção utilizam o Studio para organizar e acompanhar a barbearia, enquanto cada barbeiro usa o Pro Barber para consultar e conduzir o próprio dia."],
-  ["Como posso conhecer o produto?", "Clique em “Criar minha barbearia” e envie os dados básicos do negócio. A equipe entrará em contato para apresentar o TRIAD e entender a operação da sua barbearia."],
+  ["what_is_triad", "O que é o TRIAD?", "O TRIAD é um sistema operacional para barbearias que conecta agenda, atendimento, clientes, caixa, comissões e resultados em um único fluxo de trabalho."],
+  ["difference_studio_pro_barber", "Qual é a diferença entre o Studio e o Pro Barber?", "O Studio oferece a visão de gestão para proprietários e recepção. O Pro Barber entrega a cada profissional uma experiência mobile com agenda pessoal, próximo cliente, serviços, produção, comissão e comunicados."],
+  ["studio_pro_barber_together", "Studio e Pro Barber trabalham juntos?", "Sim. As duas experiências compartilham a mesma operação: mudanças na agenda e no atendimento chegam a quem precisa, enquanto o resultado retorna para a gestão sem separar o contexto."],
+  ["tracked_workflow_steps", "Quais etapas da rotina podem ser acompanhadas?", "O fluxo parte do agendamento e passa por confirmação, chegada, atendimento, serviços realizados, pagamento, comissão e análise dos resultados da operação."],
+  ["reception_and_barbers", "O TRIAD serve para a recepção e para os barbeiros?", "Sim. O dono e a recepção utilizam o Studio para organizar e acompanhar a barbearia, enquanto cada barbeiro usa o Pro Barber para consultar e conduzir o próprio dia."],
+  ["how_to_learn_more", "Como posso conhecer o produto?", "Clique em “Criar minha barbearia” e envie os dados básicos do negócio. A equipe entrará em contato para apresentar o TRIAD e entender a operação da sua barbearia."],
 ]
 ---
-<section class="faq-section" aria-labelledby="faq-title"><div class="shell faq-grid"><header><span>PERGUNTAS FREQUENTES</span><h2 id="faq-title">O que você precisa saber antes de começar.</h2><p>Entenda como Studio e Pro Barber se conectam à rotina da sua equipe.</p></header><div class="faq-list">{questions.map(([question, answer], index) => <details open={index === 0}><summary><span>{question}</span><i aria-hidden="true"></i></summary><div><p>{answer}</p></div></details>)}</div></div></section>
+<section class="faq-section" aria-labelledby="faq-title" data-analytics-section="faq"><div class="shell faq-grid"><header><span>PERGUNTAS FREQUENTES</span><h2 id="faq-title">O que você precisa saber antes de começar.</h2><p>Entenda como Studio e Pro Barber se conectam à rotina da sua equipe.</p></header><div class="faq-list">{questions.map(([id, question, answer], index) => <details open={index === 0} data-question-id={id} data-question-position={index + 1}><summary><span>{question}</span><i aria-hidden="true"></i></summary><div><p>{answer}</p></div></details>)}</div></div></section>
+<script>
+  document.querySelectorAll<HTMLDetailsElement>("[data-question-id]").forEach((item) => {
+    item.addEventListener("toggle", () => {
+      if (!item.open) return
+      window.triadAnalytics?.capture("faq_item_opened", { question_id: item.dataset.questionId, question_position: Number(item.dataset.questionPosition) })
+    })
+  })
+</script>
