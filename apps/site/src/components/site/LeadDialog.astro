@@ -39,7 +39,15 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ""
   const form = dialog?.querySelector<HTMLFormElement>("[data-lead-form]")
   const success = dialog?.querySelector<HTMLElement>('[data-lead-step="success"]')
   const successTitle = dialog?.querySelector<HTMLElement>("#lead-success-title")
+  const turnstileContainer = dialog?.querySelector<HTMLElement>(".cf-turnstile")
   const demoMode = import.meta.env.DEV && new URLSearchParams(window.location.search).get("lead-demo") === "1"
+
+  const resetTurnstile = () => {
+    const turnstileWindow = window as Window & {
+      turnstile?: { reset: (container?: HTMLElement | string) => void }
+    }
+    if (turnstileContainer && turnstileWindow.turnstile) turnstileWindow.turnstile.reset(turnstileContainer)
+  }
 
   const showFormStep = () => {
     if (!form || !success) return
@@ -52,6 +60,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ""
     form.hidden = true
     success.hidden = false
     form.reset()
+    resetTurnstile()
     requestAnimationFrame(() => successTitle?.focus())
   }
 
@@ -61,6 +70,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ""
     if (!trigger || !dialog) return
     event.preventDefault()
     showFormStep()
+    resetTurnstile()
     const startedAt = dialog.querySelector<HTMLInputElement>('input[name="startedAt"]')
     if (startedAt) startedAt.value = String(Date.now())
     dialog.showModal()
@@ -100,6 +110,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ""
       showSuccessStep()
     } catch {
       if (status) status.textContent = "Não foi possível enviar agora. Tente novamente em alguns instantes."
+      resetTurnstile()
     } finally {
       if (submit) { submit.disabled = false; submit.innerHTML = 'Enviar meus dados <i aria-hidden="true">→</i>' }
     }

@@ -41,6 +41,8 @@ jobs:
           bun-version: 1.3.11
       - name: Install workspace dependencies
         run: bun install --frozen-lockfile
+      - name: CI configuration tests
+        run: bun run test:ci
       - name: Security gate
         run: bash .github/scripts/run-security-gate.sh
   api:

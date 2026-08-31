@@ -5,6 +5,7 @@ import { consumeLeadRateLimit } from "../../../src/modules/leads/rate-limit.js"
 function createPool(counts: number[]) {
   const query = vi.fn(async (sql: string) => {
     if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") return { rows: [] }
+    if (sql.startsWith("DELETE FROM lead_rate_limit_buckets")) return { rows: [] }
     return { rows: [{ request_count: counts.shift() }] }
   })
   const release = vi.fn()
@@ -24,6 +25,10 @@ describe("consumeLeadRateLimit", () => {
         now: new Date("2026-08-31T12:34:00Z"),
       }),
     ).resolves.toBe(true)
+    expect(query).toHaveBeenCalledWith(
+      "DELETE FROM lead_rate_limit_buckets WHERE expires_at <= $1",
+      [new Date("2026-08-31T12:34:00Z")],
+    )
     expect(query).toHaveBeenCalledWith(
       expect.stringContaining('(subject_digest, "window", window_started_at'),
       expect.any(Array),

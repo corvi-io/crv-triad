@@ -12,8 +12,8 @@ production promotion, publication, and post-release synchronization.
 
 Each pipeline detects affected apps and runs app-specific quality and security gates. The consolidated
 API deploys to Fly.io. Site and studio deploy to Cloudflare Pages. Third-party actions are pinned to full
-commit SHAs, dependency updates are managed by Dependabot, and repository CI scripts have their own
-test suite.
+commit SHAs, dependency updates are managed by Dependabot, and the shared security job runs the
+repository CI script test suite before any app delivery job can start.
 
 ## Environment Categories
 

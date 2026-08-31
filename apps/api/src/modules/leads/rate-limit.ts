@@ -22,6 +22,7 @@ export async function consumeLeadRateLimit(input: RateLimitInput): Promise<boole
   const client = await connectWithRetry(input.pool, input.connectionRetryDelaysMs ?? [150, 500])
   try {
     await client.query("BEGIN")
+    await client.query("DELETE FROM lead_rate_limit_buckets WHERE expires_at <= $1", [now])
     for (const window of windows) {
       const startedAt = new Date(Math.floor(now.getTime() / window.durationMs) * window.durationMs)
       const expiresAt = new Date(startedAt.getTime() + window.durationMs * 2)

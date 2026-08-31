@@ -62,4 +62,10 @@ describe("API deployment contract", () => {
     expect(workflow).toMatch(/CICD__GITHUB_TOKEN: \$\{\{ github\.token \}\}/)
     expect(workflow).not.toContain("\n          GITHUB_TOKEN:")
   })
+
+  it("runs repository CI configuration tests in every delivery pipeline", () => {
+    const workflow = readFileSync(".github/workflows/reusable-delivery.yml", "utf8")
+
+    expect(workflow).toContain("run: bun run test:ci")
+  })
 })
