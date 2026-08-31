@@ -27,9 +27,9 @@ export async function consumeLeadRateLimit(input: RateLimitInput): Promise<boole
       const expiresAt = new Date(startedAt.getTime() + window.durationMs * 2)
       const result = await client.query<{ request_count: number }>(
         `INSERT INTO lead_rate_limit_buckets
-          (subject_digest, window, window_started_at, request_count, expires_at)
+          (subject_digest, "window", window_started_at, request_count, expires_at)
          VALUES ($1, $2, $3, 1, $4)
-         ON CONFLICT (subject_digest, window, window_started_at)
+         ON CONFLICT (subject_digest, "window", window_started_at)
          DO UPDATE SET request_count = lead_rate_limit_buckets.request_count + 1
          RETURNING request_count`,
         [digest, window.name, startedAt, expiresAt],

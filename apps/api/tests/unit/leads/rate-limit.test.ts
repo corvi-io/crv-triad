@@ -24,6 +24,14 @@ describe("consumeLeadRateLimit", () => {
         now: new Date("2026-08-31T12:34:00Z"),
       }),
     ).resolves.toBe(true)
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('(subject_digest, "window", window_started_at'),
+      expect.any(Array),
+    )
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('ON CONFLICT (subject_digest, "window", window_started_at)'),
+      expect.any(Array),
+    )
     expect(query).toHaveBeenCalledWith("COMMIT")
     expect(release).toHaveBeenCalledOnce()
   })
