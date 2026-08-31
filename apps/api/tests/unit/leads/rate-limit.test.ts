@@ -60,4 +60,43 @@ describe("consumeLeadRateLimit", () => {
     ).rejects.toThrow("database unavailable")
     expect(release).toHaveBeenCalledOnce()
   })
+
+  it("retries a transient connection failure before consuming buckets", async () => {
+    const { pool: connectedPool, query } = createPool([1, 1])
+    const connect = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("database waking up"))
+      .mockImplementation(() => connectedPool.connect())
+
+    await expect(
+      consumeLeadRateLimit({
+        pool: { connect } as never,
+        clientAddress: "127.0.0.1",
+        secret: "a".repeat(32),
+        hourlyLimit: 5,
+        dailyLimit: 20,
+        connectionRetryDelaysMs: [0],
+      }),
+    ).resolves.toBe(true)
+
+    expect(connect).toHaveBeenCalledTimes(2)
+    expect(query).toHaveBeenCalledWith("COMMIT")
+  })
+
+  it("fails closed after exhausting connection retries", async () => {
+    const connect = vi.fn().mockRejectedValue(new Error("database unavailable"))
+
+    await expect(
+      consumeLeadRateLimit({
+        pool: { connect } as never,
+        clientAddress: "127.0.0.1",
+        secret: "a".repeat(32),
+        hourlyLimit: 5,
+        dailyLimit: 20,
+        connectionRetryDelaysMs: [0, 0],
+      }),
+    ).rejects.toThrow("database unavailable")
+
+    expect(connect).toHaveBeenCalledTimes(3)
+  })
 })

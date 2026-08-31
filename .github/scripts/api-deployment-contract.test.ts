@@ -9,6 +9,8 @@ describe("API deployment contract", () => {
       const config = readFileSync(configPath, "utf8")
 
       expect(config).toContain('release_command = "bun dist/modules/idp/database/migrate.js"')
+      expect(config).toContain('path = "/ready"')
+      expect(config).not.toContain('path = "/health"')
       expect(config).not.toContain("src/modules/idp/database/migrate.ts")
     }
   })

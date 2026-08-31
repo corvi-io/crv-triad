@@ -8,6 +8,7 @@ type RateLimitInput = {
   hourlyLimit: number
   dailyLimit: number
   now?: Date
+  connectionRetryDelaysMs?: number[]
 }
 
 export async function consumeLeadRateLimit(input: RateLimitInput): Promise<boolean> {
@@ -18,7 +19,7 @@ export async function consumeLeadRateLimit(input: RateLimitInput): Promise<boole
     { name: "day", limit: input.dailyLimit, durationMs: 86_400_000 },
   ] as const
 
-  const client = await input.pool.connect()
+  const client = await connectWithRetry(input.pool, input.connectionRetryDelaysMs ?? [150, 500])
   try {
     await client.query("BEGIN")
     for (const window of windows) {
@@ -46,4 +47,19 @@ export async function consumeLeadRateLimit(input: RateLimitInput): Promise<boole
   } finally {
     client.release()
   }
+}
+
+async function connectWithRetry(pool: Pool, retryDelaysMs: number[]) {
+  let lastError: unknown
+
+  for (const delayMs of [0, ...retryDelaysMs]) {
+    if (delayMs > 0) await Bun.sleep(delayMs)
+    try {
+      return await pool.connect()
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  throw lastError
 }
