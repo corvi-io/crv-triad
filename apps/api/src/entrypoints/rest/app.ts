@@ -1,6 +1,7 @@
 import { Elysia } from "elysia"
 import type { Pool } from "pg"
 
+import { createAnalyticsRoutes } from "../../modules/analytics/http/routes.js"
 import type { IdpEnv } from "../../modules/idp/config/env.js"
 import type { IdpDatabase } from "../../modules/idp/database/client.js"
 import { createIdpRoutes } from "../../modules/idp/http/app.js"
@@ -20,6 +21,7 @@ export function createRestApp(input: CreateRestAppInput) {
   return new Elysia({ name: "crv-triad-api" })
     .use(createIdpRoutes(input))
     .use(createLeadRoutes(input.env, input.pool))
+    .use(createAnalyticsRoutes(input.env))
     .all("*", ({ status }) =>
       status(404, { error: { code: "not_found", message: "Route not found." } }),
     )

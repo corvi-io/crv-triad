@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "mode": "feature",
+  "run": {
+    "date": "2026-08-31",
+    "branch": "feature/posthog-event-instrumentation",
+    "commit": "4002b2ce6e46-dirty",
+    "environment": "Astro preview 127.0.0.1:3101 and in-process Bun/Elysia",
+    "data_mode": "Read-only public journey; no database mutation applicable",
+    "evaluator": "Codex",
+    "baseline": "docs/product-qa/reports/features/initiative-18/2026-08-28-9a7589618d16-final.md",
+    "limitations": [
+      "Localhost deliberately disables PostHog initialization.",
+      "Production Live Events and replay masking require post-deploy validation.",
+      "The empty local Turnstile site key emits an unrelated console error."
+    ]
+  },
+  "scope": {
+    "initiative": "18-site-posthog-event-instrumentation",
+    "apps": ["site", "api", "cross-app"],
+    "modules": ["site analytics", "analytics proxy", "environment management"],
+    "personas": ["anonymous public visitor"],
+    "tenants": [],
+    "out_of_scope": ["production provider smoke", "unchanged lead persistence"]
+  },
+  "journeys": [
+    {"id":"A1","apps":["site"],"module":"consent","persona":"anonymous public visitor","tenant":null,"kind":"happy_path","name":"First visit displays analytics choices","result":"passed","evidence":["Desktop screenshot inspected","Browser prompt visible assertion"]},
+    {"id":"A2","apps":["site"],"module":"consent","persona":"anonymous public visitor","tenant":null,"kind":"edge_case","name":"Essential-only choice persists across reload","result":"passed","evidence":["localStorage value denied","Prompt hidden after reload"]},
+    {"id":"A3","apps":["site"],"module":"consent","persona":"anonymous public visitor","tenant":null,"kind":"regression","name":"Consent remains operable on mobile","result":"passed","evidence":["Mobile screenshot inspected","Both controls measured 324 by 42 pixels"]},
+    {"id":"A4","apps":["api"],"module":"analytics proxy","persona":"anonymous public visitor","tenant":null,"kind":"edge_case","name":"Proxy enforces trusted sources, bounded traffic, fixed destinations, and sanitized responses","result":"passed","evidence":["14 focused proxy tests"]},
+    {"id":"A5","apps":["site","api"],"module":"analytics integration","persona":"anonymous public visitor","tenant":null,"kind":"regression","name":"Site derives the first-party API host safely","result":"passed","evidence":["Rendered data-posthog-host was http://localhost:8000/e"]}
+  ],
+  "screenshots": [
+    {"journey_id":"A1","checkpoint":"initial desktop consent","viewport":"1440x1000 full page","artifact":"apps/site/.artifacts/initiative-18-proxy-qa/desktop-consent.png","inspected":true,"result":"passed","observations":["Clear hierarchy and contrast","No clipping or horizontal overflow","Incumbent visual direction preserved"]},
+    {"journey_id":"A3","checkpoint":"initial mobile consent","viewport":"390x844","artifact":"apps/site/.artifacts/initiative-18-proxy-qa/mobile-consent.png","inspected":true,"result":"passed","observations":["Actions stack cleanly","Copy remains readable","Controls exceed WCAG 2.2 minimum target size"]}
+  ],
+  "access_checks": [
+    {"actor":"anonymous visitor","resource_tenant":null,"vector":"browser credentials and private headers","result":"passed","evidence":"Proxy allowlist tests prove authorization and cookies are stripped."},
+    {"actor":"anonymous visitor","resource_tenant":null,"vector":"caller-selected or protocol-relative destination","result":"passed","evidence":"SSRF regression test keeps the fixed upstream origin."},
+    {"actor":"PostHog upstream","resource_tenant":null,"vector":"error bodies and redirects","result":"passed","evidence":"Sanitized failure and redirect tests."}
+  ],
+  "findings": [
+    {"id":"L1","type":"environment_limitation","severity":"low","app":"site","module":"analytics","title":"Localhost intentionally prevents production provider validation","status":"accepted","evidence":["Runtime contract","No provider traffic in local browser journey"],"attempts":0},
+    {"id":"L2","type":"environment_limitation","severity":"low","app":"site","module":"turnstile","title":"Empty local Turnstile key emits unrelated console errors","status":"accepted","evidence":["Two identical local console entries"],"attempts":0}
+  ],
+  "scores": {
+    "product_outcome": 9.6,
+    "functional_reliability_persistence": 9.5,
+    "ux_visual_integrity": 9.4,
+    "access_privacy_tenant_isolation": 9.8,
+    "accessibility": 9.3,
+    "operability_regression_protection": 9.5,
+    "weighted_total": 9.5
+  },
+  "verification": [
+    {"check":"Focused API tests","result":"passed","evidence":"35 tests including source, rate, body, request ID, redirect, and environment coverage."},
+    {"check":"Full API check","result":"passed","evidence":"17 test files and 126 tests."},
+    {"check":"Site check and build","result":"passed","evidence":"Zero Astro errors and four static pages built."},
+    {"check":"Environment management tests","result":"passed","evidence":"Seven tests."},
+    {"check":"Monorepo check","result":"passed","evidence":"All three apps successful."},
+    {"check":"Browser and screenshot QA","result":"passed","evidence":"Consent persistence plus inspected desktop and mobile artifacts."},
+    {"check":"Production provider integration","result":"skipped","evidence":"Required after protected production deployment because localhost is deliberately disabled."}
+  ],
+  "decision": "approved"
+}

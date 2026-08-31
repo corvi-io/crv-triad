@@ -33,6 +33,17 @@ describe("parseEnv", () => {
     expect(env.IDP_RESEND_API_URL).toBe("https://api.resend.com")
     expect(env.IDP_STUDIO_URL).toBe("http://localhost:3000")
     expect(env.LEAD_EMAIL_TO).toEqual(["contato@example.com"])
+    expect(env.POSTHOG_UPSTREAM_URL).toBe("https://us.i.posthog.com")
+  })
+
+  it("accepts only supported PostHog regional ingestion origins", () => {
+    expect(
+      parseEnv({ ...validEnv, POSTHOG_UPSTREAM_URL: "https://eu.i.posthog.com" })
+        .POSTHOG_UPSTREAM_URL,
+    ).toBe("https://eu.i.posthog.com")
+    expect(() =>
+      parseEnv({ ...validEnv, POSTHOG_UPSTREAM_URL: "https://analytics.example.test" }),
+    ).toThrow()
   })
 
   it("parses, trims, and deduplicates lead email recipients", () => {
