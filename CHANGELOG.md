@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/corvi-io/crv-triad/compare/v0.3.0...v0.4.0) (2026-08-31)
+
+
+### Features
+
+* **analytics:** add consented PostHog instrumentation ([#51](https://github.com/corvi-io/crv-triad/issues/51)) ([e1ec21e](https://github.com/corvi-io/crv-triad/commit/e1ec21e3476c8a1a630cc2000dac9f088105fad8))
+
 ## [0.3.0](https://github.com/corvi-io/crv-triad/compare/v0.2.0...v0.3.0) (2026-08-31)
 
 
