@@ -1,0 +1,9 @@
+---
+import Arrow from "../ui/Arrow.astro"
+
+interface Props { title?: string; body?: string }
+const { title = "Coloque sua equipe no mesmo ritmo.", body = "Crie sua barbearia, configure o essencial e faça o primeiro agendamento." } = Astro.props
+---
+<section class="final-cta" id="comecar">
+  <div class="shell"><div><h2>{title}</h2><p>{body}</p><a class="button" href="#comecar" data-lead-trigger>Criar minha barbearia <Arrow /></a></div></div>
+</section>

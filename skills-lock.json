@@ -31,12 +31,6 @@
       "skillPath": ".agents/skills/elysia/SKILL.md",
       "computedHash": ""
     },
-    "fastapi": {
-      "source": "fastapi/fastapi",
-      "sourceType": "github",
-      "skillPath": "fastapi/.agents/skills/fastapi/SKILL.md",
-      "computedHash": "ee23d5285caf055cf164ff45dd34888d381143564666baacab8aa786f22e413a"
-    },
     "github-actions-docs": {
       "source": "xixu-me/skills",
       "sourceType": "github",

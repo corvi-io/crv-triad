@@ -135,7 +135,7 @@ Run targeted verification first. Use package-level scripts where possible:
   `bun --filter site build`, and E2E checks when the review touches routes,
   navigation, forms, tracking, loading states, or responsive behavior.
 - API changes: `bun --filter api check` plus targeted tests.
-- IDP changes: `bun --filter idp check`, `bun --filter idp build`, and
+- Identity changes: `bun --filter api check`, `bun --filter api build`, and
   targeted Vitest tests.
 
 If verification fails, fix only failures related to the PR or to a valid review

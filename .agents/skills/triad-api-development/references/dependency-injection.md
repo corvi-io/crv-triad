@@ -1,29 +1,32 @@
-# API Dependency Injection
-
-The API uses `python-inject` for business wiring.
+# API Dependency Wiring
 
 ## Rules
 
-- Do not use FastAPI `Depends()` for business dependencies.
-- Configure application wiring from infrastructure/composition code.
-- Keep repository protocols under
-  `src/modules/{module}/repositories/protocols`.
-- Keep concrete implementations under
-  `src/modules/{module}/repositories/implementations`.
+- Configure application wiring explicitly from
+  `src/entrypoints/rest/app.ts` or a nearby composition factory.
+- Use function factories and TypeScript structural typing by default.
+- Keep module persistence implementations under
+  `src/modules/{module}/persistence`.
+- Create a named port under `application/contracts` only when volatility,
+  multiple implementations, or testing value justifies it.
 
 ## Use Case Pattern
 
-Use selective injection for concrete dependencies:
+Use the smallest contract that expresses the use case dependency:
 
-```python
-@inject.autoparams("repository")
-def execute(
-    command: CreateThingCommand,
-    repository: ThingRepository | None = None,
-) -> CreateThingResult:
-    if repository is None:
-        raise RuntimeError("ThingRepository dependency is not configured")
+```typescript
+type CreateLeadDependencies = {
+  insertLead: (lead: Lead) => Promise<void>
+}
+
+export const createLead = ({ insertLead }: CreateLeadDependencies) => {
+  return async (input: CreateLeadInput) => {
+    const lead = Lead.create(input)
+    await insertLead(lead)
+    return lead
+  }
+}
 ```
 
-Keep tests simple by passing fakes directly or by binding test DI explicitly.
-Do not keep alternate production in-memory repositories for convenience.
+Pass fakes directly in unit tests. Do not keep alternate production in-memory
+repositories for convenience.

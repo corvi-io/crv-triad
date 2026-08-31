@@ -22,7 +22,7 @@
 ## Admin Bootstrap
 
 - Create the first pending admin invitation through:
-  `bun --filter idp bootstrap:admin -- --email ... --name ...`
+  `bun --filter api bootstrap:admin -- --email ... --name ...`
 - The script creates a pending admin invitation; it does not create an active
   admin user directly.
 - Keep the script explicit and idempotent for the same pending invitation or

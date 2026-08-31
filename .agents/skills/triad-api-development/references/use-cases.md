@@ -2,35 +2,30 @@
 
 ## Shape
 
-Use case files should expose:
-
-- A command dataclass.
-- A result dataclass when the use case returns data.
-- An `execute()` function.
-
-Keep command and result dataclasses in the same file as the `execute()` function
-that owns them.
+Each file under `application/use-cases` should represent one business action and
+export its plain input/result types with a factory or function that executes the
+action. Prefer domain verbs such as `createLead` or `moveLead`.
 
 ## Dependency Style
 
-- Prefer use case functions decorated with `@inject.autoparams()`.
-- Use selective `@inject.autoparams("dependency_name")` when only some
-  parameters are injected.
-- Give injected dependencies a `| None = None` default so tests and static
-  analyzers can call use cases with command-only arguments.
-- Fail clearly if an injected dependency is still `None` at runtime.
+- Inject dependencies explicitly through factory arguments.
+- Prefer narrow structural function contracts for the operations a use case
+  actually needs.
+- Promote those contracts to a shared module contract only after multiple use
+  cases need a stable cohesive boundary.
+- Do not introduce a DI container or pass-through class solely for convention.
 
 ## Boundaries
 
 Use cases should:
 
 - Own business flow and application decisions.
-- Depend on repository protocols, not concrete implementations.
-- Return explicit result dataclasses or raise module/shared errors.
+- Depend on plain structural contracts rather than Drizzle clients.
+- Return plain results or domain objects and throw module/shared errors.
 
 Use cases should not:
 
-- Know FastAPI request or response classes.
-- Return SQLModel records.
+- Know Elysia context, status helpers, or HTTP schemas.
+- Return Drizzle records as public application results.
 - Reach into another module's persistence records.
 - Read environment variables directly.

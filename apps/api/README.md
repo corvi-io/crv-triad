@@ -1,11 +1,13 @@
 # CRV Triad API
 
-Minimal FastAPI backend for CRV Triad.
+Consolidated Bun/Elysia API for CRV Triad. It owns identity and public lead intake as isolated modules.
 
 Current routes:
 
 - `GET /health`
 - `GET /ready`
+- `/api/auth/*` — Better Auth
+- `POST /leads` — protected public lead intake
 
 ## Development
 
@@ -16,6 +18,5 @@ bun --filter api check
 
 Runtime env:
 
-- `DATABASE_URL`
-- `IDP_BASE_URL`
-- `IDP_AUTH_TIMEOUT_SECONDS`
+- Copy `.env.example` to `.env` and provide the local PostgreSQL, Better Auth, Resend, and Turnstile values.
+- Deployment values are loaded from Infisical `/api`; no server secret is exposed to the site bundle.

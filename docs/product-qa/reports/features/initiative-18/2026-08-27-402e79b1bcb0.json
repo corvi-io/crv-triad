@@ -1,0 +1,241 @@
+{
+  "version": 1,
+  "mode": "feature",
+  "run": {
+    "date": "2026-08-27",
+    "branch": "feature/mvp-readiness-and-schema-baseline",
+    "commit": "402e79b1bcb05dfa02879f45dee84e820eeabfcb",
+    "environment": "Local controllable Playwright with real Astro, Vite, Bun/Elysia, and disposable PostgreSQL",
+    "data_mode": "Synthetic fixture in a unique disposable PostgreSQL cluster; aggregate-only persistence evidence",
+    "evaluator": "Codex WP reliability QA",
+    "baseline": null,
+    "limitations": [
+      "No Maestri Portal was connected; explicitly authorized local controllable Playwright was used and this was non-blocking.",
+      "Campaign-entry resolution and analytics-after-consent were not exercised by this scaffold.",
+      "Accessibility evidence is semantic, keyboard, responsive, and screenshot based; it is not a full assistive-technology matrix."
+    ]
+  },
+  "scope": {
+    "initiative": "18-mvp-readiness-and-schema-baseline",
+    "apps": ["site", "web", "api", "cross-app"],
+    "modules": ["public-site", "public-intake", "health-readiness"],
+    "personas": ["public visitor", "public prospect"],
+    "tenants": [],
+    "out_of_scope": [
+      "Campaign-entry happy path",
+      "Analytics-after-consent delivery",
+      "Authenticated workspace journeys",
+      "Shared or deployed environments"
+    ]
+  },
+  "journeys": [
+    {
+      "id": "I18-MVP-S1-PUBLIC",
+      "apps": ["site"],
+      "module": "public-site",
+      "persona": "public visitor",
+      "tenant": null,
+      "kind": "happy_path",
+      "name": "Browse marketing, legal content, keyboard navigation, and mobile navigation",
+      "result": "passed",
+      "evidence": [
+        "Desktop main landmark, named primary navigation, and visible H1 asserted.",
+        "Keyboard skip link focus and activation asserted.",
+        "Privacy page and named mobile navigation dialog asserted.",
+        "Console errors, page errors, failed requests, and HTTP >=400 collections were empty."
+      ]
+    },
+    {
+      "id": "I18-MVP-S2-INTAKE",
+      "apps": ["site", "api"],
+      "module": "public-intake",
+      "persona": "public prospect",
+      "tenant": null,
+      "kind": "happy_path",
+      "name": "Submit visible public contact form and retain one delivery plus one lead after reload",
+      "result": "passed",
+      "evidence": [
+        "Visible form submitted through accessible labels, explicit consent, and official dummy Turnstile credentials.",
+        "Real POST /leads response status was 201 and the visible success state stabilized.",
+        "Bounded aggregate query returned deliveries=1 and leads=1 before and after reload.",
+        "No payload or PII was printed; console errors, page errors, failed requests, and HTTP >=400 collections were empty."
+      ]
+    },
+    {
+      "id": "I18-DB-RESILIENCE",
+      "apps": ["api"],
+      "module": "health-readiness",
+      "persona": "operator",
+      "tenant": null,
+      "kind": "regression",
+      "name": "Report database outage through readiness without losing liveness, then recover",
+      "result": "passed",
+      "evidence": [
+        "During owned PostgreSQL outage, /health returned 200 and /ready converged to 503.",
+        "After the same PostgreSQL cluster resumed, /ready recovered to 200."
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "journey_id": "I18-MVP-S1-PUBLIC",
+      "checkpoint": "Desktop marketing home with privacy choice",
+      "viewport": "1440x1000",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-supports-6a5f2-access-and-mobile-semantics-chromium/mvp-s1-desktop-home.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Clear visual hierarchy, readable privacy choice, and unobstructed primary CTA."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S1-PUBLIC",
+      "checkpoint": "Desktop privacy policy",
+      "viewport": "1440x1000",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-supports-6a5f2-access-and-mobile-semantics-chromium/mvp-s1-desktop-privacy.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Legal heading and body content are readable with no overlay."]
+    },
+    {
+      "journey_id": "I18-MVP-S1-PUBLIC",
+      "checkpoint": "Mobile navigation dialog",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-supports-6a5f2-access-and-mobile-semantics-chromium/mvp-s1-mobile-menu.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Dialog fits the viewport, labels are readable, and the background is visibly modal."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S2-INTAKE",
+      "checkpoint": "Desktop empty contact form",
+      "viewport": "1440x1200",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S2-accepts--ba0dc--one-delivery-with-one-lead-chromium/mvp-s2-empty-form.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Labels, field grouping, consent, and submit action are unobstructed."]
+    },
+    {
+      "journey_id": "I18-MVP-S2-INTAKE",
+      "checkpoint": "Desktop stabilized success state",
+      "viewport": "1440x1200",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S2-accepts--ba0dc--one-delivery-with-one-lead-chromium/mvp-s2-success.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Success heading, next steps, contact link, and CTA are sharp and unobstructed."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S2-INTAKE",
+      "checkpoint": "Mobile stabilized success state",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S2-accepts--ba0dc--one-delivery-with-one-lead-chromium/mvp-s2-mobile-success.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Success content reflows without horizontal clipping or dev-toolbar obstruction."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S2-INTAKE",
+      "checkpoint": "Mobile contact form after reload",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S2-accepts--ba0dc--one-delivery-with-one-lead-chromium/mvp-s2-mobile-after-reload.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Form returns empty and usable; controls and consent remain readable and unobstructed."
+      ]
+    }
+  ],
+  "access_checks": [
+    {
+      "actor": "anonymous public prospect",
+      "resource_tenant": null,
+      "vector": "Public intake through connector public ID supplied only to the test API process",
+      "result": "passed",
+      "evidence": "One accepted delivery and one lead were confirmed through aggregate counts only; no payload or PII was emitted."
+    }
+  ],
+  "findings": [
+    {
+      "id": "I18-QA-T1",
+      "type": "test_defect",
+      "severity": "low",
+      "app": "site",
+      "module": "public-intake",
+      "title": "Cookie banner obscured initial intake evidence",
+      "status": "fixed",
+      "evidence": [
+        "Journey now makes the visible essential-only privacy choice before form capture; corrective reruns passed."
+      ],
+      "attempts": 1
+    },
+    {
+      "id": "I18-QA-T2",
+      "type": "test_defect",
+      "severity": "low",
+      "app": "site",
+      "module": "public-intake",
+      "title": "Transition, dev toolbar, and viewport timing obscured success evidence",
+      "status": "fixed",
+      "evidence": [
+        "Capture waits for computed stable styles, hides only the dev-only toolbar, and uses explicit desktop/mobile viewports; final screenshots were inspected."
+      ],
+      "attempts": 3
+    },
+    {
+      "id": "I18-QA-ENV-1",
+      "type": "environment_limitation",
+      "severity": "low",
+      "app": "cross-app",
+      "module": "product-qa",
+      "title": "No Maestri Portal connected",
+      "status": "accepted",
+      "evidence": [
+        "maestri list exposed agents and the initiative note but no Portal; the human explicitly authorized local controllable Playwright as non-blocking."
+      ],
+      "attempts": 0
+    }
+  ],
+  "scores": {
+    "product_outcome": 8.5,
+    "functional_reliability_persistence": 9.5,
+    "ux_visual_integrity": 9.0,
+    "access_privacy_tenant_isolation": 9.0,
+    "accessibility": 8.5,
+    "operability_regression_protection": 9.5,
+    "weighted_total": 9.0
+  },
+  "verification": [
+    {
+      "check": "Biome focused check",
+      "result": "passed",
+      "evidence": "bunx biome check apps/web/tests/e2e-integrated: 6 files checked, no fixes applied."
+    },
+    {
+      "check": "Web TypeScript boundary",
+      "result": "passed",
+      "evidence": "bun --filter web typecheck exited 0."
+    },
+    {
+      "check": "Final real-stack integrated rerun 1",
+      "result": "passed",
+      "evidence": "3 passed in 14.9 seconds."
+    },
+    {
+      "check": "Final real-stack integrated rerun 2",
+      "result": "passed",
+      "evidence": "3 passed in 16.1 seconds."
+    },
+    {
+      "check": "Screenshot inspection",
+      "result": "passed",
+      "evidence": "Seven final desktop/mobile artifacts inspected; no clipping, obstruction, blur, or unexpected dev UI remained."
+    }
+  ],
+  "decision": "approved_with_reservations"
+}

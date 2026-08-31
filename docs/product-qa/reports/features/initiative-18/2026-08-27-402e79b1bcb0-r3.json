@@ -1,0 +1,376 @@
+{
+  "version": 1,
+  "mode": "recheck",
+  "run": {
+    "date": "2026-08-27",
+    "branch": "feature/mvp-readiness-and-schema-baseline",
+    "commit": "402e79b1bcb05dfa02879f45dee84e820eeabfcb",
+    "environment": "Pre-commit worktree; local controllable Playwright with real Astro, Vite, Bun/Elysia, and a unique disposable PostgreSQL cluster",
+    "data_mode": "Synthetic intake and campaign fixtures in a new suite-owned PostgreSQL cluster",
+    "evaluator": "Codex WP reliability QA",
+    "baseline": "docs/product-qa/reports/features/initiative-18/2026-08-27-402e79b1bcb0-r2.json",
+    "limitations": [
+      "No Maestri Portal was connected; authorized local controllable Playwright was used.",
+      "Astro Dev Toolbar emitted one audit Failed to fetch message during location.replace; it was classified separately from product errors.",
+      "This successful pre-commit worktree evidence must be repeated after the final commit at the PR SHA."
+    ]
+  },
+  "scope": {
+    "initiative": "18-mvp-readiness-and-schema-baseline",
+    "apps": ["site", "web", "api", "cross-app"],
+    "modules": [
+      "database-migrations",
+      "campaign-links",
+      "analytics-consent",
+      "public-intake",
+      "health-readiness"
+    ],
+    "personas": ["public visitor", "public prospect", "operator"],
+    "tenants": [],
+    "out_of_scope": ["Shared or deployed environments", "Final committed PR SHA verification"]
+  },
+  "journeys": [
+    {
+      "id": "I18-EMPTY-DB-MIGRATIONS",
+      "apps": ["api"],
+      "module": "database-migrations",
+      "persona": "operator",
+      "tenant": null,
+      "kind": "recheck",
+      "name": "Apply migrations 0000 through 0021 to empty PostgreSQL",
+      "result": "passed",
+      "evidence": [
+        "Migration process completed before synthetic fixture insertion in a new suite-owned cluster."
+      ]
+    },
+    {
+      "id": "I18-MVP-S1-CAMPAIGN-ACTIVE",
+      "apps": ["site", "api"],
+      "module": "campaign-links",
+      "persona": "public visitor",
+      "tenant": null,
+      "kind": "recheck",
+      "name": "Resolve an active campaign link to an explicitly allowlisted localhost destination using replace history",
+      "result": "passed",
+      "evidence": [
+        "Real API returned 200 for the active synthetic row.",
+        "Browser reached the exact allowlisted destination and Back returned directly to /privacy, skipping the campaign URL.",
+        "Campaign entry emitted no analytics, product console errors, failed responses, or non-navigation request failures."
+      ]
+    },
+    {
+      "id": "I18-MVP-S1-CAMPAIGN-UNAVAILABLE",
+      "apps": ["site", "api"],
+      "module": "campaign-links",
+      "persona": "public visitor",
+      "tenant": null,
+      "kind": "recheck",
+      "name": "Render indistinguishable permanent UX for inactive, expired, and invalid campaign links",
+      "result": "passed",
+      "evidence": [
+        "Direct API checks returned 404 for inactive and expired synthetic rows.",
+        "Inactive, expired, and invalid states had equal eyebrow, heading, message, home action, focus behavior, and mobile layout."
+      ]
+    },
+    {
+      "id": "I18-MVP-S1-CAMPAIGN-TEMPORARY",
+      "apps": ["site", "api"],
+      "module": "campaign-links",
+      "persona": "public visitor",
+      "tenant": null,
+      "kind": "recheck",
+      "name": "Recover a temporary campaign resolution failure through visible retry",
+      "result": "passed",
+      "evidence": [
+        "Owned database outage produced the public 503 temporary UX with visible retry.",
+        "After recovery, visible retry returned 200 and navigated to the allowlisted destination."
+      ]
+    },
+    {
+      "id": "I18-MVP-S1-ANALYTICS",
+      "apps": ["site"],
+      "module": "analytics-consent",
+      "persona": "public visitor",
+      "tenant": null,
+      "kind": "recheck",
+      "name": "Activate privacy-safe analytics only after applicable consent",
+      "result": "passed",
+      "evidence": [
+        "Zero analytics requests before consent and after essential-only selection.",
+        "Analytics initialized and cta_clicked emitted only after explicit opt-in.",
+        "Recorded property keys excluded lead and PII fields without logging bodies or values."
+      ]
+    },
+    {
+      "id": "I18-MVP-S2-INTAKE",
+      "apps": ["site", "api"],
+      "module": "public-intake",
+      "persona": "public prospect",
+      "tenant": null,
+      "kind": "regression",
+      "name": "Submit the real public form and retain one delivery plus one lead after reload",
+      "result": "passed",
+      "evidence": [
+        "HTTP 201 and safe aggregate deliveries=1, leads=1 persisted after reload without payload or PII output."
+      ]
+    },
+    {
+      "id": "I18-DB-RESILIENCE",
+      "apps": ["api"],
+      "module": "health-readiness",
+      "persona": "operator",
+      "tenant": null,
+      "kind": "regression",
+      "name": "Separate liveness from readiness during database outage and recover",
+      "result": "passed",
+      "evidence": [
+        "Health remained 200, readiness became 503, and readiness recovered to 200 after the same disposable cluster resumed."
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "journey_id": "I18-MVP-S1-ANALYTICS",
+      "checkpoint": "Desktop landing before consent choice",
+      "viewport": "1440x1000",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-c05a8-nd-real-campaign-resolution-chromium/mvp-s1-desktop-home.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Landing page and consent controls are visible, readable, and unobstructed."]
+    },
+    {
+      "journey_id": "I18-MVP-S1-ANALYTICS",
+      "checkpoint": "Landing after essential-only choice",
+      "viewport": "1440x1000",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-c05a8-nd-real-campaign-resolution-chromium/mvp-s1-essential-only.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Consent banner is absent and the landing remains unobstructed after essential-only selection."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S1-ANALYTICS",
+      "checkpoint": "Post-consent landing page after banner removal",
+      "viewport": "1280x720",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-c05a8-nd-real-campaign-resolution-chromium/mvp-s1-analytics-consented.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Landing page is sharp and unobstructed; consent banner is absent after opt-in."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S1-NAVIGATION",
+      "checkpoint": "Desktop privacy page",
+      "viewport": "1440x1000",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-c05a8-nd-real-campaign-resolution-chromium/mvp-s1-desktop-privacy.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Privacy content is readable and the legal journey is unobstructed."]
+    },
+    {
+      "journey_id": "I18-MVP-S1-NAVIGATION",
+      "checkpoint": "Mobile navigation dialog",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-c05a8-nd-real-campaign-resolution-chromium/mvp-s1-mobile-menu.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Mobile menu fits the viewport and exposes its navigation without clipping."]
+    },
+    {
+      "journey_id": "I18-MVP-S1-CAMPAIGN-ACTIVE",
+      "checkpoint": "Allowlisted active campaign destination",
+      "viewport": "1440x1000",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-c05a8-nd-real-campaign-resolution-chromium/mvp-s1-campaign-active-destination.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Correct destination is fully rendered without consent or development overlays."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S1-CAMPAIGN-UNAVAILABLE",
+      "checkpoint": "Inactive, expired, and invalid permanent states",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-c05a8-nd-real-campaign-resolution-chromium/mvp-s1-campaign-inactive.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "All three screenshots are visually equivalent, readable, focused, and free of clipping."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S1-CAMPAIGN-UNAVAILABLE",
+      "checkpoint": "Expired permanent state",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-c05a8-nd-real-campaign-resolution-chromium/mvp-s1-campaign-expired.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Expired state is visually indistinguishable from the inactive and invalid permanent states."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S1-CAMPAIGN-UNAVAILABLE",
+      "checkpoint": "Invalid permanent state",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-c05a8-nd-real-campaign-resolution-chromium/mvp-s1-campaign-invalid.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Invalid state is visually indistinguishable from the inactive and expired permanent states."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S1-CAMPAIGN-TEMPORARY",
+      "checkpoint": "Temporary failure with retry and safe home action",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-c05a8-nd-real-campaign-resolution-chromium/mvp-s1-campaign-temporary-failure.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Temporary state is clearly differentiated and both recovery actions fit the mobile viewport."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S2-INTAKE",
+      "checkpoint": "Desktop empty form",
+      "viewport": "1440x1200",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S2-accepts--ba0dc--one-delivery-with-one-lead-chromium/mvp-s2-empty-form.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["The visible form is sharp, readable, and unobstructed before submission."]
+    },
+    {
+      "journey_id": "I18-MVP-S2-INTAKE",
+      "checkpoint": "Desktop stabilized success",
+      "viewport": "1440x1200",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S2-accepts--ba0dc--one-delivery-with-one-lead-chromium/mvp-s2-success.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Success content remains sharp, stable, and unobstructed."]
+    },
+    {
+      "journey_id": "I18-MVP-S2-INTAKE",
+      "checkpoint": "Mobile success",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S2-accepts--ba0dc--one-delivery-with-one-lead-chromium/mvp-s2-mobile-success.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Mobile success remains readable without clipping or obstruction."]
+    },
+    {
+      "journey_id": "I18-MVP-S2-INTAKE",
+      "checkpoint": "Mobile form after reload",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S2-accepts--ba0dc--one-delivery-with-one-lead-chromium/mvp-s2-mobile-after-reload.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Reloaded mobile form remains readable without clipping or obstruction."]
+    }
+  ],
+  "access_checks": [
+    {
+      "actor": "anonymous public visitor",
+      "resource_tenant": null,
+      "vector": "Campaign destination allowlist and analytics consent boundary",
+      "result": "passed",
+      "evidence": "Only the explicitly allowlisted localhost destination resolved; campaign entry emitted no analytics and post-consent property keys excluded lead/PII fields."
+    }
+  ],
+  "findings": [
+    {
+      "id": "I18-QA-MIGRATION-1",
+      "type": "product_defect",
+      "severity": "blocker",
+      "app": "api",
+      "module": "database-migrations",
+      "title": "Empty PostgreSQL migration chain created a duplicate FK",
+      "status": "fixed",
+      "evidence": ["Migrations 0000-0021 completed on a new empty PostgreSQL cluster."],
+      "attempts": 1
+    },
+    {
+      "id": "I18-QA-CAMPAIGN-1",
+      "type": "product_defect",
+      "severity": "blocker",
+      "app": "cross-app",
+      "module": "campaign-links",
+      "title": "Campaign entry had no integrated resolve endpoint",
+      "status": "fixed",
+      "evidence": [
+        "Active link returned 200 and replaced browser history with the exact allowlisted destination."
+      ],
+      "attempts": 2
+    },
+    {
+      "id": "I18-QA-CAMPAIGN-2",
+      "type": "product_defect",
+      "severity": "high",
+      "app": "api",
+      "module": "campaign-links",
+      "title": "Composed app mapped inactive campaign links to 500 instead of 404",
+      "status": "fixed",
+      "evidence": [
+        "Direct API and browser checks returned code-only 404 for inactive and expired links; permanent UX equality passed."
+      ],
+      "attempts": 2
+    },
+    {
+      "id": "I18-QA-ASTRO-DEV-1",
+      "type": "environment_limitation",
+      "severity": "low",
+      "app": "site",
+      "module": "test-environment",
+      "title": "Astro development audit logs a failed fetch during location replacement",
+      "status": "accepted",
+      "evidence": [
+        "The exact dev-toolbar message and net::ERR_ABORTED navigation cancellations were classified separately; product errors remained empty."
+      ],
+      "attempts": 1
+    }
+  ],
+  "scores": {
+    "product_outcome": 9.5,
+    "functional_reliability_persistence": 9.7,
+    "ux_visual_integrity": 9.5,
+    "access_privacy_tenant_isolation": 9.7,
+    "accessibility": 9.3,
+    "operability_regression_protection": 9.4,
+    "weighted_total": 9.5
+  },
+  "verification": [
+    {
+      "check": "Focused Biome check",
+      "result": "passed",
+      "evidence": "bunx biome check apps/web/tests/e2e-integrated checked 6 files with no fixes."
+    },
+    {
+      "check": "Web TypeScript boundary",
+      "result": "passed",
+      "evidence": "bun --filter web typecheck exited 0."
+    },
+    {
+      "check": "Empty PostgreSQL migration chain 0000-0021",
+      "result": "passed",
+      "evidence": "Real API startup migrated the new suite-owned cluster successfully before fixture insertion."
+    },
+    {
+      "check": "Complete integrated suite",
+      "result": "passed",
+      "evidence": "Two consecutive corrected runs passed 3/3 in 24.4 seconds and 3/3 in 27.1 seconds with one worker and no retries."
+    },
+    {
+      "check": "Final screenshot inspection",
+      "result": "passed",
+      "evidence": "Fourteen desktop/mobile artifacts were inspected across navigation, consent, campaign, form, success, and reload states."
+    },
+    {
+      "check": "Final committed PR SHA rerun",
+      "result": "skipped",
+      "evidence": "Required after the final commit exists; this report evaluates the pre-commit worktree."
+    }
+  ],
+  "decision": "approved_with_reservations"
+}

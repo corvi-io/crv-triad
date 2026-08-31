@@ -1,0 +1,8 @@
+---
+import Header from "./Header.astro"
+import Arrow from "../ui/Arrow.astro"
+interface Props { kind: string; title: string; body: string; image: string; device?: "phone" }
+const { kind, title, body, image, device } = Astro.props
+---
+<Header />
+<section class="solution-hero"><div class="shell solution-hero-grid"><div><span class="kicker">{kind}</span><h1>{title}</h1><p>{body}</p><a class="button" href="#comecar">Criar minha barbearia <Arrow /></a></div>{device === "phone" ? <div class="solution-phone-stage"><div class="real-phone"><i class="phone-button volume-up"></i><i class="phone-button volume-down"></i><i class="phone-button power"></i><div class="phone-screen"><span class="phone-island" aria-hidden="true"></span><img src={image} alt={`Tela mobile do ${kind}`} width="390" height="844" /></div></div></div> : <div class="solution-visual"><img src={image} alt={`Tela do ${kind}`} width="1280" height="720" /></div>}</div></section>

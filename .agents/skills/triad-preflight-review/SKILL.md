@@ -59,7 +59,7 @@ Check the diff for:
   volume, or peak browser workload. Do not invent capacity numbers; state
   whether each number is measured, estimated with assumptions, or unknown.
 - Architecture drift from Triad boundaries: `apps/site` owns the landing page,
-  `apps/api` owns FastAPI business APIs, and `apps/idp` owns authentication.
+  `apps/api` owns FastAPI business APIs, and `apps/api/src/modules/idp` owns authentication.
 - Missing or weak tests, stale docs, misleading task checklists, and outdated
   file references.
 - Documentation impact across README files, durable docs, `AGENTS.md`, `triad-*`
@@ -100,7 +100,7 @@ package-level scripts so Turborepo can orchestrate the workspace.
   responsive behavior changed and an E2E setup exists.
 - API changes: `bun --filter api check`, targeted tests, and coverage checks
   when behavior changed.
-- IDP changes: `bun --filter idp check`, `bun --filter idp build`, and
+- Identity changes: `bun --filter api check`, `bun --filter api build`, and
   targeted Vitest tests.
 - CI/CD changes: inspect workflow syntax and run local validation only when
   available.

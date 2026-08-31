@@ -1,185 +1,58 @@
 schema_version: 1
 source:
-  provider: github-environments
-  environments:
-    - dev
-    - hml
-    - prd
-platform:
-  cicd:
-    owner: .github
-    env:
-      - source: CICD__DEPLOY_ENABLED
-        github: variable
-        scope: environment
-        required: true
-      - source: CICD__RELEASE_ENABLED
-        github: variable
-        scope: repository
-        required: true
-      - source: CICD__RELEASE_TOKEN
-        github: secret
-        scope: repository
-        required: false
-  infra:
-    owner: .github
-    env:
-      - source: INFRA__FLY_API_TOKEN
-        github: secret
-        scope: environment
-        required: false
-      - source: INFRA__CLOUDFLARE_API_TOKEN
-        github: secret
-        scope: environment
-        required: false
-      - source: INFRA__CLOUDFLARE_ACCOUNT_ID
-        github: variable
-        scope: environment
-        required: false
-      - source: INFRA__CLOUDFLARE_SITE_PROJECT_NAME
-        github: variable
-        scope: environment
-        required: false
-      - source: INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME
-        github: variable
-        scope: environment
-        required: false
-      - source: INFRA__STUDIO_URL
-        github: variable
-        scope: environment
-        required: false
+  provider: infisical
+  environments: [dev, hml, prd]
+  paths:
+    api: /api
+    site: /site
+    studio: /studio
+    infrastructure: /infrastructure
 apps:
   api:
     owner: apps/api
     runtime: fly
     targets:
-      dev:
-        github_environment: dev
-        fly_app: crv-triad-api-dev
-        fly_config: apps/api/fly.dev.toml
-      hml:
-        github_environment: hml
-        fly_app: crv-triad-api-hml
-        fly_config: apps/api/fly.hml.toml
-      prd:
-        github_environment: prd
-        fly_app: crv-triad-api-prd
-        fly_config: apps/api/fly.prd.toml
+      dev: { github_environment: dev, fly_app: crv-triad-api-dev, fly_config: apps/api/fly.dev.toml }
+      hml: { github_environment: hml, fly_app: crv-triad-api-hml, fly_config: apps/api/fly.hml.toml }
+      prd: { github_environment: prd, fly_app: crv-triad-api-prd, fly_config: apps/api/fly.prd.toml }
     env:
-      - source: API__DATABASE_URL
-        runtime: DATABASE_URL
-        github: secret
-        required: true
-      - source: API__IDP_BASE_URL
-        runtime: IDP_BASE_URL
-        github: variable
-        required: true
-  idp:
-    owner: apps/idp
-    runtime: fly
-    targets:
-      dev:
-        github_environment: dev
-        fly_app: crv-triad-idp-dev
-        fly_config: apps/idp/fly.dev.toml
-      hml:
-        github_environment: hml
-        fly_app: crv-triad-idp-hml
-        fly_config: apps/idp/fly.hml.toml
-      prd:
-        github_environment: prd
-        fly_app: crv-triad-idp-prd
-        fly_config: apps/idp/fly.prd.toml
-    env:
-      - source: IDP__DATABASE_URL
-        runtime: DATABASE_URL
-        github: secret
-        required: true
-      - source: IDP__BETTER_AUTH_SECRET
-        runtime: BETTER_AUTH_SECRET
-        github: secret
-        required: true
-      - source: IDP__APP_ENV
-        runtime: APP_ENV
-        github: variable
-        required: true
-      - source: IDP__BETTER_AUTH_URL
-        runtime: BETTER_AUTH_URL
-        github: variable
-        required: true
-      - source: IDP__AUTH_TRUSTED_ORIGINS
-        runtime: AUTH_TRUSTED_ORIGINS
-        github: variable
-        required: true
-      - source: INFRA__GOOGLE_OAUTH_CLIENT_ID
-        runtime: AUTH_GOOGLE_CLIENT_ID
-        github: variable
-        required: true
-      - source: INFRA__GOOGLE_OAUTH_CLIENT_SECRET
-        runtime: AUTH_GOOGLE_CLIENT_SECRET
-        github: secret
-        required: true
-      - source: IDP__EMAIL_FROM
-        runtime: IDP_EMAIL_FROM
-        github: variable
-        required: true
-      - source: IDP__STUDIO_URL
-        runtime: IDP_STUDIO_URL
-        github: variable
-        required: true
-      - source: INFRA__RESEND_API_KEY
-        runtime: IDP_RESEND_API_KEY
-        github: secret
-        required: true
+      - { source: API__APP_ENV, runtime: APP_ENV, github: variable, required: true }
+      - { source: API__DATABASE_URL, runtime: DATABASE_URL, github: secret, required: true }
+      - { source: API__BETTER_AUTH_SECRET, runtime: BETTER_AUTH_SECRET, github: secret, required: true }
+      - { source: API__BETTER_AUTH_URL, runtime: BETTER_AUTH_URL, github: variable, required: true }
+      - { source: API__AUTH_TRUSTED_ORIGINS, runtime: AUTH_TRUSTED_ORIGINS, github: variable, required: true }
+      - { source: API__AUTH_GOOGLE_CLIENT_ID, runtime: AUTH_GOOGLE_CLIENT_ID, github: variable, required: true }
+      - { source: API__AUTH_GOOGLE_CLIENT_SECRET, runtime: AUTH_GOOGLE_CLIENT_SECRET, github: secret, required: true }
+      - { source: API__IDP_EMAIL_FROM, runtime: IDP_EMAIL_FROM, github: variable, required: true }
+      - { source: API__IDP_STUDIO_URL, runtime: IDP_STUDIO_URL, github: variable, required: true }
+      - { source: API__IDP_RESEND_API_KEY, runtime: IDP_RESEND_API_KEY, github: secret, required: true }
+      - { source: API__LEAD_EMAIL_FROM, runtime: LEAD_EMAIL_FROM, github: variable, required: true }
+      - { source: API__LEAD_EMAIL_TO, runtime: LEAD_EMAIL_TO, github: secret, required: true }
+      - { source: API__LEAD_RESEND_API_KEY, runtime: LEAD_RESEND_API_KEY, github: secret, required: true }
+      - { source: API__LEAD_RATE_LIMIT_SECRET, runtime: LEAD_RATE_LIMIT_SECRET, github: secret, required: true }
+      - { source: API__LEAD_TURNSTILE_SECRET_KEY, runtime: LEAD_TURNSTILE_SECRET_KEY, github: secret, required: true }
+      - { source: API__LEAD_TURNSTILE_HOSTNAMES, runtime: LEAD_TURNSTILE_HOSTNAMES, github: variable, required: true }
   site:
     owner: apps/site
     runtime: cloudflare-pages-static
     targets:
-      dev:
-        github_environment: dev
-        cloudflare_pages_branch: dev
-      hml:
-        github_environment: hml
-        cloudflare_pages_branch: hml
-      prd:
-        github_environment: prd
-        cloudflare_pages_branch: main
+      dev: { github_environment: dev, cloudflare_pages_branch: dev }
+      hml: { github_environment: hml, cloudflare_pages_branch: hml }
+      prd: { github_environment: prd, cloudflare_pages_branch: main }
     env:
-      - source: SITE__PUBLIC_SITE_URL
-        runtime: PUBLIC_SITE_URL
-        github: variable
-        required: true
+      - { source: SITE__PUBLIC_SITE_URL, runtime: PUBLIC_SITE_URL, github: variable, required: true }
+      - { source: SITE__PUBLIC_API_BASE_URL, runtime: PUBLIC_API_BASE_URL, github: variable, required: true }
+      - { source: SITE__PUBLIC_TURNSTILE_SITE_KEY, runtime: PUBLIC_TURNSTILE_SITE_KEY, github: variable, required: true }
   studio:
     owner: apps/studio
     runtime: cloudflare-pages-static
     targets:
-      dev:
-        github_environment: dev
-        cloudflare_pages_branch: dev
-      hml:
-        github_environment: hml
-        cloudflare_pages_branch: hml
-      prd:
-        github_environment: prd
-        cloudflare_pages_branch: main
+      dev: { github_environment: dev, cloudflare_pages_branch: dev }
+      hml: { github_environment: hml, cloudflare_pages_branch: hml }
+      prd: { github_environment: prd, cloudflare_pages_branch: main }
     env:
-      - source: STUDIO__VITE_AUTH_BASE_URL
-        runtime: VITE_AUTH_BASE_URL
-        github: variable
-        required: true
-      - source: STUDIO__VITE_DEPLOY_TARGET
-        runtime: VITE_DEPLOY_TARGET
-        github: variable
-        required: false
-      - source: STUDIO__VITE_SCHEDULING_SOURCE
-        runtime: VITE_SCHEDULING_SOURCE
-        github: variable
-        required: false
-      - source: STUDIO__VITE_BARBERSHOP_SETUP_SOURCE
-        runtime: VITE_BARBERSHOP_SETUP_SOURCE
-        github: variable
-        required: false
-      - source: STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE
-        runtime: VITE_CLIENT_MANAGEMENT_SOURCE
-        github: variable
-        required: false
+      - { source: STUDIO__VITE_AUTH_BASE_URL, runtime: VITE_AUTH_BASE_URL, github: variable, required: true }
+      - { source: STUDIO__VITE_DEPLOY_TARGET, runtime: VITE_DEPLOY_TARGET, github: variable, required: false }
+      - { source: STUDIO__VITE_SCHEDULING_SOURCE, runtime: VITE_SCHEDULING_SOURCE, github: variable, required: false }
+      - { source: STUDIO__VITE_BARBERSHOP_SETUP_SOURCE, runtime: VITE_BARBERSHOP_SETUP_SOURCE, github: variable, required: false }
+      - { source: STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE, runtime: VITE_CLIENT_MANAGEMENT_SOURCE, github: variable, required: false }

@@ -1,0 +1,93 @@
+name: Reusable Delivery
+on:
+  workflow_call:
+    inputs:
+      base-sha: { required: true, type: string }
+      comment-deploy: { default: false, type: boolean }
+      deploy: { required: true, type: boolean }
+      environment: { required: true, type: string }
+      head-sha: { required: true, type: string }
+      target: { required: true, type: string }
+permissions:
+  contents: read
+jobs:
+  detect:
+    name: Detect affected apps
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.affected.outputs.api }}
+      site: ${{ steps.affected.outputs.site }}
+      studio: ${{ steps.affected.outputs.studio }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Detect affected apps
+        id: affected
+        env:
+          BASE_SHA: ${{ inputs.base-sha }}
+          HEAD_SHA: ${{ inputs.head-sha }}
+        run: bash .github/scripts/detect-affected-apps.sh
+  security:
+    name: Security gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+      - name: CI configuration tests
+        run: bun run test:ci
+      - name: Security gate
+        run: bash .github/scripts/run-security-gate.sh
+  api:
+    name: API delivery
+    needs: [detect, security]
+    if: ${{ needs.detect.outputs.api == 'true' }}
+    permissions: { contents: read, id-token: write }
+    uses: ./.github/workflows/reusable-app-delivery.yml
+    with: { app: api, deploy: "${{ inputs.deploy }}", environment: "${{ inputs.environment }}", target: "${{ inputs.target }}" }
+  site:
+    name: Site delivery
+    needs: [detect, security]
+    if: ${{ needs.detect.outputs.site == 'true' }}
+    permissions: { contents: read, id-token: write }
+    uses: ./.github/workflows/reusable-app-delivery.yml
+    with: { app: site, deploy: "${{ inputs.deploy }}", environment: "${{ inputs.environment }}", target: "${{ inputs.target }}" }
+  studio:
+    name: Studio delivery
+    needs: [detect, security]
+    if: ${{ needs.detect.outputs.studio == 'true' }}
+    permissions: { contents: read, id-token: write }
+    uses: ./.github/workflows/reusable-app-delivery.yml
+    with: { app: studio, deploy: "${{ inputs.deploy }}", environment: "${{ inputs.environment }}", target: "${{ inputs.target }}" }
+  comment:
+    name: Comment deployment
+    needs: [detect, api, site, studio]
+    if: ${{ always() && inputs.comment-deploy && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions: { contents: read, issues: write, pull-requests: write }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Comment deployment
+        env:
+          CICD__API_DEPLOYED: ${{ needs.api.outputs.deployed == 'true' }}
+          CICD__API_HEALTH_URL: https://crv-triad-api-dev.fly.dev/health
+          CICD__API_URL: https://crv-triad-api-dev.fly.dev
+          CICD__COMMIT_SHA: ${{ inputs.head-sha }}
+          CICD__ENV_CODE: DEV
+          CICD__ENV_NAME: DEVELOPMENT
+          CICD__GITHUB_TOKEN: ${{ github.token }}
+          CICD__PR_NUMBER: ${{ github.event.pull_request.number }}
+          CICD__RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CICD__SITE_DEPLOYED: ${{ needs.site.outputs.deployed == 'true' }}
+          CICD__SITE_URL: https://dev.assinetriad.com.br
+          CICD__STUDIO_DEPLOYED: ${{ needs.studio.outputs.deployed == 'true' }}
+          CICD__STUDIO_URL: https://studio-dev.assinetriad.com.br
+        run: python .github/scripts/comment-pr-api-deploy.py

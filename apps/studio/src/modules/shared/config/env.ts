@@ -2,7 +2,7 @@ import { z } from "zod"
 
 const publicEnvSchema = z.object({
   VITE_APP_NAME: z.string().min(1).default("TRIAD Studio"),
-  VITE_AUTH_BASE_URL: z.string().url().default("http://localhost:8001/api/auth"),
+  VITE_AUTH_BASE_URL: z.string().url().default("http://localhost:8000/api/auth"),
   VITE_BARBERSHOP_SETUP_SOURCE: z.enum(["disabled", "memory"]).default("disabled"),
   VITE_CLIENT_MANAGEMENT_SOURCE: z.enum(["disabled", "memory"]).default("disabled"),
   VITE_DEPLOY_TARGET: z.enum(["local", "dev", "hml", "prd"]).default("local"),

@@ -2,7 +2,7 @@ app = "crv-triad-api-prd"
 primary_region = "gru"
 
 [deploy]
-  release_command = ".venv/bin/alembic upgrade head"
+  release_command = "bun dist/modules/idp/database/migrate.js"
 
 [http_service]
   internal_port = 8080
@@ -16,7 +16,7 @@ primary_region = "gru"
     grace_period = "10s"
     interval = "30s"
     method = "GET"
-    path = "/health"
+    path = "/ready"
     timeout = "5s"
 
 [[vm]]

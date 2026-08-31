@@ -21,10 +21,10 @@
 - Keep local `apps/site/.env` and `.env.example` runtime-shaped with `PUBLIC_*`
   names.
 - Preserve the local site dev server on port `3001`.
-- Deployment workflows read uppercase app-prefixed GitHub Environment variables
+- Deployment workflows read uppercase app-prefixed Infisical `/site` values
   such as `SITE__PUBLIC_SITE_URL` and export runtime `PUBLIC_*` names before the Astro
   build through root `env-schema.yaml`.
-- Do not add server-only values to `SITE__*` GitHub Environment variables; every
+- Do not add server-only values to `SITE__*` Infisical values; every
   mapped site value becomes browser-visible after build.
 - Keep server-only values out of the site:
   - `TURNSTILE_SECRET_KEY`

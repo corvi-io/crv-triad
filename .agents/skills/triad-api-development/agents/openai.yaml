@@ -1,4 +1,4 @@
 interface:
-  display_name: "Triad API Development"
-  short_description: "Build FastAPI modules using Triad patterns"
-  default_prompt: "Use $triad-api-development to implement this API change with Triad conventions."
+  display_name: "CRV Triad API Development"
+  short_description: "Build CRV Elysia modules using modular-monolith patterns"
+  default_prompt: "Use $triad-api-development to implement this API change with CRV conventions."

@@ -9,39 +9,38 @@
 
 ## Product Boundaries
 
-- `apps/site` owns the static public placeholder.
-- `apps/api` owns FastAPI business APIs. It currently exposes only `/health` and `/ready`.
-- `apps/idp` owns authentication, sessions, invitations, users, and identity contracts.
+- `apps/site` owns the public Astro marketing site and its lead form UI.
+- `apps/api` owns business APIs, authentication, sessions, invitations, users, and identity contracts.
 - `apps/studio` owns the authenticated barbershop-management product interface.
-- Do not put business-domain rules inside `apps/idp`.
+- Keep identity rules isolated under `apps/api/src/modules/idp`; do not put business-domain rules there.
 
 ## IDP Architecture
 
-- IDP code lives under `apps/idp` and uses Elysia, Better Auth, Drizzle, PostgreSQL, Zod, Vitest, and Biome.
+- Identity code lives under `apps/api/src/modules/idp` and uses Better Auth, Drizzle, PostgreSQL, Zod, Vitest, and Biome.
 - Mount Better Auth directly at `/api/auth/*`; do not manually wrap every Better Auth endpoint.
 - Email/password is the active login method.
 - Do not add public self-registration. Access requires an existing active user or a valid pending invitation.
 - Create the first admin invitation through the explicit bootstrap script.
 - Keep IDP tables prefixed with `idp_`.
-- Generate IDP entity IDs with UUIDv7 through `apps/idp/src/infra/ids.ts`.
+- Generate identity entity IDs with UUIDv7 through `apps/api/src/modules/idp/infra/ids.ts`.
 
 ## API Architecture
 
-- API code lives under `apps/api` and uses FastAPI with `uv`.
+- API code lives under `apps/api` and uses Bun, Elysia, Better Auth, Drizzle, PostgreSQL, Zod, and Vitest.
 - Keep API modules under `apps/api/src/modules/{module}` when new domain modules are added.
-- Keep REST entrypoints under `apps/api/src/entrypoints/rest/{module}` and keep `main.py` as the REST composition root.
-- Use `python-inject` for business dependency injection; do not use FastAPI dependency injection for business wiring.
+- Keep REST composition under `apps/api/src/entrypoints/rest`; modules expose Elysia plugins and receive explicit dependencies.
 - Do not add a `/v1` prefix unless a versioned external contract is explicitly required.
 
 ## Environment Management
 
 - Keep app-local `.env` and `.env.example` files runtime-shaped inside each app.
 - Do not introduce a single root `.env`.
-- Preserve local ports: API `8000`, IDP `8001`, studio `3000`, site `3001`.
+- Preserve local ports: API `8000`, studio `3000`, site `3001`.
 - Use root `env-schema.yaml` as the metadata-only deployment env manifest; never store actual values there.
-- Use GitHub Environments `dev`, `hml`, and `prd` for deployment env values.
-- Name app runtime sources in GitHub Environments as `APP__RUNTIME_ENV_NAME`
-  with an uppercase app prefix (`API__*`, `IDP__*`, `SITE__*`, `STUDIO__*`).
+- Use Infisical environments `dev`, `hml`, and `prd` as the value source of truth.
+- GitHub Environments retain protection rules and the non-secret Infisical OIDC identity/project identifiers only.
+- Store app values in Infisical paths `/api`, `/site`, and `/studio`, with infrastructure values in `/infrastructure`.
+- Name deployment sources with an uppercase app prefix (`API__*`, `SITE__*`, `STUDIO__*`).
 - Name pipeline and release controls with `CICD__*` and provider credentials,
   provider identifiers, and deployed-resource locations with `INFRA__*`.
 - Do not add uncategorized custom GitHub variables or secrets. GitHub-provided
@@ -63,9 +62,9 @@
 - Use `triad-initiative-workflow` when creating or updating initiative PRDs/tasks.
 - Use `triad-release-workflow` for first-release bootstrap, release readiness,
   production promotion, release environment checks, tags, and GitHub Releases.
-- Treat publishing a release and deploying applications as separate decisions.
-  Do not enable deployment as a side effect of release work.
-- Initiative planning must include brainstorm, gaps, counterpoints, performance/scalability, accessibility, security/privacy, API/IDP/studio boundaries, logging/observability, and verification thinking.
+- Treat release publication as an explicit decision. Application deployment follows the protected
+  environment branch boundaries automatically.
+- Initiative planning must include brainstorm, gaps, counterpoints, performance/scalability, accessibility, security/privacy, API/identity/studio boundaries, logging/observability, and verification thinking.
 - If documentation does not need updates, be prepared to state why during review or handoff.
 
 ## Safety

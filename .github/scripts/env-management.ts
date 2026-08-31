@@ -6,7 +6,6 @@ import { appendFileSync } from "node:fs"
 
 type GitHubSourceKind = "secret" | "variable"
 type AppRuntime = "fly" | "cloudflare-pages-static"
-type PlatformEnvScope = "environment" | "repository"
 
 export type EnvEntry = {
   source: string
@@ -29,21 +28,8 @@ export type AppConfig = {
   env: EnvEntry[]
 }
 
-export type PlatformEnvEntry = {
-  source: string
-  github: GitHubSourceKind
-  scope: PlatformEnvScope
-  required: boolean
-}
-
-export type PlatformConfig = {
-  owner: string
-  env: PlatformEnvEntry[]
-}
-
 export type EnvSchema = {
   schema_version: number
-  platform: Record<"cicd" | "infra", PlatformConfig>
   apps: Record<string, AppConfig>
 }
 
@@ -73,16 +59,16 @@ const SOURCE_NAME_PATTERN = /^[A-Z][A-Z0-9]*__[A-Z][A-Z0-9_]*$/
 const RUNTIME_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/
 
 const USAGE = `Usage:
-  bun .github/scripts/env-management.ts validate --app <api|idp|site|studio> --target <dev|hml|prd> [--schema env-schema.yaml]
+  bun .github/scripts/env-management.ts validate --app <api|site|studio> --target <dev|hml|prd> [--schema env-schema.yaml]
   bun .github/scripts/env-management.ts export --app <site|studio> --target <dev|hml|prd> --github-env <path> [--schema env-schema.yaml]
-  bun .github/scripts/env-management.ts sync-fly --app <api|idp> --target <dev|hml|prd> [--schema env-schema.yaml]
+  bun .github/scripts/env-management.ts sync-fly --app api --target <dev|hml|prd> [--schema env-schema.yaml]
 
 Commands:
-  validate   Check that the app, target, schema entries, and required GitHub Environment values exist.
+  validate   Check that the app, target, schema entries, and required Infisical values exist.
   export     Append runtime NAME=VALUE mappings to a GitHub Actions env file without printing values.
-  sync-fly   Stage mapped runtime env in the target Fly app through flyctl secrets import --stage.
+  sync-fly   Apply mapped runtime env to the target Fly app through flyctl secrets import.
 
-GitHub source values must be present in the process environment using the categorized names from env-schema.yaml.
+Infisical source values must be present in the process environment using the app-prefixed names from env-schema.yaml.
 `
 
 export class EnvManagementError extends Error {}
@@ -108,45 +94,6 @@ export function assertSchema(value: unknown): asserts value is EnvSchema {
   }
 
   const seenSources = new Set<string>()
-
-  if (!isRecord(value.platform)) {
-    throw new EnvManagementError("env-schema.yaml must declare platform env categories.")
-  }
-
-  for (const platformName of ["cicd", "infra"] as const) {
-    const platform = value.platform[platformName]
-    if (!isRecord(platform) || typeof platform.owner !== "string") {
-      throw new EnvManagementError(`Platform category "${platformName}" is invalid.`)
-    }
-    if (!Array.isArray(platform.env) || platform.env.length === 0) {
-      throw new EnvManagementError(`Platform category "${platformName}" must declare env entries.`)
-    }
-
-    const sourcePrefix = `${platformName.toUpperCase()}__`
-    for (const entry of platform.env) {
-      if (!isRecord(entry) || typeof entry.source !== "string") {
-        throw new EnvManagementError(`Platform category "${platformName}" has an invalid entry.`)
-      }
-      if (!SOURCE_NAME_PATTERN.test(entry.source) || !entry.source.startsWith(sourcePrefix)) {
-        throw new EnvManagementError(
-          `Platform source "${entry.source}" must use the prefix "${sourcePrefix}".`,
-        )
-      }
-      if (seenSources.has(entry.source)) {
-        throw new EnvManagementError(`Duplicate source name "${entry.source}".`)
-      }
-      seenSources.add(entry.source)
-      if (entry.github !== "secret" && entry.github !== "variable") {
-        throw new EnvManagementError(`Platform source "${entry.source}" has invalid GitHub kind.`)
-      }
-      if (entry.scope !== "environment" && entry.scope !== "repository") {
-        throw new EnvManagementError(`Platform source "${entry.source}" has invalid scope.`)
-      }
-      if (typeof entry.required !== "boolean") {
-        throw new EnvManagementError(`Platform source "${entry.source}" must declare required.`)
-      }
-    }
-  }
 
   for (const [appName, app] of Object.entries(value.apps)) {
     if (!isRecord(app)) {
@@ -204,9 +151,9 @@ export function assertSchema(value: unknown): asserts value is EnvSchema {
       }
 
       const sourcePrefix = `${appName.toUpperCase()}__`
-      if (!entry.source.startsWith(sourcePrefix) && !entry.source.startsWith("INFRA__")) {
+      if (!entry.source.startsWith(sourcePrefix)) {
         throw new EnvManagementError(
-          `Source "${entry.source}" must use the app prefix "${sourcePrefix}" or provider prefix "INFRA__".`,
+          `Source "${entry.source}" must use the app prefix "${sourcePrefix}".`,
         )
       }
 
@@ -267,7 +214,7 @@ export function selectRuntimeEnv(
 
   if (missing.length > 0) {
     throw new EnvManagementError(
-      `Missing required GitHub Environment values for ${appName}/${targetName}: ${missing.join(", ")}.`,
+      `Missing required Infisical values for ${appName}/${targetName}: ${missing.join(", ")}.`,
     )
   }
 
@@ -314,7 +261,7 @@ export function formatGitHubEnvFileEntries(values: RuntimeEnvValue[]): string {
         return `${runtime}=${value}\n`
       }
 
-      const delimiter = `TRIAD_ENV_${runtime}_${randomUUID().replaceAll("-", "_")}`
+      const delimiter = `CRV_ENV_${runtime}_${randomUUID().replaceAll("-", "_")}`
       return `${runtime}<<${delimiter}\n${value}\n${delimiter}\n`
     })
     .join("")
@@ -335,7 +282,7 @@ export function syncFlySecrets(
   }
 
   const input = renderFlySecretsImportInput(selection)
-  const result = runner(["secrets", "import", "--app", selection.target.fly_app, "--stage"], input)
+  const result = runner(["secrets", "import", "--app", selection.target.fly_app], input)
 
   if (result.status !== 0) {
     const output = redactFlyImportOutput(
@@ -344,7 +291,7 @@ export function syncFlySecrets(
     )
     const detail = output ? ` Output: ${output}` : ""
     throw new EnvManagementError(
-      `flyctl secrets import --stage failed for ${selection.appName}/${selection.targetName} with exit code ${
+      `flyctl secrets import failed for ${selection.appName}/${selection.targetName} with exit code ${
         result.status ?? "unknown"
       }.${detail}`,
     )
