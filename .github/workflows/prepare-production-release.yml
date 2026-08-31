@@ -86,15 +86,25 @@ jobs:
           skip-github-release: true
 
       - name: Merge release artifacts into staging
-        if: ${{ steps.release-readiness.outputs.prepare_needed == 'true' && steps.release-readiness.outputs.required == 'true' && steps.release-readiness.outputs.prepared != 'true' && (steps.release-please.outputs.prs_created == 'true' || steps.release-please.outputs.pr != '') }}
+        if: ${{ steps.release-readiness.outputs.prepare_needed == 'true' && steps.release-readiness.outputs.required == 'true' && steps.release-readiness.outputs.prepared != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.CICD__RELEASE_TOKEN }}
         run: |
-          release_pr="$(gh pr list --base "$CICD__SOURCE_BRANCH" --state open --label "autorelease: pending" --json number --jq '.[0].number')"
+          release_pr=""
+          for attempt in $(seq 1 24); do
+            release_pr="$(gh pr list --base "$CICD__SOURCE_BRANCH" --state open --label "autorelease: pending" --json number --jq '.[0].number')"
+            if [ -n "$release_pr" ]; then
+              break
+            fi
+            sleep 5
+          done
+
           if [ -z "$release_pr" ]; then
-            echo "No pending release artifact PR found for $CICD__SOURCE_BRANCH."
-            exit 0
+            echo "::error::No pending release artifact PR found for $CICD__SOURCE_BRANCH."
+            exit 1
           fi
+
+          gh pr checks "$release_pr" --watch --fail-fast
 
           for attempt in $(seq 1 12); do
             state="$(gh pr view "$release_pr" --json mergeStateStatus --jq '.mergeStateStatus')"
