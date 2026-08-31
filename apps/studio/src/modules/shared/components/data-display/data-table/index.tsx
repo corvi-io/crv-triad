@@ -57,6 +57,7 @@ export function DataTable({
 }: DataTableProps) {
   return (
     <div
+      data-slot="data-table"
       className={cn(
         "relative isolate flex min-h-0 flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm",
         className,
@@ -66,6 +67,7 @@ export function DataTable({
         className="min-h-0 flex-1"
         maskClassName="before:from-card after:from-card"
         scrollbars="both"
+        scrollbarVisibility="overflow"
         viewportClassName={cn("min-h-0", viewportClassName)}
       >
         <table
@@ -282,7 +284,10 @@ export function DataTablePagination({
   const hasNext = page < totalPages
 
   return (
-    <div className="flex shrink-0 flex-col gap-3 border-t bg-background/95 px-3 py-3 text-sm shadow-[0_-1px_0_0_var(--border)] md:flex-row md:items-center md:justify-between">
+    <div
+      data-slot="data-table-footer"
+      className="flex shrink-0 flex-col gap-3 border-t bg-background/95 px-3 py-3 text-sm shadow-[0_-1px_0_0_var(--border)] md:flex-row md:items-center md:justify-between"
+    >
       <div className="flex min-w-max shrink-0 items-center gap-2 text-sm text-muted-foreground">
         <span className="whitespace-nowrap">Registros por página</span>
         <DropdownMenu>

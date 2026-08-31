@@ -2,8 +2,9 @@
 
 - Follow root `AGENTS.md`.
 - Keep API modules under `src/modules/{module}`.
-- Keep REST entrypoints under `src/entrypoints/rest/{module}`.
-- Keep `src/entrypoints/rest/main.py` as the REST composition root.
-- Use `python-inject` for business dependency wiring.
-- Use SQLModel records only as persistence records.
-- Keep tests under `tests/unit` mirroring `src`.
+- Keep REST composition under `src/entrypoints/rest` and expose module-owned Elysia plugins.
+- Keep identity concerns isolated under `src/modules/idp`; business modules live beside it.
+- Wire dependencies explicitly through factories and narrow structural contracts.
+- Use Drizzle for PostgreSQL persistence and keep migrations under `drizzle`.
+- Keep unit tests under `tests/unit` and composed HTTP/database tests under `tests/integration`.
+- Run `bun --filter api check` and `bun --filter api coverage:check` before handoff.

@@ -1,43 +1,44 @@
-import {
-  CalendarDaysIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CircleAlertIcon,
-  PlusIcon,
-  RotateCcwIcon,
-} from "lucide-react"
-import { useState } from "react"
+import { CalendarDaysIcon, CircleAlertIcon, PlusIcon } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
+
 import { EmptyState } from "@/modules/shared/components/feedback/empty-state"
-import {
-  DatePicker,
-  formatDateOnly,
-  parseDateOnly,
-} from "@/modules/shared/components/forms/date-picker"
-import { SelectInput } from "@/modules/shared/components/forms/form-controls"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
 import { PageHeader } from "@/modules/shared/components/layout/page-header"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
-import { cn } from "@/modules/shared/lib/utils"
+
+import {
+  type AgendaColumnId,
+  deriveAgendaResult,
+  parseIdList,
+  primaryStatusForColumn,
+  type ScheduleSearch,
+  visibleScheduleBounds,
+} from "./agenda"
+import { AgendaBoard, type AgendaDropDestination, makeSlots, toMinutes } from "./agenda-board"
+import { AgendaControls } from "./agenda-controls"
+import { AgendaList } from "./agenda-list"
 import { AppointmentDrawer, type DrawerMode } from "./appointment-drawer"
 import type {
   Appointment,
   AppointmentStatus,
-  Professional,
-  ScheduleDay,
+  AppointmentTransitionInput,
   ScheduleDayQuery,
 } from "./contracts"
-import { appointmentStatuses } from "./contracts"
-import { useScenarioActions, useScheduleDay } from "./queries"
-import { appointmentStatusPresentation } from "./status"
+import { ScheduleConflictError } from "./contracts"
+import {
+  useRescheduleAppointment,
+  useScenarioActions,
+  useScheduleDay,
+  useTransitionAppointment,
+} from "./queries"
+import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
+import { TransitionDialog } from "./transition-dialog"
+import { type WeeklyDropDestination, weeklyDropError } from "./weekly-agenda"
+import { WeeklyBoard } from "./weekly-board"
 
-export type ScheduleSearch = {
-  date: string
-  professional?: string
-  scenario: string
-  status?: AppointmentStatus
-}
+export type { ScheduleSearch } from "./agenda"
 
 export function SchedulePage({
   onSearchChange,
@@ -46,23 +47,82 @@ export function SchedulePage({
   onSearchChange: (next: Partial<ScheduleSearch>) => void
   search: ScheduleSearch
 }) {
+  const [searchText, setSearchText] = useState("")
+  const debouncedSearchText = useDebouncedValue(searchText, 250)
+  const bounds = visibleScheduleBounds(search)
   const query: ScheduleDayQuery = {
-    date: search.date,
-    professionalId: search.professional,
+    clientIds: parseIdList(search.client),
+    endDate: bounds.endDate,
+    professionalIds: parseIdList(search.professional),
     scenarioId: search.scenario,
-    status: search.status,
+    search: debouncedSearchText,
+    serviceIds: parseIdList(search.service),
+    startDate: bounds.startDate,
+    statusIds: parseIdList(search.status) as AppointmentStatus[],
+    unitId: search.unit,
   }
   const dayQuery = useScheduleDay(query)
-  const scenarios = useScenarioActions()
+  const scenarios = useScenarioActions(query)
+  const transitionMutation = useTransitionAppointment()
+  const rescheduleMutation = useRescheduleAppointment()
+  const [announcement, setAnnouncement] = useState("")
+  const [transitionRequest, setTransitionRequest] = useState<{
+    appointment: Appointment
+    initialColumn?: AgendaColumnId
+  } | null>(null)
   const [drawer, setDrawer] = useState<{
     appointment?: Appointment
     mode: DrawerMode
-    slot?: { professionalId: string; start: string }
+    slot?: { date?: string; professionalId: string; start: string }
   } | null>(null)
+  const consumedAppointment = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    if (!search.appointment || !dayQuery.data || consumedAppointment.current === search.appointment)
+      return
+    consumedAppointment.current = search.appointment
+    const appointment = dayQuery.data.appointments.find(({ id }) => id === search.appointment)
+    if (appointment) {
+      setDrawer({ appointment, mode: "view" })
+      return
+    }
+    setAnnouncement("O agendamento indicado não está disponível neste período.")
+  }, [dayQuery.data, search.appointment])
+
+  const result = useMemo(
+    () =>
+      deriveAgendaResult(
+        dayQuery.data?.appointments ?? [],
+        dayQuery.data?.professionals ?? [],
+        dayQuery.data?.services ?? [],
+        {
+          clientIds: [],
+          endDate: bounds.endDate,
+          professionalIds: [],
+          searchText: "",
+          serviceIds: [],
+          startDate: bounds.startDate,
+          statusIds: [],
+          unitId: search.unit,
+        },
+      ),
+    [bounds.endDate, bounds.startDate, dayQuery.data, search.unit],
+  )
+
+  const boardDay = useMemo(() => {
+    if (!dayQuery.data) return undefined
+    return {
+      ...dayQuery.data,
+      appointments: result.appointments.filter(({ date }) => date === bounds.startDate),
+      date: bounds.startDate,
+      occupancies: dayQuery.data.occupancies.filter(({ date }) => date === bounds.startDate),
+      professionals: dayQuery.data.professionals,
+    }
+  }, [bounds.startDate, dayQuery.data, result.appointments])
 
   async function selectScenario(id: string) {
-    onSearchChange({ scenario: id })
     await scenarios.select(id)
+    onSearchChange({ scenario: id })
     toast.success("Cenário carregado.")
   }
 
@@ -71,543 +131,296 @@ export function SchedulePage({
     toast.success("Cenário restaurado.")
   }
 
+  function clearFilters() {
+    setSearchText("")
+    onSearchChange({
+      client: undefined,
+      customEnd: undefined,
+      customStart: undefined,
+      period: "today",
+      professional: undefined,
+      service: undefined,
+      status: undefined,
+      unit: "centro",
+    })
+  }
+
+  const hasActiveFilters =
+    debouncedSearchText.length > 0 ||
+    parseIdList(search.professional).length > 0 ||
+    parseIdList(search.client).length > 0 ||
+    parseIdList(search.service).length > 0 ||
+    parseIdList(search.status).length > 0 ||
+    search.period !== "today" ||
+    search.unit !== "centro"
+
+  async function transitionAppointment(input: AppointmentTransitionInput) {
+    if (transitionMutation.isPending) return
+    const destination = appointmentStatusPresentation[input.status].label
+    setAnnouncement(`Atualizando status para ${destination}.`)
+    try {
+      await transitionMutation.mutateAsync(input)
+      toast.success(`Status atualizado para “${destination}”.`)
+      setAnnouncement(`Status atualizado para ${destination}.`)
+      setTransitionRequest(null)
+      requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLElement>(`[data-appointment-id="${input.id}"]`)
+          ?.querySelector<HTMLElement>("button")
+          ?.focus()
+      })
+    } catch {
+      toast.error("Não foi possível alterar o status. O agendamento foi restaurado.")
+      setAnnouncement("Falha ao alterar o status. O agendamento foi restaurado.")
+      setTransitionRequest(null)
+    }
+  }
+
+  function requestTransition(appointment: Appointment, column?: AgendaColumnId) {
+    if (transitionMutation.isPending || isTerminalAppointmentStatus(appointment.status)) return
+    if (
+      !column ||
+      column === "canceled-no-show" ||
+      (column === "completed" && appointment.paymentStatus === "pending")
+    ) {
+      setTransitionRequest({ appointment, initialColumn: column })
+      return
+    }
+    void transitionAppointment({
+      id: appointment.id,
+      status: primaryStatusForColumn(column),
+    })
+  }
+
+  async function rescheduleAppointment(
+    appointment: Appointment,
+    destination: AgendaDropDestination & { date?: string },
+  ) {
+    if (rescheduleMutation.isPending) {
+      setAnnouncement("Aguarde a remarcação atual terminar.")
+      return
+    }
+    if (isTerminalAppointmentStatus(appointment.status)) {
+      setAnnouncement("Agendamentos finalizados não podem ser remarcados.")
+      return
+    }
+    if (
+      appointment.professionalId === destination.professionalId &&
+      appointment.date === (destination.date ?? appointment.date) &&
+      appointment.start === destination.start
+    ) {
+      setAnnouncement("O agendamento já está nesse horário e barbeiro.")
+      return
+    }
+    const day = dayQuery.data
+    const professional = day?.professionals.find(({ id }) => id === destination.professionalId)
+    const service = day?.services.find(({ id }) => id === appointment.serviceId)
+    const validSlots = day ? makeSlots(day.startTime, day.endTime) : []
+    if (!day || !professional || !service || !validSlots.includes(destination.start)) {
+      setAnnouncement("Destino inválido. O agendamento não foi alterado.")
+      return
+    }
+    if (!service.eligibleProfessionalIds.includes(professional.id)) {
+      setAnnouncement("Esse barbeiro não atende o serviço do agendamento.")
+      return
+    }
+    if (toMinutes(destination.start) + appointment.durationMinutes > toMinutes(day.endTime)) {
+      setAnnouncement("O atendimento terminaria fora do horário de funcionamento.")
+      return
+    }
+
+    setAnnouncement(`Remarcando ${appointment.customerName} para ${destination.start}.`)
+    try {
+      await rescheduleMutation.mutateAsync({ appointment, ...destination })
+      toast.success(`Agendamento remarcado para ${destination.start} com ${professional.name}.`)
+      setAnnouncement(
+        `${appointment.customerName} remarcado para ${destination.date ?? appointment.date} às ${destination.start} com ${professional.name}. O status não foi alterado.`,
+      )
+    } catch (error) {
+      const reason =
+        error instanceof ScheduleConflictError
+          ? error.message
+          : "Não foi possível confirmar a remarcação."
+      toast.error(`${reason} O agendamento foi restaurado.`)
+      setAnnouncement(`${reason} O agendamento foi restaurado.`)
+    } finally {
+      requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLElement>(`[data-appointment-id="${appointment.id}"]`)
+          ?.querySelector<HTMLElement>("[data-drag-handle]")
+          ?.focus()
+      })
+    }
+  }
+
+  function rescheduleWeeklyAppointment(
+    appointment: Appointment,
+    destination: WeeklyDropDestination,
+  ) {
+    if (!dayQuery.data) return
+    const error = weeklyDropError(dayQuery.data, appointment, destination)
+    if (error) {
+      toast.error(`${error} O agendamento foi restaurado.`)
+      setAnnouncement(`${error} O agendamento foi restaurado.`)
+      return
+    }
+    void rescheduleAppointment(appointment, destination)
+  }
+
   return (
     <ModuleLayout
+      bodyViewportClassName="flex h-full flex-col gap-3"
       head={
         <>
           <PageHeader
-            title="Agenda"
-            description="Protótipo visual diário com dados sintéticos e sem persistência."
             actions={
               <Button type="button" onClick={() => setDrawer({ mode: "create" })}>
                 <PlusIcon data-icon="inline-start" />
                 Novo agendamento
               </Button>
             }
+            description="Gerencie os atendimentos do dia com eficiência."
+            title="Agenda"
           />
-          <ScheduleControls
-            day={dayQuery.data}
-            search={search}
+          <AgendaControls
+            appointments={dayQuery.data?.appointments ?? []}
+            professionals={dayQuery.data?.professionalOptions ?? []}
             scenarios={scenarios.scenarios}
-            onSearchChange={onSearchChange}
-            onScenarioChange={selectScenario}
+            search={search}
+            searchText={searchText}
+            services={dayQuery.data?.services ?? []}
+            onClearFilters={clearFilters}
             onReset={resetScenario}
+            onScenarioChange={selectScenario}
+            onSearchChange={onSearchChange}
+            onSearchTextChange={setSearchText}
           />
         </>
       }
-      bodyViewportClassName="h-full space-y-3 pb-2"
     >
       {dayQuery.isPending ? (
         <ScheduleLoading />
       ) : dayQuery.isError ? (
         <ScheduleError onRetry={() => dayQuery.refetch()} />
-      ) : dayQuery.data ? (
-        <Schedule
-          day={dayQuery.data}
-          onAppointment={(appointment) => setDrawer({ appointment, mode: "view" })}
-          onSlot={(slot) => setDrawer({ mode: "create", slot })}
-        />
+      ) : dayQuery.data && boardDay ? (
+        search.view === "board" && search.scope === "week" ? (
+          <WeeklyBoard
+            appointments={result.appointments}
+            range={{ ...dayQuery.data, date: bounds.startDate }}
+            onAppointment={(appointment) => setDrawer({ appointment, mode: "view" })}
+            onCreate={(slot) => setDrawer({ mode: "create", slot })}
+            onDropAppointment={rescheduleWeeklyAppointment}
+          />
+        ) : result.total === 0 ? (
+          <EmptyState
+            action={
+              hasActiveFilters ? (
+                <Button type="button" variant="outline" onClick={clearFilters}>
+                  Limpar filtros
+                </Button>
+              ) : (
+                <Button type="button" onClick={() => setDrawer({ mode: "create" })}>
+                  <PlusIcon data-icon="inline-start" />
+                  Adicionar agendamento
+                </Button>
+              )
+            }
+            description={
+              hasActiveFilters
+                ? "Os filtros atuais não correspondem a nenhum agendamento."
+                : "Não há agendamentos neste período. Você pode adicionar um novo horário."
+            }
+            icon={CalendarDaysIcon}
+            title={hasActiveFilters ? "Nenhum agendamento encontrado" : "Agenda livre no período"}
+          />
+        ) : search.view === "board" ? (
+          <AgendaBoard
+            day={boardDay}
+            isReschedulePending={rescheduleMutation.isPending}
+            onAnnouncement={setAnnouncement}
+            onAppointment={(appointment) => setDrawer({ appointment, mode: "view" })}
+            onReschedule={(appointment, destination) =>
+              void rescheduleAppointment(appointment, destination)
+            }
+            onSlot={(slot) => setDrawer({ mode: "create", slot })}
+            onTransitionRequest={requestTransition}
+          />
+        ) : (
+          <AgendaList
+            appointments={result.appointments}
+            professionals={dayQuery.data.professionals}
+            services={dayQuery.data.services}
+            onAppointment={(appointment) => setDrawer({ appointment, mode: "view" })}
+            onTransitionRequest={requestTransition}
+          />
+        )
       ) : null}
+
       {dayQuery.data && drawer ? (
         <AppointmentDrawer
           appointment={drawer.appointment}
           initialSlot={drawer.slot}
           isOpen
           mode={drawer.mode}
-          onModeChange={(mode) => setDrawer((current) => (current ? { ...current, mode } : null))}
-          onOpenChange={(open) => !open && setDrawer(null)}
           professionals={dayQuery.data.professionals}
-          selectedDate={search.date}
+          selectedDate={drawer.slot?.date ?? bounds.startDate}
+          selectedUnit={search.unit}
           services={dayQuery.data.services}
+          onModeChange={(mode) => setDrawer((current) => (current ? { ...current, mode } : null))}
+          onOpenChange={(open) => {
+            if (open) return
+            setDrawer(null)
+            if (search.appointment) onSearchChange({ appointment: undefined })
+          }}
         />
       ) : null}
+
+      {transitionRequest ? (
+        <TransitionDialog
+          appointment={transitionRequest.appointment}
+          initialColumn={transitionRequest.initialColumn}
+          isPending={transitionMutation.isPending}
+          onCancel={() => {
+            setTransitionRequest(null)
+            setAnnouncement("Alteração de status cancelada.")
+          }}
+          onConfirm={transitionAppointment}
+        />
+      ) : null}
+
+      <div aria-atomic="true" aria-live="polite" className="sr-only">
+        {announcement}
+      </div>
     </ModuleLayout>
   )
 }
 
-function ScheduleControls({
-  day,
-  onReset,
-  onScenarioChange,
-  onSearchChange,
-  scenarios,
-  search,
-}: {
-  day?: ScheduleDay
-  onReset: () => void
-  onScenarioChange: (id: string) => void
-  onSearchChange: (next: Partial<ScheduleSearch>) => void
-  scenarios: readonly { id: string; label: string }[]
-  search: ScheduleSearch
-}) {
-  const date = parseDateOnly(search.date) ?? new Date()
-  const moveDate = (amount: number) => {
-    const next = new Date(date)
-    next.setDate(next.getDate() + amount)
-    onSearchChange({ date: formatDateOnly(next) })
-  }
-  return (
-    <fieldset className="grid gap-2 rounded-lg border bg-card p-3 lg:grid-cols-[auto_minmax(11rem,1fr)_minmax(11rem,1fr)_minmax(11rem,1fr)_auto] lg:items-end">
-      <legend className="sr-only">Controles da agenda</legend>
-      <div className="flex min-w-0 flex-wrap items-end gap-1">
-        <Button
-          aria-label="Dia anterior"
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={() => moveDate(-1)}
-        >
-          <ChevronLeftIcon />
-        </Button>
-        <div className="min-w-36 flex-1">
-          <label className="mb-1 block text-xs font-medium" htmlFor="schedule-date">
-            Data
-          </label>
-          <DatePicker
-            id="schedule-date"
-            value={search.date}
-            placeholder="Selecione"
-            onValueChange={(date) => onSearchChange({ date })}
-          />
-        </div>
-        <Button
-          aria-label="Próximo dia"
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={() => moveDate(1)}
-        >
-          <ChevronRightIcon />
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => onSearchChange({ date: formatDateOnly(new Date()) })}
-        >
-          Hoje
-        </Button>
-      </div>
-      <Filter htmlFor="professional-filter" label="Profissional">
-        <SelectInput
-          id="professional-filter"
-          value={search.professional ?? ""}
-          placeholder="Todos os profissionais"
-          options={[
-            { label: "Todos os profissionais", value: "" },
-            ...(day?.professionals ?? []).map(({ id, name }) => ({ label: name, value: id })),
-          ]}
-          onValueChange={(professional) =>
-            onSearchChange({ professional: professional || undefined })
-          }
-        />
-      </Filter>
-      <Filter htmlFor="status-filter" label="Status">
-        <SelectInput
-          id="status-filter"
-          value={search.status ?? ""}
-          placeholder="Todos os status"
-          options={[
-            { label: "Todos os status", value: "" },
-            ...appointmentStatuses.map((status) => ({
-              label: appointmentStatusPresentation[status].label,
-              value: status,
-            })),
-          ]}
-          onValueChange={(status) =>
-            onSearchChange({ status: (status || undefined) as AppointmentStatus | undefined })
-          }
-        />
-      </Filter>
-      <Filter htmlFor="scenario-filter" label="Cenário">
-        <SelectInput
-          id="scenario-filter"
-          value={search.scenario}
-          placeholder="Selecione o cenário"
-          options={scenarios.map(({ id, label }) => ({ label, value: id }))}
-          onValueChange={onScenarioChange}
-        />
-      </Filter>
-      <Button type="button" variant="outline" onClick={onReset}>
-        <RotateCcwIcon data-icon="inline-start" />
-        Restaurar
-      </Button>
-      <p className="text-xs text-muted-foreground lg:col-span-5">
-        <CalendarDaysIcon className="mr-1 inline size-3" aria-hidden="true" />
-        Visualização diária · intervalos de 15 minutos · {day?.unitName ?? "uma unidade sintética"}
-      </p>
-    </fieldset>
-  )
+function useDebouncedValue<T>(value: T, delay: number) {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebounced(value), delay)
+    return () => window.clearTimeout(timeout)
+  }, [delay, value])
+  return debounced
 }
 
-function Filter({
-  children,
-  htmlFor,
-  label,
-}: {
-  children: React.ReactNode
-  htmlFor: string
-  label: string
-}) {
-  return (
-    <div>
-      <label className="mb-1 block text-xs font-medium" htmlFor={htmlFor}>
-        {label}
-      </label>
-      {children}
-    </div>
-  )
-}
-
-function Schedule({
-  day,
-  onAppointment,
-  onSlot,
-}: {
-  day: ScheduleDay
-  onAppointment: (appointment: Appointment) => void
-  onSlot: (slot: { professionalId: string; start: string }) => void
-}) {
-  const slots = makeSlots(day.startTime, day.endTime)
-  if (day.appointments.length === 0 && day.occupancies.length === 0 && day.periods.length === 0)
-    return (
-      <EmptyState
-        icon={CalendarDaysIcon}
-        title="Agenda livre neste dia"
-        description="Não há agendamentos, pausas ou bloqueios para os filtros selecionados."
-      />
-    )
-  return (
-    <section aria-label={`Agenda de ${day.date}`} className="min-h-0 rounded-lg border bg-card">
-      <section
-        className="hidden max-h-[62vh] overflow-auto lg:block"
-        aria-label="Tabela rolável da agenda diária"
-      >
-        <table className="w-max min-w-full border-collapse text-sm">
-          <caption className="sr-only">
-            Profissionais em colunas e horários em linhas, em intervalos de 15 minutos.
-          </caption>
-          <thead className="sticky top-0 bg-card">
-            <tr>
-              <th className="sticky left-0 min-w-20 border-r border-b bg-card p-2 text-left">
-                Horário
-              </th>
-              {day.professionals.map((professional) => (
-                <th className="min-w-56 border-r border-b p-3 text-left" key={professional.id}>
-                  {professional.name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {slots.map((slot) => (
-              <tr key={slot}>
-                <th
-                  scope="row"
-                  className="sticky left-0 border-r border-b bg-card p-2 text-left font-medium"
-                >
-                  {slot}
-                </th>
-                {day.professionals.map((professional) => (
-                  <ScheduleCell
-                    day={day}
-                    key={professional.id}
-                    professional={professional}
-                    slot={slot}
-                    onAppointment={onAppointment}
-                    onSlot={onSlot}
-                  />
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-      <div className="grid gap-4 p-3 lg:hidden">
-        {day.professionals.map((professional) => (
-          <ProfessionalSchedule
-            day={day}
-            key={professional.id}
-            professional={professional}
-            slots={slots}
-            onAppointment={onAppointment}
-            onSlot={onSlot}
-          />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function ProfessionalSchedule({
-  day,
-  onAppointment,
-  onSlot,
-  professional,
-  slots,
-}: {
-  day: ScheduleDay
-  onAppointment: (appointment: Appointment) => void
-  onSlot: (slot: { professionalId: string; start: string }) => void
-  professional: Professional
-  slots: readonly string[]
-}) {
-  const availableSlot = slots.find((slot) => !isSlotOccupied(day, professional.id, slot))
-  return (
-    <section aria-labelledby={`professional-${professional.id}`}>
-      <h2
-        id={`professional-${professional.id}`}
-        className="sticky top-0 mb-2 rounded-md bg-card py-2 font-semibold"
-      >
-        {professional.name}
-      </h2>
-      <ol className="grid gap-2">
-        {entriesFor(day, professional.id).map((entry) => (
-          <li key={`${entry.kind}-${entry.id}`}>
-            <button
-              className={cn(
-                "flex min-h-11 w-full items-start gap-3 rounded-lg border-2 bg-background p-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                entry.kind === "appointment" &&
-                  appointmentStatusPresentation[entry.appointment.status].className,
-              )}
-              data-appointment-status={
-                entry.kind === "appointment" ? entry.appointment.status : undefined
-              }
-              type="button"
-              disabled={entry.kind !== "appointment"}
-              onClick={() => entry.kind === "appointment" && onAppointment(entry.appointment)}
-            >
-              <span className="shrink-0 font-medium">{entry.start}</span>
-              <span className="min-w-0">
-                <span className="block font-medium">{entry.label}</span>
-                <span className="block text-xs text-muted-foreground">{entry.description}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ol>
-      {availableSlot ? (
-        <Button
-          className="mt-2 w-full"
-          type="button"
-          variant="outline"
-          onClick={() => onSlot({ professionalId: professional.id, start: availableSlot })}
-        >
-          Novo horário às {availableSlot} com {professional.name}
-        </Button>
-      ) : (
-        <p className="mt-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          Sem horários disponíveis para {professional.name}.
-        </p>
-      )}
-    </section>
-  )
-}
-
-function ScheduleCell({
-  day,
-  onAppointment,
-  onSlot,
-  professional,
-  slot,
-}: {
-  day: ScheduleDay
-  onAppointment: (appointment: Appointment) => void
-  onSlot: (slot: { professionalId: string; start: string }) => void
-  professional: Professional
-  slot: string
-}) {
-  const appointment = day.appointments.find(
-    (item) => item.professionalId === professional.id && item.start === slot,
-  )
-  const occupancy = day.occupancies.find(
-    (item) => item.professionalId === professional.id && item.start === slot,
-  )
-  const period = day.periods.find(
-    (item) => item.professionalId === professional.id && item.start === slot,
-  )
-  const slotMinutes = toMinutes(slot)
-  const coveredByAppointment = day.appointments.some(
-    (item) =>
-      item.professionalId === professional.id &&
-      slotMinutes > toMinutes(item.start) &&
-      slotMinutes < toMinutes(item.start) + item.durationMinutes,
-  )
-  const coveredByOccupancy = day.occupancies.some(
-    (item) =>
-      item.professionalId === professional.id &&
-      slotMinutes > toMinutes(item.start) &&
-      slotMinutes < toMinutes(item.start) + item.durationMinutes,
-  )
-  const coveredByPeriod = day.periods.some(
-    (item) =>
-      item.professionalId === professional.id &&
-      slotMinutes > toMinutes(item.start) &&
-      slotMinutes < toMinutes(item.end),
-  )
-  if (coveredByAppointment || coveredByOccupancy || coveredByPeriod) return null
-  if (appointment) {
-    const presentation = appointmentStatusPresentation[appointment.status]
-    const StatusIcon = presentation.icon
-    return (
-      <td
-        className="h-14 border-r border-b p-1 align-top"
-        rowSpan={Math.ceil(appointment.durationMinutes / 15)}
-      >
-        <button
-          type="button"
-          className={cn(
-            "flex min-h-12 w-full flex-col items-start rounded-md border-2 p-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-            presentation.className,
-          )}
-          data-appointment-status={appointment.status}
-          onClick={() => onAppointment(appointment)}
-        >
-          <span className="max-w-48 truncate font-medium">{appointment.customerName}</span>
-          <span className="flex items-center gap-1 text-xs">
-            <StatusIcon className="size-3.5" aria-hidden="true" />
-            <span className="sr-only">{presentation.symbol}</span>
-            {presentation.label} · {appointment.durationMinutes} min
-          </span>
-        </button>
-      </td>
-    )
-  }
-  if (occupancy)
-    return (
-      <td
-        className="h-14 border-r border-b p-1 align-top"
-        rowSpan={Math.ceil(occupancy.durationMinutes / 15)}
-      >
-        <div className="flex min-h-12 flex-col justify-center rounded-md border border-dashed bg-muted p-2 text-xs">
-          <span className="font-medium">Ocupado</span>
-          <span className="text-muted-foreground">
-            Agendamento fora do filtro · {occupancy.start}–
-            {fromMinutes(toMinutes(occupancy.start) + occupancy.durationMinutes)} ·{" "}
-            {occupancy.durationMinutes} min
-          </span>
-        </div>
-      </td>
-    )
-  if (period)
-    return (
-      <td
-        className="h-14 border-r border-b p-1 align-top"
-        rowSpan={Math.ceil((toMinutes(period.end) - toMinutes(period.start)) / 15)}
-      >
-        <div className="flex min-h-12 items-center rounded-md border border-dashed bg-muted p-2 text-xs">
-          <span aria-hidden="true">
-            {period.kind === "walk-in" ? "◇" : period.kind === "break" ? "Ⅱ" : "▧"}
-          </span>
-          <span className="ml-1">
-            {period.label} · {period.start}–{period.end}
-          </span>
-        </div>
-      </td>
-    )
-  return (
-    <td className="h-14 border-r border-b p-1">
-      <button
-        type="button"
-        className="min-h-12 w-full rounded-md border border-dashed text-xs text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
-        aria-label={`Disponível às ${slot} para ${professional.name}`}
-        onClick={() => onSlot({ professionalId: professional.id, start: slot })}
-      >
-        Disponível
-      </button>
-    </td>
-  )
-}
-
-function entriesFor(day: ScheduleDay, professionalId: string) {
-  const visibleIds = new Set(day.appointments.map(({ id }) => id))
-  return [
-    ...day.appointments
-      .filter((item) => item.professionalId === professionalId)
-      .map((appointment) => ({
-        appointment,
-        description: `${appointmentStatusPresentation[appointment.status].symbol} ${appointmentStatusPresentation[appointment.status].label} · ${appointment.durationMinutes} min`,
-        id: appointment.id,
-        kind: "appointment" as const,
-        label: appointment.customerName,
-        start: appointment.start,
-      })),
-    ...day.occupancies
-      .filter((item) => item.professionalId === professionalId && !visibleIds.has(item.id))
-      .map((occupancy) => ({
-        description: `Agendamento fora do filtro · ${occupancy.start}–${fromMinutes(toMinutes(occupancy.start) + occupancy.durationMinutes)} · ${occupancy.durationMinutes} min`,
-        id: occupancy.id,
-        kind: "occupied" as const,
-        label: "Ocupado",
-        start: occupancy.start,
-      })),
-    ...day.periods
-      .filter((item) => item.professionalId === professionalId)
-      .map((period) => ({
-        description: `${period.start}–${period.end}`,
-        id: period.id,
-        kind: period.kind,
-        label: period.label,
-        start: period.start,
-      })),
-  ].sort((left, right) => left.start.localeCompare(right.start))
-}
-
-function isSlotOccupied(day: ScheduleDay, professionalId: string, slot: string) {
-  const start = toMinutes(slot)
-  return (
-    day.appointments.some(
-      (item) =>
-        item.professionalId === professionalId &&
-        start >= toMinutes(item.start) &&
-        start < toMinutes(item.start) + item.durationMinutes,
-    ) ||
-    day.occupancies.some(
-      (item) =>
-        item.professionalId === professionalId &&
-        start >= toMinutes(item.start) &&
-        start < toMinutes(item.start) + item.durationMinutes,
-    ) ||
-    day.periods.some(
-      (item) =>
-        item.kind !== "walk-in" &&
-        item.professionalId === professionalId &&
-        start >= toMinutes(item.start) &&
-        start < toMinutes(item.end),
-    )
-  )
-}
-
-function makeSlots(start: string, end: string) {
-  const values = []
-  for (let value = toMinutes(start); value < toMinutes(end); value += 15)
-    values.push(
-      `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`,
-    )
-  return values
-}
-function toMinutes(value: string) {
-  const [hour, minute] = value.split(":").map(Number)
-  return hour * 60 + minute
-}
-function fromMinutes(value: number) {
-  return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`
-}
 function ScheduleLoading() {
   return (
-    <div role="status" aria-label="Carregando agenda" className="grid gap-2">
-      <Skeleton className="h-12 w-full" />
-      <Skeleton className="h-72 w-full" />
+    <div aria-label="Carregando agenda" className="grid gap-2" role="status">
+      <Skeleton className="h-14 w-full" />
+      <Skeleton className="h-96 w-full" />
     </div>
   )
 }
+
 function ScheduleError({ onRetry }: { onRetry: () => void }) {
   return (
     <div
-      role="alert"
       className="grid min-h-56 place-items-center rounded-lg border border-destructive p-6 text-center"
+      role="alert"
     >
       <div>
-        <CircleAlertIcon className="mx-auto size-8 text-destructive" aria-hidden="true" />
+        <CircleAlertIcon aria-hidden="true" className="mx-auto size-8 text-destructive" />
         <h2 className="mt-3 font-semibold">Não foi possível carregar a agenda</h2>
         <p className="mt-1 text-sm text-muted-foreground">Troque o cenário ou tente novamente.</p>
         <Button className="mt-4" type="button" variant="outline" onClick={onRetry}>

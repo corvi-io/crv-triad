@@ -50,6 +50,65 @@ describe("Studio component dependency model", () => {
     )
     expect(`${productionRoute}\n${productionShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
     expect(productionRoute).toContain('from "virtual:studio-development-sandbox"')
+
+    const setupRoute = await readFile(
+      path.resolve(process.cwd(), "src/routes/_authenticated/barbershop-setup/index.tsx"),
+      "utf8",
+    )
+    const setupShim = await readFile(
+      path.resolve(process.cwd(), "src/modules/shared/config/barbershop-setup-source-disabled.ts"),
+      "utf8",
+    )
+    expect(`${setupRoute}\n${setupShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
+    expect(setupRoute).toContain('from "virtual:studio-barbershop-setup-source"')
+
+    const clientRoute = await readFile(
+      path.resolve(process.cwd(), "src/routes/_authenticated/clients/index.tsx"),
+      "utf8",
+    )
+    const clientShim = await readFile(
+      path.resolve(process.cwd(), "src/modules/shared/config/client-management-source-disabled.ts"),
+      "utf8",
+    )
+    expect(`${clientRoute}\n${clientShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
+    expect(clientRoute).toContain('from "virtual:studio-client-management-source"')
+
+    const serviceDeskRoute = await readFile(
+      path.resolve(process.cwd(), "src/routes/_authenticated/service-desk/index.tsx"),
+      "utf8",
+    )
+    const serviceDeskShim = await readFile(
+      path.resolve(process.cwd(), "src/modules/shared/config/service-desk-source-disabled.ts"),
+      "utf8",
+    )
+    expect(`${serviceDeskRoute}\n${serviceDeskShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
+    expect(serviceDeskRoute).toContain('from "virtual:studio-service-desk-source"')
+
+    const serviceDeskPage = await readFile(
+      path.resolve(process.cwd(), "src/modules/service-desk/service-desk-page.tsx"),
+      "utf8",
+    )
+    expect(serviceDeskPage).not.toContain("const developmentScenarioPresentation")
+    expect(serviceDeskPage).not.toContain("const developmentScenarioGroupLabels")
+    expect(serviceDeskRoute).toContain("scenarioPresentation={developmentScenarioPresentation}")
+    expect(serviceDeskShim).toContain("export const developmentScenarioPresentation = undefined")
+
+    const revenueRoute = await readFile(
+      path.resolve(
+        process.cwd(),
+        "src/routes/_authenticated/service-desk/$sessionId/checkout/index.tsx",
+      ),
+      "utf8",
+    )
+    const revenueShim = await readFile(
+      path.resolve(
+        process.cwd(),
+        "src/modules/shared/config/revenue-operations-source-disabled.ts",
+      ),
+      "utf8",
+    )
+    expect(`${revenueRoute}\n${revenueShim}`).not.toMatch(/(?:@\/|src\/)dev\//)
+    expect(revenueRoute).toContain('from "virtual:studio-revenue-operations-source"')
   })
 
   it("has no shared mega-barrel", async () => {

@@ -7,6 +7,7 @@ import {
   ScissorsIcon,
   UserRoundIcon,
 } from "lucide-react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -21,10 +22,17 @@ import {
 import { ActionDrawer } from "@/modules/shared/components/overlays/action-drawer"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Input } from "@/modules/shared/components/ui/input"
-import type { Appointment, AppointmentInput, Professional, Service } from "./contracts"
+import type {
+  Appointment,
+  AppointmentInput,
+  CancellationReason,
+  Professional,
+  SchedulingUnitId,
+  Service,
+} from "./contracts"
 import { ScheduleConflictError } from "./contracts"
 import { useCancelAppointment, useCreateAppointment, useUpdateAppointment } from "./queries"
-import { appointmentStatusPresentation } from "./status"
+import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
 
 export type DrawerMode = "cancel" | "create" | "edit" | "reschedule" | "view"
 
@@ -34,14 +42,26 @@ export const appointmentFormSchema = z.object({
   date: z.iso.date("Informe uma data válida."),
   notes: z.string().max(500, "Use no máximo 500 caracteres."),
   origin: z.enum(["phone", "reception", "whatsapp"]),
+  paymentStatus: z.enum(["pending", "paid"]),
   professionalId: z.string().min(1, "Selecione um profissional."),
   serviceId: z.string().min(1, "Selecione um serviço."),
+  status: z.enum([
+    "scheduled",
+    "confirmed",
+    "arrived",
+    "waiting",
+    "in-progress",
+    "completed",
+    "canceled",
+    "no-show",
+  ]),
   start: z
     .string()
     .regex(
       /^([01]\d|2[0-3]):(?:00|15|30|45)$/,
       "Use horários de 15 em 15 minutos (00, 15, 30 ou 45).",
     ),
+  unitId: z.enum(["centro", "artesao"]),
 })
 
 type AppointmentFormValues = z.infer<typeof appointmentFormSchema>
@@ -55,6 +75,7 @@ export function AppointmentDrawer({
   onOpenChange,
   professionals,
   selectedDate,
+  selectedUnit,
   services,
 }: {
   appointment?: Appointment
@@ -65,14 +86,16 @@ export function AppointmentDrawer({
   onOpenChange: (open: boolean) => void
   professionals: readonly Professional[]
   selectedDate: string
+  selectedUnit: SchedulingUnitId
   services: readonly Service[]
 }) {
   const createMutation = useCreateAppointment()
   const updateMutation = useUpdateAppointment()
   const cancelMutation = useCancelAppointment()
+  const [cancelReason, setCancelReason] = useState<Exclude<CancellationReason, "no-show">>()
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentFormSchema),
-    values: valuesFor(appointment, initialSlot, selectedDate),
+    values: valuesFor(appointment, initialSlot, selectedDate, selectedUnit),
   })
   const selectedService = services.find(({ id }) => id === form.watch("serviceId")) ?? services[0]
   const eligibleProfessionals = professionals.filter(({ id }) =>
@@ -81,13 +104,30 @@ export function AppointmentDrawer({
   const isPending = createMutation.isPending || updateMutation.isPending || cancelMutation.isPending
   const title = modeTitle(mode)
 
+  function switchMode(nextMode: Exclude<DrawerMode, "create">) {
+    requestAnimationFrame(() => {
+      onModeChange(nextMode)
+      requestAnimationFrame(() => focusMode(nextMode))
+    })
+  }
+
   async function submit(values: AppointmentFormValues) {
     if (!selectedService) return
     const input: AppointmentInput = {
       ...values,
+      cancellationReason: appointment?.cancellationReason,
+      clientId: appointment?.clientId ?? `client-${globalThis.crypto.randomUUID()}`,
       durationMinutes: selectedService.durationMinutes,
       priceCents: selectedService.priceCents,
-      status: appointment?.status ?? "scheduled",
+      rating: appointment?.rating,
+      tags: appointment?.tags ?? [],
+      ...(appointment
+        ? {
+            cancellationReason: appointment.cancellationReason,
+            paymentStatus: appointment.paymentStatus,
+            status: appointment.status,
+          }
+        : {}),
     }
     try {
       if (appointment) await updateMutation.mutateAsync({ id: appointment.id, input })
@@ -106,9 +146,9 @@ export function AppointmentDrawer({
   }
 
   async function cancelAppointment() {
-    if (!appointment) return
+    if (!appointment || !cancelReason) return
     try {
-      await cancelMutation.mutateAsync(appointment.id)
+      await cancelMutation.mutateAsync({ id: appointment.id, reason: cancelReason })
       toast.success("Agendamento cancelado.")
       onOpenChange(false)
     } catch {
@@ -118,6 +158,7 @@ export function AppointmentDrawer({
 
   if (mode === "view" && appointment) {
     const status = appointmentStatusPresentation[appointment.status]
+    const isTerminal = isTerminalAppointmentStatus(appointment.status)
     return (
       <ActionDrawer
         context="Agenda"
@@ -126,19 +167,33 @@ export function AppointmentDrawer({
         onOpenChange={onOpenChange}
         title={title}
         primaryAction={
-          <Button type="button" onClick={() => onModeChange("edit")}>
-            Editar agendamento
-          </Button>
+          isTerminal ? undefined : (
+            <Button id="appointment-mode-edit" type="button" onClick={() => switchMode("edit")}>
+              Editar agendamento
+            </Button>
+          )
         }
         secondaryActions={
-          <>
-            <Button type="button" variant="outline" onClick={() => onModeChange("reschedule")}>
-              Remarcar
-            </Button>
-            <Button type="button" variant="destructive" onClick={() => onModeChange("cancel")}>
-              Cancelar agendamento
-            </Button>
-          </>
+          isTerminal ? undefined : (
+            <>
+              <Button
+                id="appointment-mode-reschedule"
+                type="button"
+                variant="outline"
+                onClick={() => switchMode("reschedule")}
+              >
+                Remarcar
+              </Button>
+              <Button
+                id="appointment-mode-cancel"
+                type="button"
+                variant="destructive"
+                onClick={() => switchMode("cancel")}
+              >
+                Cancelar agendamento
+              </Button>
+            </>
+          )
         }
       >
         <dl className="grid gap-4 text-sm">
@@ -146,6 +201,11 @@ export function AppointmentDrawer({
           <Detail label="Telefone" value={appointment.customerPhone} />
           <Detail label="Data e horário" value={`${appointment.date} às ${appointment.start}`} />
           <Detail label="Status" value={`${status.symbol} ${status.label}`} />
+          <Detail label="Unidade" value={appointment.unitId === "centro" ? "Centro" : "Artesão"} />
+          <Detail
+            label="Pagamento"
+            value={appointment.paymentStatus === "paid" ? "Pago" : "Pendente"}
+          />
           <Detail
             label="Duração e valor"
             value={`${appointment.durationMinutes} min · ${formatPrice(appointment.priceCents)}`}
@@ -166,6 +226,7 @@ export function AppointmentDrawer({
         title={title}
         primaryAction={
           <Button
+            disabled={!cancelReason}
             isLoading={isPending}
             type="button"
             variant="destructive"
@@ -175,16 +236,40 @@ export function AppointmentDrawer({
           </Button>
         }
         secondaryActions={
-          <Button type="button" variant="outline" onClick={() => onModeChange("view")}>
+          <Button type="button" variant="outline" onClick={() => switchMode("view")}>
             Manter agendamento
           </Button>
         }
       >
-        <div role="alert" className="rounded-lg border border-destructive p-4 text-sm">
+        <div className="rounded-lg border border-destructive p-4 text-sm">
           <p className="font-medium">Cancelar o horário de {appointment.customerName}?</p>
           <p className="mt-2 text-muted-foreground">
             O protótipo manterá o registro com o status “Cancelado” até o cenário ser restaurado.
           </p>
+          <fieldset className="mt-4 grid gap-2">
+            <legend className="font-medium">Qual o motivo?</legend>
+            {(
+              [
+                ["client", "Cliente cancelou"],
+                ["barbershop", "Barbearia cancelou"],
+              ] as const
+            ).map(([value, label]) => (
+              <label
+                className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border p-3"
+                key={value}
+              >
+                <input
+                  checked={cancelReason === value}
+                  disabled={isPending}
+                  name="drawer-cancellation-reason"
+                  type="radio"
+                  value={value}
+                  onChange={() => setCancelReason(value)}
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
         </div>
       </ActionDrawer>
     )
@@ -211,7 +296,7 @@ export function AppointmentDrawer({
         <Button
           type="button"
           variant="outline"
-          onClick={() => (appointment ? onModeChange("view") : onOpenChange(false))}
+          onClick={() => (appointment ? switchMode("view") : onOpenChange(false))}
         >
           Voltar
         </Button>
@@ -255,6 +340,50 @@ export function AppointmentDrawer({
             placeholder="Selecione"
             required
           />
+          <CompactRhfSelectField
+            control={form.control}
+            id="unit"
+            label="Unidade"
+            name="unitId"
+            options={[
+              { label: "Centro", value: "centro" },
+              { label: "Artesão", value: "artesao" },
+            ]}
+            placeholder="Selecione"
+            required
+          />
+          {mode === "create" ? (
+            <>
+              <CompactRhfSelectField
+                control={form.control}
+                id="initial-status"
+                label="Status inicial"
+                name="status"
+                options={[
+                  { label: "Agendado", value: "scheduled" },
+                  { label: "Confirmado", value: "confirmed" },
+                  { label: "Check-in", value: "arrived" },
+                  { label: "Em espera", value: "waiting" },
+                  { label: "Em atendimento", value: "in-progress" },
+                  { label: "Finalizado", value: "completed" },
+                ]}
+                placeholder="Selecione"
+                required
+              />
+              <CompactRhfSelectField
+                control={form.control}
+                id="payment-status"
+                label="Pagamento"
+                name="paymentStatus"
+                options={[
+                  { label: "Pendente", value: "pending" },
+                  { label: "Pago", value: "paid" },
+                ]}
+                placeholder="Selecione"
+                required
+              />
+            </>
+          ) : null}
           <CompactRhfSelectField
             control={form.control}
             id="professional"
@@ -319,6 +448,7 @@ function valuesFor(
   appointment: Appointment | undefined,
   slot: { professionalId: string; start: string } | undefined,
   date: string,
+  unit: SchedulingUnitId,
 ): AppointmentFormValues {
   return {
     customerName: appointment?.customerName ?? "",
@@ -326,9 +456,12 @@ function valuesFor(
     date: appointment?.date ?? date,
     notes: appointment?.notes ?? "",
     origin: appointment?.origin ?? "reception",
-    professionalId: appointment?.professionalId ?? slot?.professionalId ?? "professional-ana",
-    serviceId: appointment?.serviceId ?? "service-cut",
+    paymentStatus: appointment?.paymentStatus ?? "pending",
+    professionalId: appointment?.professionalId ?? slot?.professionalId ?? "professional-carlos",
+    serviceId: appointment?.serviceId ?? "service-hair-beard",
     start: appointment?.start ?? slot?.start ?? "09:00",
+    status: appointment?.status ?? "confirmed",
+    unitId: appointment?.unitId ?? unit,
   }
 }
 
@@ -340,6 +473,16 @@ function modeTitle(mode: DrawerMode) {
     reschedule: "Remarcar agendamento",
     view: "Ver agendamento",
   }[mode]
+}
+
+function focusMode(mode: Exclude<DrawerMode, "create">) {
+  const selector = {
+    cancel: 'input[name="drawer-cancellation-reason"]',
+    edit: "#customer-name",
+    reschedule: "#appointment-date",
+    view: "#appointment-mode-edit",
+  }[mode]
+  document.querySelector<HTMLElement>(selector)?.focus()
 }
 
 function formatPrice(value: number) {

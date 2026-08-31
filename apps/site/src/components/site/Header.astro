@@ -1,0 +1,20 @@
+---
+import Arrow from "../ui/Arrow.astro"
+---
+
+<header class="site-header shell">
+  <a class="brand" href="/" aria-label="TRIAD — início">
+    <img src="/brand/crv-triad-horizontal-white.svg" alt="TRIAD" width="180" height="44" />
+  </a>
+  <nav aria-label="Principal">
+    <a href="/#produto">Produto</a><a href="/studio">Studio</a><a href="/pro-barber">Pro Barber</a><a href="/#recursos">Recursos</a>
+  </nav>
+  <a class="button small" href="#comecar">Criar minha barbearia</a>
+  <details class="mobile-menu">
+    <summary aria-label="Abrir menu"><i></i><i></i><i></i></summary>
+    <div>
+      <a href="/#produto">Produto</a><a href="/studio">Studio</a><a href="/pro-barber">Pro Barber</a><a href="/#recursos">Recursos</a>
+      <a class="button" href="#comecar">Criar minha barbearia <Arrow /></a>
+    </div>
+  </details>
+</header>

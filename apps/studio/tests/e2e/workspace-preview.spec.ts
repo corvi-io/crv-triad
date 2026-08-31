@@ -21,6 +21,30 @@ test("previews the neutral authenticated shell without product-domain navigation
     "href",
     "/preferences",
   )
+
+  for (const path of ["/workspace-preview", "/workspace-preview/agenda?date=2026-07-22"]) {
+    await page.goto(path)
+    const activeItem = page.locator(
+      '[data-slot="workspace-primary-navigation-item"][data-active="true"]',
+    )
+    const indicator = activeItem.locator('[data-slot="workspace-active-indicator"]')
+    await expect(activeItem).toHaveCount(1)
+    await expect(indicator).toBeVisible()
+    const geometry = await indicator.evaluate((element) => {
+      const bounds = element.getBoundingClientRect()
+      const style = getComputedStyle(element)
+      return {
+        backgroundColor: style.backgroundColor,
+        borderWidth: style.borderWidth,
+        height: bounds.height,
+        width: bounds.width,
+      }
+    })
+    expect(geometry.width).toBe(2)
+    expect(geometry.height).toBeGreaterThan(geometry.width)
+    expect(geometry.borderWidth).toBe("0px")
+    expect(geometry.backgroundColor).not.toBe("rgba(0, 0, 0, 0)")
+  }
 })
 
 test("keeps desktop persistence, mobile navigation, themes, and focus behavior", async ({

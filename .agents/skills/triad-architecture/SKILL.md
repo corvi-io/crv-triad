@@ -17,7 +17,7 @@ in English.
    - `apps/site`: public Astro landing page and browser-visible marketing UX.
    - `apps/api`: central FastAPI backend for landing-page support and future
      internal business capabilities.
-   - `apps/idp`: identity provider for authentication, sessions, invitations,
+   - `apps/api/src/modules/idp`: identity provider for authentication, sessions, invitations,
      and internal identity contracts.
    - `apps/studio`: authenticated barbershop-management product interface.
    - `packages/*`: only after real cross-app reuse exists.
@@ -31,7 +31,7 @@ in English.
 4. If implementation follows, use the app-specific Triad skill:
    - `triad-site-development` for `apps/site`.
    - `triad-api-development` for `apps/api`.
-   - `triad-idp-development` for `apps/idp`.
+   - `triad-idp-development` for `apps/api/src/modules/idp`.
    - `triad-studio-development` for `apps/studio`.
 
 ## Principles
@@ -46,7 +46,7 @@ in English.
 - Prefer the simplest architecture that meets near-term scale without creating
   obvious bottlenecks or premature abstractions.
 - Preserve local development ports unless an explicit product decision changes
-  them: API `8000`, IDP `8001`, studio `3000`, and site `3001`.
+  them: API `8000`, studio `3000`, and site `3001`.
 - Keep business domains out of the IDP.
 - Do not add shared packages until reuse is real, repeated, and stable.
 - Treat documentation as a design surface: update it when a durable contract,

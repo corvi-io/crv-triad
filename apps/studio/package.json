@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "VITE_DEPLOY_TARGET=local VITE_SCHEDULING_SOURCE=memory vite --port 3000",
+    "dev": "VITE_DEPLOY_TARGET=local VITE_SCHEDULING_SOURCE=memory VITE_BARBERSHOP_SETUP_SOURCE=memory VITE_CLIENT_MANAGEMENT_SOURCE=memory vite --port 3000",
     "build": "bun run routes:generate && tsc -b && vite build",
     "preview": "vite preview",
     "start": "vite preview",
@@ -14,10 +14,10 @@
     "lint": "biome lint .",
     "typecheck": "bun run routes:generate && tsc -b",
     "test": "bun run routes:generate && vitest run",
-    "test:production-boundary": "VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled bun run build && bun ./scripts/assert-production-boundary.ts",
+    "test:production-boundary": "VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=disabled bun run build && bun ./scripts/assert-production-boundary.ts",
     "test:e2e": "playwright test",
     "test:e2e:sandbox": "playwright test tests/e2e/sandbox.spec.ts",
-    "test:e2e:production": "VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled bun run build && playwright test --config playwright.production.config.ts"
+    "test:e2e:production": "VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=disabled bun run build && playwright test --config playwright.production.config.ts"
   },
   "dependencies": {
     "@base-ui-components/react": "^1.0.0-rc.0",
@@ -30,7 +30,7 @@
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.17",
     "@tanstack/react-router-devtools": "^1.167.0",
-    "better-auth": "^1.6.23",
+    "better-auth": "1.6.23",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
@@ -39,6 +39,7 @@
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.81.0",
+    "recharts": "3.8.0",
     "shadcn": "^4.13.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",

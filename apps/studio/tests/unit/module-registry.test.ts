@@ -8,21 +8,33 @@ import {
 } from "@/modules/shared/workspace/module-registry"
 
 describe("workspace module registry", () => {
-  it("exposes Agenda as the only active business module plus the Studio home", () => {
+  it("exposes active business modules and the Studio home", () => {
     expect(workspacePrimaryNavigation.map((item) => [item.label, item.path])).toEqual([
-      ["Agenda", "/agenda"],
       ["Dashboard", "/overview"],
+      ["Agenda", "/agenda"],
+      ["Atendimentos", "/service-desk"],
+      ["Caixa", "/cash"],
+      ["Relatórios", "/reports"],
+      ["Clientes", "/clients"],
     ])
     expect(workspaceSecondaryNavigation.map((item) => [item.label, item.path])).toEqual([
+      ["Barbearia", "/barbershop-setup"],
       ["Configurações", "/preferences"],
     ])
   })
 
   it("derives active navigation and breadcrumbs from the neutral route registry", () => {
-    expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[0], "/overview")).toBe(false)
-    expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[1], "/overview")).toBe(true)
+    expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[0], "/overview")).toBe(true)
+    expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[3], "/overview")).toBe(false)
     expect(isWorkspaceNavigationItemActive(workspacePrimaryNavigation[0], "/profile")).toBe(false)
     expect(getWorkspaceRouteByPath("/agenda")?.breadcrumbLabel).toBe("Agenda")
+    expect(getWorkspaceRouteByPath("/clients")?.breadcrumbLabel).toBe("Clientes")
+    expect(getWorkspaceRouteByPath("/service-desk")?.breadcrumbLabel).toBe("Atendimentos")
+    expect(getWorkspaceRouteByPath("/cash")?.breadcrumbLabel).toBe("Caixa")
+    expect(getWorkspaceRouteByPath("/reports")?.breadcrumbLabel).toBe("Relatórios")
+    expect(getWorkspaceRouteByPath("/barbershop-setup")?.breadcrumbLabel).toBe(
+      "Configuração da barbearia",
+    )
     expect(getWorkspaceRouteByPath("/profile")?.breadcrumbLabel).toBe("Meu perfil")
     expect(getWorkspaceRouteByPath("/unknown-module")).toBeUndefined()
   })

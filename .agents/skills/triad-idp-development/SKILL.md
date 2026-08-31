@@ -1,11 +1,11 @@
 ---
 name: triad-idp-development
-description: Build or refactor Triad Identity Provider code in apps/idp using Elysia, Better Auth, Drizzle, PostgreSQL, Zod, Vitest, invite-gated email/password access, UUIDv7 IDs, OpenAPI, and Triad security boundaries. Use for auth routes, sessions, invitations, admin bootstrap, IDP persistence, env config, or IDP tests.
+description: Build or refactor Triad Identity Provider code in apps/api/src/modules/idp using Elysia, Better Auth, Drizzle, PostgreSQL, Zod, Vitest, invite-gated email/password access, UUIDv7 IDs, OpenAPI, and Triad security boundaries. Use for auth routes, sessions, invitations, admin bootstrap, IDP persistence, env config, or IDP tests.
 ---
 
 # Triad IDP Development
 
-Use this skill for changes under `apps/idp`. The IDP is a single identity
+Use this skill for changes under `apps/api/src/modules/idp`. The IDP is a single identity
 bounded context, not a generic internal backend.
 
 Write user-facing analysis in Brazilian Portuguese. Keep code, filenames,

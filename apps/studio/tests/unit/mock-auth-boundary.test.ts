@@ -9,13 +9,13 @@ describe("development mock boundary", () => {
     ) as { scripts: Record<string, string> }
 
     expect(packageJson.scripts["test:production-boundary"]).toMatch(
-      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled /,
+      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=disabled /,
     )
     expect(packageJson.scripts["test:e2e:production"]).toMatch(
-      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled /,
+      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=disabled /,
     )
     expect(packageJson.scripts.dev).toContain(
-      "VITE_DEPLOY_TARGET=local VITE_SCHEDULING_SOURCE=memory",
+      "VITE_DEPLOY_TARGET=local VITE_SCHEDULING_SOURCE=memory VITE_BARBERSHOP_SETUP_SOURCE=memory VITE_CLIENT_MANAGEMENT_SOURCE=memory",
     )
   })
 
@@ -26,6 +26,10 @@ describe("development mock boundary", () => {
       "src/dev/sandbox/sandbox-page.tsx",
       "src/dev/scheduling/memory-repository.ts",
       "src/dev/scheduling/scenarios.ts",
+      "src/dev/barbershop-setup/memory-repository.ts",
+      "src/dev/barbershop-setup/scenarios.ts",
+      "src/dev/clients/memory-repository.ts",
+      "src/dev/clients/scenarios.ts",
     ]
     const source = (
       await Promise.all(files.map((file) => readFile(path.resolve(process.cwd(), file), "utf8")))

@@ -5,6 +5,7 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import react from "@vitejs/plugin-react"
 import { loadEnv } from "vite"
 import { defineConfig } from "vitest/config"
+import { isMemorySourceEnabled } from "./vite-source-boundary.js"
 
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
@@ -13,12 +14,40 @@ export default defineConfig(({ command, mode }) => {
     command === "serve"
       ? "./src/dev/sandbox/entry.ts"
       : "./src/modules/shared/config/development-sandbox-disabled.ts"
-  const schedulingPrototypeEnabled =
-    publicEnv.VITE_SCHEDULING_SOURCE === "memory" &&
-    (publicEnv.VITE_DEPLOY_TARGET === "local" || publicEnv.VITE_DEPLOY_TARGET === "dev")
+  const schedulingPrototypeEnabled = isMemorySourceEnabled(
+    publicEnv.VITE_SCHEDULING_SOURCE,
+    publicEnv.VITE_DEPLOY_TARGET,
+  )
   const schedulingPrototypeEntry = schedulingPrototypeEnabled
     ? "./src/dev/scheduling/entry.ts"
     : "./src/modules/shared/config/scheduling-prototype-disabled.ts"
+  const serviceDeskSourceEntry = schedulingPrototypeEnabled
+    ? "./src/dev/service-desk/entry.ts"
+    : "./src/modules/shared/config/service-desk-source-disabled.ts"
+  const revenueOperationsSourceEntry = schedulingPrototypeEnabled
+    ? "./src/dev/revenue-operations/entry.ts"
+    : "./src/modules/shared/config/revenue-operations-source-disabled.ts"
+  const barbershopSetupSourceEnabled = isMemorySourceEnabled(
+    publicEnv.VITE_BARBERSHOP_SETUP_SOURCE,
+    publicEnv.VITE_DEPLOY_TARGET,
+  )
+  const barbershopSetupSourceEntry = barbershopSetupSourceEnabled
+    ? "./src/dev/barbershop-setup/entry.ts"
+    : "./src/modules/shared/config/barbershop-setup-source-disabled.ts"
+  const clientManagementSourceEnabled = isMemorySourceEnabled(
+    publicEnv.VITE_CLIENT_MANAGEMENT_SOURCE,
+    publicEnv.VITE_DEPLOY_TARGET,
+  )
+  const clientManagementSourceEntry = clientManagementSourceEnabled
+    ? "./src/dev/clients/entry.ts"
+    : "./src/modules/shared/config/client-management-source-disabled.ts"
+  const reportingSourceEntry =
+    schedulingPrototypeEnabled && clientManagementSourceEnabled
+      ? "./src/dev/reporting/entry.ts"
+      : "./src/modules/shared/config/reporting-source-disabled.ts"
+  const operationalNotificationsSourceEntry = schedulingPrototypeEnabled
+    ? "./src/dev/operational-notifications/entry.ts"
+    : "./src/modules/shared/config/operational-notifications-source-disabled.ts"
 
   return {
     plugins: [
@@ -34,6 +63,24 @@ export default defineConfig(({ command, mode }) => {
         "@": path.resolve(__dirname, "./src"),
         "virtual:studio-development-sandbox": path.resolve(__dirname, developmentSandboxEntry),
         "virtual:studio-scheduling-prototype": path.resolve(__dirname, schedulingPrototypeEntry),
+        "virtual:studio-service-desk-source": path.resolve(__dirname, serviceDeskSourceEntry),
+        "virtual:studio-revenue-operations-source": path.resolve(
+          __dirname,
+          revenueOperationsSourceEntry,
+        ),
+        "virtual:studio-reporting-source": path.resolve(__dirname, reportingSourceEntry),
+        "virtual:studio-operational-notifications-source": path.resolve(
+          __dirname,
+          operationalNotificationsSourceEntry,
+        ),
+        "virtual:studio-barbershop-setup-source": path.resolve(
+          __dirname,
+          barbershopSetupSourceEntry,
+        ),
+        "virtual:studio-client-management-source": path.resolve(
+          __dirname,
+          clientManagementSourceEntry,
+        ),
       },
     },
     server: {
@@ -52,6 +99,8 @@ export default defineConfig(({ command, mode }) => {
       setupFiles: ["./tests/setup.ts"],
       css: true,
       clearMocks: true,
+      maxWorkers: 1,
+      minWorkers: 1,
       restoreMocks: true,
       unstubEnvs: true,
       unstubGlobals: true,

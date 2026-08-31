@@ -1,5 +1,8 @@
 @import "@fontsource-variable/inter";
 @import "tailwindcss";
+@import "./design.css";
+@import "./faq.css";
+@import "./lead-dialog.css";
 
 @theme {
   --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -14,6 +17,22 @@
   font-family: var(--font-sans);
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 1000;
+  top: 0.75rem;
+  left: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: #101522;
+  background: #e6c873;
+  border-radius: 0.25rem;
+  font-weight: 700;
+  transform: translateY(-200%);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 96px;
@@ -25,6 +44,17 @@ body {
   background: #ffffff;
   color: #111827;
   overflow-x: clip;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+summary,
+button,
+a {
+  min-height: 24px;
 }
 
 button,

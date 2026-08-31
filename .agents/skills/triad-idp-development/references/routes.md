@@ -31,5 +31,5 @@ Fly containers set `NODE_ENV=production` in every remote environment, while
 ## Boundaries
 
 - `apps/api` should not proxy Better Auth.
-- `apps/api` may call `apps/idp` server-to-server for session context.
+- `apps/api` may call `apps/api/src/modules/idp` server-to-server for session context.
 - Do not put business-domain APIs in the IDP.

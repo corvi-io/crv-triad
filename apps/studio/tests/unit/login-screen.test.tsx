@@ -1,23 +1,29 @@
-import { render, screen } from "@testing-library/react"
+import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { LoginScreen } from "@/modules/auth/components/login-screen"
 import { AuthStateProvider } from "@/modules/auth/services/auth-provider"
 import { ThemeProvider } from "@/modules/shared/theme/theme-provider"
+import { routeTree } from "@/routeTree.gen"
 
-const requestPasswordReset = vi.fn()
+const resendVerificationEmail = vi.fn()
 const signInWithEmail = vi.fn()
-const signUpWithEmail = vi.fn()
+const signInWithGoogle = vi.fn()
 
 vi.mock("@/modules/auth/services/auth-client", () => ({
-  requestPasswordReset: (email: string) => requestPasswordReset(email),
+  resendVerificationEmail: (email: string) => resendVerificationEmail(email),
   signInWithEmail: (values: unknown) => signInWithEmail(values),
-  signUpWithEmail: (values: unknown) => signUpWithEmail(values),
+  signInWithGoogle: () => signInWithGoogle(),
 }))
 
-function renderLogin() {
-  return render(
+function renderLogin(path = "/login") {
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: [path] }),
+  })
+
+  const view = render(
     <ThemeProvider>
       <AuthStateProvider
         value={{
@@ -27,38 +33,54 @@ function renderLogin() {
           session: null,
         }}
       >
-        <LoginScreen />
+        <RouterProvider router={router} />
       </AuthStateProvider>
     </ThemeProvider>,
   )
+
+  return { ...view, router }
 }
 
 describe("login screen", () => {
   beforeEach(() => {
-    requestPasswordReset.mockReset()
-    requestPasswordReset.mockResolvedValue({})
+    resendVerificationEmail.mockReset()
+    resendVerificationEmail.mockResolvedValue({})
     signInWithEmail.mockReset()
     signInWithEmail.mockResolvedValue({ error: { message: "Invalid credentials" } })
-    signUpWithEmail.mockReset()
-    signUpWithEmail.mockResolvedValue({ error: { message: "Invite required" } })
+    signInWithGoogle.mockReset()
+    signInWithGoogle.mockResolvedValue({})
   })
 
-  it("shows email/password login and first-access action", async () => {
+  it("shows email/password login and directs first access to the secure invitation link", async () => {
     const user = userEvent.setup()
     renderLogin()
 
-    expect(screen.getByRole("heading", { name: "Entrar no TRIAD Studio" })).toBeInTheDocument()
-    expect(screen.getByRole("img", { name: "Imagem placeholder" })).toBeInTheDocument()
+    expect(
+      await screen.findByRole("heading", { name: "Entrar no TRIAD Studio" }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("region", { name: "Identidade visual do TRIAD Studio" }),
+    ).toBeInTheDocument()
     expect(screen.getByLabelText("E-mail")).toBeInTheDocument()
     expect(screen.getByLabelText("Senha")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Criar acesso com convite" })).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Esqueceu a senha?" })).toHaveAttribute(
+      "href",
+      "/forgot-password",
+    )
+    expect(screen.getByRole("button", { name: "Continuar com Google" })).toBeInTheDocument()
+    expect(
+      screen.getByText("Primeiro acesso? Use o link seguro enviado no convite."),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Criar acesso com convite" }),
+    ).not.toBeInTheDocument()
 
-    await user.type(screen.getByLabelText("E-mail"), "maria@example.com")
+    await user.type(screen.getByLabelText("E-mail"), "test-user@example.invalid")
     await user.type(screen.getByLabelText("Senha"), "password-123")
-    await user.click(screen.getByRole("button", { name: "Entrar" }))
+    await user.click(await screen.findByRole("button", { name: "Entrar" }))
 
     expect(signInWithEmail).toHaveBeenCalledWith({
-      email: "maria@example.com",
+      email: "test-user@example.invalid",
       password: "password-123",
     })
     expect(
@@ -70,25 +92,73 @@ describe("login screen", () => {
     const user = userEvent.setup()
     renderLogin()
 
-    await user.click(screen.getByRole("button", { name: "Entrar" }))
+    await user.click(await screen.findByRole("button", { name: "Entrar" }))
 
     expect(await screen.findByText("Informe o e-mail.")).toBeInTheDocument()
     expect(screen.getByText("Informe a senha.")).toBeInTheDocument()
     expect(signInWithEmail).not.toHaveBeenCalled()
   })
 
-  it("requests password reset for a typed email", async () => {
+  it("initiates Google sign-in through the native client wrapper", async () => {
     const user = userEvent.setup()
     renderLogin()
 
-    await user.type(screen.getByLabelText("E-mail"), "maria@example.com")
-    await user.click(screen.getByRole("button", { name: "Esqueceu a senha?" }))
+    await user.click(await screen.findByRole("button", { name: "Continuar com Google" }))
 
-    expect(requestPasswordReset).toHaveBeenCalledWith("maria@example.com")
+    expect(signInWithGoogle).toHaveBeenCalledOnce()
+  })
+
+  it("shows a verification notice for an existing unverified credential and resends safely", async () => {
+    const user = userEvent.setup()
+    signInWithEmail.mockResolvedValueOnce({ error: { code: "EMAIL_NOT_VERIFIED" } })
+    renderLogin()
+
+    await user.type(await screen.findByLabelText("E-mail"), "test-user@example.invalid")
+    await user.type(screen.getByLabelText("Senha"), "password-123")
+    await user.click(screen.getByRole("button", { name: "Entrar" }))
+
+    expect(await screen.findByText(/Verifique sua caixa de entrada/)).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Reenviar verificação" }))
+
+    expect(resendVerificationEmail).toHaveBeenCalledWith("test-user@example.invalid")
+    expect(await screen.findByText(/Se o endereço estiver elegível/)).toBeInTheDocument()
+  })
+
+  it("maps provider callback errors to safe copy", async () => {
+    renderLogin("/login?error=access_denied")
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "O acesso com o Google não foi concluído. Tente novamente.",
+    )
+    expect(screen.queryByText("access_denied")).not.toBeInTheDocument()
+  })
+
+  it.each([
+    [
+      "INVALID_TOKEN",
+      "O link de verificação é inválido ou já foi usado. Solicite uma nova verificação.",
+    ],
+    [
+      "invalid_token",
+      "O link de verificação é inválido ou já foi usado. Solicite uma nova verificação.",
+    ],
+    ["TOKEN_EXPIRED", "O link de verificação expirou. Solicite uma nova verificação."],
+  ])("maps %s verification callbacks without contradictory success or Google copy", async (code, copy) => {
+    const { router } = renderLogin(`/login?verified=true&error=${code}`)
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(copy)
+    expect(screen.queryByText("E-mail confirmado. Você já pode entrar.")).not.toBeInTheDocument()
     expect(
-      await screen.findByText(
-        "Se o e-mail estiver cadastrado, enviaremos as instruções de redefinição.",
-      ),
-    ).toBeInTheDocument()
+      screen.queryByText("O acesso com o Google não foi concluído. Tente novamente."),
+    ).not.toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.href).not.toContain("verified"))
+  })
+
+  it("keeps verified feedback visible after consuming the one-shot URL marker", async () => {
+    const { router } = renderLogin("/login?verified=true")
+
+    expect(await screen.findByText("E-mail confirmado. Você já pode entrar.")).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.href).not.toContain("verified"))
+    expect(screen.getByText("E-mail confirmado. Você já pode entrar.")).toBeInTheDocument()
   })
 })

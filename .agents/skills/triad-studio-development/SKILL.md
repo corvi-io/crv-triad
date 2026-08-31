@@ -10,7 +10,7 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
 ## Boundaries
 
 - `apps/studio` owns the authenticated barbershop-management browser UI.
-- `apps/idp` owns authentication, sessions, invitations, and access policy.
+- `apps/api/src/modules/idp` owns authentication, sessions, invitations, and access policy.
 - `apps/api` owns business APIs. Add API clients only through an accepted
   initiative with a committed local OpenAPI contract; do not generate Better
   Auth or broad IDP clients.
@@ -39,15 +39,14 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
   sign-out. Keep identity administration in IDP-owned operational workflows,
   not Studio routes.
 - Read `import.meta.env` only in `src/modules/shared/config/env.ts`.
-- Map target-specific deployed Vite URLs from uppercase GitHub Environment
+- Map target-specific deployed Vite URLs from the uppercase Infisical `/studio`
   source (`STUDIO__VITE_AUTH_BASE_URL`) declared in
   root `env-schema.yaml`; keep constants in app defaults and local `.env.example`
   names runtime-shaped.
 - Keep local and deployed auth routing equivalent: use an absolute
   browser-visible `VITE_AUTH_BASE_URL`; do not rely on Vite proxying or
   Cloudflare Pages Functions.
-- Preserve local development ports: studio `3000`, site `3001`, API `8000`, and
-  IDP `8001`.
+- Preserve local development ports: studio `3000`, site `3001`, and API `8000`.
 - Put shadcn/Base UI primitives under `src/modules/shared/components/ui`.
 - Before creating UI, reuse an existing Studio component when its documented contract fits. If no
   suitable component exists, inspect the official shadcn/ui catalog, then reviewed
@@ -77,8 +76,15 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
   implementation, not a product feature module.
 - Keep the foundation domain-neutral. Do not restore inherited business routes,
   catalogs, fixtures, placeholder mutations, or navigation entries. Introduce
-  a business domain only through an accepted initiative with explicit API,
-  authorization, persistence, and product contracts.
+  a business domain only through an accepted initiative. Production-capable
+  domain forms and mutations require explicit API, authorization, persistence,
+  and product contracts.
+- An explicitly accepted initiative may integrate a product-realistic evaluation module into the
+  authenticated shell for `local`/`dev` with a deterministic memory source. Require explicit source
+  configuration, fail-closed disabled resolution in `hml`/`prd`, no persistence, HTTP, or IDP
+  behavior, no ordinary preview/debug chrome, and a replaceable module-owned repository port backed
+  by production-boundary tests and durable documentation. Treat this as a bounded product-criticism
+  surface, not a production contract or general permission to add domains.
 - When a component is split into multiple companion files, put the files in a
   dedicated component folder with an `index.tsx` public entrypoint. Prefer
   domain-specific composition names such as `workspace-shell/sidebar-user-menu`
@@ -92,6 +98,14 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
 - Use the shared `ModuleLayout` for module pages that need a fixed `head` and
   scrollable body content. It owns the Lina-based `ScrollArea`; avoid adding
   route-local body scroll wrappers for module screens.
+- `WorkspaceShellContent` owns the authenticated content inset. Responsive boards inside it must
+  reuse that padding instead of adding duplicate inset to a `ModuleLayout` viewport, fill the
+  remaining height at every active grid breakpoint, and confine scrolling to panels with measured
+  overflow rather than the module body or page.
+- The same one-owner rule applies across authenticated feature roots, detail pages, checkout pages,
+  and drawers: nested `ModuleLayout` viewports reuse `WorkspaceShellContent` inset, while
+  `ActionDrawer` alone owns its scroll-body inset. Do not add matching padding inside their
+  children or nested viewports; preserve only intentional card and form-field spacing.
 - Put page-level create buttons and secondary page commands in
   `PageHeader.actions`. Do not add fake or disabled creation buttons before the
   backing route, mutation, or product flow exists.
@@ -105,11 +119,16 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
 - Use shared sortable table headers for ordered columns. Sorting should cycle
   through ascending, descending, and no sorting, and paginated lists should send
   sort state to the API instead of sorting only the current browser page.
-- Filters, search, and sort controls for paginated or potentially large lists
-  must be backed by API query parameters. Keep UI control state locally, but do
-  not filter only the currently loaded page in the browser. Persist shareable
+- Filters, search, and sort controls for production-backed paginated or potentially large lists
+  must be backed by API query parameters. A governed `local`/`dev` evaluation module may instead
+  delegate them to its bounded repository source; do not present that behavior as API or capacity
+  evidence. Keep UI control state locally, but do not filter only the currently loaded page in the
+  browser. Persist shareable
   list state such as filters, search, sorting, pagination, and view mode in URL
   query parameters when it is useful for collaboration or handoff.
+- Compose product-list searches with the shared compact `ListSearchField` and list filters with the
+  shared single/multi-select filter components. Preserve raw `Select` for form data entry rather
+  than list filtering.
 - Use `DataTablePagination` for offset/page-number pagination in administrative
   tables. It should show the page-size selector on the left as
   `Registros por página`, then the page summary and navigation on the right as
@@ -120,6 +139,9 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
   [last-4] [last-3] [last-2] [last-1] [last]` near the end. Keep cursor-based
   pagination as a separate component and API contract instead of hiding it
   behind the numbered table paginator.
+- Keep the `ModuleLayout` scroll viewport free of implicit vertical spacing and bottom padding. Let
+  content owners add explicit gaps or inset only when their composition needs them so table/list
+  pagination has no structural empty strip below it.
 - Use `ActionDrawer` for dense filter sets that combine search, multiple
   selectable groups, or future advanced options. Keep the trigger in
   `PageHeader.actions`; do not compress complex filters into dropdown menus.
@@ -167,9 +189,10 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
 - Compose domain forms explicitly instead of building a schema/JSON-driven
   universal renderer. Prefer explicit variants and slots over boolean-prop
   proliferation, and do not create `packages/*` for studio-only form reuse.
-- Do not expose creation or edit forms without real mutation and authorization
-  contracts. Keep initiative-specific prototypes outside authenticated
-  production routes and do not invent catalogs, uploads, or persistence.
+- Do not expose creation or edit forms in `hml`/`prd` without real mutation and authorization
+  contracts. The governed `local`/`dev` evaluation exception above may exercise memory-backed forms
+  in the authenticated shell only within its accepted initiative and source boundary. Do not invent
+  uploads or persistence.
 - Treat shared mask values as canonical strings and display formatting as a
   separate concern. Keep completeness, impossible-date, range, checksum, and
   business validation in Zod/domain helpers, and wait for accepted API contracts

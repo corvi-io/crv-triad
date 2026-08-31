@@ -3,6 +3,7 @@ import { Monitor, Moon, Sun } from "lucide-react"
 import { Button } from "@/modules/shared/components/ui/button"
 import { cn } from "@/modules/shared/lib/utils"
 import { type ThemePreference, useTheme } from "@/modules/shared/theme/theme-provider"
+import { SecurityAccessSection } from "./security-access-section"
 
 const themeOptions = [
   {
@@ -30,11 +31,11 @@ const themeOptions = [
   icon: typeof Sun
 }[]
 
-export function PreferencesScreen() {
+export function PreferencesScreen({ googleResult }: { googleResult?: "connected" | "error" }) {
   const { preference, setPreference } = useTheme()
 
   return (
-    <section className="max-w-2xl space-y-5">
+    <section className="max-w-3xl space-y-5">
       <section className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
         <div className="space-y-1">
           <h2 className="text-base font-semibold">Aparência</h2>
@@ -73,6 +74,7 @@ export function PreferencesScreen() {
           })}
         </div>
       </section>
+      <SecurityAccessSection googleResult={googleResult} />
     </section>
   )
 }

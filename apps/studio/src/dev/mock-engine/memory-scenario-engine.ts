@@ -70,14 +70,17 @@ export class MemoryScenarioEngine<TRecord extends IdentifiedRecord> {
   }
 
   async execute<TResult>(operation: MockOperation, action: () => TResult): Promise<TResult> {
-    if (this.#latencyMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, this.#latencyMs))
+    const latencyMs = this.#latencyMs
+    const shouldFail = this.#failureMode !== "never"
+    if (this.#failureMode === "next") {
+      this.#failureMode = "never"
     }
 
-    if (this.#failureMode !== "never") {
-      if (this.#failureMode === "next") {
-        this.#failureMode = "never"
-      }
+    if (latencyMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, latencyMs))
+    }
+
+    if (shouldFail) {
       throw new SimulatedMockFailure(operation)
     }
 

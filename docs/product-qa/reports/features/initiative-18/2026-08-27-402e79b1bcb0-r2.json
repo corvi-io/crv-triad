@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "mode": "recheck",
+  "run": {
+    "date": "2026-08-27",
+    "branch": "feature/mvp-readiness-and-schema-baseline",
+    "commit": "402e79b1bcb05dfa02879f45dee84e820eeabfcb",
+    "environment": "Local controllable Playwright with Astro, Vite, Bun/Elysia, and disposable PostgreSQL",
+    "data_mode": "Synthetic fixtures in unique disposable PostgreSQL clusters; no shared data",
+    "evaluator": "Codex WP reliability QA",
+    "baseline": "docs/product-qa/reports/features/initiative-18/2026-08-27-402e79b1bcb0.json",
+    "limitations": [
+      "No Maestri Portal was connected; authorized local controllable Playwright was used.",
+      "The real API does not integrate GET /campaign-links/:slug/resolve.",
+      "The final corrective screenshot run could not start because the empty PostgreSQL migration chain failed with duplicate constraint code 42710.",
+      "A complete rerun is required at the final PR SHA after migrations 0000-0021 and the campaign endpoint are confirmed."
+    ]
+  },
+  "scope": {
+    "initiative": "18-mvp-readiness-and-schema-baseline",
+    "apps": ["site", "web", "api", "cross-app"],
+    "modules": ["public-site", "analytics-consent", "campaign-links", "database-migrations"],
+    "personas": ["public visitor"],
+    "tenants": [],
+    "out_of_scope": [
+      "Production implementation changes",
+      "Shared or deployed environments",
+      "External PostHog provider behavior beyond the consent boundary"
+    ]
+  },
+  "journeys": [
+    {
+      "id": "I18-MVP-S1-ANALYTICS",
+      "apps": ["site"],
+      "module": "analytics-consent",
+      "persona": "public visitor",
+      "tenant": null,
+      "kind": "recheck",
+      "name": "Activate privacy-safe analytics only after applicable consent",
+      "result": "passed",
+      "evidence": [
+        "Zero analytics requests occurred before consent.",
+        "Zero analytics requests occurred after essential-only selection and tagged CTA interaction.",
+        "Analytics initialized and cta_clicked emitted only after explicit analytics consent in a clean context.",
+        "Analytics property keys were checked against lead and PII fields without printing request bodies or values."
+      ]
+    },
+    {
+      "id": "I18-MVP-S1-CAMPAIGN",
+      "apps": ["site", "api"],
+      "module": "campaign-links",
+      "persona": "public visitor",
+      "tenant": null,
+      "kind": "recheck",
+      "name": "Resolve a real campaign entry through the local API",
+      "result": "blocked",
+      "evidence": [
+        "apps/site/src/pages/c/index.astro:69 requests GET /campaign-links/:slug/resolve.",
+        "No matching API route or campaign-link persistence model exists in apps/api/src or apps/api/drizzle.",
+        "The real browser observed non-2xx responses and rendered the unavailable-link fallback instead of resolving a destination."
+      ]
+    },
+    {
+      "id": "I18-EMPTY-DB-MIGRATIONS",
+      "apps": ["api"],
+      "module": "database-migrations",
+      "persona": "operator",
+      "tenant": null,
+      "kind": "recheck",
+      "name": "Start the real stack from an empty PostgreSQL database",
+      "result": "blocked",
+      "evidence": [
+        "PostgreSQL returned 42710 for duplicate commercial_lead_activities_related_activity_id_fk.",
+        "The constraint is created in both apps/api/drizzle/0004_aberrant_puppet_master.sql:127 and apps/api/drizzle/0021_flawless_raider.sql:14."
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "journey_id": "I18-MVP-S1-ANALYTICS",
+      "checkpoint": "Essential-only choice applied with no analytics traffic",
+      "viewport": "1440x1000",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-732b8-e-missing-campaign-contract-chromium/mvp-s1-essential-only.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Consent banner is absent and the landing page remains unobstructed; network recorder remained empty."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S1-ANALYTICS",
+      "checkpoint": "First post-consent capture",
+      "viewport": "1280x720",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-732b8-e-missing-campaign-contract-chromium/mvp-s1-analytics-consented.png",
+      "inspected": true,
+      "result": "failed",
+      "observations": [
+        "Capture occurred during the consent banner exit transition; wait condition was corrected, but clean recapture is pending the final-SHA rerun."
+      ]
+    },
+    {
+      "journey_id": "I18-MVP-S1-CAMPAIGN",
+      "checkpoint": "Unavailable campaign fallback after missing API contract",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-732b8-e-missing-campaign-contract-chromium/mvp-s1-campaign-contract-missing.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Fallback is readable and fits mobile, but it confirms the missing campaign happy path rather than satisfying it."
+      ]
+    }
+  ],
+  "access_checks": [
+    {
+      "actor": "anonymous public visitor",
+      "resource_tenant": null,
+      "vector": "Analytics initialization and tagged CTA events across consent states",
+      "result": "passed",
+      "evidence": "Analytics remained inactive before consent and for essential-only; recorded post-consent property keys excluded lead and PII fields."
+    }
+  ],
+  "findings": [
+    {
+      "id": "I18-QA-CAMPAIGN-1",
+      "type": "product_defect",
+      "severity": "blocker",
+      "app": "cross-app",
+      "module": "campaign-links",
+      "title": "Campaign entry has no integrated resolve endpoint",
+      "status": "blocked",
+      "evidence": [
+        "Site requests GET /campaign-links/:slug/resolve, but no matching API route or persistence model exists.",
+        "Real browser runs observed 404 and 500 responses and only the unavailable-link fallback."
+      ],
+      "attempts": 2
+    },
+    {
+      "id": "I18-QA-MIGRATION-1",
+      "type": "product_defect",
+      "severity": "blocker",
+      "app": "api",
+      "module": "database-migrations",
+      "title": "Empty PostgreSQL migration chain creates a duplicate FK",
+      "status": "blocked",
+      "evidence": [
+        "Migration failed with PostgreSQL 42710 before browser startup.",
+        "commercial_lead_activities_related_activity_id_fk appears in migrations 0004 and 0021."
+      ],
+      "attempts": 1
+    },
+    {
+      "id": "I18-QA-ANALYTICS-1",
+      "type": "test_defect",
+      "severity": "low",
+      "app": "site",
+      "module": "analytics-consent",
+      "title": "Post-consent screenshot captured the banner exit transition",
+      "status": "fixed",
+      "evidence": [
+        "The scaffold now waits until the consent button is not visible; recapture awaits the authorized final-SHA rerun."
+      ],
+      "attempts": 1
+    },
+    {
+      "id": "I18-QA-ENV-2",
+      "type": "test_defect",
+      "severity": "medium",
+      "app": "cross-app",
+      "module": "test-scaffold",
+      "title": "Abrupt webServer termination left suite-owned PostgreSQL processes",
+      "status": "fixed",
+      "evidence": [
+        "Only validated suite-prefixed processes were stopped; Playwright now grants the API helper a 10-second graceful SIGTERM window."
+      ],
+      "attempts": 1
+    }
+  ],
+  "scores": {
+    "product_outcome": 7.0,
+    "functional_reliability_persistence": 7.0,
+    "ux_visual_integrity": 8.5,
+    "access_privacy_tenant_isolation": 9.5,
+    "accessibility": 8.5,
+    "operability_regression_protection": 6.0,
+    "weighted_total": 7.8
+  },
+  "verification": [
+    {
+      "check": "Focused Biome check",
+      "result": "passed",
+      "evidence": "bunx biome check apps/web/tests/e2e-integrated checked 6 files with no fixes."
+    },
+    {
+      "check": "Web TypeScript boundary",
+      "result": "passed",
+      "evidence": "bun --filter web typecheck exited 0."
+    },
+    {
+      "check": "Extended analytics and campaign-observation run",
+      "result": "passed",
+      "evidence": "3 tests passed in 17.2 seconds; campaign assertion proves the missing non-2xx contract and fallback, not campaign acceptance."
+    },
+    {
+      "check": "Screenshot-checkpoint run",
+      "result": "passed",
+      "evidence": "3 tests passed in 18.1 seconds; post-consent screenshot was rejected during visual inspection and the wait was corrected."
+    },
+    {
+      "check": "Corrective clean-screenshot rerun",
+      "result": "blocked",
+      "evidence": "Stack startup failed in migrations with PostgreSQL 42710 before Playwright tests ran."
+    },
+    {
+      "check": "Final PR SHA rerun",
+      "result": "skipped",
+      "evidence": "Explicitly deferred until migrations 0000-0021 pass on empty PostgreSQL and the campaign-link endpoint is integrated."
+    }
+  ],
+  "decision": "not_approved"
+}

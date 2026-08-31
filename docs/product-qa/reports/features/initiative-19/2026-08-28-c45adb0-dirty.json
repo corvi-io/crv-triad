@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "mode": "feature",
+  "run": {
+    "date": "2026-08-28",
+    "branch": "feature/configurable-commercial-research-themes",
+    "commit": "c45adb0",
+    "environment": "local web 3102, API 8100, disposable PostgreSQL",
+    "data_mode": "synthetic fixtures in an isolated temporary cluster",
+    "evaluator": "Codex",
+    "baseline": null,
+    "limitations": [
+      "Live external AI-provider output quality was not exercised.",
+      "An unrelated later audio assertion failed in a combined adjacent Commercial run after all initiative checkpoints passed."
+    ]
+  },
+  "scope": {
+    "initiative": "19-configurable-commercial-research-themes",
+    "apps": ["web", "api", "cross-app"],
+    "modules": ["commercial research configuration", "lead enrichment", "lead reading"],
+    "personas": ["synthetic administrator", "synthetic active member", "anonymous user"],
+    "tenants": [],
+    "out_of_scope": [
+      "deployment",
+      "shared data",
+      "live external provider quality",
+      "multi-tenant isolation"
+    ]
+  },
+  "journeys": [
+    {
+      "id": "I19-J1",
+      "apps": ["web", "api"],
+      "module": "commercial research configuration",
+      "persona": "synthetic administrator",
+      "tenant": null,
+      "kind": "happy_path",
+      "name": "save ordered themes and reload",
+      "result": "passed",
+      "evidence": ["Playwright UI assertions and PostgreSQL aggregate"]
+    },
+    {
+      "id": "I19-J2",
+      "apps": ["web"],
+      "module": "commercial research configuration",
+      "persona": "synthetic administrator",
+      "tenant": null,
+      "kind": "edge_case",
+      "name": "responsive configuration",
+      "result": "passed",
+      "evidence": ["390x844 inspected screenshot and overflow assertion"]
+    },
+    {
+      "id": "I19-J3",
+      "apps": ["web", "api"],
+      "module": "commercial research configuration",
+      "persona": "synthetic active member",
+      "tenant": null,
+      "kind": "edge_case",
+      "name": "deny direct route and mutation",
+      "result": "passed",
+      "evidence": ["overview redirect and HTTP 403"]
+    },
+    {
+      "id": "I19-J4",
+      "apps": ["web", "api"],
+      "module": "lead reading",
+      "persona": "synthetic administrator",
+      "tenant": null,
+      "kind": "happy_path",
+      "name": "render persisted selected-theme reading",
+      "result": "passed",
+      "evidence": ["summary, evidence and source assertions through real stack"]
+    },
+    {
+      "id": "I19-J5",
+      "apps": ["api"],
+      "module": "commercial persistence",
+      "persona": "system",
+      "tenant": null,
+      "kind": "regression",
+      "name": "apply migration to disposable PostgreSQL",
+      "result": "passed",
+      "evidence": ["migration exit 0 and schema catalog queries"]
+    }
+  ],
+  "screenshots": [
+    {
+      "journey_id": "I19-J1",
+      "checkpoint": "configuration changed",
+      "viewport": "desktop",
+      "artifact": "research-themes-admin-desktop.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Clear selection and order hierarchy", "No overlap or clipping"]
+    },
+    {
+      "journey_id": "I19-J2",
+      "checkpoint": "responsive configuration",
+      "viewport": "390x844",
+      "artifact": "research-themes-admin-mobile.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Kits stack cleanly", "No horizontal overflow"]
+    },
+    {
+      "journey_id": "I19-J3",
+      "checkpoint": "member denied",
+      "viewport": "390x844",
+      "artifact": "research-themes-member-denied-mobile.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["No protected configuration content"]
+    },
+    {
+      "journey_id": "I19-J4",
+      "checkpoint": "derived lead reading",
+      "viewport": "desktop drawer",
+      "artifact": "commercial-research-reading-desktop.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Summary hierarchy is clear", "Fact label and source are legible"]
+    }
+  ],
+  "access_checks": [
+    {
+      "actor": "synthetic administrator",
+      "resource_tenant": null,
+      "vector": "UI and PUT",
+      "result": "passed",
+      "evidence": "configuration persisted after reload"
+    },
+    {
+      "actor": "synthetic active member",
+      "resource_tenant": null,
+      "vector": "direct route",
+      "result": "passed",
+      "evidence": "redirected to overview without protected content"
+    },
+    {
+      "actor": "synthetic active member",
+      "resource_tenant": null,
+      "vector": "direct PUT",
+      "result": "passed",
+      "evidence": "HTTP 403"
+    },
+    {
+      "actor": "anonymous user",
+      "resource_tenant": null,
+      "vector": "authenticated route",
+      "result": "passed",
+      "evidence": "adjacent real-stack identity guard journey"
+    }
+  ],
+  "findings": [
+    {
+      "id": "I19-F1",
+      "type": "test_defect",
+      "severity": "low",
+      "app": "web",
+      "module": "product QA",
+      "title": "stale E2E label",
+      "status": "fixed",
+      "evidence": ["corrected selector rerun passed"],
+      "attempts": 1
+    },
+    {
+      "id": "I19-F2",
+      "type": "product_defect",
+      "severity": "low",
+      "app": "web",
+      "module": "research configuration",
+      "title": "mobile header action compression",
+      "status": "fixed",
+      "evidence": ["narrow viewport action label collapsed while accessible name remains"],
+      "attempts": 1
+    },
+    {
+      "id": "I19-F3",
+      "type": "environment_limitation",
+      "severity": "low",
+      "app": "web",
+      "module": "audio capture",
+      "title": "unrelated later audio assertion",
+      "status": "open",
+      "evidence": [
+        "combined run failed after initiative checkpoints; isolated initiative run passed"
+      ],
+      "attempts": 1
+    }
+  ],
+  "scores": {
+    "product_outcome": 9.4,
+    "functional_reliability_persistence": 9.3,
+    "ux_visual_integrity": 9.1,
+    "access_privacy_tenant_isolation": 9.2,
+    "accessibility": 9.0,
+    "operability_regression_protection": 9.3,
+    "weighted_total": 9.2
+  },
+  "verification": [
+    { "check": "API check", "result": "passed", "evidence": "402 tests and coverage above 80%" },
+    { "check": "Web coverage", "result": "passed", "evidence": "194 tests and coverage above 80%" },
+    { "check": "Root build", "result": "passed", "evidence": "three deployable apps built" },
+    {
+      "check": "Disposable PostgreSQL migration",
+      "result": "passed",
+      "evidence": "new schema objects verified"
+    },
+    {
+      "check": "Integrated configuration/access E2E",
+      "result": "passed",
+      "evidence": "2 tests passed"
+    },
+    {
+      "check": "Integrated reading E2E",
+      "result": "passed",
+      "evidence": "1 isolated real-stack test passed"
+    }
+  ],
+  "decision": "approved"
+}

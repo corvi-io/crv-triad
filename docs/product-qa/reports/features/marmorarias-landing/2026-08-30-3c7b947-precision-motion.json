@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "mode": "recheck",
+  "run": {
+    "date": "2026-08-30",
+    "branch": "feature/configurable-commercial-research-themes",
+    "commit": "3c7b947",
+    "environment": "Local Astro dev on 3001 and production preview on 3101",
+    "data_mode": "Non-mutating browser recheck; no shared or remote database write",
+    "evaluator": "Codex",
+    "baseline": "docs/product-qa/reports/features/marmorarias-landing/2026-08-29-3c7b947-dirty.json",
+    "limitations": ["The valid lead persistence journey remains blocked because no isolated local PostgreSQL target is available."]
+  },
+  "scope": {
+    "initiative": null,
+    "apps": ["site", "api"],
+    "modules": ["marmorarias landing page", "margin-loss estimator", "public lead intake", "analytics consent banner"],
+    "personas": ["Owner or manager of a small or medium custom marble shop"],
+    "tenants": [],
+    "out_of_scope": ["Production deployment", "CRM integration", "Paid Sprint delivery", "Live lead persistence"]
+  },
+  "journeys": [
+    {"id":"PM-J1","apps":["site"],"module":"marmorarias landing page","persona":"Marble-shop owner or manager","tenant":null,"kind":"happy_path","name":"Follow the pinned physical and financial sequence","result":"passed","evidence":["apps/site/.impeccable/review/precision-motion/desktop-hero.png","apps/site/.impeccable/review/precision-motion/story-production.png","apps/site/.impeccable/review/precision-motion/story-margin.png"]},
+    {"id":"PM-J2","apps":["site"],"module":"marmorarias landing page","persona":"Marble-shop owner or manager","tenant":null,"kind":"recheck","name":"Read the reduced static sequence on mobile","result":"passed","evidence":["apps/site/.impeccable/review/precision-motion/mobile-story.png","9 visible story beats, zero aria-hidden beats, without pinning"]},
+    {"id":"PM-J3","apps":["site","api"],"module":"margin-loss estimator","persona":"Marble-shop owner or manager","tenant":null,"kind":"happy_path","name":"Submit both required contact channels before receiving the estimate","result":"passed","evidence":["apps/site/.impeccable/review/precision-motion/calculator-contact-gate.png","apps/site/.impeccable/review/precision-motion/calculator-contact-validation.png","apps/site/.impeccable/review/precision-motion/calculator-result.png","apps/site/tests/margin-loss-estimator.test.ts"]},
+    {"id":"PM-J4","apps":["site","api"],"module":"public lead intake","persona":"Marble-shop owner or manager","tenant":null,"kind":"edge_case","name":"Keep the estimate hidden after a failed lead submission and reveal it after an accepted retry","result":"passed","evidence":["Browser assertions: result hidden before intake and after simulated failure; accepted retry reveals it","apps/api/tests/integration/http/public-lead-routes.test.ts"]},
+    {"id":"PM-J5","apps":["site"],"module":"public lead intake","persona":"Marble-shop owner or manager","tenant":null,"kind":"edge_case","name":"Recover from an empty evaluation form submission","result":"passed","evidence":["apps/site/.impeccable/review/precision-motion/form-validation.png"]},
+    {"id":"PM-J6","apps":["site","api"],"module":"public lead intake","persona":"Marble-shop owner or manager","tenant":null,"kind":"happy_path","name":"Submit a valid evaluation and verify persistence","result":"blocked","evidence":["ENV-MARM-001"]}
+  ],
+  "screenshots": [
+    {"journey_id":"PM-J1","checkpoint":"Premium first view","viewport":"1440x1000 desktop","artifact":"apps/site/.impeccable/review/precision-motion/desktop-hero.png","inspected":true,"result":"passed","observations":["One stone object leads without SaaS or ERP chrome."]},
+    {"journey_id":"PM-J1","checkpoint":"Measurement","viewport":"1440x1000 desktop","artifact":"apps/site/.impeccable/review/precision-motion/story-measurement.png","inspected":true,"result":"passed","observations":["Dimension lines remain subordinate to the object and copy."]},
+    {"journey_id":"PM-J1","checkpoint":"Production components","viewport":"1440x1000 desktop","artifact":"apps/site/.impeccable/review/precision-motion/story-production.png","inspected":true,"result":"passed","observations":["The object changes to separated components."]},
+    {"journey_id":"PM-J1","checkpoint":"Installed result","viewport":"1440x1000 desktop","artifact":"apps/site/.impeccable/review/precision-motion/story-margin.png","inspected":true,"result":"passed","observations":["The final island preserves stone continuity and clearly differs from production."]},
+    {"journey_id":"PM-J2","checkpoint":"Compact static sequence","viewport":"390x844 mobile","artifact":"apps/site/.impeccable/review/precision-motion/mobile-story.png","inspected":true,"result":"passed","observations":["Four visual states appear without horizontal overflow."]},
+    {"journey_id":"PM-J3","checkpoint":"Required contact gate","viewport":"1440x1000 desktop","artifact":"apps/site/.impeccable/review/precision-motion/calculator-contact-gate.png","inspected":true,"result":"passed","observations":["Name, company, e-mail and WhatsApp are visible together before the result."]},
+    {"journey_id":"PM-J3","checkpoint":"Estimator result","viewport":"1440x1000 desktop","artifact":"apps/site/.impeccable/review/precision-motion/calculator-result.png","inspected":true,"result":"passed","observations":["The accepted lead unlocks a concise result without redundant contact choices."]}
+  ],
+  "access_checks": [
+    {"actor":"Public visitor","resource_tenant":null,"vector":"Reduced motion and assistive semantics","result":"passed","evidence":"Static mobile/reduced-motion sequence exposes all nine beats, zero aria-hidden beats, without pinning."},
+    {"actor":"Public visitor","resource_tenant":null,"vector":"Keyboard calculator journey and close recovery","result":"passed","evidence":"Native ranges, visible close action and focus restoration exercised in the browser."},
+    {"actor":"Public visitor","resource_tenant":null,"vector":"Privacy-safe analytics","result":"passed","evidence":"No calculator answers or lead PII are sent in the marble-specific event payloads."}
+  ],
+  "findings": [
+    {"id":"PM-001","type":"product_defect","severity":"medium","app":"site","module":"marmorarias landing page","title":"The first scroll build relied on one repeated stone render","status":"fixed","evidence":["Five distinct inspected stage captures"],"attempts":1},
+    {"id":"PM-002","type":"product_defect","severity":"medium","app":"site","module":"analytics consent banner","title":"The consent banner obscured most of the mobile first view and used glass effects","status":"fixed","evidence":["desktop-hero.png","mobile-hero.png"],"attempts":1},
+    {"id":"PM-003","type":"product_defect","severity":"high","app":"site","module":"marmorarias imagery","title":"Generated alternates returned a baked checkerboard instead of alpha","status":"fixed","evidence":["Transparent WebP stage assets and inspected screenshots"],"attempts":1},
+    {"id":"PM-004","type":"product_defect","severity":"high","app":"site","module":"marmorarias landing page","title":"Static story beats remained hidden from assistive technology","status":"fixed","evidence":["Reduced-motion browser assertion: zero aria-hidden beats"],"attempts":1},
+    {"id":"PM-005","type":"product_defect","severity":"high","app":"cross-app","module":"public lead intake","title":"Calculator exposed its result before a complete lead was durably accepted","status":"fixed","evidence":["Required e-mail and WhatsApp gate","Failure keeps result hidden","10 public lead route tests"],"attempts":2},
+    {"id":"PM-006","type":"product_defect","severity":"medium","app":"site","module":"marmorarias landing page","title":"Scroll labels and deviation callouts did not form a cause-and-effect story","status":"fixed","evidence":["Nine-stage story from approved budget to real margin","Detached deviation component removed"],"attempts":1},
+    {"id":"PM-007","type":"product_defect","severity":"medium","app":"site","module":"margin-loss estimator","title":"Result repeated details and contact choices after lead capture","status":"fixed","evidence":["calculator-result.png"],"attempts":1},
+    {"id":"PM-008","type":"product_defect","severity":"high","app":"site","module":"public lead intake","title":"Evaluation section offered a WhatsApp-only shortcut before the required form","status":"fixed","evidence":["Updated form-validation.png","Shortcut removed"],"attempts":1},
+    {"id":"ENV-MARM-001","type":"environment_limitation","severity":"high","app":"cross-app","module":"public lead intake","title":"No isolated database target for a real browser persistence assertion","status":"blocked","evidence":["Baseline environment limitation remains applicable"],"attempts":2}
+  ],
+  "scores": {
+    "product_outcome": 9.6,
+    "functional_reliability_persistence": 7.0,
+    "ux_visual_integrity": 9.7,
+    "access_privacy_tenant_isolation": 9.0,
+    "accessibility": 10.0,
+    "operability_regression_protection": 9.5,
+    "weighted_total": 9.0
+  },
+  "verification": [
+    {"check":"bun run typecheck","result":"passed","evidence":"60 Astro files; 0 errors, warnings or hints"},
+    {"check":"bun test tests/margin-loss-estimator.test.ts","result":"passed","evidence":"5 tests and 12 assertions passed"},
+    {"check":"bun test tests/integration/http/public-lead-routes.test.ts","result":"passed","evidence":"10 tests including the requirement for both e-mail and WhatsApp"},
+    {"check":"bun run build","result":"passed","evidence":"Static /marmorarias route and sitemap generated"},
+    {"check":"Real browser recheck","result":"passed","evidence":"No console errors, failed requests or mobile horizontal overflow"},
+    {"check":"Production Lighthouse","result":"passed","evidence":"Performance 98; accessibility 100; best practices 100; SEO 100; LCP 2.2s"},
+    {"check":"Real browser lead persistence","result":"blocked","evidence":"No isolated PostgreSQL target was available"}
+  ],
+  "decision": "not_approved"
+}

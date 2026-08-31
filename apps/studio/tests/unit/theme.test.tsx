@@ -4,6 +4,10 @@ import userEvent from "@testing-library/user-event"
 import { PreferencesScreen } from "@/modules/preferences/components/preferences-screen"
 import { ThemeProvider } from "@/modules/shared/theme/theme-provider"
 
+vi.mock("@/modules/preferences/components/security-access-section", () => ({
+  SecurityAccessSection: () => null,
+}))
+
 describe("theme support", () => {
   beforeEach(() => {
     window.localStorage.clear()

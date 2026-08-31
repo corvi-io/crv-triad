@@ -1,0 +1,295 @@
+{
+  "version": 1,
+  "mode": "full",
+  "run": {
+    "date": "2026-08-28",
+    "branch": "feature/mvp-readiness-and-schema-baseline",
+    "commit": "9a7589618d16660e5a170c265f6e5863b98cb71a",
+    "environment": "Frozen commit; local Playwright plus connected Maestri Portals against real Astro, Vite, Bun/Elysia, and a unique disposable PostgreSQL cluster per run",
+    "data_mode": "Synthetic workspace, identity, commercial, campaign, and intake fixtures; fresh empty PostgreSQL migrated through 0021 per run",
+    "evaluator": "Sentinel — CRV Integrated Test Implementer",
+    "baseline": "docs/product-qa/reports/features/initiative-18/2026-08-27-402e79b1bcb0-r3.json",
+    "limitations": [
+      "Tenant isolation is not applicable because the product has a workspace-global access model and no tenant model; anonymous, member, admin, and disabled-user boundaries were tested instead.",
+      "Astro Dev Toolbar emitted a development-only audit Failed to fetch message during campaign document replacement; product page console, pageerror, and failed-request collectors remained clean.",
+      "Heavy Playwright and Portal image artifacts are local and ignored; the immutable report records safe paths and aggregate-only evidence."
+    ]
+  },
+  "scope": {
+    "initiative": "18-mvp-readiness-and-schema-baseline",
+    "apps": ["site", "web", "api", "cross-app"],
+    "modules": [
+      "database-migrations",
+      "campaign-links",
+      "analytics-consent",
+      "public-intake",
+      "health-readiness",
+      "idp",
+      "workspace",
+      "commercial"
+    ],
+    "personas": [
+      "public visitor",
+      "public prospect",
+      "anonymous user",
+      "admin",
+      "member",
+      "disabled user",
+      "operator"
+    ],
+    "tenants": [],
+    "out_of_scope": [
+      "Shared or deployed environments",
+      "External providers",
+      "Tenant isolation because no tenant model exists"
+    ]
+  },
+  "journeys": [
+    {
+      "id": "I18-S1",
+      "apps": ["site", "api"],
+      "module": "campaign-links-and-analytics",
+      "persona": "public visitor",
+      "tenant": null,
+      "kind": "regression",
+      "name": "Campaign resolution, permanent and temporary failures, consent-gated analytics, responsive navigation, keyboard, and reduced motion",
+      "result": "passed",
+      "evidence": [
+        "Active link resolved with replace history; inactive, expired, and invalid UX was indistinguishable; temporary failure recovered through retry.",
+        "Analytics requests were absent before consent and after essential-only, and privacy-safe analytics initialized only after opt-in."
+      ]
+    },
+    {
+      "id": "I18-S2",
+      "apps": ["site", "api"],
+      "module": "public-intake",
+      "persona": "public prospect",
+      "tenant": null,
+      "kind": "regression",
+      "name": "Submit the visible public intake form and verify persistence after reload",
+      "result": "passed",
+      "evidence": [
+        "Real API returned 201; aggregate-only evidence remained deliveries=1 and leads=1 after reload without payload or PII output."
+      ]
+    },
+    {
+      "id": "I18-READINESS",
+      "apps": ["api"],
+      "module": "database-migrations-and-readiness",
+      "persona": "operator",
+      "tenant": null,
+      "kind": "regression",
+      "name": "Migrate empty PostgreSQL through 0021 and distinguish liveness from readiness during outage and recovery",
+      "result": "passed",
+      "evidence": [
+        "Migrations 0000-0021 completed before fixtures; health stayed 200, readiness changed to 503 during owned database outage and recovered to 200."
+      ]
+    },
+    {
+      "id": "I18-IDP",
+      "apps": ["web", "api"],
+      "module": "idp-and-workspace",
+      "persona": "admin, member, disabled user, and anonymous user",
+      "tenant": null,
+      "kind": "regression",
+      "name": "Real sign-in, invitation lifecycle, guards, overview, profile, administration, refresh, logout, and disabled-user boundary",
+      "result": "passed",
+      "evidence": [
+        "Better Auth sign-in and private cookies drove browser sessions; invitation signup and role boundaries survived refresh.",
+        "Anonymous deep links had no private-content flicker; member and disabled-user restrictions were enforced."
+      ]
+    },
+    {
+      "id": "I18-C1-C3",
+      "apps": ["web", "api"],
+      "module": "commercial-leads-activities-and-work-queue",
+      "persona": "admin",
+      "tenant": null,
+      "kind": "recheck",
+      "name": "Lead, activity, configured-field, and today-queue lifecycles including recovery and responsive states",
+      "result": "passed",
+      "evidence": [
+        "C1 covered create, list/Kanban, search/filter/history, detail, stage, archive/restore, pagination, and stale-version 409.",
+        "C2 covered activity lifecycle and audio boundary; C3 completed and dismissed flat work-queue actions with aggregate activities=1, finishedActions=2, pendingActions=0."
+      ]
+    },
+    {
+      "id": "I18-C4",
+      "apps": ["web", "api"],
+      "module": "commercial-connectors",
+      "persona": "admin and member",
+      "tenant": null,
+      "kind": "recheck",
+      "name": "Connector RBAC and complete admin connector lifecycle",
+      "result": "passed",
+      "evidence": [
+        "Anonymous API returned 401; member UI exposed no connector heading, tabs, list, counts, queries, or cached data and direct API returned 403.",
+        "Admin created, configured, mapped, activated, tested delivery to Processado, proved signed idempotency, and rotated the secret without exposing it or raw payload.",
+        "Aggregate-only evidence: connectors=1, activeConnectors=1, processedDeliveries=2, deliveryBackedLeads=2, rawPayloadColumns=0."
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "journey_id": "I18-S1",
+      "checkpoint": "Campaign and analytics desktop/mobile collection (10 images in each final run)",
+      "viewport": "1440x1000 and 390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-c05a8-nd-real-campaign-resolution-chromium/",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Consent, navigation, active destination, permanent states, and temporary retry were readable and unclipped."
+      ]
+    },
+    {
+      "journey_id": "I18-S2",
+      "checkpoint": "Public intake empty, success, mobile success, and post-reload states (4 images per run)",
+      "viewport": "1440x1200 and 390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S2-accepts--ba0dc--one-delivery-with-one-lead-chromium/",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Form and success states were stable, readable, and free of exposed fixture values in the report."
+      ]
+    },
+    {
+      "journey_id": "I18-IDP",
+      "checkpoint": "Identity and workspace collection (7 images per run)",
+      "viewport": "1440x1000 and 390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/workspace-real-stack-Initi-51068-tration-and-role-boundaries-chromium/",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Login, overview, invitation, profile, guard, and denied administration states fit desktop and mobile viewports."
+      ]
+    },
+    {
+      "journey_id": "I18-C1-C3",
+      "checkpoint": "Commercial lead, activity, field, queue, mobile, and 200% collection (6 images per run)",
+      "viewport": "1440x1000, 390x844, and 200% zoom",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/workspace-real-stack-Initi-5bd76--history-queue-and-rollback-chromium/",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Kanban/list, details, fields, history, and today queue remained operable without horizontal loss at required viewports."
+      ]
+    },
+    {
+      "journey_id": "I18-C4",
+      "checkpoint": "Connector configured, processed delivery, safe rotation, and member denied states (4 images per run)",
+      "viewport": "1440x1000 and 390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/workspace-real-stack-Initi-aff43-e-admin-connector-lifecycle-chromium/",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Admin lifecycle and Processado state were legible; member denial exposed no connector data; rotation screenshot contained no secret."
+      ]
+    },
+    {
+      "journey_id": "I18-IDP",
+      "checkpoint": "Connected Portal live inspection",
+      "viewport": "Initiative 18 Desktop 1440x1000 and Initiative 18 Mobile 390x844",
+      "artifact": "Maestri Portals: Initiative 18 Desktop and Initiative 18 Mobile",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Accessibility snapshots exposed semantic headings, links, labels, and buttons; Portal log buffers remained empty; rendered site and login pixels were inspected."
+      ]
+    }
+  ],
+  "access_checks": [
+    {
+      "actor": "anonymous user",
+      "resource_tenant": null,
+      "vector": "Private web deep links and connector API",
+      "result": "passed",
+      "evidence": "Private routes redirected without private-content flicker and connector API returned 401."
+    },
+    {
+      "actor": "member",
+      "resource_tenant": null,
+      "vector": "Administration and /commercial/connectors UI plus API",
+      "result": "passed",
+      "evidence": "UI denied access without connector queries/cache/list/counts and direct connector API requests returned 403."
+    },
+    {
+      "actor": "admin",
+      "resource_tenant": null,
+      "vector": "Administration and connector lifecycle",
+      "result": "passed",
+      "evidence": "Admin could manage invitation/users and complete the connector lifecycle through UI and real API."
+    },
+    {
+      "actor": "disabled user",
+      "resource_tenant": null,
+      "vector": "Existing authenticated access",
+      "result": "passed",
+      "evidence": "Disabled identity could not retain private access; the synthetic user was reactivated only for subsequent bounded checks."
+    }
+  ],
+  "findings": [
+    {
+      "id": "I18-QA-CORRECTIVE-SEQUENCE",
+      "type": "product_defect",
+      "severity": "high",
+      "app": "cross-app",
+      "module": "commercial",
+      "title": "Earlier company search, stale-version, C3 queue, connector RBAC, and connector delivery defects",
+      "status": "fixed",
+      "evidence": [
+        "Focused 3/3 gate and both final 6/6 runs passed on 9a7589618d16660e5a170c265f6e5863b98cb71a."
+      ],
+      "attempts": 3
+    },
+    {
+      "id": "I18-QA-ASTRO-DEV-1",
+      "type": "environment_limitation",
+      "severity": "low",
+      "app": "site",
+      "module": "campaign-links",
+      "title": "Astro Dev Toolbar audit emits Failed to fetch during document replacement",
+      "status": "accepted",
+      "evidence": [
+        "Noise was limited to the Astro development toolbar; product console, pageerror, and failed-request collectors were clean."
+      ],
+      "attempts": 1
+    }
+  ],
+  "scores": {
+    "product_outcome": 10,
+    "functional_reliability_persistence": 10,
+    "ux_visual_integrity": 9.5,
+    "access_privacy_tenant_isolation": 10,
+    "accessibility": 9.5,
+    "operability_regression_protection": 10,
+    "weighted_total": 9.8
+  },
+  "verification": [
+    {
+      "check": "Focused workspace real-stack recheck",
+      "result": "passed",
+      "evidence": "3 passed in 59.2s; IDP 22.4s, C1-C3 13.2s, C4 16.5s."
+    },
+    {
+      "check": "Final full run 1 with retries=0 and one worker",
+      "result": "passed",
+      "evidence": "6 passed in 1.3m; wall 1:18.21; fresh disposable PostgreSQL; 31 screenshots."
+    },
+    {
+      "check": "Final full run 2 with retries=0 and one worker",
+      "result": "passed",
+      "evidence": "6 passed in 1.6m; wall 1:36.63; fresh disposable PostgreSQL; 31 screenshots."
+    },
+    {
+      "check": "Visual, accessibility, console, and network inspection",
+      "result": "passed",
+      "evidence": "All 31 run-2 Playwright screenshots and representative run-1 artifacts were inspected; connected desktop/mobile Portal snapshots and pixels were inspected; Portal logs and product collectors were clean."
+    },
+    {
+      "check": "Safe persistence and cleanup",
+      "result": "passed",
+      "evidence": "Only bounded aggregate evidence was recorded; final owned processes stopped, ports 3102/3103/8100 were clean, and the final run-owned cluster path was absent."
+    }
+  ],
+  "decision": "approved"
+}

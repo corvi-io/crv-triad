@@ -1,49 +1,75 @@
 ---
 name: triad-api-development
-description: Build or refactor Triad FastAPI backend code in apps/api using project architecture, module layout, python-inject use cases, SQLModel persistence, REST schemas, error mapping, tests, and documentation expectations. Use for API routes, use cases, repositories, persistence, migrations, telemetry, campaign links, or API docs.
+description: Build or refactor the CRV Bun and Elysia modular monolith in apps/api, including the IDP bounded context, Better Auth, Drizzle persistence, REST/OpenAPI entrypoints, Vitest, and future business modules.
 ---
 
-# Triad API Development
+# CRV Triad API Development
 
-Use this skill for changes under `apps/api`. Follow the local `AGENTS.md` files
-first, then use these references as implementation workflow guides.
-
-Write user-facing analysis in Brazilian Portuguese. Keep code, filenames,
-routes, docs, commit messages, and PR titles in English.
+Use this skill for every change under `apps/api`. Follow root and app-local
+`AGENTS.md` first. Write user-facing analysis in Brazilian Portuguese and keep
+code, routes, filenames, docs, commits, and PR titles in English.
 
 ## Reference Routing
 
-- Creating or changing REST endpoints: read `references/routes.md`.
-- Creating or changing use cases: read `references/use-cases.md`.
-- Wiring dependencies: read `references/dependency-injection.md`.
-- Adding persistence or migrations: read `references/persistence.md`.
-- Adding errors or HTTP mappings: read `references/errors.md`.
-- Runtime env, deployment env sync, or Fly config: read
-  `references/environment.md`.
-- Validating or handing off work: read `references/testing.md`.
+- REST endpoints: `references/routes.md`.
+- Application actions and use cases: `references/use-cases.md`.
+- Explicit dependency wiring: `references/dependency-injection.md`.
+- Drizzle persistence and migrations: `references/persistence.md`.
+- Errors and HTTP mappings: `references/errors.md`.
+- Runtime and deployment environment: `references/environment.md`.
+- Validation and handoff: `references/testing.md`.
+
+## Architecture
+
+- `apps/api` is one deployable modular monolith.
+- `src/modules/idp` owns Better Auth, Google OAuth, sessions, invitations,
+  users, and broad access policy.
+- Future business capabilities belong beside `idp` under
+  `src/modules/{module}`. Never put their rules or tables inside `idp`.
+- Mount Better Auth directly at `/api/auth/*` and compose modules in
+  `src/entrypoints/rest/app.ts`.
+- Keep `src/server.ts` limited to environment loading, infrastructure creation,
+  composition, process lifecycle, and startup logging.
+- Prefer explicit factory wiring and narrow structural contracts. Add an
+  interface or adapter only when a real boundary benefits from inversion.
+- Keep IDP tables prefixed with `idp_`, use UUIDv7 identifiers, and manage all
+  API-owned schema through `apps/api/drizzle`.
 
 ## Default Workflow
 
-1. Confirm the module owner under `src/modules/{module}`.
-2. Keep REST-only concerns under `src/entrypoints/rest/{module}`.
-3. Keep business commands and use cases in the module layer.
-4. Wire business dependencies through `python-inject`, not FastAPI dependency
-   injection.
-5. Keep SQLModel records and database concerns behind repository
-   implementations.
-6. Check performance and scalability fit for changed endpoints or use cases:
-   expected request rate, data growth, query bounds, N+1 risk, blocking external
-   calls, transaction scope, and latency-sensitive paths. Do not claim numeric
-   capacity unless measured or explicitly estimated with assumptions.
-7. Add focused unit tests under `tests/unit` mirroring `src`.
-8. Check whether README, durable docs, AGENTS, skills, initiative docs, or
-   backlog need updates.
+1. Confirm the bounded-context owner.
+2. Keep HTTP-only concerns under `src/entrypoints/rest` and module rules inside
+   the owning module.
+3. Keep focused application actions under `application/use-cases` when a
+   module requires that layer; avoid catch-all services.
+4. Wire dependencies explicitly from the composition root.
+5. Bound queries, external calls, transaction scope, and result sizes.
+6. Add Vitest coverage under `tests/unit`, mirroring source boundaries, and
+   test Elysia behavior with `app.handle(new Request(...))`.
+7. Check README, durable docs, AGENTS, skills, initiative docs, environment
+   schema, pipeline, and backlog impact.
+
+## Identity Rules
+
+- Google proves identity only. A new user requires a valid invitation and every
+  session requires an active user.
+- Public self-registration is prohibited.
+- Do not log credentials, tokens, cookies, OAuth payloads, invitation proofs,
+  PII, or private request headers.
+- Treat every HTTP error as a public contract. Expose stable machine codes and
+  intentionally safe copy only; never forward raw exceptions or upstream
+  provider/database messages through Elysia or Better Auth routes.
+- Create the first administrator through the explicit bootstrap command.
+- Keep business authorization in the owning module; broad identity roles are
+  not a substitute for domain policy.
 
 ## Hard Boundaries
 
-- Do not put authentication ownership or Better Auth routes in `apps/api`.
-- Do not add generic arbitrary upstream proxies.
-- Do not parse, persist, enrich, or log telemetry payload bodies.
-- Do not expose provider secrets, private headers, browser cookies, or
-  authorization headers through telemetry proxy routes.
-- Do not add `/v1` unless a versioned external contract is explicitly required.
+- Do not add generic upstream proxies or generic utility modules.
+- Do not expose secrets or private headers through browser contracts.
+- Sanitize error bodies at framework and upstream-adapter boundaries, preserve
+  a safe request identifier in headers, and test negative paths with sensitive
+  sentinel values that must not appear in responses.
+- Do not add `/v1` unless an explicitly versioned external contract requires it.
+- Do not claim capacity numbers unless measured or clearly estimated with
+  assumptions.

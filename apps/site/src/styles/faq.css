@@ -1,0 +1,156 @@
+.faq-section {
+  padding: 120px 0;
+  background: #080d19;
+  border-top: 1px solid var(--border);
+}
+.faq-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 430px) minmax(0, 1fr);
+  gap: 120px;
+  align-items: start;
+}
+.faq-section header {
+  position: sticky;
+  top: 48px;
+}
+.faq-section header > span {
+  display: block;
+  margin-bottom: 24px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+.faq-section h2 {
+  margin: 0 0 22px;
+  font-size: 48px;
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+}
+.faq-section header p {
+  max-width: 390px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.6;
+}
+.faq-list {
+  border-top: 1px solid var(--border);
+}
+.faq-list details {
+  border-bottom: 1px solid var(--border);
+}
+.faq-list summary {
+  min-height: 86px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+  cursor: pointer;
+  list-style: none;
+}
+.faq-list summary::-webkit-details-marker {
+  display: none;
+}
+.faq-list summary i {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  transition:
+    border-color 0.2s,
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.faq-list summary i::before,
+.faq-list summary i::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 1px;
+  background: var(--gold);
+  transform: translate(-50%, -50%);
+}
+.faq-list summary i::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+.faq-list summary:hover i,
+.faq-list summary:focus-visible i {
+  border-color: var(--gold);
+}
+.faq-list summary:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+}
+.faq-list details[open] summary i {
+  border-color: var(--gold);
+  transform: rotate(45deg);
+}
+.faq-list details > div {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.faq-list details[open] > div {
+  grid-template-rows: 1fr;
+}
+.faq-list details > div > p {
+  min-height: 0;
+  overflow: hidden;
+  max-width: 680px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.65;
+}
+.faq-list details[open] > div > p {
+  padding: 0 64px 26px 0;
+}
+@media (max-width: 900px) {
+  .faq-grid {
+    grid-template-columns: 1fr;
+    gap: 64px;
+  }
+  .faq-section header {
+    position: static;
+  }
+  .faq-section header p {
+    max-width: 620px;
+  }
+}
+@media (max-width: 600px) {
+  .faq-section {
+    padding: 80px 0;
+  }
+  .faq-grid {
+    gap: 48px;
+  }
+  .faq-section h2 {
+    font-size: 38px;
+  }
+  .faq-list summary {
+    min-height: 78px;
+    font-size: 17px;
+  }
+  .faq-list summary i {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+  .faq-list details[open] > div > p {
+    padding-right: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .faq-list summary i,
+  .faq-list details > div {
+    transition: none;
+  }
+}

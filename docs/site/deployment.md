@@ -2,10 +2,10 @@
 
 The site builds as static Astro output and deploys to Cloudflare Pages.
 
-Provision a Triad-owned Cloudflare Pages project before enabling deploy jobs. Do not reuse a Pages
+Provision a Triad-owned Cloudflare Pages project before changes reach a deployment branch. Do not reuse a Pages
 project, domain, token, or account-specific value from another product.
 
-GitHub Environment infrastructure controls:
+Infisical `/infrastructure` controls:
 
 - `INFRA__CLOUDFLARE_API_TOKEN`: Cloudflare API token (secret).
 - `INFRA__CLOUDFLARE_ACCOUNT_ID`: Cloudflare account identifier.
@@ -14,10 +14,10 @@ GitHub Environment infrastructure controls:
 The canonical `SITE__PUBLIC_SITE_URL` is also used for deployment reporting and
 smoke checks, so no separate Pages URL control is needed.
 
-GitHub Environment sources mapped to required public runtime values:
+Infisical `/site` sources mapped to required public runtime values:
 
 - `SITE__PUBLIC_SITE_URL` -> `PUBLIC_SITE_URL`
 
 These are browser-visible build values, so they must never contain secrets. Local `.env.example` names remain runtime-shaped.
 
-Deployment runs only when the environment variable `CICD__DEPLOY_ENABLED` is `true`.
+Deployment is automatic for affected site changes at the `dev`, `hml`, and `prd` pipeline boundaries.

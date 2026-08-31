@@ -1,6 +1,8 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router"
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { type ReactNode, useEffect } from "react"
 import { describe, expect, it, vi } from "vitest"
 
 import { type AuthState, AuthStateProvider } from "@/modules/auth/services/auth-provider"
@@ -15,20 +17,35 @@ vi.mock("@/modules/auth/services/auth-client", async (importOriginal) => {
 })
 
 function renderRoute(path: string, authState: AuthState) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
   })
 
   render(
-    <ThemeProvider>
-      <AuthStateProvider value={authState}>
-        <RouterProvider router={router} />
-      </AuthStateProvider>
-    </ThemeProvider>,
+    <IsolatedQueryClientProvider queryClient={queryClient}>
+      <ThemeProvider>
+        <AuthStateProvider value={authState}>
+          <RouterProvider router={router} />
+        </AuthStateProvider>
+      </ThemeProvider>
+    </IsolatedQueryClientProvider>,
   )
 
-  return router
+  return { queryClient, router }
+}
+
+function IsolatedQueryClientProvider({
+  children,
+  queryClient,
+}: {
+  children: ReactNode
+  queryClient: QueryClient
+}) {
+  useEffect(() => () => queryClient.clear(), [queryClient])
+
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 }
 
 const authenticatedState = (): AuthState => ({
@@ -44,6 +61,19 @@ const authenticatedState = (): AuthState => ({
 })
 
 describe("routes", () => {
+  it("uses and clears an isolated query client for every route render", () => {
+    const first = renderRoute("/workspace-preview", authenticatedState())
+    first.queryClient.setQueryData(["route-test-isolation"], "first render")
+    expect(first.queryClient.getQueryData(["route-test-isolation"])).toBe("first render")
+
+    cleanup()
+    expect(first.queryClient.getQueryCache().getAll()).toHaveLength(0)
+
+    const second = renderRoute("/workspace-preview", authenticatedState())
+    expect(second.queryClient).not.toBe(first.queryClient)
+    expect(second.queryClient.getQueryData(["route-test-isolation"])).toBeUndefined()
+  })
+
   it("redirects unauthenticated private routes to login", async () => {
     renderRoute("/profile", {
       error: null,
@@ -79,14 +109,14 @@ describe("routes", () => {
   })
 
   it("redirects authenticated root and login visits to overview", async () => {
-    const rootRouter = renderRoute("/", authenticatedState())
+    const { router: rootRouter } = renderRoute("/", authenticatedState())
 
     await waitFor(() => expect(rootRouter.state.location.pathname).toBe("/overview"))
     expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument()
 
     cleanup()
 
-    const loginRouter = renderRoute("/login", authenticatedState())
+    const { router: loginRouter } = renderRoute("/login", authenticatedState())
     await waitFor(() => expect(loginRouter.state.location.pathname).toBe("/overview"))
   })
 
@@ -107,5 +137,43 @@ describe("routes", () => {
       "href",
       "/profile",
     )
+  })
+
+  it("renders barbershop setup as a private module inside the workspace shell", async () => {
+    renderRoute("/barbershop-setup?section=services", authenticatedState())
+
+    expect(
+      await screen.findByRole("heading", { name: "Configuração da barbearia" }),
+    ).toBeInTheDocument()
+    const navigation = screen.getByRole("navigation", { name: "Navegação secundária" })
+    expect(within(navigation).getByRole("link", { name: "Barbearia" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    )
+    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
+      "Configuração da barbearia",
+    )
+  })
+
+  it("rejects a cash date that rolls over to another calendar day", async () => {
+    const { router } = renderRoute("/cash?date=2026-02-31", authenticatedState())
+
+    expect(await screen.findByRole("heading", { name: "Caixa" })).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.search.date).not.toBe("2026-02-31"))
+  })
+
+  it("keeps reports private and normalizes invalid bounded URL filters", async () => {
+    const { router } = renderRoute(
+      "/reports?from=2025-01-01&to=2026-12-31&professional=../private&paymentMethod=crypto",
+      authenticatedState(),
+    )
+
+    expect(await screen.findByRole("heading", { name: "Relatórios" })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(router.state.location.search.professional).toBeUndefined()
+      expect(router.state.location.search.paymentMethod).toBeUndefined()
+      expect(router.state.location.search.from).not.toBe("2025-01-01")
+      expect(router.state.location.search.to).not.toBe("2026-12-31")
+    })
   })
 })

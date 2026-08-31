@@ -1,22 +1,26 @@
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
-
-ENV PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
-
+FROM oven/bun:1.3.11-slim AS base
 WORKDIR /app
 
-COPY apps/api/pyproject.toml apps/api/uv.lock apps/api/README.md ./
-RUN uv sync --frozen --no-dev --no-install-project
+FROM base AS build
+COPY package.json bun.lock turbo.json biome.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/site/package.json apps/site/package.json
+COPY apps/studio/package.json apps/studio/package.json
+RUN bun install --frozen-lockfile --filter api
+COPY apps/api apps/api
+RUN bun --filter api build
 
-COPY apps/api/alembic.ini ./alembic.ini
-COPY apps/api/migrations ./migrations
-COPY apps/api/src ./src
-RUN uv sync --frozen --no-dev
-
+FROM base AS runtime
+ENV NODE_ENV="production" API_HOST="0.0.0.0" API_PORT="8080"
+COPY package.json bun.lock ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/site/package.json apps/site/package.json
+COPY apps/studio/package.json apps/studio/package.json
+RUN bun install --frozen-lockfile --production --filter api
+COPY --from=build /app/apps/api/dist apps/api/dist
+COPY --from=build /app/apps/api/drizzle apps/api/drizzle
 RUN useradd --create-home --shell /usr/sbin/nologin appuser
+WORKDIR /app/apps/api
 USER appuser
-
 EXPOSE 8080
-
-CMD [".venv/bin/uvicorn", "--app-dir", "src", "entrypoints.rest.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["bun", "dist/server.js"]

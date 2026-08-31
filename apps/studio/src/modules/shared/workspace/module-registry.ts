@@ -1,14 +1,31 @@
 import type { LucideIcon as LucideIconType } from "lucide-react"
 import {
+  BanknoteIcon,
+  BarChart3Icon,
+  BellIcon,
+  Building2Icon,
   CalendarDaysIcon,
+  ClipboardListIcon,
+  ContactRoundIcon,
   HomeIcon,
   Settings2Icon,
   SettingsIcon,
   UserRoundIcon,
 } from "lucide-react"
 
-export type WorkspaceModulePath = "/agenda" | "/overview"
-export type WorkspaceRoutePath = WorkspaceModulePath | "/profile" | "/preferences"
+export type WorkspaceModulePath =
+  | "/agenda"
+  | "/barbershop-setup"
+  | "/cash"
+  | "/clients"
+  | "/overview"
+  | "/reports"
+  | "/service-desk"
+export type WorkspaceRoutePath =
+  | WorkspaceModulePath
+  | "/profile"
+  | "/preferences"
+  | "/notifications"
 
 type WorkspaceRoute = {
   id: string
@@ -35,6 +52,14 @@ export type WorkspaceNavigationItem = {
 
 export const workspacePrimaryNavigation = [
   {
+    id: "dashboard",
+    label: "Dashboard",
+    description: "Entrada principal do TRIAD Studio.",
+    icon: HomeIcon,
+    path: "/overview",
+    status: "active",
+  },
+  {
     id: "schedule",
     label: "Agenda",
     description: "Agenda diária da unidade.",
@@ -43,16 +68,48 @@ export const workspacePrimaryNavigation = [
     status: "active",
   },
   {
-    id: "dashboard",
-    label: "Dashboard",
-    description: "Entrada principal do TRIAD Studio.",
-    icon: HomeIcon,
-    path: "/overview",
+    id: "service-desk",
+    label: "Atendimentos",
+    description: "Fila, chamadas e início de atendimentos.",
+    icon: ClipboardListIcon,
+    path: "/service-desk",
+    status: "active",
+  },
+  {
+    id: "cash",
+    label: "Caixa",
+    description: "Conferência e fechamento do dia.",
+    icon: BanknoteIcon,
+    path: "/cash",
+    status: "active",
+  },
+  {
+    id: "reports",
+    label: "Relatórios",
+    description: "Análise histórica de operação e receita.",
+    icon: BarChart3Icon,
+    path: "/reports",
+    status: "active",
+  },
+  {
+    id: "clients",
+    label: "Clientes",
+    description: "Diretório e histórico de clientes.",
+    icon: ContactRoundIcon,
+    path: "/clients",
     status: "active",
   },
 ] as const satisfies readonly WorkspaceNavigationItem[]
 
 export const workspaceSecondaryNavigation = [
+  {
+    id: "barbershop-setup",
+    label: "Barbearia",
+    description: "Configuração da barbearia.",
+    icon: Building2Icon,
+    path: "/barbershop-setup",
+    status: "active",
+  },
   {
     id: "settings",
     label: "Configurações",
@@ -65,6 +122,42 @@ export const workspaceSecondaryNavigation = [
 
 export const workspaceModules = [
   {
+    id: "cash",
+    label: "Caixa",
+    path: "/cash",
+    icon: BanknoteIcon,
+    breadcrumbLabel: "Caixa",
+    description: "Confira recebimentos, dinheiro e fechamentos do dia.",
+    commandKeywords: ["caixa", "dinheiro", "fechamento", "recebimento"],
+  },
+  {
+    id: "reports",
+    label: "Relatórios",
+    path: "/reports",
+    icon: BarChart3Icon,
+    breadcrumbLabel: "Relatórios",
+    description: "Analise resultados históricos com filtros consistentes.",
+    commandKeywords: ["relatórios", "faturamento", "comissões", "ticket", "gestão"],
+  },
+  {
+    id: "service-desk",
+    label: "Atendimentos",
+    path: "/service-desk",
+    icon: ClipboardListIcon,
+    breadcrumbLabel: "Atendimentos",
+    description: "Acompanhe chegadas, chamadas e serviços iniciados.",
+    commandKeywords: ["atendimento", "fila", "chegada", "chamar", "recepção"],
+  },
+  {
+    id: "clients",
+    label: "Clientes",
+    path: "/clients",
+    icon: ContactRoundIcon,
+    breadcrumbLabel: "Clientes",
+    description: "Encontre clientes e consulte o histórico de atendimento.",
+    commandKeywords: ["cliente", "clientes", "contato", "histórico", "nota"],
+  },
+  {
     id: "schedule",
     label: "Agenda",
     path: "/agenda",
@@ -72,6 +165,15 @@ export const workspaceModules = [
     breadcrumbLabel: "Agenda",
     description: "Agenda diária da unidade.",
     commandKeywords: ["agenda", "agendamento", "horário", "profissional"],
+  },
+  {
+    id: "barbershop-setup",
+    label: "Barbearia",
+    path: "/barbershop-setup",
+    icon: Building2Icon,
+    breadcrumbLabel: "Configuração da barbearia",
+    description: "Gerencie unidades, profissionais, serviços e disponibilidade.",
+    commandKeywords: ["barbearia", "unidade", "profissional", "serviço", "disponibilidade"],
   },
   {
     id: "overview",
@@ -105,7 +207,23 @@ export const workspaceAccountRoutes = [
   },
 ] as const satisfies readonly WorkspaceRoute[]
 
-const workspaceRoutes = [...workspaceModules, ...workspaceAccountRoutes] as const
+export const workspaceAuxiliaryRoutes = [
+  {
+    id: "notifications",
+    label: "Notificações",
+    path: "/notifications",
+    icon: BellIcon,
+    breadcrumbLabel: "Notificações",
+    description: "Situações operacionais ativas e histórico resolvido.",
+    commandKeywords: ["notificações", "alertas", "situações operacionais"],
+  },
+] as const satisfies readonly WorkspaceRoute[]
+
+const workspaceRoutes = [
+  ...workspaceModules,
+  ...workspaceAccountRoutes,
+  ...workspaceAuxiliaryRoutes,
+] as const
 
 export function isWorkspaceNavigationItemActive(item: WorkspaceNavigationItem, pathname: string) {
   return pathname === item.path || (item.path !== "/overview" && pathname.startsWith(item.path))

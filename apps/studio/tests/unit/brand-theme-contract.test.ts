@@ -7,6 +7,7 @@ import { appointmentStatusPresentation } from "@/modules/scheduling/status"
 import indexHtml from "../../index.html?raw"
 import themeInitSource from "../../public/theme-init.js?raw"
 import styles from "../../src/index.css?raw"
+import agendaBoardSource from "../../src/modules/scheduling/agenda-board.tsx?raw"
 
 const feedbackRoles = ["success", "warning", "info", "destructive"] as const
 
@@ -42,10 +43,40 @@ describe("TRIAD brand theme contract", () => {
       )
       expect(appointmentStatusPresentation[status].label).not.toBe("")
       expect(appointmentStatusPresentation[status].symbol).not.toBe("")
-      expect(appointmentStatusPresentation[status].className).toContain(
+      expect(appointmentStatusPresentation[status].badgeClassName).toContain(
         `border-schedule-${status}-border`,
       )
     }
+  })
+
+  it("keeps appointment containers neutral while status remains a bounded signal", () => {
+    expect(styles).toContain("--schedule-appointment-surface: var(--card)")
+    expect(styles).toContain("--schedule-appointment-foreground: var(--card-foreground)")
+    expect(styles).toContain(
+      "--schedule-appointment-indicator-width: calc(var(--primitive-space-px) * 3)",
+    )
+    expect(styles).toContain(".agenda-appointment-card::before")
+    expect(styles).toContain("background-color: var(--schedule-appointment-surface)")
+    expect(styles).toContain("color: var(--schedule-appointment-foreground)")
+    expect(styles).not.toMatch(
+      /\.agenda-appointment-card\s*\{[^}]*background(?:-color)?:\s*var\(--agenda-status-surface\)/s,
+    )
+    expect(styles).not.toMatch(
+      /\.agenda-appointment-card\s*\{[^}]*color:\s*var\(--agenda-status-foreground\)/s,
+    )
+    expect(agendaBoardSource).toContain('"agenda-appointment-card group')
+    expect(agendaBoardSource).toContain("data-appointment-status={appointment.status}")
+    expect(agendaBoardSource).not.toContain("presentation.className")
+  })
+
+  it("keeps the labeled current-time marker tokenized, bounded, and non-interactive", () => {
+    expect(styles).toContain("--schedule-current-time-line: var(--primary)")
+    expect(styles).toContain("--schedule-current-time-label-surface: var(--primary)")
+    expect(styles).toContain("--schedule-current-time-label-foreground: var(--primary-foreground)")
+    expect(styles).toContain("width: calc(100cqi - 5rem)")
+    expect(styles).toContain(".agenda-current-time-label")
+    expect(agendaBoardSource).toContain("agenda-current-time-marker pointer-events-none")
+    expect(agendaBoardSource).toContain('data-testid="agenda-current-time-marker"')
   })
 
   it("resolves the saved or system preference before the application module", () => {

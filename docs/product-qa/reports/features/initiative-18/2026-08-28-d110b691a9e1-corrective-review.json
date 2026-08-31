@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "mode": "recheck",
+  "run": {
+    "date": "2026-08-28",
+    "branch": "feature/mvp-readiness-and-schema-baseline",
+    "commit": "d110b691a9e109e9a40c1f72abf0d138d6703b7c",
+    "environment": "Frozen review-fix commit; real Astro, Bun/Elysia, Playwright, and fresh suite-owned PostgreSQL clusters",
+    "data_mode": "Synthetic public intake and campaign fixtures with aggregate-only persistence evidence",
+    "evaluator": "Sentinel — CRV Integrated Test Implementer",
+    "baseline": "docs/product-qa/reports/features/initiative-18/2026-08-28-9a7589618d16-final.json",
+    "limitations": [
+      "This corrective recheck is intentionally isolated to migration lineage, public intake lineage/idempotency, and the adjacent campaign journey; C1-C4 were not repeated.",
+      "Astro Dev Toolbar emitted its known development-only audit Failed to fetch message during campaign document replacement; product collectors remained within the asserted contract."
+    ]
+  },
+  "scope": {
+    "initiative": "18-mvp-readiness-and-schema-baseline",
+    "apps": ["site", "api", "cross-app"],
+    "modules": ["database-migrations", "public-intake", "campaign-links"],
+    "personas": ["public visitor", "public prospect", "operator"],
+    "tenants": [],
+    "out_of_scope": ["C1-C4", "Shared or deployed databases", "External providers"]
+  },
+  "journeys": [
+    {
+      "id": "I18-REVIEW-MIGRATION-LINEAGE",
+      "apps": ["api"],
+      "module": "database-migrations",
+      "persona": "operator",
+      "tenant": null,
+      "kind": "recheck",
+      "name": "Upgrade a historical staging journal from 0020 through only 0021 and retain the local baseline path",
+      "result": "passed",
+      "evidence": [
+        "A fresh cluster applied historical migrations 0000-0020, recording 21 journal entries with no campaign table.",
+        "The real migrator with APP_ENV=staging added exactly one journal entry, created the campaign table and unique index, and preserved the idp_users table OID.",
+        "A second staging migration produced the identical aggregate; the separate fresh APP_ENV=test baseline started the real API and passed the browser journeys."
+      ]
+    },
+    {
+      "id": "I18-REVIEW-S2-NORMAL",
+      "apps": ["site", "api"],
+      "module": "public-intake",
+      "persona": "public prospect",
+      "tenant": null,
+      "kind": "regression",
+      "name": "Submit the visible site form through the real API with a normal 201 response",
+      "result": "passed",
+      "evidence": [
+        "The normal browser submission returned 201 and rendered the stable success state.",
+        "Aggregate-only persistence evidence was exactly one processed delivery and one lead."
+      ]
+    },
+    {
+      "id": "I18-REVIEW-S2-AMBIGUOUS",
+      "apps": ["site", "api"],
+      "module": "public-intake",
+      "persona": "public prospect",
+      "tenant": null,
+      "kind": "recheck",
+      "name": "Retry an ambiguous committed response with the same required delivery identifier",
+      "result": "passed",
+      "evidence": [
+        "The first upstream response was 201 and committed before the browser received the synthetic ambiguous 502.",
+        "Visible retry reused the same required delivery identifier, returned 201, and returned the same lead identifier without recording either value.",
+        "Final aggregate remained exactly one processed delivery and one lead; reduced-motion success received focus."
+      ]
+    },
+    {
+      "id": "I18-REVIEW-S1-ADJACENT",
+      "apps": ["site", "api"],
+      "module": "campaign-links",
+      "persona": "public visitor",
+      "tenant": null,
+      "kind": "regression",
+      "name": "Recheck the adjacent real campaign and consent journey",
+      "result": "passed",
+      "evidence": [
+        "Active resolution, permanent unavailable states, temporary recovery, consent gating, browser history, and local-only analytics assertions passed."
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "journey_id": "I18-REVIEW-S2-AMBIGUOUS",
+      "checkpoint": "Ambiguous response with preserved retryable form",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S2-reuses-o-e30ff-mbiguous-committed-response-chromium/mvp-s2-ambiguous-retry.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "The form, recovery message, and submit action remained visible and operable without horizontal clipping."
+      ]
+    },
+    {
+      "journey_id": "I18-REVIEW-S2-AMBIGUOUS",
+      "checkpoint": "Focused reduced-motion success after retry",
+      "viewport": "390x844",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S2-reuses-o-e30ff-mbiguous-committed-response-chromium/mvp-s2-ambiguous-retry-success.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "The complete success heading is fully visible below the viewport top with no fixed-header overlap.",
+        "The focused success container rendered immediately with reduced motion and no blur or opacity transition."
+      ]
+    },
+    {
+      "journey_id": "I18-REVIEW-S1-ADJACENT",
+      "checkpoint": "Active allowlisted campaign destination",
+      "viewport": "1440x1000",
+      "artifact": "apps/web/tests/e2e-integrated/.artifacts/test-results/real-stack-MVP-S1-verifies-c05a8-nd-real-campaign-resolution-chromium/mvp-s1-campaign-active-destination.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["The destination rendered clearly without blocking overlays."]
+    }
+  ],
+  "access_checks": [],
+  "findings": [
+    {
+      "id": "I18-REVIEW-S2-MOBILE-OVERLAP",
+      "type": "product_defect",
+      "severity": "high",
+      "app": "site",
+      "module": "public-intake",
+      "title": "Fixed header covered the mobile success heading after ambiguous-response retry",
+      "status": "fixed",
+      "evidence": [
+        "On d110b691a9e109e9a40c1f72abf0d138d6703b7c the inspected 390x844 reduced-motion screenshot shows the complete focused heading below the header boundary."
+      ],
+      "attempts": 2
+    }
+  ],
+  "scores": {
+    "product_outcome": 10,
+    "functional_reliability_persistence": 10,
+    "ux_visual_integrity": 10,
+    "access_privacy_tenant_isolation": 10,
+    "accessibility": 10,
+    "operability_regression_protection": 10,
+    "weighted_total": 10
+  },
+  "verification": [
+    {
+      "check": "Biome and web typecheck",
+      "result": "passed",
+      "evidence": "Biome checked four integrated scaffold files; web typecheck exited 0."
+    },
+    {
+      "check": "Historical migration lineage",
+      "result": "passed",
+      "evidence": "1 passed in 6.9s, one worker, retries 0."
+    },
+    {
+      "check": "Fresh local baseline, adjacent S1, normal S2, and ambiguous-retry S2",
+      "result": "passed",
+      "evidence": "3 passed in 20.6s, one worker, retries 0."
+    },
+    {
+      "check": "Browser, visual, focus, reduced-motion, network, and persistence signals",
+      "result": "passed",
+      "evidence": "Required screenshots were inspected; success focus and reduced-motion state were asserted; only the intentionally synthesized ambiguous 502 and accepted Astro development noise appeared; final aggregate was deliveries=1 and leads=1."
+    }
+  ],
+  "decision": "approved"
+}

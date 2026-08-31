@@ -1,6 +1,8 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router"
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { type ReactNode, useEffect } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { type AuthState, AuthStateProvider } from "@/modules/auth/services/auth-provider"
@@ -28,20 +30,40 @@ const authenticatedState: AuthState = {
 }
 
 function renderWorkspace(path = "/overview") {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      mutations: { retry: false },
+      queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+    },
+  })
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
   })
 
   const result = render(
-    <ThemeProvider>
-      <AuthStateProvider value={authenticatedState}>
-        <RouterProvider router={router} />
-      </AuthStateProvider>
-    </ThemeProvider>,
+    <IsolatedQueryClientProvider queryClient={queryClient}>
+      <ThemeProvider>
+        <AuthStateProvider value={authenticatedState}>
+          <RouterProvider router={router} />
+        </AuthStateProvider>
+      </ThemeProvider>
+    </IsolatedQueryClientProvider>,
   )
 
   return { ...result, router }
+}
+
+function IsolatedQueryClientProvider({
+  children,
+  queryClient,
+}: {
+  children: ReactNode
+  queryClient: QueryClient
+}) {
+  useEffect(() => () => queryClient.clear(), [queryClient])
+
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 }
 
 describe("authenticated workspace shell", () => {
@@ -91,6 +113,10 @@ describe("authenticated workspace shell", () => {
       "href",
       "/preferences",
     )
+    expect(screen.getByRole("link", { name: "Barbearia" })).toHaveAttribute(
+      "href",
+      "/barbershop-setup",
+    )
     expect(screen.getByText("MS")).toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "Abrir menu de Maria Souza" }))
@@ -117,9 +143,43 @@ describe("authenticated workspace shell", () => {
     const dialog = await screen.findByRole("dialog", { name: "Navegação do TRIAD Studio" })
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByRole("link", { name: "Dashboard" })).toBeVisible()
+    expect(within(dialog).getByRole("link", { name: "Barbearia" })).toBeVisible()
 
     await user.keyboard("{Escape}")
     await waitFor(() => expect(dialog).not.toBeInTheDocument())
     expect(trigger).toHaveFocus()
+  })
+
+  it("identifies the active module in the mobile header on a nested route", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 320 })
+    const { container } = renderWorkspace(
+      "/service-desk/session-walk-in-checkout-pix/checkout?scenario=checkout-pix",
+    )
+
+    const header = await waitFor(() => {
+      const element = container.querySelector('[data-slot="workspace-header"]')
+      expect(element).not.toBeNull()
+      return element
+    })
+    expect(header).not.toBeNull()
+    expect(
+      within(header as HTMLElement).getByRole("link", { name: "Atendimentos" }),
+    ).toHaveAttribute("href", "/service-desk")
+  })
+
+  it("identifies the notification center in the mobile title and desktop breadcrumb", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 320 })
+    const { container } = renderWorkspace("/notifications?notificationScenario=normal")
+    const header = await waitFor(() => {
+      const element = container.querySelector('[data-slot="workspace-header"]')
+      expect(element).not.toBeNull()
+      return element
+    })
+    expect(
+      within(header as HTMLElement).getByRole("link", { name: "Notificações" }),
+    ).toHaveAttribute("href", "/notifications")
+    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
+      "TRIAD StudioNotificações",
+    )
   })
 })

@@ -8,17 +8,17 @@ Fly apps:
 - `crv-triad-api-hml`
 - `crv-triad-api-prd`
 
-These names are the desired Triad resources. Provision them before enabling deploy jobs; they must
-not alias or reuse applications from another project.
+These names are the desired Triad resources. Provision them before changes reach a deployment
+boundary; they must not alias or reuse applications from another project.
 
-GitHub Environment sources mapped to required runtime values:
+All API deployment sources use `API__*` names in Infisical `/api`. The pipeline loads that path,
+maps the sources declared in `env-schema.yaml` to runtime names, and synchronizes them to Fly
+secrets without printing values. Provider and deployment credentials live in `/infrastructure`.
 
-- `API__DATABASE_URL` -> `DATABASE_URL` (secret)
-- `API__IDP_BASE_URL` -> `IDP_BASE_URL` (variable)
+Do not store API runtime values in `fly.*.toml`. Each Fly configuration runs the compiled Drizzle
+migration entrypoint as its release command before replacing application machines. A failed
+migration blocks the release and leaves the previous application version serving traffic.
 
-Do not store API runtime values in `fly.*.toml`; GitHub Actions syncs them to Fly secrets before deploy.
-
-The GitHub Environment secret `INFRA__FLY_API_TOKEN` authenticates Fly.io. Deployment runs only
-when the environment variable `CICD__DEPLOY_ENABLED` is `true`.
-
-`IDP_AUTH_TIMEOUT_SECONDS` keeps its safe application default and is not a deployment source. Local `.env.example` names remain runtime-shaped.
+Deployment is automatic for affected apps: pull requests into `staging` deploy to `dev`, pushes to
+`staging` deploy to `hml`, and pushes to `main` deploy to `prd`. Pull requests into `main` validate
+without deploying. Local `.env.example` names remain runtime-shaped.

@@ -11,7 +11,13 @@ import { WorkspaceShellContent } from "./content"
 import { WorkspaceShellHeader } from "./header"
 import { WorkspaceShellSidebar } from "./sidebar"
 
-export function WorkspaceShell({ children }: { children: ReactNode }) {
+export function WorkspaceShell({
+  children,
+  headerActions,
+}: {
+  children: ReactNode
+  headerActions?: ReactNode
+}) {
   const location = useLocation()
   const navigate = useNavigate()
   const { refetch, session } = useAuth()
@@ -44,6 +50,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
       isSigningOut={isSigningOut}
       onSignOut={handleSignOut}
       pathname={location.pathname}
+      headerActions={headerActions}
       user={{
         email: userEmail,
         image: userImage,
@@ -59,13 +66,16 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
 export function WorkspacePreviewShell({
   children,
   pathname = "/overview",
+  headerActions,
 }: {
   children: ReactNode
+  headerActions?: ReactNode
   pathname?: string
 }) {
   return (
     <WorkspaceShellFrame
       pathname={pathname}
+      headerActions={headerActions}
       user={{
         email: "email@militar.com.br",
         image: "/brand/workspace-preview-avatar.svg",
@@ -83,12 +93,14 @@ function WorkspaceShellFrame({
   isSigningOut = false,
   onSignOut,
   pathname,
+  headerActions,
   user,
 }: {
   children: ReactNode
   isSigningOut?: boolean
   onSignOut?: () => void
   pathname: string
+  headerActions?: ReactNode
   user: {
     email: string
     image?: string | null
@@ -110,7 +122,7 @@ function WorkspaceShellFrame({
           className="min-h-0 overflow-hidden bg-card text-card-foreground"
           tabIndex={-1}
         >
-          <WorkspaceShellHeader />
+          <WorkspaceShellHeader actions={headerActions} pathname={pathname} />
           <WorkspaceShellContent>{children}</WorkspaceShellContent>
         </SidebarInset>
       </SidebarProvider>

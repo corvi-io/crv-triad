@@ -2,14 +2,12 @@
 set -euo pipefail
 
 target="${1:?target environment is required}"
-app="${2:?app is required: api, idp, site, or studio}"
+app="${2:?app is required: api, site, or studio}"
 
 case "$target" in
   dev)
     api_config="apps/api/fly.dev.toml"
     api_health_url="https://crv-triad-api-dev.fly.dev/health"
-    idp_config="apps/idp/fly.dev.toml"
-    idp_health_url="https://crv-triad-idp-dev.fly.dev/health"
     pages_branch="dev"
     site_health_url="${PUBLIC_SITE_URL:-}"
     studio_health_url="${INFRA__STUDIO_URL:-}"
@@ -17,8 +15,6 @@ case "$target" in
   hml)
     api_config="apps/api/fly.hml.toml"
     api_health_url="https://crv-triad-api-hml.fly.dev/health"
-    idp_config="apps/idp/fly.hml.toml"
-    idp_health_url="https://crv-triad-idp-hml.fly.dev/health"
     pages_branch="hml"
     site_health_url="${PUBLIC_SITE_URL:-}"
     studio_health_url="${INFRA__STUDIO_URL:-}"
@@ -26,8 +22,6 @@ case "$target" in
   prd)
     api_config="apps/api/fly.prd.toml"
     api_health_url="https://crv-triad-api-prd.fly.dev/health"
-    idp_config="apps/idp/fly.prd.toml"
-    idp_health_url="https://crv-triad-idp-prd.fly.dev/health"
     pages_branch="main"
     site_health_url="${PUBLIC_SITE_URL:-}"
     studio_health_url="${INFRA__STUDIO_URL:-}"
@@ -80,18 +74,6 @@ if [[ "$app" == "api" ]]; then
   FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" bun .github/scripts/env-management.ts sync-fly --app api --target "$target"
   FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" flyctl deploy . --config "$api_config" --dockerfile apps/api/Dockerfile --remote-only
   wait_for_health "$api_health_url"
-  exit 0
-fi
-
-if [[ "$app" == "idp" ]]; then
-  if [[ -z "${INFRA__FLY_API_TOKEN:-}" ]]; then
-    echo "INFRA__FLY_API_TOKEN is required to deploy IDP to Fly.io."
-    exit 1
-  fi
-
-  FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" bun .github/scripts/env-management.ts sync-fly --app idp --target "$target"
-  FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" flyctl deploy . --config "$idp_config" --dockerfile apps/idp/Dockerfile --remote-only
-  wait_for_health "$idp_health_url"
   exit 0
 fi
 

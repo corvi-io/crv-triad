@@ -17,7 +17,7 @@
 - REST entrypoints under `src/entrypoints/rest/{module}`.
 - Server-side tokens, upstream provider secrets, and private integrations.
 
-`apps/idp` owns:
+`apps/api/src/modules/idp` owns:
 
 - Authentication, sessions, email/password, invitations, and identity state.
 - Better Auth mounted directly at `/api/auth/*`.
@@ -41,10 +41,10 @@
 
 ## Placement Rules
 
-- Put authentication and session ownership in `apps/idp`, not `apps/api`.
-- Put business-domain APIs in `apps/api`, not `apps/idp`.
+- Put authentication and session ownership in `apps/api/src/modules/idp`, not `apps/api`.
+- Put business-domain APIs in `apps/api`, not `apps/api/src/modules/idp`.
 - Put public marketing UI in `apps/site`, not internal apps.
-- Put barbershop-management UI in `apps/studio`, not `apps/site` or `apps/idp`.
+- Put barbershop-management UI in `apps/studio`, not `apps/site` or `apps/api/src/modules/idp`.
 - Keep identity administration out of Studio production routes.
 - Do not put product workflows, business lifecycles, quotes, or proposal logic
   in the IDP.

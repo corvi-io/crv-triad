@@ -18,6 +18,7 @@ src/modules/shared/components/
 src/modules/shared/design-system/**  component metadata and token guidance
 src/dev/mock-engine/**               generic development-only memory/scenario mechanics
 src/dev/sandbox/**                   neutral sandbox module, adapter, queries, and UI
+src/dev/barbershop-setup/**          ENG-41 development-only related scenario adapter and seeds
 ```
 
 Routes may import modules and shared code. Modules may import shared code. Shared code must not
@@ -81,8 +82,8 @@ details apply. The inventory test fails when a component source is missing from 
    anchors. They change rarely.
 2. Semantic tokens (`--background`, `--primary`, `--muted`, `--ring`, and peers) assign meaning and
    are overridden by `.dark`.
-3. Component tokens (`--workspace-*` and future responsibility-specific names) define component
-   geometry and state using semantic or primitive references.
+3. Component tokens (`--workspace-*`, `--schedule-*`, and future responsibility-specific names)
+   define component geometry and state using semantic or primitive references.
 
 Tailwind CSS v4 consumes the semantic and component layers through `@theme inline`. Components use
 Tailwind utilities backed by those variables. Add a raw value only when no suitable token exists;
@@ -114,12 +115,15 @@ building block of a documented composition.
 
 | File | Classification | Catalog decision and rationale |
 | --- | --- | --- |
-| `data-display/data-table/index.tsx` | Data display | Documented public contract: semantic table with controlled sort, scroll, pagination, and contextual row actions available by right-click or `Shift+F10`; covered by sandbox and table tests. |
+| `data-display/filter-trigger.tsx` | Data display control | Documented public contract: compact icon-and-label trigger for bounded dropdown/popover filters, with optional active treatment and result/selection count; shared by Agenda and barbershop setup while the owning surface controls menu semantics. |
+| `data-display/list-filter.tsx` | Data display control | Documented public contract: typed single- and multi-selection list-filter compositions built from `FilterTrigger` and grouped Base UI dropdown items. They own active counts, an opt-in visible selected-value label, optional option search, and clear behavior while consumers own URL/query state. Single-selection menus close after choosing a value; multi-selection menus remain open for successive choices. |
+| `data-display/list-search-field.tsx` | Data display control | Documented public contract: `ListSearchField` owns the search icon, required accessible label, `InputGroup` composition, and compact `w-full sm:w-64` responsive width; the explicit `FilterOptionSearchField` variant serves bounded option menus without the list-toolbar width. |
+| `data-display/data-table/index.tsx` | Data display | Documented public contract: semantic table with controlled sort, body-only vertical/horizontal scrolling, overflow-aware scrollbar visibility, fixed sticky header/external pagination, and contextual row actions available by right-click or `Shift+F10`; covered by unit and browser table tests. |
 | `data-display/metric-card.tsx` | Data display | Internal: inherited specialized composition using theme-aware feedback signal roles; promote to catalog when an accepted module supplies a real metric contract. |
 | `deferred-route-screen.tsx` | Routing helper | Internal: lazy-route implementation detail, not a visual assembly API. |
 | `feedback/empty-state.tsx` | Feedback | Documented public contract: default, optional action, long-content, and compact viewport states; heading and description remain semantic. |
 | `feedback/page-status.tsx` | Feedback | Internal: full-route auth/loading implementation; exercised by route tests rather than isolated composition. |
-| `feedback/status-badge.tsx` | Feedback | Documented public contract: neutral plus success, warning, info, and destructive semantic tones with explicit theme-aware backgrounds, foregrounds, and borders; text carries meaning independently of color. |
+| `feedback/status-badge.tsx` | Feedback | Documented public contract: neutral plus success, warning, info, and destructive semantic tones with explicit theme-aware backgrounds, foregrounds, and borders; accepts a final `className` override so an owning module can map a narrower accepted semantic role without forking the badge. Text remains required and carries meaning independently of color. |
 | `forms/combobox-input.tsx` | Form control | Internal: inherited composite pending a real module option/free-text contract. |
 | `forms/date-picker.tsx` | Form control | Internal: canonical date-only helper covered by form foundation tests; catalog when a real field consumes it. |
 | `forms/date-range-selector.tsx` | Form control | Internal: inherited high-complexity selector without an accepted active module contract. |
@@ -130,40 +134,48 @@ building block of a documented composition.
 | `forms/permission-group.tsx` | Form composition | Internal: no accepted active authorization editor in Studio. |
 | `forms/quantity-unit-control.tsx` | Form composition | Internal: inherited composition without an active module-owned quantity contract. |
 | `forms/rhf-form-fields.tsx` | Form adapters | Internal: React Hook Form adapters; discover through owning module forms, not as standalone UI. |
-| `kibo-ui/kanban/index.tsx` | Vendor-derived composite | Internal: inherited drag/drop primitive with no accepted Studio module and no capacity claim. |
-| `layout/module-layout.tsx` | Layout | Internal: structural fixed-head/scroll-body shell exercised through composed pages. |
+| `kibo-ui/kanban/index.tsx` | Vendor-derived composite | Internal legacy composite: retained for migration compatibility but no longer consumed by the accepted Agenda board. A future workflow must revalidate its DnD and accessibility contract before reuse. |
+| `layout/module-layout.tsx` | Layout | Internal: structural fixed-head/scroll-body shell exercised through composed pages. Its viewport has no implicit vertical spacing or bottom padding; content owners add intentional gaps locally. Under `WorkspaceShellContent`, boards and nested authenticated feature, detail, and checkout routes reuse the shell-owned content inset rather than duplicating it, fill their remaining height at each active grid breakpoint, and keep scrolling only in panels with real overflow. This does not remove intentional card or form-field spacing. |
 | `layout/module-tabs.tsx` | Layout/navigation | Internal: requires router context and module-owned tab metadata. |
 | `layout/page-header.tsx` | Layout | Internal: composed by module pages; actions remain module owned. |
 | `layout/section-header.tsx` | Layout | Internal: small structural helper documented through page compositions. |
-| `overlays/action-drawer.tsx` | Overlay | Documented public contract: focus-managed form composition with explicit primary and secondary action slots. |
-| `overlays/confirmation-dialog.tsx` | Overlay | Internal: specialized discard confirmation; covered by consuming form flows. |
+| `overlays/action-drawer.tsx` | Overlay | Documented public contract: focus-managed form composition with explicit primary and secondary action slots plus Base UI open-change completion notification for consumers that retain content through full-width entry/exit slide transitions; reduced motion removes the transition. Its scroll body is the single owner of drawer inset, so children must not duplicate matching viewport padding. |
+| `overlays/confirmation-dialog.tsx` | Overlay | Documented public contract: Base UI Portal/focus-managed confirmation with semantic `--layer-modal` stacking above drawers, explicit title/description, configurable Portuguese action labels, default or destructive treatment, and pending-safe `isLoading` confirmation that keeps labels stable and disables cancellation; covered by consuming form and service-session flows. |
 | `overlays/drawer-section.tsx` | Overlay anatomy | Internal: companion anatomy for `ActionDrawer`, not a standalone surface. |
 | `overlays/drawer-tabs.tsx` | Overlay anatomy | Internal: companion tab anatomy requiring a composed drawer. |
 | `reference-creation-page.tsx` | Legacy page helper | Internal: retained only for migration compatibility; do not use for new generic CRUD pages. |
-| `workspace-overview/index.tsx` | Shell content | Internal: authenticated shell overview composition, covered by route/shell tests. |
+| `workspace-overview/dashboard-filters.tsx` | Shell content | Internal: controlled Dashboard period, date, unit, and professional filter composition. Period, unit, and professional reuse `SingleSelectListFilter`/`FilterTrigger`; custom bounds retain the shared date picker; completion remains polite and is covered by Dashboard component/browser tests. |
+| `workspace-overview/index.tsx` | Shell content | Internal: typed operational Dashboard presentation over an injected read-only model; owns the accepted semantic hierarchy, responsive card/table composition, and loading/error/empty/disabled states without importing scheduling. |
+| `workspace-overview/model.ts` | Presentation contract | Internal: scheduling-independent read-only Dashboard view model shared only across the projection/presentation boundary. |
 | `workspace-shell/breadcrumbs.tsx` | Shell companion | Internal: route-aware breadcrumb implementation private to the shell folder. |
-| `workspace-shell/content.tsx` | Shell companion | Internal: content inset implementation private to the shell folder. |
-| `workspace-shell/header.tsx` | Shell companion | Internal: header/sidebar trigger implementation private to the shell folder. |
+| `workspace-shell/content.tsx` | Shell companion | Internal: authenticated content inset implementation private to the shell folder. It is the single owner of outer page padding; nested module viewports and responsive boards must not duplicate that inset. |
+| `workspace-shell/header.tsx` | Shell companion | Internal: header/sidebar trigger and optional route-composed action slot implementation private to the shell folder. The slot lets the authenticated route inject the operational notification trigger without making shared code import a product module. |
 | `workspace-shell/index.tsx` | Shell layout | Internal catalog: folder-root `WorkspaceShell` and `WorkspacePreviewShell` are exercised by route, shell, and sandbox tests. |
-| `workspace-shell/sidebar-primary-navigation.tsx` | Shell companion | Internal: registry-driven primary navigation private to the shell folder. |
+| `workspace-shell/sidebar-primary-navigation.tsx` | Shell companion | Internal: registry-driven primary navigation private to the shell folder; active state uses shared selected surface/text plus a 2px logical leading indicator instead of a complete outline, preserving collapse/mobile geometry and semantic focus. |
 | `workspace-shell/sidebar-secondary-navigation.tsx` | Shell companion | Internal: registry-driven secondary navigation private to the shell folder. |
 | `workspace-shell/sidebar-user-menu.tsx` | Shell companion | Internal: session/sign-out composition private to the shell folder. |
 | `workspace-shell/sidebar.tsx` | Shell companion | Internal: sidebar assembly private to the shell folder. |
 | `workspace-shell/workspace-brand.tsx` | Shell companion | Internal: Studio brand composition private to the shell folder. |
 | `ui/avatar.tsx` | Primitive | Internal: Base UI/shadcn building block, documented through shell composition. |
+| `ui/alert.tsx` | Feedback primitive | Documented public contract: official shadcn neutral/destructive alert anatomy with required textual title/description and optional action; Service Desk uses the neutral recoverable and fail-closed states. |
+| `ui/badge.tsx` | Data display primitive | Documented public contract: official shadcn bounded semantic label with Base UI `render` support and existing theme roles; Service Desk uses outline/secondary variants while text remains the state carrier. |
 | `ui/breadcrumb.tsx` | Primitive | Internal: building block documented through workspace breadcrumbs. |
-| `ui/button.tsx` | Primitive | Documented public contract: explicit variants, disabled/loading states, stable long labels, and keyboard activation. |
+| `ui/button.tsx` | Primitive | Documented public contract: explicit variants, disabled/loading states, stable long labels, and keyboard activation. Agenda adds quiet `filter` and brand-selected `filter-active` variants for menu/popover triggers; state remains textual and exposed through the owning primitive. |
 | `ui/calendar.tsx` | Primitive | Internal: implementation detail of the shared date picker. |
+| `ui/chart.tsx` | Data display primitive | Documented public contract: reviewed official shadcn/Recharts 3 composition providing a responsive `ChartContainer`, semantic per-series token configuration, stable initial dimensions, and Recharts accessibility-layer compatibility. Charts remain supplementary: consuming modules must provide visible takeaways, programmatic title/description, non-color semantics where multiple series exist, and semantic table/list equivalents. ENG-53 is the first consumer and production-boundary, component, browser, and axe checks cover it. |
 | `ui/card.tsx` | Primitive | Internal: structural primitive documented through consuming composites. |
 | `ui/collapsible.tsx` | Primitive | Internal: implementation detail of drawer/form sections. |
 | `ui/dropdown-menu.tsx` | Primitive | Internal: implementation detail of menus and table controls. |
+| `ui/empty.tsx` | Feedback primitive | Documented public contract: official shadcn Empty anatomy with header, media, title, description, and optional content; Service Desk distinguishes source-empty and filtered-empty copy without custom empty markup. |
 | `ui/field.tsx` | Primitive | Internal: form anatomy documented through explicit module forms. |
 | `ui/input.tsx` | Primitive | Internal: cataloged through drawer/form compositions. |
+| `ui/input-group.tsx` | Primitive composition | Documented public contract: official shadcn-style grouped input with leading/trailing addons and a single focus boundary; shared list-search compositions own its product usage. |
 | `ui/label.tsx` | Primitive | Internal: cataloged with its associated form controls. |
 | `ui/pagination.tsx` | Primitive | Internal: lower-level anatomy cataloged through `DataTable`. |
 | `ui/popover.tsx` | Primitive | Internal: implementation detail of date/combobox controls. |
-| `ui/scroll-area.tsx` | Primitive | Internal: scroll wrapper documented through table, drawer, and module layouts. |
-| `ui/select.tsx` | Primitive | Internal: cataloged through composed sandbox/filter forms. |
+| `ui/progress.tsx` | Primitive | Internal: official shadcn/Base UI progress anatomy used by Dashboard occupancy and capacity; its indicator transition is suppressed under reduced motion. |
+| `ui/scroll-area.tsx` | Primitive | Internal: scroll wrapper documented through table, drawer, and module layouts; consumers may request overflow-measured scrollbar mounting when an idle painted track would misrepresent scrollability. |
+| `ui/select.tsx` | Primitive | Internal: Base UI data-entry selection anatomy, including accepted `SelectGroup` wrapping for item collections; cataloged through composed sandbox and service-session forms. |
 | `ui/separator.tsx` | Primitive | Internal: non-interactive structural primitive. |
 | `ui/sheet.tsx` | Primitive | Internal: implementation detail of `ActionDrawer` and mobile sidebar. |
 | `ui/sidebar.tsx` | Primitive | Internal: shell-specific primitive; consume only through `workspace-shell`. |
@@ -172,7 +184,22 @@ building block of a documented composition.
 | `ui/switch.tsx` | Primitive | Internal: catalog through accepted explicit forms. |
 | `ui/textarea.tsx` | Primitive | Internal: cataloged through drawer/form compositions. |
 | `ui/tooltip.tsx` | Primitive | Internal: accessible-description helper used by shell/action controls. |
+| `ui/toggle-group.tsx` | Primitive composition | Documented public contract: Base UI controlled single/multiple selection composition; Agenda uses one controlled selection for the `Lista`/`Quadro` icon toggle. |
+| `ui/toggle.tsx` | Primitive | Internal companion to `ToggleGroup`; the `brand` variant exposes selected state with semantic brand tokens and visible `aria-pressed` state. |
 | `ui/tri-state-toggle.tsx` | Primitive | Internal: only for an accepted tri-state group composition. |
+
+## Product List-Control Inventory
+
+- Clients, Agenda, and Barbershop Setup catalogs use `ListSearchField`; Agenda option menus use the
+  explicit `FilterOptionSearchField` variant.
+- Their compatible exclusive and multi-selection list filters use `SingleSelectListFilter` and
+  `MultiSelectListFilter`. Agenda's date-range popover remains specialized because it owns calendar
+  draft/apply semantics rather than a selectable menu.
+- `Select` remains correct for data entry and relationship choice in setup availability, setup
+  entity drawers, and shared form controls. These controls choose values for a record or editor;
+  they do not filter a product list.
+- `src/dev/sandbox/sandbox-page.tsx` remains a dev-only component laboratory with its local search
+  and state selector. It is excluded from the product-list convention and is not a product consumer.
 
 ## Development Runtime And Replaceable Adapter
 
@@ -193,9 +220,44 @@ the loader is unavailable. Production-boundary checks scan output for mock engin
 obsolete catalog source, and control markers. The runtime contains no fetch, MSW, Better Auth, or
 `/api/auth` interception and stores nothing across refreshes.
 
+The ENG-41 barbershop setup module follows the same replaceable-adapter boundary while keeping its
+presentation contracts, query keys, forms, and UI under `src/modules/barbershop-setup`. One
+development adapter coordinates its related catalog and availability records through the generic
+engine. `virtual:studio-barbershop-setup-source` resolves to memory for configured `local`/`dev`
+targets and to a disabled source for `hml`/`prd`. The authenticated `/barbershop-setup` route exposes
+no ordinary scenario or reset controls. See `docs/studio/barbershop-setup.md` for its source,
+test-infrastructure, privacy, and production-exclusion contract.
+
+The ENG-44 client-management module uses the same replaceable boundary without changing a shared
+component contract. Presentation and repository vocabulary live under `src/modules/clients`;
+deterministic scenarios and the session-memory adapter live under `src/dev/clients`.
+`virtual:studio-client-management-source` resolves to memory only for configured `local`/`dev` and
+to a disabled shim for `hml`/`prd`. It composes the existing table, drawer, tabs, confirmation,
+mask, form, status, and feedback contracts. See `docs/studio/client-management.md`.
+
+ENG-46 adds the service-desk module through `virtual:studio-service-desk-source`. Its development
+coordinator receives the existing module-scoped scheduling repository, projects scheduled arrivals,
+stores only walk-ins and the `called` overlay, and transitions scheduled starts through the public
+scheduling contract. Availability follows the scheduling memory boundary, so `hml`/`prd` resolve
+disabled without a new environment variable. See `docs/studio/service-desk.md`.
+
 ## Primary Vendor References
+
+ENG-54 adds `virtual:studio-operational-notifications-source`. The authenticated
+route owns composition and injects the module-owned bell into the shell's
+optional action slot. Header, Dashboard, and `/notifications` share one
+repository while shared code remains independent from product modules and
+development adapters. See `docs/studio/operational-notifications.md`.
 
 - [React: You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect)
 - [TanStack Query](https://tanstack.com/query/latest/docs/framework/react/overview)
 - [Vitest](https://vitest.dev/guide/)
 - [Playwright accessibility testing](https://playwright.dev/docs/accessibility-testing)
+
+## ENG-55 Composition Note
+
+ENG-55 composes the existing `Card`, `Field`, `Input`, `Select`, `Switch`, `ToggleGroup`,
+`DatePicker`, table/list, drawer, dialog, and feedback contracts for setup completion and weekly
+Agenda. The seven-day board and setup completion sections remain module-owned because their
+semantics are product-specific; no shared component, registry item, calendar/layout dependency, or
+design token was added.
