@@ -25,7 +25,8 @@
   - ENG-54 is `Done`; [PR #35](https://github.com/corvi-io/crv-triad/pull/35)
     merged into `staging` at
     `2c367b21fc4c517da09f954db34b67c646b3750c`.
-  - ENG-55 is `Ready`, unblocked, and is the single final delivery.
+  - ENG-55 is `Done`; [PR #39](https://github.com/corvi-io/crv-triad/pull/39)
+    merged into `staging` at `b59fafb`.
   - ENG-56 is duplicate/superseded by ENG-55.
 
 ## Delivery Contract
@@ -492,8 +493,8 @@ not sufficient for `Done`.
 - [x] Capture light/dark desktop and narrow evidence.
 - [x] Update Agenda and component-system documentation.
 - [x] Run all applicable shared verification commands.
-- [ ] Move the Linear task only with evidence.
-- [ ] Update MLP tracker item 3 and the 14-of-14 total only after merge
+- [x] Move the Linear task only with evidence.
+- [x] Update MLP tracker item 3 and the 14-of-14 total only after merge
       evidence.
 
 ## Shared Verification Commands
@@ -547,3 +548,11 @@ confirmed ENG-54 baseline `2c367b21fc4c517da09f954db34b67c646b3750c`.
 
 Merge-only tracker updates and task completion remain intentionally unchecked
 until the combined PR is reviewed and merged into `staging`.
+
+## Completion Evidence
+
+- PR #39 merged the combined ENG-55 delivery into `staging` at `b59fafb`.
+- The merged branch contains setup/services/professionals and the seven-day Agenda workstreams.
+- The first visual MLP tracker is complete at 14 of 14 items.
+- Tag and GitHub Release `v0.3.0` target production commit `0d5b69c`, which contains PR #39;
+  Production Pipeline, Publish Release, and staging synchronization succeeded on 2026-08-31.
