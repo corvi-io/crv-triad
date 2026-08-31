@@ -41,6 +41,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ""
   const successTitle = dialog?.querySelector<HTMLElement>("#lead-success-title")
   const turnstileContainer = dialog?.querySelector<HTMLElement>(".cf-turnstile")
   const demoMode = import.meta.env.DEV && new URLSearchParams(window.location.search).get("lead-demo") === "1"
+  const normalizedPath = () => location.pathname.replace(/\/+$/, "") || "/"
   let leadStarted = false
   let leadSource = { cta_location: "unknown", product: "ecosystem" }
 
@@ -74,7 +75,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ""
     const inferredLocation = trigger.closest(".site-header") ? "header" : trigger.closest(".home-hero, .solution-hero") ? "hero" : trigger.closest(".final-cta") ? "final_cta" : "product_section"
     leadSource = {
       cta_location: trigger.dataset.analyticsLocation || inferredLocation,
-      product: trigger.dataset.analyticsProduct || (location.pathname === "/studio" ? "studio" : location.pathname === "/pro-barber" ? "pro_barber" : "ecosystem"),
+      product: trigger.dataset.analyticsProduct || (normalizedPath() === "/studio" ? "studio" : normalizedPath() === "/pro-barber" ? "pro_barber" : "ecosystem"),
     }
     leadStarted = false
     showFormStep()

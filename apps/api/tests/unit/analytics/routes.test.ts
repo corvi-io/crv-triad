@@ -235,7 +235,13 @@ describe("analytics proxy routes", () => {
 
   it("limits request bodies and request frequency before forwarding", async () => {
     const fetch = vi.fn(async (_request: Request) => new Response(null, { status: 204 }))
-    const app = createAnalyticsRoutes(env, { fetch, maxBodyBytes: 4, rateLimitMax: 1 })
+    let timestamp = 0
+    const app = createAnalyticsRoutes(env, {
+      fetch,
+      maxBodyBytes: 4,
+      now: () => timestamp,
+      rateLimitMax: 1,
+    })
     const oversized = await app.handle(
       new Request("https://api.example.test/e/e/", {
         method: "POST",
@@ -258,5 +264,13 @@ describe("analytics proxy routes", () => {
 
     expect(first.status).toBe(204)
     expect(limited.status).toBe(429)
+
+    timestamp = 60_001
+    const afterWindow = await app.handle(
+      new Request("https://api.example.test/e/e/", {
+        headers: { ...trustedHeaders, "x-real-ip": "203.0.113.20" },
+      }),
+    )
+    expect(afterWindow.status).toBe(204)
   })
 })

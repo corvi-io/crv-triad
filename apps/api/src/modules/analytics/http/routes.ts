@@ -6,6 +6,7 @@ const proxyPrefix = "/e"
 const proxyTimeoutMs = 10_000
 const proxyMaxBodyBytes = 20 * 1024 * 1024
 const proxyRateLimitMax = 600
+const proxyRateLimitMaxKeys = 10_000
 const proxyRateLimitWindowMs = 60_000
 const allowedMethods = "GET,POST,OPTIONS"
 const defaultAllowedHeaders = "Content-Type,Content-Encoding"
@@ -37,6 +38,7 @@ export function createAnalyticsRoutes(
   const timeoutMs = dependencies.timeoutMs ?? proxyTimeoutMs
   const trustedOrigins = new Set(env.AUTH_TRUSTED_ORIGINS)
   const rateLimits = new Map<string, { count: number; resetAt: number }>()
+  let nextRateLimitCleanupAt = 0
 
   return new Elysia({ name: "analytics-routes" })
     .options(`${proxyPrefix}/*`, ({ request }) => {
@@ -60,7 +62,12 @@ export function createAnalyticsRoutes(
       }
 
       const clientAddress = resolveClientAddress(request, env.APP_ENV)
-      if (isRateLimited(rateLimits, clientAddress ?? "unknown", now(), rateLimitMax)) {
+      const timestamp = now()
+      if (timestamp >= nextRateLimitCleanupAt) {
+        removeExpiredRateLimits(rateLimits, timestamp)
+        nextRateLimitCleanupAt = timestamp + proxyRateLimitWindowMs
+      }
+      if (isRateLimited(rateLimits, clientAddress ?? "unknown", timestamp, rateLimitMax)) {
         return safeErrorResponse(request, trustedOrigins, 429, "analytics_rate_limited", requestId)
       }
 
@@ -160,11 +167,24 @@ function isRateLimited(
 ) {
   const current = limits.get(key)
   if (!current || timestamp >= current.resetAt) {
+    if (!current && limits.size >= proxyRateLimitMaxKeys) {
+      const oldestKey = limits.keys().next().value
+      if (oldestKey) limits.delete(oldestKey)
+    }
     limits.set(key, { count: 1, resetAt: timestamp + proxyRateLimitWindowMs })
     return false
   }
   current.count += 1
   return current.count > maximum
+}
+
+function removeExpiredRateLimits(
+  limits: Map<string, { count: number; resetAt: number }>,
+  timestamp: number,
+) {
+  for (const [key, value] of limits) {
+    if (timestamp >= value.resetAt) limits.delete(key)
+  }
 }
 
 async function readBoundedBody(request: Request, maximum: number) {

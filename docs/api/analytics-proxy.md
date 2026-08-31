@@ -18,9 +18,10 @@ and no-PII event contract.
 
 The requested path and query are appended to a fixed allowlisted origin, preventing caller-chosen
 destinations. Requests must carry a trusted `Origin` or `Referer`; each client address is limited to
-600 requests per minute and POST bodies are capped at 20 MiB. Authorization, cookies, untrusted
-forwarding headers, upstream cookies, compression
-metadata, redirects, and upstream error bodies are not forwarded to the opposite side. Production client IP
+600 requests per minute and POST bodies are capped at 20 MiB. Expired rate-limit windows are
+removed periodically and the in-memory key set is capped at 10,000 entries per instance.
+Authorization, cookies, untrusted forwarding headers, upstream cookies, compression metadata,
+redirects, and upstream error bodies are not forwarded to the opposite side. Production client IP
 forwarding trusts only the platform-provided `Fly-Client-IP` header. Logs contain only a stable
 event name and request ID; they must never contain request bodies, analytics payloads, tokens,
 headers, or upstream response bodies.

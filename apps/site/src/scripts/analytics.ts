@@ -30,10 +30,11 @@ const apiHost = root.dataset.posthogHost ?? ""
 const environment = root.dataset.analyticsEnvironment ?? "development"
 const consentKey = "triad_analytics_consent"
 let initialized = false
+const normalizedPath = () => location.pathname.replace(/\/+$/, "") || "/"
 
 const pageType = () => {
-  if (location.pathname === "/studio") return "studio"
-  if (location.pathname === "/pro-barber") return "pro_barber"
+  if (normalizedPath() === "/studio") return "studio"
+  if (normalizedPath() === "/pro-barber") return "pro_barber"
   return "home"
 }
 
@@ -108,54 +109,59 @@ window.triadAnalytics = { capture, consent }
 
 if (localStorage.getItem(consentKey) === "granted") initialize()
 
-document.addEventListener("click", (event) => {
-  const target = event.target as HTMLElement
-  const cta = target.closest<HTMLElement>('[data-analytics-cta], a[href$="#comecar"]')
-  if (cta) {
-    const label = (cta.dataset.analyticsCta || cta.textContent || "cta")
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_|_$/g, "")
-    const locationName =
-      cta.dataset.analyticsLocation ||
-      (cta.closest(".site-header")
-        ? "header"
-        : cta.closest(".home-hero, .solution-hero")
-          ? "hero"
-          : cta.closest(".final-cta")
-            ? "final_cta"
-            : "product_section")
-    const product =
-      cta.dataset.analyticsProduct ||
-      (location.pathname === "/studio"
-        ? "studio"
-        : location.pathname === "/pro-barber"
-          ? "pro_barber"
-          : "ecosystem")
-    capture("cta_clicked", {
-      cta_label: label,
-      cta_location: locationName,
-      destination: cta.dataset.analyticsDestination || "lead_form",
-      product,
-      section_name: cta.closest<HTMLElement>("[data-analytics-section]")?.dataset.analyticsSection,
-    })
-  }
-  const solution = target.closest<HTMLAnchorElement>(
-    "[data-analytics-solution], .solution-card, .studio-spotlight a",
-  )
-  if (solution) {
-    capture("solution_selected", {
-      product:
-        solution.dataset.analyticsSolution ||
-        (solution.pathname === "/pro-barber" ? "pro_barber" : "studio"),
-      source_section: solution.closest<HTMLElement>("[data-analytics-section]")?.dataset
-        .analyticsSection,
-    })
-  }
-})
+document.addEventListener(
+  "click",
+  (event) => {
+    const target = event.target as HTMLElement
+    const cta = target.closest<HTMLElement>('[data-analytics-cta], a[href$="#comecar"]')
+    if (cta) {
+      const label = (cta.dataset.analyticsCta || cta.textContent || "cta")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_|_$/g, "")
+      const locationName =
+        cta.dataset.analyticsLocation ||
+        (cta.closest(".site-header")
+          ? "header"
+          : cta.closest(".home-hero, .solution-hero")
+            ? "hero"
+            : cta.closest(".final-cta")
+              ? "final_cta"
+              : "product_section")
+      const product =
+        cta.dataset.analyticsProduct ||
+        (normalizedPath() === "/studio"
+          ? "studio"
+          : normalizedPath() === "/pro-barber"
+            ? "pro_barber"
+            : "ecosystem")
+      capture("cta_clicked", {
+        cta_label: label,
+        cta_location: locationName,
+        destination: cta.dataset.analyticsDestination || "lead_form",
+        product,
+        section_name: cta.closest<HTMLElement>("[data-analytics-section]")?.dataset
+          .analyticsSection,
+      })
+    }
+    const solution = target.closest<HTMLAnchorElement>(
+      "[data-analytics-solution], .solution-card, .studio-spotlight a",
+    )
+    if (solution) {
+      capture("solution_selected", {
+        product:
+          solution.dataset.analyticsSolution ||
+          (solution.pathname === "/pro-barber" ? "pro_barber" : "studio"),
+        source_section: solution.closest<HTMLElement>("[data-analytics-section]")?.dataset
+          .analyticsSection,
+      })
+    }
+  },
+  true,
+)
 
 const milestones = [25, 50, 75, 90]
 const reached = new Set<number>()
