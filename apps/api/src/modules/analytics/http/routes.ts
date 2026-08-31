@@ -4,8 +4,12 @@ import type { IdpEnv } from "../../idp/config/env.js"
 
 const proxyPrefix = "/e"
 const proxyTimeoutMs = 10_000
+const proxyMaxBodyBytes = 20 * 1024 * 1024
+const proxyRateLimitMax = 600
+const proxyRateLimitWindowMs = 60_000
 const allowedMethods = "GET,POST,OPTIONS"
 const defaultAllowedHeaders = "Content-Type,Content-Encoding"
+const requestIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[47][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const assetOrigins: Record<IdpEnv["POSTHOG_UPSTREAM_URL"], string> = {
   "https://eu.i.posthog.com": "https://eu-assets.i.posthog.com",
@@ -16,6 +20,9 @@ type AnalyticsFetch = (request: Request) => Promise<Response>
 
 type AnalyticsRouteDependencies = {
   fetch?: AnalyticsFetch
+  maxBodyBytes?: number
+  now?: () => number
+  rateLimitMax?: number
   timeoutMs?: number
 }
 
@@ -24,8 +31,12 @@ export function createAnalyticsRoutes(
   dependencies: AnalyticsRouteDependencies = {},
 ) {
   const fetchUpstream = dependencies.fetch ?? globalThis.fetch
+  const maxBodyBytes = dependencies.maxBodyBytes ?? proxyMaxBodyBytes
+  const now = dependencies.now ?? Date.now
+  const rateLimitMax = dependencies.rateLimitMax ?? proxyRateLimitMax
   const timeoutMs = dependencies.timeoutMs ?? proxyTimeoutMs
   const trustedOrigins = new Set(env.AUTH_TRUSTED_ORIGINS)
+  const rateLimits = new Map<string, { count: number; resetAt: number }>()
 
   return new Elysia({ name: "analytics-routes" })
     .options(`${proxyPrefix}/*`, ({ request }) => {
@@ -37,7 +48,37 @@ export function createAnalyticsRoutes(
         return safeErrorResponse(request, trustedOrigins, 405, "method_not_allowed")
       }
 
-      const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID()
+      const requestId = resolveRequestId(request)
+      if (!hasTrustedRequestSource(request, trustedOrigins)) {
+        return safeErrorResponse(
+          request,
+          trustedOrigins,
+          403,
+          "analytics_source_forbidden",
+          requestId,
+        )
+      }
+
+      const clientAddress = resolveClientAddress(request, env.APP_ENV)
+      if (isRateLimited(rateLimits, clientAddress ?? "unknown", now(), rateLimitMax)) {
+        return safeErrorResponse(request, trustedOrigins, 429, "analytics_rate_limited", requestId)
+      }
+
+      let requestBody: Uint8Array | undefined
+      if (request.method === "POST") {
+        try {
+          requestBody = await readBoundedBody(request, maxBodyBytes)
+        } catch {
+          return safeErrorResponse(
+            request,
+            trustedOrigins,
+            413,
+            "analytics_payload_too_large",
+            requestId,
+          )
+        }
+      }
+
       const requestUrl = new URL(request.url)
       const pathname = requestUrl.pathname.slice(proxyPrefix.length) || "/"
       const upstreamOrigin = isAssetPath(pathname)
@@ -51,7 +92,7 @@ export function createAnalyticsRoutes(
         const upstreamRequest = new Request(upstreamUrl, {
           method: request.method,
           headers: createUpstreamHeaders(request, upstreamUrl, requestId, env.APP_ENV),
-          body: request.method === "POST" ? request.body : undefined,
+          body: requestBody,
           duplex: request.method === "POST" ? "half" : undefined,
           redirect: "manual",
           signal: AbortSignal.timeout(timeoutMs),
@@ -91,6 +132,67 @@ export function createAnalyticsRoutes(
 
 function isAssetPath(pathname: string) {
   return pathname.startsWith("/static/") || pathname.startsWith("/array/")
+}
+
+function resolveRequestId(request: Request) {
+  const candidate = request.headers.get("x-request-id")
+  return candidate && requestIdPattern.test(candidate) ? candidate : crypto.randomUUID()
+}
+
+function hasTrustedRequestSource(request: Request, trustedOrigins: Set<string>) {
+  const origin = request.headers.get("origin")
+  if (origin) return trustedOrigins.has(origin)
+
+  const referer = request.headers.get("referer")
+  if (!referer) return false
+  try {
+    return trustedOrigins.has(new URL(referer).origin)
+  } catch {
+    return false
+  }
+}
+
+function isRateLimited(
+  limits: Map<string, { count: number; resetAt: number }>,
+  key: string,
+  timestamp: number,
+  maximum: number,
+) {
+  const current = limits.get(key)
+  if (!current || timestamp >= current.resetAt) {
+    limits.set(key, { count: 1, resetAt: timestamp + proxyRateLimitWindowMs })
+    return false
+  }
+  current.count += 1
+  return current.count > maximum
+}
+
+async function readBoundedBody(request: Request, maximum: number) {
+  const declaredLength = Number(request.headers.get("content-length") ?? 0)
+  if (Number.isFinite(declaredLength) && declaredLength > maximum) throw new Error("body_too_large")
+  if (!request.body) return new Uint8Array()
+
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let length = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    length += value.byteLength
+    if (length > maximum) {
+      await reader.cancel()
+      throw new Error("body_too_large")
+    }
+    chunks.push(value)
+  }
+
+  const body = new Uint8Array(length)
+  let offset = 0
+  for (const chunk of chunks) {
+    body.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return body
 }
 
 function createUpstreamHeaders(
@@ -160,7 +262,7 @@ function safeErrorResponse(
   trustedOrigins: Set<string>,
   status: number,
   code: string,
-  requestId = request.headers.get("x-request-id") ?? crypto.randomUUID(),
+  requestId = resolveRequestId(request),
 ) {
   const headers = new Headers({ "content-type": "application/json", "x-request-id": requestId })
   applyCorsHeaders(headers, request, trustedOrigins)

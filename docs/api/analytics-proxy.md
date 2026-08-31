@@ -17,14 +17,17 @@ and no-PII event contract.
 ## Security and privacy
 
 The requested path and query are appended to a fixed allowlisted origin, preventing caller-chosen
-destinations. Authorization, cookies, untrusted forwarding headers, upstream cookies, compression
+destinations. Requests must carry a trusted `Origin` or `Referer`; each client address is limited to
+600 requests per minute and POST bodies are capped at 20 MiB. Authorization, cookies, untrusted
+forwarding headers, upstream cookies, compression
 metadata, redirects, and upstream error bodies are not forwarded to the opposite side. Production client IP
 forwarding trusts only the platform-provided `Fly-Client-IP` header. Logs contain only a stable
 event name and request ID; they must never contain request bodies, analytics payloads, tokens,
 headers, or upstream response bodies.
 
 Trusted site origins receive non-credentialed CORS headers. Other origins receive no CORS grant.
-Provider failures return a sanitized JSON error with an `X-Request-ID` correlation value.
+Provider failures return a sanitized JSON error with an `X-Request-ID` correlation value. A caller
+value is reused only when it is a valid UUID; otherwise the API generates a new UUID before logging.
 
 ## Capacity boundary
 

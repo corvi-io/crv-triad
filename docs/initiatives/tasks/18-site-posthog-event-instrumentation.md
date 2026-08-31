@@ -39,7 +39,7 @@
 - PostHog dashboard `2052101`: 12 saved insights and six categorized text tiles in Brazilian Portuguese.
 - PostHog funnel `sRIKNjbS`: five ordered steps from page view to accepted lead submission.
 - Provider queries execute successfully and currently return zero because the project has not received site events.
-- `bun --filter api check`: passed with 17 files and 122 tests, including 10 analytics proxy tests.
+- `bun --filter api check`: passed with 17 files and 126 tests, including 14 analytics proxy tests.
 - `bun test ./.github/scripts/env-management.test.ts`: seven tests passed.
 - `bun run check`: API, site, and studio passed.
 - Feature Product QA: approved at 9.5/10 with inspected desktop and mobile screenshots; report under

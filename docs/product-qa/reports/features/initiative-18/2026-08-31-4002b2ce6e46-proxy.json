@@ -27,7 +27,7 @@
     {"id":"A1","apps":["site"],"module":"consent","persona":"anonymous public visitor","tenant":null,"kind":"happy_path","name":"First visit displays analytics choices","result":"passed","evidence":["Desktop screenshot inspected","Browser prompt visible assertion"]},
     {"id":"A2","apps":["site"],"module":"consent","persona":"anonymous public visitor","tenant":null,"kind":"edge_case","name":"Essential-only choice persists across reload","result":"passed","evidence":["localStorage value denied","Prompt hidden after reload"]},
     {"id":"A3","apps":["site"],"module":"consent","persona":"anonymous public visitor","tenant":null,"kind":"regression","name":"Consent remains operable on mobile","result":"passed","evidence":["Mobile screenshot inspected","Both controls measured 324 by 42 pixels"]},
-    {"id":"A4","apps":["api"],"module":"analytics proxy","persona":"anonymous public visitor","tenant":null,"kind":"edge_case","name":"Proxy enforces fixed destinations and sanitized responses","result":"passed","evidence":["10 focused proxy tests"]},
+    {"id":"A4","apps":["api"],"module":"analytics proxy","persona":"anonymous public visitor","tenant":null,"kind":"edge_case","name":"Proxy enforces trusted sources, bounded traffic, fixed destinations, and sanitized responses","result":"passed","evidence":["14 focused proxy tests"]},
     {"id":"A5","apps":["site","api"],"module":"analytics integration","persona":"anonymous public visitor","tenant":null,"kind":"regression","name":"Site derives the first-party API host safely","result":"passed","evidence":["Rendered data-posthog-host was http://localhost:8000/e"]}
   ],
   "screenshots": [
@@ -53,8 +53,8 @@
     "weighted_total": 9.5
   },
   "verification": [
-    {"check":"Focused API tests","result":"passed","evidence":"31 tests including proxy redirect coverage and environment parsing."},
-    {"check":"Full API check","result":"passed","evidence":"17 test files and 122 tests."},
+    {"check":"Focused API tests","result":"passed","evidence":"35 tests including source, rate, body, request ID, redirect, and environment coverage."},
+    {"check":"Full API check","result":"passed","evidence":"17 test files and 126 tests."},
     {"check":"Site check and build","result":"passed","evidence":"Zero Astro errors and four static pages built."},
     {"check":"Environment management tests","result":"passed","evidence":"Seven tests."},
     {"check":"Monorepo check","result":"passed","evidence":"All three apps successful."},
