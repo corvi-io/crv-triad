@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "mode": "recheck",
+  "run": {
+    "date": "2026-08-30",
+    "branch": "feature/configurable-commercial-research-themes",
+    "commit": "3c7b947",
+    "environment": "Local Astro 3001 and Cloudflare Pages dev",
+    "data_mode": "Synthetic intercepted lead responses; no shared database write",
+    "evaluator": "Codex",
+    "baseline": "docs/product-qa/reports/features/marmorarias-landing/2026-08-30-3c7b947-precision-motion.json",
+    "limitations": ["Real lead persistence remains blocked without an isolated PostgreSQL target"]
+  },
+  "scope": {
+    "initiative": null,
+    "apps": ["site"],
+    "modules": ["marmorarias mobile story", "margin-loss estimator"],
+    "personas": ["Owner or manager of a small or medium custom marble shop"],
+    "tenants": [],
+    "out_of_scope": ["Production deployment", "CRM integration", "Live lead persistence"]
+  },
+  "journeys": [
+    {"id":"MC-J1","apps":["site"],"module":"marmorarias mobile story","persona":"Marble-shop owner or manager","tenant":null,"kind":"happy_path","name":"Follow all nine mobile story stages","result":"passed","evidence":["apps/site/.impeccable/review/precision-motion/mobile-cinematic-01.png","apps/site/.impeccable/review/precision-motion/mobile-cinematic-05.png","apps/site/.impeccable/review/precision-motion/mobile-cinematic-09.png"]},
+    {"id":"MC-J2","apps":["site"],"module":"marmorarias mobile story","persona":"Marble-shop owner or manager","tenant":null,"kind":"recheck","name":"Read the reduced-motion static story","result":"passed","evidence":["9 visible beats","0 aria-hidden beats","normal document flow"]},
+    {"id":"MC-J3","apps":["site"],"module":"margin-loss estimator","persona":"Marble-shop owner or manager","tenant":null,"kind":"happy_path","name":"Open the inline calculator from the hero","result":"passed","evidence":["apps/site/.impeccable/review/precision-motion/mobile-inline-calculator.png","calculator top 0","aria-modal false"]},
+    {"id":"MC-J4","apps":["site"],"module":"margin-loss estimator","persona":"Marble-shop owner or manager","tenant":null,"kind":"edge_case","name":"Keep result hidden after synthetic failure and reveal after accepted retry","result":"passed","evidence":["2 lead attempts","result hidden before intake and after failure"]},
+    {"id":"MC-J5","apps":["site"],"module":"marmorarias desktop story","persona":"Marble-shop owner or manager","tenant":null,"kind":"recheck","name":"Preserve desktop story","result":"passed","evidence":["apps/site/.impeccable/review/precision-motion/story-production.png","one active beat","no horizontal overflow"]},
+    {"id":"MC-J6","apps":["site","api"],"module":"public lead intake","persona":"Marble-shop owner or manager","tenant":null,"kind":"happy_path","name":"Submit a real lead and verify persistence","result":"blocked","evidence":["ENV-MARM-001"]}
+  ],
+  "screenshots": [
+    {"journey_id":"MC-J1","checkpoint":"Opening price","viewport":"390x844 mobile","artifact":"apps/site/.impeccable/review/precision-motion/mobile-cinematic-01.png","inspected":true,"result":"passed","observations":["Single legible beat with finished countertop framing"]},
+    {"journey_id":"MC-J1","checkpoint":"Production","viewport":"390x844 mobile","artifact":"apps/site/.impeccable/review/precision-motion/mobile-cinematic-05.png","inspected":true,"result":"passed","observations":["Cut components and guides remain legible"]},
+    {"journey_id":"MC-J1","checkpoint":"Real margin","viewport":"390x844 mobile","artifact":"apps/site/.impeccable/review/precision-motion/mobile-cinematic-09.png","inspected":true,"result":"passed","observations":["Installed island and closing copy fit the viewport"]},
+    {"journey_id":"MC-J3","checkpoint":"Inline first question","viewport":"390x844 mobile","artifact":"apps/site/.impeccable/review/precision-motion/mobile-inline-calculator.png","inspected":true,"result":"passed","observations":["No backdrop, close control, modal semantics or preceding-section residue"]}
+  ],
+  "access_checks": [
+    {"actor":"Public visitor","resource_tenant":null,"vector":"Reduced motion","result":"passed","evidence":"Nine static beats remain available without pinning"},
+    {"actor":"Public visitor","resource_tenant":null,"vector":"Inline calculator focus and keyboard","result":"passed","evidence":"Legends receive focus without page locking; native ranges remain keyboard operable"},
+    {"actor":"Public visitor","resource_tenant":null,"vector":"Privacy-safe analytics","result":"passed","evidence":"No lead PII or calculator answers enter event payloads"}
+  ],
+  "findings": [
+    {"id":"MC-001","type":"product_defect","severity":"high","app":"site","module":"mobile story","title":"Motion-enabled mobile used the static presentation","status":"fixed","evidence":["Nine-stage enhanced story"],"attempts":1},
+    {"id":"MC-002","type":"product_defect","severity":"high","app":"site","module":"mobile story","title":"Fallback visibility stacked all animated copy","status":"fixed","evidence":["One active beat at every stage"],"attempts":1},
+    {"id":"MC-003","type":"product_defect","severity":"medium","app":"site","module":"mobile story","title":"Measurement annotation clipped","status":"fixed","evidence":["mobile-cinematic-03.png"],"attempts":1},
+    {"id":"MC-004","type":"product_defect","severity":"high","app":"site","module":"calculator","title":"Modal and document movement created conflicting context","status":"fixed","evidence":["Inline state","aria-modal false","body not locked"],"attempts":1},
+    {"id":"MC-005","type":"product_defect","severity":"medium","app":"site","module":"calculator","title":"Combined offsets exposed the preceding section","status":"fixed","evidence":["Calculator top 0 after hero launch"],"attempts":1},
+    {"id":"ENV-MARM-001","type":"environment_limitation","severity":"high","app":"cross-app","module":"public lead intake","title":"No isolated database target for real persistence","status":"blocked","evidence":["Existing baseline limitation"],"attempts":3}
+  ],
+  "scores": {
+    "product_outcome": 9.8,
+    "functional_reliability_persistence": 7.0,
+    "ux_visual_integrity": 9.8,
+    "access_privacy_tenant_isolation": 9.0,
+    "accessibility": 10.0,
+    "operability_regression_protection": 9.6,
+    "weighted_total": 9.1
+  },
+  "verification": [
+    {"check":"bun --filter site check","result":"passed","evidence":"60 Astro files and no diagnostics"},
+    {"check":"bun test apps/site/tests/margin-loss-estimator.test.ts","result":"passed","evidence":"5 tests and 12 assertions"},
+    {"check":"bun --filter site build","result":"passed","evidence":"Static /marmorarias route generated"},
+    {"check":"Real browser recheck","result":"passed","evidence":"No console errors, failed requests or mobile overflow"},
+    {"check":"Cloudflare Pages dev smoke","result":"passed","evidence":"HTTP 200; enhanced story and inline calculator active"},
+    {"check":"Real browser lead persistence","result":"blocked","evidence":"No isolated PostgreSQL target available"}
+  ],
+  "decision": "not_approved"
+}

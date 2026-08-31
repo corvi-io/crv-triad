@@ -3,7 +3,7 @@
 ## Tests
 
 - Use Vitest.
-- Keep tests under `apps/idp/tests/unit`.
+- Keep identity tests under `apps/api/tests/unit` and mirror the module boundary.
 - Mirror `src` where practical.
 - Add tests for access decisions, invitation acceptance/rejection, env parsing,
   route contracts, and persistence behavior when touched.
@@ -12,15 +12,15 @@
 
 Prefer package-level commands:
 
-- `bun --filter idp check`
-- `bun --filter idp build`
-- `bun --filter idp test`
+- `bun --filter api check`
+- `bun --filter api build`
+- `bun --filter api test`
 
 ## Documentation Check
 
 Before handoff, decide whether the change affects:
 
-- `apps/idp/README.md` for routes, env vars, auth flow, bootstrap, or operation.
+- `apps/api/README.md` for routes, env vars, auth flow, bootstrap, or operation.
 - `docs/idp/*` for durable architecture, deployment, or operations.
 - Root `README.md` for workspace overview or quick start.
 - `AGENTS.md` for durable future-agent rules.

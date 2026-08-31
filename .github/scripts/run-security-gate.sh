@@ -46,13 +46,4 @@ fi
 
 bun audit --prod --audit-level high
 
-requirements_file="$(mktemp)"
-trap 'rm -f "$requirements_file"' EXIT
-uv export --directory apps/api --frozen --no-dev --format requirements-txt --no-hashes --output-file "$requirements_file"
-uvx --from pip-audit pip-audit \
-  --disable-pip \
-  --no-deps \
-  --skip-editable \
-  --requirement "$requirements_file"
-
 echo "::endgroup::"

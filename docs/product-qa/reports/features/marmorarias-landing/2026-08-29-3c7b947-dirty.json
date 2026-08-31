@@ -1,0 +1,292 @@
+{
+  "version": 1,
+  "mode": "feature",
+  "run": {
+    "date": "2026-08-29",
+    "branch": "feature/configurable-commercial-research-themes",
+    "commit": "3c7b947",
+    "environment": "Local Astro site on 3001, production preview on 3101, API on 8000",
+    "data_mode": "Read-only browser QA against the configured remote Neon target; no synthetic lead submitted",
+    "evaluator": "Codex",
+    "baseline": null,
+    "limitations": [
+      "The configured API environment points to a remote Neon database, and no isolated local PostgreSQL target or Docker runtime was available.",
+      "The real browser lead-persistence journey was intentionally not submitted to avoid mutating shared remote data."
+    ]
+  },
+  "scope": {
+    "initiative": null,
+    "apps": ["site", "api", "cross-app"],
+    "modules": ["marmorarias landing page", "margin-loss estimator", "public lead intake"],
+    "personas": ["Owner or manager of a small or medium custom marble shop"],
+    "tenants": [],
+    "out_of_scope": ["Paid Raio-X delivery", "CRM follow-up after intake", "Production deployment"]
+  },
+  "journeys": [
+    {
+      "id": "MARM-J1",
+      "apps": ["site"],
+      "module": "marmorarias landing page",
+      "persona": "Owner or manager of a small or medium custom marble shop",
+      "tenant": null,
+      "kind": "happy_path",
+      "name": "Understand the offer and illustrative order trace on desktop and mobile",
+      "result": "passed",
+      "evidence": [".impeccable/review/desktop-hero.png", ".impeccable/review/mobile-hero.png"]
+    },
+    {
+      "id": "MARM-J2",
+      "apps": ["site"],
+      "module": "margin-loss estimator",
+      "persona": "Owner or manager of a small or medium custom marble shop",
+      "tenant": null,
+      "kind": "happy_path",
+      "name": "Complete four questions, plus conditional ticket when cost is unknown, and receive a range before providing contact data",
+      "result": "passed",
+      "evidence": [".impeccable/review/calculator-focused.png", ".impeccable/review/calculator-cost.png", ".impeccable/review/calculator-result.png", "apps/site/tests/margin-loss-estimator.test.ts:1"]
+    },
+    {
+      "id": "MARM-J3",
+      "apps": ["site"],
+      "module": "public lead intake",
+      "persona": "Owner or manager of a small or medium custom marble shop",
+      "tenant": null,
+      "kind": "edge_case",
+      "name": "Submit an empty evaluation form and receive field-level feedback",
+      "result": "passed",
+      "evidence": [".impeccable/review/form-validation.png", ".impeccable/qa-marmorarias.mjs"]
+    },
+    {
+      "id": "MARM-J4",
+      "apps": ["site", "api"],
+      "module": "public lead intake",
+      "persona": "Owner or manager of a small or medium custom marble shop",
+      "tenant": null,
+      "kind": "happy_path",
+      "name": "Submit a valid five-field evaluation request and verify durable persistence",
+      "result": "blocked",
+      "evidence": ["API environment resolved to a remote Neon target; browser form was filled but intentionally not submitted", "ENV-MARM-001"]
+    },
+    {
+      "id": "MARM-J5",
+      "apps": ["api"],
+      "module": "public lead intake",
+      "persona": "Public site visitor",
+      "tenant": null,
+      "kind": "regression",
+      "name": "Accept a WhatsApp-first lead without a fabricated email",
+      "result": "passed",
+      "evidence": ["apps/api/tests/integration/http/public-lead-routes.test.ts:83", "bun --filter api check: 59 files and 402 tests passed"]
+    }
+  ],
+  "screenshots": [
+    {
+      "journey_id": "MARM-J1",
+      "checkpoint": "Hero and detailed order trace",
+      "viewport": "1440x1000 desktop",
+      "artifact": ".impeccable/review/desktop-hero.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Order trace is the focal explanatory element and does not resemble ERP chrome.", "Primary and secondary CTAs are legible without compression."]
+    },
+    {
+      "journey_id": "MARM-J1",
+      "checkpoint": "Compact order trace in first viewport",
+      "viewport": "390x844 mobile",
+      "artifact": ".impeccable/review/mobile-hero.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["All four process stages appear in the first viewport.", "No horizontal overflow or clipped CTA text."]
+    },
+    {
+      "journey_id": "MARM-J2",
+      "checkpoint": "Focused calculator with accessible order and progressive-cost sliders",
+      "viewport": "1440x1000 desktop",
+      "artifact": ".impeccable/review/calculator-cost.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["The focused mode hides page navigation and retains progress, the current question, and close action.", "Both sliders respond to keyboard input; order volume stays synchronized with the exact numeric field."]
+    },
+    {
+      "journey_id": "MARM-J2",
+      "checkpoint": "Approximate result range",
+      "viewport": "1440x1000 desktop",
+      "artifact": ".impeccable/review/calculator-result.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Range, confidence level, confidence rationale, and non-diagnostic disclaimer are visible.", "Evaluation invitation appears only after the estimate."]
+    },
+    {
+      "journey_id": "MARM-J3",
+      "checkpoint": "Empty form validation",
+      "viewport": "1440x1000 desktop",
+      "artifact": ".impeccable/review/form-validation.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Five visible business fields are present.", "Errors are associated through aria-describedby and invalid controls receive aria-invalid=true."]
+    },
+    {
+      "journey_id": "MARM-J1",
+      "checkpoint": "Responsive reflow equivalent to 200 percent zoom",
+      "viewport": "720x800",
+      "artifact": ".impeccable/review/zoom-200.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Content reflows without horizontal overflow."]
+    }
+  ],
+  "access_checks": [
+    {
+      "actor": "Public visitor",
+      "resource_tenant": null,
+      "vector": "Keyboard navigation, skip link, focused calculator, sliders, and close recovery",
+      "result": "passed",
+      "evidence": ".impeccable/qa-marmorarias.mjs output: skip link targets main-content; focused mode is an aria-modal dialog; sliders synchronize through ArrowRight; close restores focus"
+    },
+    {
+      "actor": "Public visitor",
+      "resource_tenant": null,
+      "vector": "Privacy-safe analytics",
+      "result": "passed",
+      "evidence": "Marble-specific events send controlled source/section metadata and do not send calculator answers or lead PII"
+    },
+    {
+      "actor": "Public visitor",
+      "resource_tenant": null,
+      "vector": "Public lead request contract without email",
+      "result": "passed",
+      "evidence": "API integration test accepts the bounded WhatsApp-first payload while existing input validation remains active"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MARM-001",
+      "type": "product_defect",
+      "severity": "medium",
+      "app": "site",
+      "module": "marmorarias landing page",
+      "title": "Secondary hero CTA compressed in the first desktop pass",
+      "status": "fixed",
+      "evidence": [".impeccable/review/desktop-hero-r1.png", ".impeccable/review/desktop-hero.png"],
+      "attempts": 1
+    },
+    {
+      "id": "MARM-002",
+      "type": "product_defect",
+      "severity": "medium",
+      "app": "site",
+      "module": "public lead intake",
+      "title": "Invalid fields initially emitted an empty aria-invalid attribute",
+      "status": "fixed",
+      "evidence": [".impeccable/review/form-validation.png", "apps/site/src/components/marble-shops/EvaluationForm.astro:150"],
+      "attempts": 1
+    },
+    {
+      "id": "MARM-003",
+      "type": "product_defect",
+      "severity": "high",
+      "app": "site",
+      "module": "marmorarias landing page",
+      "title": "The order-trace concept was below the first mobile viewport",
+      "status": "fixed",
+      "evidence": [".impeccable/review/mobile-hero.png", "Impeccable finish re-review disposition: ship"],
+      "attempts": 1
+    },
+    {
+      "id": "MARM-004",
+      "type": "product_defect",
+      "severity": "low",
+      "app": "site",
+      "module": "marmorarias navigation",
+      "title": "Header CTAs used shortened copy instead of the approved label",
+      "status": "fixed",
+      "evidence": [".impeccable/review/desktop-hero.png", ".impeccable/review/mobile-hero.png"],
+      "attempts": 1
+    },
+    {
+      "id": "MARM-005",
+      "type": "product_defect",
+      "severity": "medium",
+      "app": "site",
+      "module": "margin-loss estimator",
+      "title": "Slider milestones needed equal spacing with piecewise sensitivity between intervals",
+      "status": "fixed",
+      "evidence": [".impeccable/review/calculator-scale-orders.png", ".impeccable/review/calculator-cost.png"],
+      "attempts": 1
+    },
+    {
+      "id": "MARM-006",
+      "type": "product_defect",
+      "severity": "medium",
+      "app": "site",
+      "module": "marmorarias landing page",
+      "title": "The illustrative order trace did not terminate in possible margin pressure",
+      "status": "fixed",
+      "evidence": [".impeccable/review/desktop-hero.png", ".impeccable/review/mobile-hero.png"],
+      "attempts": 1
+    },
+    {
+      "id": "ENV-MARM-001",
+      "type": "environment_limitation",
+      "severity": "high",
+      "app": "cross-app",
+      "module": "public lead intake",
+      "title": "No isolated database target for a real browser persistence assertion",
+      "status": "blocked",
+      "evidence": ["Configured API environment points to a remote Neon database", "No local PostgreSQL service or Docker runtime was available"],
+      "attempts": 1
+    }
+  ],
+  "scores": {
+    "product_outcome": 9.5,
+    "functional_reliability_persistence": 7,
+    "ux_visual_integrity": 9.5,
+    "access_privacy_tenant_isolation": 9,
+    "accessibility": 10,
+    "operability_regression_protection": 9,
+    "weighted_total": 8.9
+  },
+  "verification": [
+    {
+      "check": "bun --filter site check",
+      "result": "passed",
+      "evidence": "60 Astro files; 0 errors, 0 warnings, 0 hints"
+    },
+    {
+      "check": "bun --filter site test",
+      "result": "passed",
+      "evidence": "27 tests passed; 56 assertions"
+    },
+    {
+      "check": "bun --filter site build",
+      "result": "passed",
+      "evidence": "Static /marmorarias route and sitemap generated"
+    },
+    {
+      "check": "bun --filter api check",
+      "result": "passed",
+      "evidence": "Formatting, lint, typecheck, 59 files and 402 tests passed; coverage 84.62% statements, 81.2% branches, 84.16% functions, 88.76% lines"
+    },
+    {
+      "check": "Production Lighthouse for /marmorarias/",
+      "result": "passed",
+      "evidence": "Performance 99, accessibility 100, best practices 100, SEO 100, agentic browsing 100"
+    },
+    {
+      "check": "Real browser desktop, mobile, reduced-motion, keyboard, validation, and zoom journeys",
+      "result": "passed",
+      "evidence": "No console errors, failed requests, or horizontal overflow in the exercised non-mutating journeys"
+    },
+    {
+      "check": "Impeccable detector and finish review",
+      "result": "passed",
+      "evidence": "Detector returned only pre-documentation type-ramp advisories and no blocking severity; documentation was synchronized and independent final review disposition was ship"
+    },
+    {
+      "check": "Real browser lead persistence",
+      "result": "blocked",
+      "evidence": "Not submitted because the configured database is remote and shared"
+    }
+  ],
+  "decision": "not_approved"
+}

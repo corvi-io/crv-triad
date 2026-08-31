@@ -3,7 +3,7 @@
 Create the first admin invitation:
 
 ```bash
-bun --filter idp bootstrap:admin -- --email admin@example.com --name "Admin"
+bun --filter api bootstrap:admin -- --email admin@example.com --name "Admin"
 ```
 
 Invited users start from the Studio login screen with the invited email. Credential-created access
@@ -32,7 +32,7 @@ Do not export account rows or token columns. A non-zero count blocks the migrati
 approved identity-reconciliation plan. With a zero count, apply through the normal migration job:
 
 ```bash
-bun --filter idp db:migrate
+bun --filter api db:migrate
 ```
 
 Forward behavior rejects a racing duplicate provider-account insert. The database transaction
@@ -56,15 +56,15 @@ attempt group. It never logs recipient, message, provider response, or token-bea
   durable enqueueing, workers, retries, shutdown safety, idempotent delivery, provider-independent
   response timing, and operational visibility for invitation, verification, and reset email.
 - On sustained failure, verify provider status and target configuration without printing values,
-  rotate `INFRA__RESEND_API_KEY` if authorized, redeploy the full IDP configuration, and retry the
+  rotate `API__IDP_RESEND_API_KEY` if authorized, redeploy the API configuration, and retry the
   user journey. Do not disable email at runtime.
 
 ## Google provider incidents and rotation
 
 During a Google outage, keep email/password recovery available and present a safe provider error in
 Studio. Do not delete linked accounts or introduce a Google-disabled mode. Rotate the client secret
-only through the authorized GitHub Environment workflow, preserve the exact callback, redeploy the
-full IDP configuration, and verify OAuth in `dev`, `hml`, then `prd` without capturing codes, state,
+only through Infisical `/api`, preserve the exact callback, redeploy the API, and verify OAuth in
+`dev`, `hml`, then `prd` without capturing codes, state,
 tokens, cookies, or user identifiers.
 
 ## Cookie cutover and rollback

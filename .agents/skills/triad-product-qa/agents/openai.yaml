@@ -1,0 +1,4 @@
+interface:
+  display_name: "CRV Triad Product QA"
+  short_description: "Run corrective real-system product QA"
+  default_prompt: "Use $triad-product-qa to test the affected product journeys end to end, inspect screenshots, fix verified defects, recheck them, and save the reports."

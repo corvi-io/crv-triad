@@ -1,33 +1,33 @@
-# IDP Deployment
+# Identity Deployment
 
-The IDP deploys to Fly.io with `apps/idp/Dockerfile` and generated Drizzle migrations.
+Identity ships as the `apps/api/src/modules/idp` bounded context inside the consolidated API image.
+There is no separate identity application or deployment.
 
 Fly apps:
 
-- `crv-triad-idp-dev`
-- `crv-triad-idp-hml`
-- `crv-triad-idp-prd`
+- `crv-triad-api-dev`
+- `crv-triad-api-hml`
+- `crv-triad-api-prd`
 
 These resources must not alias applications, databases, secrets, or credentials from another
-project. Deployment remains separately controlled by `CICD__DEPLOY_ENABLED`; ENG-38 does not
-enable or execute deployment.
+project. The API release command applies generated Drizzle migrations before the new version starts.
 
 ## Required deployment mappings
 
-`env-schema.yaml` translates these GitHub Environment sources to IDP runtime names:
+`env-schema.yaml` translates these Infisical `/api` sources to identity runtime names:
 
-| GitHub Environment source | IDP runtime | Kind |
+| Infisical source | API runtime | Kind |
 | --- | --- | --- |
-| `IDP__DATABASE_URL` | `DATABASE_URL` | secret |
-| `IDP__BETTER_AUTH_SECRET` | `BETTER_AUTH_SECRET` | secret |
-| `IDP__APP_ENV` | `APP_ENV` | variable |
-| `IDP__BETTER_AUTH_URL` | `BETTER_AUTH_URL` | variable |
-| `IDP__AUTH_TRUSTED_ORIGINS` | `AUTH_TRUSTED_ORIGINS` | variable |
-| `INFRA__GOOGLE_OAUTH_CLIENT_ID` | `AUTH_GOOGLE_CLIENT_ID` | variable |
-| `INFRA__GOOGLE_OAUTH_CLIENT_SECRET` | `AUTH_GOOGLE_CLIENT_SECRET` | secret |
-| `IDP__EMAIL_FROM` | `IDP_EMAIL_FROM` | variable |
-| `IDP__STUDIO_URL` | `IDP_STUDIO_URL` | variable |
-| `INFRA__RESEND_API_KEY` | `IDP_RESEND_API_KEY` | secret |
+| `API__DATABASE_URL` | `DATABASE_URL` | secret |
+| `API__BETTER_AUTH_SECRET` | `BETTER_AUTH_SECRET` | secret |
+| `API__APP_ENV` | `APP_ENV` | variable |
+| `API__BETTER_AUTH_URL` | `BETTER_AUTH_URL` | variable |
+| `API__AUTH_TRUSTED_ORIGINS` | `AUTH_TRUSTED_ORIGINS` | variable |
+| `API__AUTH_GOOGLE_CLIENT_ID` | `AUTH_GOOGLE_CLIENT_ID` | variable |
+| `API__AUTH_GOOGLE_CLIENT_SECRET` | `AUTH_GOOGLE_CLIENT_SECRET` | secret |
+| `API__IDP_EMAIL_FROM` | `IDP_EMAIL_FROM` | variable |
+| `API__IDP_STUDIO_URL` | `IDP_STUDIO_URL` | variable |
+| `API__IDP_RESEND_API_KEY` | `IDP_RESEND_API_KEY` | secret |
 
 `IDP_RESEND_API_URL` defaults safely to `https://api.resend.com` and is not target-specific.
 Google and transactional auth email have no runtime feature flags. Missing required values fail
@@ -40,10 +40,9 @@ trusted HTTP(S) origin and is normalized to its origin before links are built. S
 configuration unless that normalized origin is also present in the normalized
 `AUTH_TRUSTED_ORIGINS` allowlist.
 
-The Google clients and exact callbacks exist for `dev`, `hml`, and `prd`. Resend values are still
-absent from GitHub Environments, so deployed auth-email verification remains blocked. Approved
-public privacy/terms content is also absent; production consent publication cannot be completed
-until that separate site/legal prerequisite is delivered.
+Provider values are managed per environment in Infisical. Missing required values fail environment
+validation before the API starts. Approved public privacy/terms content remains a separate
+site/legal prerequisite for production consent publication.
 
 ## Cookie topology
 

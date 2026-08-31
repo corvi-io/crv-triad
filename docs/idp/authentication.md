@@ -1,6 +1,6 @@
 # IDP Authentication Lifecycle
 
-The IDP uses Better Auth `1.6.23` as the authentication engine. Both `apps/idp` and
+The IDP uses Better Auth `1.6.23` as the authentication engine. Both `apps/api/src/modules/idp` and
 `apps/studio` pin that reviewed version, and `bun.lock` resolves the same graph for both consumers.
 
 ## Native capability map

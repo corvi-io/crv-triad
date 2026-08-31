@@ -1,0 +1,107 @@
+---
+const apiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "")
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ""
+---
+<dialog class="lead-dialog" aria-labelledby="lead-title" data-lead-dialog>
+  <div class="lead-modal">
+    <button class="lead-close" type="button" aria-label="Fechar formulário" data-lead-close><span></span><span></span></button>
+    <div class="lead-intro"><span>COMECE PELO ESSENCIAL</span><h2 id="lead-title">Conte um pouco sobre sua barbearia.</h2><p>Preencha os dados abaixo e entraremos em contato para apresentar o TRIAD.</p></div>
+    <form data-lead-form data-lead-step="form" data-api-url={`${apiBaseUrl}/leads`}>
+      <label><span>Seu nome <small>Opcional</small></span><input name="name" type="text" autocomplete="name" maxlength="100" placeholder="Como podemos chamar você?" /></label>
+      <label><span>Nome da barbearia</span><input name="barbershop" type="text" autocomplete="organization" minlength="2" maxlength="120" placeholder="Nome do seu negócio" required /></label>
+      <label><span>Telefone / WhatsApp</span><input name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" minlength="8" placeholder="(00) 00000-0000" required /></label>
+      <label><span>E-mail <small>Opcional</small></span><input name="email" type="email" autocomplete="email" maxlength="160" placeholder="voce@barbearia.com" /></label>
+      <label class="lead-honeypot" aria-hidden="true"><span>Site</span><input name="website" type="text" tabindex="-1" autocomplete="off" /></label>
+      <input name="startedAt" type="hidden" value="" />
+      <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-action="lead_submit" data-theme="dark"></div>
+      <button class="button lead-submit" type="submit">Enviar meus dados <i aria-hidden="true">→</i></button>
+      <p class="lead-status" aria-live="polite" data-lead-status></p>
+      <p class="lead-privacy">Usaremos seus dados apenas para entrar em contato sobre o TRIAD.</p>
+    </form>
+    <section class="lead-success" data-lead-step="success" aria-labelledby="lead-success-title" hidden>
+      <div class="lead-success-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" role="img">
+          <path d="m5 12.5 4.2 4.2L19 7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+        </svg>
+      </div>
+      <p class="lead-success-label">DADOS RECEBIDOS</p>
+      <h2 id="lead-success-title" tabindex="-1">Tudo certo por aqui.</h2>
+      <p>Recebemos seus dados. Nosso time vai entrar em contato pelo canal informado para conhecer sua barbearia e apresentar o TRIAD.</p>
+      <button class="button lead-success-action" type="button" data-lead-success-close>
+        Voltar ao site <i aria-hidden="true">→</i>
+      </button>
+    </section>
+  </div>
+</dialog>
+<script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script>
+  const dialog = document.querySelector<HTMLDialogElement>("[data-lead-dialog]")
+  const form = dialog?.querySelector<HTMLFormElement>("[data-lead-form]")
+  const success = dialog?.querySelector<HTMLElement>('[data-lead-step="success"]')
+  const successTitle = dialog?.querySelector<HTMLElement>("#lead-success-title")
+  const demoMode = import.meta.env.DEV && new URLSearchParams(window.location.search).get("lead-demo") === "1"
+
+  const showFormStep = () => {
+    if (!form || !success) return
+    form.hidden = false
+    success.hidden = true
+  }
+
+  const showSuccessStep = () => {
+    if (!form || !success) return
+    form.hidden = true
+    success.hidden = false
+    form.reset()
+    requestAnimationFrame(() => successTitle?.focus())
+  }
+
+  document.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement
+    const trigger = target.closest<HTMLAnchorElement>('a[href$="#comecar"]')
+    if (!trigger || !dialog) return
+    event.preventDefault()
+    showFormStep()
+    const startedAt = dialog.querySelector<HTMLInputElement>('input[name="startedAt"]')
+    if (startedAt) startedAt.value = String(Date.now())
+    dialog.showModal()
+    requestAnimationFrame(() => dialog.querySelector<HTMLInputElement>('input[name="name"]')?.focus())
+  })
+  dialog?.querySelector("[data-lead-close]")?.addEventListener("click", () => dialog.close())
+  dialog?.querySelector("[data-lead-success-close]")?.addEventListener("click", () => dialog.close())
+  dialog?.addEventListener("click", (event) => { if (event.target === dialog) dialog.close() })
+  form?.addEventListener("submit", async (event) => {
+    if (!dialog) return
+    event.preventDefault(); if (!form.reportValidity()) return
+    const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')
+    const status = form.querySelector<HTMLElement>("[data-lead-status]")
+    if (submit) { submit.disabled = true; submit.textContent = "Enviando…" }
+    if (status) status.textContent = ""
+    const data = new FormData(form)
+    const payload = {
+      name: String(data.get("name") || ""),
+      barbershop: String(data.get("barbershop") || ""),
+      whatsapp: String(data.get("whatsapp") || ""),
+      email: String(data.get("email") || "") || undefined,
+      website: String(data.get("website") || ""),
+      startedAt: Number(data.get("startedAt")),
+      turnstileToken: String(data.get("cf-turnstile-response") || ""),
+    }
+    try {
+      if (demoMode) {
+        await new Promise((resolve) => window.setTimeout(resolve, 600))
+      } else {
+        const response = await fetch(form.dataset.apiUrl || "", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+        if (!response.ok) throw new Error("submission_failed")
+      }
+      showSuccessStep()
+    } catch {
+      if (status) status.textContent = "Não foi possível enviar agora. Tente novamente em alguns instantes."
+    } finally {
+      if (submit) { submit.disabled = false; submit.innerHTML = 'Enviar meus dados <i aria-hidden="true">→</i>' }
+    }
+  })
+</script>

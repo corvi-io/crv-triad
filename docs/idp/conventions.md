@@ -1,6 +1,6 @@
 # IDP Conventions
 
-`apps/idp` owns authentication, sessions, invitations, and identity contracts.
+`apps/api/src/modules/idp` owns authentication, sessions, invitations, and identity contracts.
 
 - Better Auth is mounted directly at `/api/auth/*`.
 - Email/password and Google are the configured login methods.

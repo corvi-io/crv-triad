@@ -2,9 +2,16 @@
 
 ## Tests
 
-- Keep unit tests under `apps/api/tests/unit`.
+- Keep Vitest unit tests under `apps/api/tests/unit`.
+- Keep composed HTTP contract tests under `apps/api/tests/integration`.
 - Mirror the `apps/api/src` package layout when practical.
-- Use local fakes passed into use case functions for business tests.
+- Use local fakes passed into use-case factories for business tests.
+- Test Elysia plugins through `app.handle(new Request(...))` without starting a
+  network listener.
+- Enforce at least 80% statements, branches, functions, and lines through
+  `coverage:check`; both pre-commit and CI must execute the threshold-bearing
+  command.
+- Follow `triad-testing` for test-level selection, doubles, and coverage policy.
 - Add regression tests when changing behavior, error mapping, persistence, or
   security-sensitive logic.
 
@@ -16,7 +23,7 @@ Prefer package-level commands from the workspace root:
 - `bun --filter api test:coverage`
 - `bun --filter api coverage:check`
 
-Inside `apps/api`, use `uv` when invoking native Python tooling directly.
+Inside `apps/api`, use Bun scripts and `bunx` for one-off TypeScript tooling.
 
 ## Documentation Check
 

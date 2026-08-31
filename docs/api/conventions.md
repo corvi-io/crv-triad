@@ -1,12 +1,12 @@
 # API Conventions
 
-`apps/api` is the FastAPI backend for CRV Triad business APIs.
+`apps/api` is the Bun/Elysia modular monolith for CRV Triad APIs, identity, and public lead intake.
 
 - Keep domain code under `src/modules/{module}`.
-- Keep REST entrypoints under `src/entrypoints/rest/{module}`.
-- Keep `src/entrypoints/rest/main.py` as the composition root.
-- Use `python-inject` for business dependency injection.
-- Use SQLModel records only as persistence records.
-- Generate application IDs with UUIDv7 through `src/modules/shared/ids.py`.
+- Keep REST composition under `src/entrypoints/rest` and expose module-owned Elysia plugins.
+- Wire dependencies explicitly at the composition root.
+- Use Drizzle for PostgreSQL persistence and migrations.
+- Generate identity IDs with UUIDv7 through `src/modules/idp/infra/ids.ts`.
+- Keep identity rules under `src/modules/idp` and business rules in their owning modules.
 - Keep `/health` lightweight and `/ready` for readiness.
 - Do not add `/v1` unless an external versioned contract is explicitly required.

@@ -67,7 +67,7 @@ authentication traffic, emits no analytics, and logs no record or form payload.
 
 ## Production Boundary
 
-`STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE` is the GitHub Environment source forwarded as
+`STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE` is the Infisical `/studio` source forwarded as
 `VITE_CLIENT_MANAGEMENT_SOURCE`. Deploy targets `hml` and `prd` fail closed regardless of its
 requested value. Production-boundary builds explicitly set the source to `disabled`, and artifact
 scans reject the memory repository, scenario identifiers, and representative synthetic identities.

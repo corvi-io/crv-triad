@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "tests",
+    "src/modules/idp/scripts/preview-auth-emails.tsx",
+    "vitest.config.ts",
+    "drizzle.config.ts"
+  ]
+}

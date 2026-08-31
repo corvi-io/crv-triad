@@ -1,6 +1,6 @@
 ---
 name: triad-release-workflow
-description: Prepare, validate, bootstrap, promote, publish, or troubleshoot CRV Triad releases across staging and main. Use for first releases, Release Please artifacts, production promotion PRs, release tags, GitHub Releases, release-only environment provisioning, staging synchronization, or deciding whether a release may include deployment.
+description: Prepare, validate, bootstrap, promote, publish, or troubleshoot CRV Triad releases across staging and main. Use for first releases, Release Please artifacts, production promotion PRs, release tags, GitHub Releases, production environment readiness, or staging synchronization.
 ---
 
 # Triad Release Workflow
@@ -36,8 +36,8 @@ Use `triad-preflight-review` before any release mutation.
 3. Inspect open PRs, tags, GitHub Releases, branch protection, repository
    variables, repository secret names, and the `prd` environment. Never print
    or retrieve secret values.
-4. Classify the request as release-only or release-with-deploy. Do not enable
-   deployment merely because a release was requested.
+4. Confirm every affected production application has complete Infisical values before promotion;
+   deployment runs automatically after the promotion merges.
 5. Confirm the intended SemVer version and that the Release Please `node`
    strategy keeps root `package.json`, `.release-please-manifest.json`, and
    `CHANGELOG.md` aligned.
@@ -47,11 +47,10 @@ Use `triad-preflight-review` before any release mutation.
 
 ## Configuration Gates
 
-For a release without deployment, require only:
+Release automation requires:
 
 - Repository variable `CICD__RELEASE_ENABLED=true`.
 - Repository secret `CICD__RELEASE_TOKEN`.
-- Environment variable `prd.CICD__DEPLOY_ENABLED=false`.
 
 The release token must belong to a dedicated identity that can write contents,
 pull requests, issues/labels, and perform the protected branch operations used
@@ -59,10 +58,9 @@ by the workflows. Prefer a GitHub App design when available; the current
 workflow contract accepts a repository secret token. Never copy the active
 local `gh` credential into the repository without explicit user authorization.
 
-For a release with deployment, additionally require every `prd` input used by
-the affected apps and providers in `env-schema.yaml`. Stop if any required
-value or owned infrastructure resource is missing. Never reuse source-project
-credentials or resources.
+Production promotion additionally requires every `prd` input used by the affected apps and
+providers in `env-schema.yaml`. Stop if any required value or owned infrastructure resource is
+missing. Never reuse source-project credentials or resources.
 
 Do not create compatibility aliases such as `RELEASE_PLEASE_TOKEN`. Fix or
 bootstrap the categorized `CICD__*` contract instead.
@@ -95,13 +93,13 @@ bootstrap the categorized `CICD__*` contract instead.
 
 ## Safety
 
-- Never set `CICD__RELEASE_ENABLED` or `CICD__DEPLOY_ENABLED`, create or replace
+- Never set `CICD__RELEASE_ENABLED`, create or replace
   tokens, merge into `main`, create tags, or publish a GitHub Release without
   explicit authorization for that mutation.
 - Never bypass a failed Promotion or Production Pipeline.
 - Do not delete or move published tags to repair a release. Stop and propose a
   forward fix unless the user explicitly authorizes destructive recovery.
-- Preserve release-only operation when deployment inputs are absent.
+- Never promote when deployment inputs are absent; production deployment is automatic after merge.
 
 ## Handoff
 
@@ -109,7 +107,7 @@ Report:
 
 - readiness and blockers;
 - chosen version and version source;
-- release-only or release-with-deploy mode;
+- automatic deployment readiness for affected applications;
 - configuration present or missing, using names only;
 - PRs, merge commits, workflow runs, tag, and release links;
 - whether `staging` and `main` finished synchronized.

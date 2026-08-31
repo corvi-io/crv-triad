@@ -4,26 +4,23 @@ Internal product workspace for CRV Triad.
 
 ## Apps
 
-- `apps/site`: neutral static Astro placeholder.
-- `apps/api`: minimal FastAPI backend with `/health` and `/ready`.
-- `apps/idp`: Elysia + Better Auth identity provider with email/password, invitations, sessions, and admin bootstrap.
+- `apps/site`: public Astro marketing site.
+- `apps/api`: Bun/Elysia modular API with Better Auth, invitations, sessions, and protected lead intake.
 - `apps/studio`: TRIAD Studio authenticated barbershop-management frontend.
 
 ## Requirements
 
 - Bun for JavaScript package operations.
 - Turborepo for workspace orchestration.
-- uv for the FastAPI app.
-- PostgreSQL for API and IDP runtime databases.
+- PostgreSQL for the API runtime database.
 
 ## Quick Start
 
 ```bash
 bun install
 bun --filter api dev
-bun --filter idp db:migrate
-bun --filter idp bootstrap:admin -- --email admin@example.com --name "Admin"
-bun --filter idp dev
+bun --filter api db:migrate
+bun --filter api bootstrap:admin -- --email admin@example.com --name "Admin"
 bun --filter studio dev
 bun --filter site dev
 ```
@@ -31,20 +28,18 @@ bun --filter site dev
 Local ports:
 
 - API: `http://localhost:8000`
-- IDP: `http://localhost:8001`
 - Studio: `http://localhost:3000`
 - Site: `http://localhost:3001`
 
 ## Auth Model
 
-The IDP uses email/password. Public self-registration is not open: account creation is allowed only for an existing active user or a pending invitation. The bootstrap script creates the first pending admin invitation.
+The API identity module uses email/password. Public self-registration is not open: account creation is allowed only for an existing active user or a pending invitation. The bootstrap script creates the first pending admin invitation.
 
 ## Commands
 
 - `bun run check`
 - `bun run build`
 - `bun --filter api check`
-- `bun --filter idp check`
 - `bun --filter studio check`
 - `bun --filter site check`
 
@@ -56,18 +51,17 @@ the templates in `docs/initiatives/templates` and use
 
 ## Delivery And Releases
 
-Deployment environment metadata lives in `env-schema.yaml`; actual values belong in GitHub Environments. App source names use uppercase prefixes such as `API__DATABASE_URL`, while app-local runtime names remain unchanged.
+Deployment environment metadata lives in `env-schema.yaml`; actual values belong in Infisical paths `/api`, `/site`, `/studio`, and `/infrastructure`. GitHub authenticates to Infisical with OIDC.
 
 Custom GitHub configuration is categorized by ownership:
 
-- `API__*`, `IDP__*`, `SITE__*`, and `STUDIO__*` are app runtime inputs.
+- `API__*`, `SITE__*`, and `STUDIO__*` are app runtime inputs.
 - `CICD__*` controls pipelines and releases.
 - `INFRA__*` identifies or authenticates infrastructure providers and deployed resources.
 
 The Fly.io and Cloudflare identifiers in this repository define the intended Triad topology. Provision
-new Triad-owned resources and GitHub Environment values before setting
-`CICD__DEPLOY_ENABLED=true`; quality and security gates remain active while deployment is disabled.
-No resource or credential from the source project is reused.
+Triad-owned resources and complete the matching Infisical environment before changes reach its
+automatic deployment boundary. No resource or credential from the source project is reused.
 
 Release preparation, required GitHub configuration, the first-release bootstrap,
 and the release-versus-deploy boundary are documented in

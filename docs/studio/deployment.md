@@ -2,7 +2,7 @@
 
 The studio app builds as a static Vite app and deploys to Cloudflare Pages.
 
-GitHub Environment infrastructure controls:
+Infisical `/infrastructure` controls:
 
 - `INFRA__CLOUDFLARE_API_TOKEN`: Cloudflare API token (secret).
 - `INFRA__CLOUDFLARE_ACCOUNT_ID`: Cloudflare account identifier.
@@ -11,7 +11,7 @@ GitHub Environment infrastructure controls:
 
 These inputs configure infrastructure rather than browser runtime.
 
-GitHub Environment sources mapped to required public runtime values:
+Infisical `/studio` sources mapped to required public runtime values:
 
 - `STUDIO__VITE_AUTH_BASE_URL` -> `VITE_AUTH_BASE_URL`
 - `STUDIO__VITE_DEPLOY_TARGET` -> `VITE_DEPLOY_TARGET` (optional target guard)
@@ -33,12 +33,12 @@ Production-boundary and production-preview scripts explicitly build with target 
 Studio deploy gate still uses the exported target/sources and can build configured `dev` memory
 experiences.
 
-Deployment runs only when the environment variable `CICD__DEPLOY_ENABLED` is `true`.
+Deployment is automatic for affected Studio changes at the `dev`, `hml`, and `prd` pipeline boundaries.
 
 ## Studio Cutover
 
-Keep deployment disabled while the Studio-owned resources are incomplete. Before enabling any
-environment, provision and verify all of the following in that GitHub Environment:
+Before changes reach an environment's deployment boundary, provision and verify all of the
+following in its Infisical paths:
 
 - `STUDIO__VITE_AUTH_BASE_URL`
 - `INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME`
@@ -52,7 +52,6 @@ project and alias target intact until the Studio smoke checks pass.
 
 ## Rollback
 
-If the Studio deployment or authentication checks fail, set `CICD__DEPLOY_ENABLED=false`, point the
-public alias back to the last verified Web project, and leave the failed Studio project available
-for diagnosis. Re-enable deployment only after the Studio keys and smoke checks succeed in `dev`,
-then `hml`, then `prd`.
+If the Studio deployment or authentication checks fail, stop promotion, point the public alias back
+to the last verified deployment when necessary, and leave the failed deployment available for
+diagnosis. Apply a forward fix and verify it in `dev`, then `hml`, then `prd`.

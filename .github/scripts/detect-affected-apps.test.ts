@@ -23,7 +23,6 @@ describe("detect-affected-apps", () => {
 
     expect(runDetection(repository, baseSha)).toEqual({
       api: "false",
-      idp: "false",
       site: "false",
       studio: "true",
     })
@@ -38,7 +37,6 @@ describe("detect-affected-apps", () => {
 
     expect(runDetection(repository, baseSha)).toEqual({
       api: "true",
-      idp: "true",
       site: "true",
       studio: "true",
     })
@@ -81,8 +79,8 @@ function runDetection(repository: string, baseSha: string) {
     encoding: "utf8",
     env: {
       ...process.env,
-      CICD__BASE_SHA: baseSha,
-      CICD__HEAD_SHA: "HEAD",
+      BASE_SHA: baseSha,
+      HEAD_SHA: "HEAD",
       GITHUB_OUTPUT: outputPath,
     },
   })

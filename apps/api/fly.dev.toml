@@ -2,7 +2,7 @@ app = "crv-triad-api-dev"
 primary_region = "gru"
 
 [deploy]
-  release_command = ".venv/bin/alembic upgrade head"
+  release_command = "bun dist/modules/idp/database/migrate.js"
 
 [http_service]
   internal_port = 8080

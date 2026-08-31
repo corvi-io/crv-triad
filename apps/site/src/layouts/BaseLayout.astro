@@ -5,12 +5,14 @@ interface Props {
   title?: string
   description?: string
   noindex?: boolean
+  bodyClass?: string
 }
 
 const {
   title = "CRV Triad",
   description = "Pagina institucional temporaria da CRV Triad.",
   noindex = false,
+  bodyClass,
 } = Astro.props
 
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? "https://example.com")
@@ -22,6 +24,7 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? "https://example.
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>{title}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
@@ -31,11 +34,12 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? "https://example.
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     {!noindex && <meta property="og:url" content={canonicalUrl} />}
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
   </head>
-  <body>
+  <body class={bodyClass}>
+    <a class="skip-link" href="#main-content">Ir para o conteúdo principal</a>
     <slot />
   </body>
 </html>

@@ -1,0 +1,89 @@
+name: Reusable App Delivery
+on:
+  workflow_call:
+    inputs:
+      app: { required: true, type: string }
+      deploy: { required: true, type: boolean }
+      environment: { required: true, type: string }
+      target: { required: true, type: string }
+    outputs:
+      deployed:
+        value: ${{ jobs.deploy.outputs.deployed }}
+      public-url:
+        value: ${{ jobs.deploy.outputs.public-url }}
+permissions:
+  contents: read
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+      - name: Install Studio Playwright browser
+        if: ${{ inputs.app == 'studio' }}
+        working-directory: apps/studio
+        run: bunx playwright install --with-deps --only-shell chromium
+      - name: Quality gate
+        run: bash .github/scripts/run-quality-gate.sh "${{ inputs.app }}"
+  deploy:
+    name: deploy
+    if: ${{ inputs.deploy }}
+    needs: quality
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      deployed: ${{ steps.result.outputs.deployed }}
+      public-url: ${{ steps.result.outputs.public-url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+      - name: Load application environment
+        uses: ./.github/actions/load-infisical-secrets
+        with:
+          environment: ${{ inputs.environment }}
+          identity-id: ${{ vars.INFRA__INFISICAL_IDENTITY_ID }}
+          project-slug: ${{ vars.INFRA__INFISICAL_PROJECT_SLUG }}
+          secret-path: /${{ inputs.app }}
+      - name: Load deployment infrastructure
+        uses: ./.github/actions/load-infisical-secrets
+        with:
+          environment: ${{ inputs.environment }}
+          identity-id: ${{ vars.INFRA__INFISICAL_IDENTITY_ID }}
+          project-slug: ${{ vars.INFRA__INFISICAL_PROJECT_SLUG }}
+          secret-path: /infrastructure
+      - name: Export static build environment
+        if: ${{ inputs.app == 'site' || inputs.app == 'studio' }}
+        run: bun .github/scripts/env-management.ts export --app "${{ inputs.app }}" --target "${{ inputs.target }}" --github-env "$GITHUB_ENV"
+      - name: Set up flyctl
+        if: ${{ inputs.app == 'api' }}
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # master at 2026-08-11
+      - name: Deploy gate
+        run: bash .github/scripts/run-deploy-gate.sh "${{ inputs.target }}" "${{ inputs.app }}"
+      - name: Record delivery result
+        id: result
+        if: ${{ success() }}
+        env:
+          APP: ${{ inputs.app }}
+        run: |
+          echo "deployed=true" >> "$GITHUB_OUTPUT"
+          if [[ "$APP" == "site" ]]; then
+            echo "public-url=$SITE__PUBLIC_SITE_URL" >> "$GITHUB_OUTPUT"
+          elif [[ "$APP" == "studio" ]]; then
+            echo "public-url=$INFRA__STUDIO_URL" >> "$GITHUB_OUTPUT"
+          fi

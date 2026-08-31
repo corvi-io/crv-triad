@@ -1,0 +1,22 @@
+---
+const products = [
+  { id: "studio", label: "TRIAD STUDIO", title: "Gestão e operação da barbearia", body: "Para proprietários e recepção organizarem agenda, clientes, equipe e desempenho.", views: [["Dashboard", "/screens/dashboard.png", "Dashboard operacional do TRIAD Studio"], ["Agenda", "/screens/agenda.png", "Agenda da equipe no TRIAD Studio"], ["Atendimentos", "/screens/atendimentos.png", "Fluxo de atendimentos no TRIAD Studio"], ["Clientes", "/screens/clientes.png", "Gestão de clientes no TRIAD Studio"], ["Relatórios", "/screens/relatorios.png", "Relatórios de desempenho no TRIAD Studio"]] },
+  { id: "pro-barber", label: "TRIAD PRO BARBER", title: "O trabalho do barbeiro, simplificado", body: "Para cada profissional acompanhar o dia, atender melhor e entender seus resultados.", views: [["Agenda pessoal", "/figma/pills/pro-agenda.png", "Agenda pessoal no TRIAD Pro Barber"], ["Cliente", "/figma/pills/pro-cliente.png", "Contexto do próximo cliente no TRIAD Pro Barber"], ["Serviços", "/figma/pills/pro-servicos.png", "Serviços mais usados no TRIAD Pro Barber"], ["Comissão", "/figma/pills/pro-comissao.png", "Resumo de vendas e comissão no TRIAD Pro Barber"], ["Comunicados", "/figma/pills/pro-comunicados.png", "Comunicados da equipe no TRIAD Pro Barber"]] },
+]
+---
+<section class="product-pair"><div class="shell"><span>DO BALCÃO À CADEIRA</span><h2>Studio e Pro Barber trabalhando como um só produto.</h2><div class="product-pair-grid">{products.map((product, productIndex) => <><article class="product-panel interactive-product" data-product><span>{product.label}</span><h3>{product.title}</h3><p>{product.body}</p><div class="product-tags" role="tablist" aria-label={`Telas do ${product.label}`}>{product.views.map(([label], index) => <button type="button" role="tab" id={`${product.id}-tab-${index}`} aria-selected={index === 0 ? "true" : "false"} aria-controls={`${product.id}-panel`} tabindex={index === 0 ? 0 : -1} class:list={{ active: index === 0 }} data-index={index}>{label}</button>)}</div><figure id={`${product.id}-panel`} role="tabpanel" aria-labelledby={`${product.id}-tab-0`} data-images={JSON.stringify(product.views)}><img src={product.views[0][1]} alt={product.views[0][2]} /></figure></article>{productIndex === 0 && <div class="pair-bridge" aria-hidden="true"><i></i><div><img src="/brand/crv-triad-symbol-gold.svg" alt="" width="36" height="36" /></div><i></i></div>}</>)}</div></div></section>
+<script>
+  document.querySelectorAll<HTMLElement>("[data-product]").forEach((product) => {
+    const tabs = [...product.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
+    const panel = product.querySelector<HTMLElement>('[role="tabpanel"]')
+    const productImage = panel?.querySelector<HTMLImageElement>("img")
+    const views: string[][] = JSON.parse(panel?.dataset.images ?? "[]")
+    let active = 0
+    let timer: number | undefined
+    const stop = () => { if (timer) window.clearInterval(timer) }
+    const select = (index: number, focus = false) => { active = index; tabs.forEach((tab, i) => { tab.ariaSelected = String(i === index); tab.tabIndex = i === index ? 0 : -1; tab.classList.toggle("active", i === index) }); if (panel && productImage) { panel.setAttribute("aria-labelledby", tabs[index].id); productImage.src = views[index][1]; productImage.alt = views[index][2] } if (focus) tabs[index].focus() }
+    const start = () => { if (matchMedia("(prefers-reduced-motion: reduce)").matches) return; stop(); timer = window.setInterval(() => select((active + 1) % tabs.length), 3000) }
+    tabs.forEach((tab, index) => { tab.addEventListener("click", () => select(index)); tab.addEventListener("keydown", (event) => { if (!["ArrowRight", "ArrowLeft"].includes(event.key)) return; event.preventDefault(); select((index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length, true) }) })
+    product.addEventListener("mouseenter", stop); product.addEventListener("mouseleave", start); product.addEventListener("focusin", stop); product.addEventListener("focusout", (event) => { if (!product.contains(event.relatedTarget as Node | null)) start() }); start()
+  })
+</script>

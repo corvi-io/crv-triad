@@ -10,7 +10,7 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
 ## Boundaries
 
 - `apps/studio` owns the authenticated barbershop-management browser UI.
-- `apps/idp` owns authentication, sessions, invitations, and access policy.
+- `apps/api/src/modules/idp` owns authentication, sessions, invitations, and access policy.
 - `apps/api` owns business APIs. Add API clients only through an accepted
   initiative with a committed local OpenAPI contract; do not generate Better
   Auth or broad IDP clients.
@@ -39,15 +39,14 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
   sign-out. Keep identity administration in IDP-owned operational workflows,
   not Studio routes.
 - Read `import.meta.env` only in `src/modules/shared/config/env.ts`.
-- Map target-specific deployed Vite URLs from uppercase GitHub Environment
+- Map target-specific deployed Vite URLs from the uppercase Infisical `/studio`
   source (`STUDIO__VITE_AUTH_BASE_URL`) declared in
   root `env-schema.yaml`; keep constants in app defaults and local `.env.example`
   names runtime-shaped.
 - Keep local and deployed auth routing equivalent: use an absolute
   browser-visible `VITE_AUTH_BASE_URL`; do not rely on Vite proxying or
   Cloudflare Pages Functions.
-- Preserve local development ports: studio `3000`, site `3001`, API `8000`, and
-  IDP `8001`.
+- Preserve local development ports: studio `3000`, site `3001`, and API `8000`.
 - Put shadcn/Base UI primitives under `src/modules/shared/components/ui`.
 - Before creating UI, reuse an existing Studio component when its documented contract fits. If no
   suitable component exists, inspect the official shadcn/ui catalog, then reviewed

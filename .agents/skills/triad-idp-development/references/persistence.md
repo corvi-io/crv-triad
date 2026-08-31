@@ -5,7 +5,7 @@
 - Use Drizzle ORM and Drizzle Kit with PostgreSQL.
 - Use migrations for schema changes.
 - Keep IDP-owned tables prefixed with `idp_`.
-- Generate IDP entity IDs with UUIDv7 through `src/infra/ids.ts`.
+- Generate identity entity IDs with UUIDv7 through `src/modules/idp/infra/ids.ts`.
 
 ## Rules
 
@@ -14,8 +14,8 @@
   specific deletion design.
 - Do not add audit/event tables for the MVP unless the product scope changes.
 - Use package scripts:
-  - `bun --filter idp db:generate`
-  - `bun --filter idp db:migrate`
+  - `bun --filter api db:generate`
+  - `bun --filter api db:migrate`
 
 ## Migration Handoff
 
