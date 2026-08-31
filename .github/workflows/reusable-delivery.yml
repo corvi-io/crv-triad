@@ -8,9 +8,15 @@ on:
       head-sha: { required: true, type: string }
       target: { required: true, type: string }
     outputs:
-      api-deployed: { value: ${{ jobs.api.outputs.deployed }} }
-      site-deployed: { value: ${{ jobs.site.outputs.deployed }} }
-      studio-deployed: { value: ${{ jobs.studio.outputs.deployed }} }
+      api-deployed:
+        description: Whether the API was deployed.
+        value: ${{ jobs.api.outputs.deployed }}
+      site-deployed:
+        description: Whether the site was deployed.
+        value: ${{ jobs.site.outputs.deployed }}
+      studio-deployed:
+        description: Whether Studio was deployed.
+        value: ${{ jobs.studio.outputs.deployed }}
 permissions:
   contents: read
 jobs:
