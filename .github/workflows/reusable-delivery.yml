@@ -3,11 +3,20 @@ on:
   workflow_call:
     inputs:
       base-sha: { required: true, type: string }
-      comment-deploy: { default: false, type: boolean }
       deploy: { required: true, type: boolean }
       environment: { required: true, type: string }
       head-sha: { required: true, type: string }
       target: { required: true, type: string }
+    outputs:
+      api-deployed:
+        description: Whether the API was deployed.
+        value: ${{ jobs.api.outputs.deployed }}
+      site-deployed:
+        description: Whether the site was deployed.
+        value: ${{ jobs.site.outputs.deployed }}
+      studio-deployed:
+        description: Whether Studio was deployed.
+        value: ${{ jobs.studio.outputs.deployed }}
 permissions:
   contents: read
 jobs:
@@ -66,28 +75,3 @@ jobs:
     permissions: { contents: read, id-token: write }
     uses: ./.github/workflows/reusable-app-delivery.yml
     with: { app: studio, deploy: "${{ inputs.deploy }}", environment: "${{ inputs.environment }}", target: "${{ inputs.target }}" }
-  comment:
-    name: Comment deployment
-    needs: [detect, api, site, studio]
-    if: ${{ always() && inputs.comment-deploy && !cancelled() }}
-    runs-on: ubuntu-latest
-    permissions: { contents: read, issues: write, pull-requests: write }
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Comment deployment
-        env:
-          CICD__API_DEPLOYED: ${{ needs.api.outputs.deployed == 'true' }}
-          CICD__API_HEALTH_URL: https://crv-triad-api-dev.fly.dev/health
-          CICD__API_URL: https://crv-triad-api-dev.fly.dev
-          CICD__COMMIT_SHA: ${{ inputs.head-sha }}
-          CICD__ENV_CODE: DEV
-          CICD__ENV_NAME: DEVELOPMENT
-          CICD__GITHUB_TOKEN: ${{ github.token }}
-          CICD__PR_NUMBER: ${{ github.event.pull_request.number }}
-          CICD__RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          CICD__SITE_DEPLOYED: ${{ needs.site.outputs.deployed == 'true' }}
-          CICD__SITE_URL: https://dev.assinetriad.com.br
-          CICD__STUDIO_DEPLOYED: ${{ needs.studio.outputs.deployed == 'true' }}
-          CICD__STUDIO_URL: https://studio-dev.assinetriad.com.br
-        run: python .github/scripts/comment-pr-api-deploy.py
