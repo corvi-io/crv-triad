@@ -13,7 +13,10 @@ bundled with the site but initializes only after an explicit analytics opt-in. L
 - Deployment sources are `SITE__PUBLIC_API_BASE_URL`, `SITE__PUBLIC_POSTHOG_KEY`, and
   `SITE__PUBLIC_APP_ENV` under the Infisical `/site` path. The API selects the fixed regional
   upstream through `API__POSTHOG_UPSTREAM_URL` under `/api`.
-- Missing configuration leaves analytics disabled without affecting navigation or lead intake.
+- The analytics-specific deployment sources are optional so development environments can remain
+  provider-free. Production must configure the project key and environment label before the
+  post-deploy analytics gate; missing configuration leaves analytics disabled without affecting
+  navigation or lead intake.
 
 ## Privacy and consent
 

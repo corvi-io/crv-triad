@@ -45,6 +45,8 @@
 - Feature Product QA: approved at 9.5/10 with inspected desktop and mobile screenshots; report under
   `docs/product-qa/reports/features/initiative-18/2026-08-31-4002b2ce6e46-proxy.md`.
 - Remaining production Live Events and replay evidence will be recorded after protected deployment.
+- Analytics deployment inputs remain optional by design: provider-free development deploys succeed,
+  while production configuration and ingestion are explicit release gates.
 
 ## Risks And Follow-Ups
 

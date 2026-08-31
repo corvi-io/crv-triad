@@ -44,8 +44,8 @@ apps:
       - { source: SITE__PUBLIC_SITE_URL, runtime: PUBLIC_SITE_URL, github: variable, required: true }
       - { source: SITE__PUBLIC_API_BASE_URL, runtime: PUBLIC_API_BASE_URL, github: variable, required: true }
       - { source: SITE__PUBLIC_TURNSTILE_SITE_KEY, runtime: PUBLIC_TURNSTILE_SITE_KEY, github: variable, required: true }
-      - { source: SITE__PUBLIC_APP_ENV, runtime: PUBLIC_APP_ENV, github: variable, required: true }
-      - { source: SITE__PUBLIC_POSTHOG_KEY, runtime: PUBLIC_POSTHOG_KEY, github: variable, required: true }
+      - { source: SITE__PUBLIC_APP_ENV, runtime: PUBLIC_APP_ENV, github: variable, required: false }
+      - { source: SITE__PUBLIC_POSTHOG_KEY, runtime: PUBLIC_POSTHOG_KEY, github: variable, required: false }
   studio:
     owner: apps/studio
     runtime: cloudflare-pages-static
