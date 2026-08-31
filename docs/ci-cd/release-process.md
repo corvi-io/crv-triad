@@ -13,8 +13,8 @@ version, tag, changelog, and GitHub Release remains an explicit release decision
 2. `Homolog Pipeline` validates `staging` against the `hml` environment.
 3. An operator explicitly runs `Prepare Production Release`. It generates
    Release Please artifacts when release-worthy Conventional Commits exist,
-   merges that artifact PR into `staging`, and opens or updates a promotion PR
-   from `staging` to `main`.
+   waits for the artifact PR and its required checks, merges it into `staging`,
+   and opens or updates a promotion PR from `staging` to `main`.
 4. `Promotion Pipeline` validates the promotion PR without attaching to `prd`.
 5. The promotion PR is merged with a merge commit.
 6. `Production Pipeline` validates `main` and deploys affected applications to `prd`.
