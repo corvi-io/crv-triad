@@ -1,7 +1,7 @@
 # Site Conventions
 
-`apps/site` is a neutral static Astro placeholder.
+`apps/site` is the public static Astro marketing site.
 
 - Keep it static-first.
 - Use only `PUBLIC_*` browser-safe values.
-- Do not add marketing, analytics, legal copy, or brand-specific design until the CRV Triad public site scope is defined.
+- Initialize optional analytics only after explicit consent and never send lead PII or form values.
