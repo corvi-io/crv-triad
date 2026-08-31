@@ -36,4 +36,28 @@ describe("API deployment contract", () => {
       expect(workflow).not.toContain("CICD__DEPLOY_ENABLED")
     }
   })
+
+  it("maps the development deployment comment to the script CICD contract", () => {
+    const workflow = readFileSync(".github/workflows/reusable-delivery.yml", "utf8")
+    const requiredNames = [
+      "CICD__API_DEPLOYED",
+      "CICD__API_HEALTH_URL",
+      "CICD__API_URL",
+      "CICD__COMMIT_SHA",
+      "CICD__GITHUB_TOKEN",
+      "CICD__PR_NUMBER",
+      "CICD__RUN_URL",
+      "CICD__SITE_DEPLOYED",
+      "CICD__SITE_URL",
+      "CICD__STUDIO_DEPLOYED",
+      "CICD__STUDIO_URL",
+    ]
+
+    for (const name of requiredNames) {
+      expect(workflow).toContain(`${name}:`)
+    }
+
+    expect(workflow).toMatch(/CICD__GITHUB_TOKEN: \$\{\{ github\.token \}\}/)
+    expect(workflow).not.toContain("\n          GITHUB_TOKEN:")
+  })
 })

@@ -75,17 +75,17 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Comment deployment
         env:
-          API_DEPLOYED: ${{ needs.api.outputs.deployed == 'true' }}
-          API_URL: https://crv-triad-api-dev.fly.dev
-          COMMIT_SHA: ${{ inputs.head-sha }}
-          ENV_CODE: DEV
-          ENV_NAME: DEVELOPMENT
-          GITHUB_TOKEN: ${{ github.token }}
-          HEALTH_URL: https://crv-triad-api-dev.fly.dev/health
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SITE_DEPLOYED: ${{ needs.site.outputs.deployed == 'true' }}
-          SITE_URL: ${{ needs.site.outputs.public-url }}
-          STUDIO_DEPLOYED: ${{ needs.studio.outputs.deployed == 'true' }}
-          STUDIO_URL: ${{ needs.studio.outputs.public-url }}
+          CICD__API_DEPLOYED: ${{ needs.api.outputs.deployed == 'true' }}
+          CICD__API_HEALTH_URL: https://crv-triad-api-dev.fly.dev/health
+          CICD__API_URL: https://crv-triad-api-dev.fly.dev
+          CICD__COMMIT_SHA: ${{ inputs.head-sha }}
+          CICD__ENV_CODE: DEV
+          CICD__ENV_NAME: DEVELOPMENT
+          CICD__GITHUB_TOKEN: ${{ github.token }}
+          CICD__PR_NUMBER: ${{ github.event.pull_request.number }}
+          CICD__RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CICD__SITE_DEPLOYED: ${{ needs.site.outputs.deployed == 'true' }}
+          CICD__SITE_URL: https://dev.assinetriad.com.br
+          CICD__STUDIO_DEPLOYED: ${{ needs.studio.outputs.deployed == 'true' }}
+          CICD__STUDIO_URL: https://studio-dev.assinetriad.com.br
         run: python .github/scripts/comment-pr-api-deploy.py
