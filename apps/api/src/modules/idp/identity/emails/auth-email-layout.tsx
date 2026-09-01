@@ -17,6 +17,7 @@ type AuthEmailLayoutProps = {
   actionLabel: string
   actionUrl: string
   children: ReactNode
+  footerNote?: string
   preview: string
   title: string
 }
@@ -25,6 +26,7 @@ export function AuthEmailLayout({
   actionLabel,
   actionUrl,
   children,
+  footerNote = "Esta mensagem foi enviada pela TRIAD. Não compartilhe links de acesso recebidos por e-mail.",
   preview,
   title,
 }: AuthEmailLayoutProps) {
@@ -33,25 +35,33 @@ export function AuthEmailLayout({
       <Head />
       <Preview>{preview}</Preview>
       <Body style={styles.body}>
-        <Container style={styles.container}>
-          <Text style={styles.brand}>TRIAD</Text>
-          <Heading as="h1" style={styles.heading}>
-            {title}
-          </Heading>
-          <Section>{children}</Section>
-          <Section style={styles.actionSection}>
-            <Button href={actionUrl} style={styles.button}>
-              {actionLabel}
-            </Button>
+        <Container style={styles.frame}>
+          <Section style={styles.masthead}>
+            <Text style={styles.brand}>TRIAD</Text>
+            <Text style={styles.brandDescriptor}>Sistema operacional para barbearias</Text>
           </Section>
-          <Text style={styles.fallbackLabel}>Se o botão não funcionar, use este endereço:</Text>
-          <Link href={actionUrl} style={styles.fallbackLink}>
-            {actionUrl}
-          </Link>
-          <Hr style={styles.rule} />
-          <Text style={styles.footer}>
-            Esta é uma mensagem de segurança do TRIAD. Não compartilhe este link.
-          </Text>
+
+          <Section style={styles.content}>
+            <Heading as="h1" style={styles.heading}>
+              {title}
+            </Heading>
+            <Section>{children}</Section>
+            <Section style={styles.actionSection}>
+              <Button href={actionUrl} style={styles.button}>
+                {actionLabel}
+              </Button>
+            </Section>
+            <Text style={styles.fallbackLabel}>Se preferir, copie e cole este endereço:</Text>
+            <Link href={actionUrl} style={styles.fallbackLink}>
+              {actionUrl}
+            </Link>
+          </Section>
+
+          <Section style={styles.footer}>
+            <Hr style={styles.rule} />
+            <Text style={styles.footerBrand}>TRIAD</Text>
+            <Text style={styles.footerNote}>{footerNote}</Text>
+          </Section>
         </Container>
       </Body>
     </Html>
@@ -59,70 +69,106 @@ export function AuthEmailLayout({
 }
 
 export const authEmailTextStyle = {
-  color: "#334155",
-  fontFamily: "Arial, sans-serif",
+  color: "#334058",
+  fontFamily: 'Arial, "Helvetica Neue", sans-serif',
   fontSize: "16px",
-  lineHeight: "24px",
-  margin: "0 0 16px",
+  lineHeight: "26px",
+  margin: "0 0 18px",
 }
 
 const styles = {
-  actionSection: { margin: "28px 0" },
+  actionSection: { margin: "34px 0 30px" },
   body: {
-    backgroundColor: "#f1f5f9",
-    fontFamily: "Arial, sans-serif",
+    backgroundColor: "#f2efe8",
+    fontFamily: 'Arial, "Helvetica Neue", sans-serif',
     margin: "0",
-    padding: "32px 12px",
+    padding: "40px 12px",
   },
   brand: {
-    color: "#b08d2f",
-    fontSize: "14px",
+    color: "#d8b86c",
+    fontFamily: 'Georgia, "Times New Roman", serif',
+    fontSize: "24px",
     fontWeight: "700",
-    letterSpacing: "2px",
-    margin: "0 0 24px",
+    letterSpacing: "5px",
+    lineHeight: "30px",
+    margin: "0 0 8px",
+  },
+  brandDescriptor: {
+    color: "#aeb8ca",
+    fontSize: "11px",
+    letterSpacing: "1.4px",
+    lineHeight: "18px",
+    margin: "0",
+    textTransform: "uppercase" as const,
   },
   button: {
-    backgroundColor: "#0f2747",
-    borderRadius: "6px",
+    backgroundColor: "#a77d38",
+    borderRadius: "4px",
     color: "#ffffff",
     display: "inline-block",
-    fontSize: "16px",
+    fontSize: "15px",
     fontWeight: "700",
-    padding: "13px 22px",
+    letterSpacing: "0.2px",
+    padding: "14px 24px",
     textDecoration: "none",
   },
-  container: {
-    backgroundColor: "#ffffff",
-    border: "1px solid #dbe2ea",
-    borderRadius: "10px",
-    margin: "0 auto",
-    maxWidth: "560px",
-    padding: "36px",
+  content: {
+    backgroundColor: "#fffdf8",
+    padding: "44px 46px 42px",
   },
   fallbackLabel: {
-    color: "#475569",
-    fontSize: "13px",
-    lineHeight: "20px",
+    color: "#69758a",
+    fontSize: "12px",
+    lineHeight: "19px",
     margin: "0 0 6px",
   },
   fallbackLink: {
-    color: "#0f4c81",
-    fontSize: "13px",
-    lineHeight: "20px",
+    color: "#4e607d",
+    fontSize: "12px",
+    lineHeight: "19px",
     overflowWrap: "anywhere" as const,
+    textDecoration: "underline",
   },
   footer: {
-    color: "#64748b",
+    backgroundColor: "#f8f5ee",
+    padding: "0 46px 30px",
+  },
+  footerBrand: {
+    color: "#8a6932",
+    fontFamily: 'Georgia, "Times New Roman", serif',
     fontSize: "12px",
+    fontWeight: "700",
+    letterSpacing: "2.5px",
+    lineHeight: "18px",
+    margin: "0 0 8px",
+  },
+  footerNote: {
+    color: "#69758a",
+    fontSize: "11px",
     lineHeight: "18px",
     margin: "0",
   },
-  heading: {
-    color: "#0f2747",
-    fontFamily: "Arial, sans-serif",
-    fontSize: "26px",
-    lineHeight: "34px",
-    margin: "0 0 22px",
+  frame: {
+    backgroundColor: "#fffdf8",
+    borderRadius: "4px",
+    boxShadow: "0 18px 48px rgba(8, 13, 25, 0.12)",
+    margin: "0 auto",
+    maxWidth: "600px",
+    overflow: "hidden",
   },
-  rule: { borderColor: "#e2e8f0", margin: "30px 0 20px" },
+  heading: {
+    color: "#111c31",
+    fontFamily: 'Georgia, "Times New Roman", serif',
+    fontSize: "34px",
+    fontWeight: "400",
+    letterSpacing: "-0.5px",
+    lineHeight: "42px",
+    margin: "0 0 26px",
+  },
+  masthead: {
+    backgroundColor: "#0b1426",
+    borderBottom: "3px solid #a77d38",
+    padding: "32px 46px 28px",
+  },
+  rule: { borderColor: "#ddd6c8", margin: "0 0 26px" },
 }

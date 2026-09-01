@@ -21,11 +21,12 @@ describe("authentication email templates", () => {
       token: "synthetic-invitation-proof",
     })
 
-    expect(message.subject).toBe("Seu convite para acessar o TRIAD")
+    expect(message.subject).toBe("Seu convite para o TRIAD Studio")
     expect(message.html).toContain("<h1")
-    expect(message.html).toContain("Criar minha senha")
-    expect(message.text).toContain("VOCÊ RECEBEU UM CONVITE")
-    expect(message.text).toContain("Se o botão não funcionar")
+    expect(message.html).toContain("Aceitar convite")
+    expect(message.text).toContain("A ROTINA DA BARBEARIA COMEÇA POR AQUI.")
+    expect(message.text).toContain("Se preferir, copie e cole este endereço")
+    expect(message.text).not.toContain("Perfil de acesso")
     expect(message.html).not.toContain("<script")
     expect(message.html).not.toContain("<img")
   })
@@ -49,7 +50,6 @@ describe("authentication email templates", () => {
       <InvitationEmailTemplate
         actionUrl={actionUrl}
         expiresAtLabel={'<script data-private="true">'}
-        invitationRole="member"
       />,
       "Synthetic subject",
       actionUrl,

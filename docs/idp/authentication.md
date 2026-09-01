@@ -77,6 +77,15 @@ fixed synthetic data. Resend transport timeout, retry, idempotency, and sanitize
 remain unchanged; ENG-39 still owns durable queueing, workers, shutdown recovery, metrics, and
 alerts.
 
+Authentication email copy describes only what the recipient needs to understand or do. It must not
+expose database constraints, identifiers, account-model details, internal authorization names, or
+other implementation mechanics. The shared visual system uses a restrained navy, matte-gold, and
+warm-neutral palette with an editorial type hierarchy; security content remains more prominent than
+brand expression. Legal links must appear only after approved public Terms and Privacy destinations
+exist. Transactional authentication messages do not include social links or promotional modules.
+Illustrative action-required, operational-summary, and changelog compositions remain test fixtures;
+they do not add business communication behavior to the IDP or the production API runtime.
+
 Invitation proof resolution uses both a bounded per-proof bucket and a bounded process-wide bucket.
 The global bucket intentionally avoids client-address headers because the current deployment contract
 does not establish a trusted proxy normalization boundary for them; distinct well-formed proofs
