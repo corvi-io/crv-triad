@@ -102,7 +102,7 @@ const styles = {
     textTransform: "uppercase" as const,
   },
   button: {
-    backgroundColor: "#a77d38",
+    backgroundColor: "#86652f",
     borderRadius: "4px",
     color: "#ffffff",
     display: "inline-block",
