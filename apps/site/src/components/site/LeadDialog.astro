@@ -123,6 +123,14 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ""
       website: String(data.get("website") || ""),
       startedAt: Number(data.get("startedAt")),
       turnstileToken: String(data.get("cf-turnstile-response") || ""),
+      analytics: window.triadAnalytics?.distinctId()
+        ? {
+            distinctId: window.triadAnalytics.distinctId(),
+            product: leadSource.product,
+            sourcePage: normalizedPath(),
+            ctaLocation: leadSource.cta_location,
+          }
+        : undefined,
     }
     try {
       if (demoMode) {
@@ -139,7 +147,6 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ""
           throw error
         }
       }
-      window.triadAnalytics?.capture("lead_submission_succeeded", { source_page: location.pathname, product: leadSource.product, integration: "api" })
       showSuccessStep()
     } catch (error) {
       window.triadAnalytics?.capture("lead_submission_failed", {
