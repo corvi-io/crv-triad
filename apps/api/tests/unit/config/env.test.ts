@@ -34,6 +34,7 @@ describe("parseEnv", () => {
     expect(env.IDP_STUDIO_URL).toBe("http://localhost:3000")
     expect(env.LEAD_EMAIL_TO).toEqual(["contato@example.com"])
     expect(env.POSTHOG_UPSTREAM_URL).toBe("https://us.i.posthog.com")
+    expect(env.POSTHOG_PROJECT_KEY).toBe("")
   })
 
   it("accepts only supported PostHog regional ingestion origins", () => {

@@ -25,6 +25,7 @@ bundled with the site but initializes only after an explicit analytics opt-in. L
 - Visitors remain anonymous; the marketing site does not call `identify`.
 - Never capture names, barbershop names, phone numbers, email addresses, Turnstile tokens,
   form values, email bodies, credentials, or private headers.
+- Browser URLs sent to analytics exclude query parameters.
 - Session replay masks all inputs and all text inside the lead dialog.
 - Autocapture is disabled. Only the reviewed events below are emitted.
 - The proxy strips cookies, authorization, private forwarding headers, upstream cookies, and
@@ -43,15 +44,17 @@ All custom event and property names use English `snake_case`. Common properties 
 | `lead_form_opened` | The native dialog opens | Source page, CTA location, product |
 | `lead_form_started` | First valid input interaction per opening | No field name or value |
 | `lead_form_validation_failed` | Invalid submit attempt | Technical invalid field names only |
-| `lead_submission_succeeded` | API responds successfully | Integration name; no lead payload |
+| `lead_submission_accepted` | API finishes provider delivery | Server-confirmed; consented anonymous ID, no lead payload |
 | `lead_submission_failed` | API or network fails | Coarse error type and HTTP status |
 | `feature_pill_clicked` | A visitor manually selects a product pill | Automatic rotation is excluded |
 | `faq_item_opened` | A FAQ item changes from closed to open | Stable question ID and position |
 | `scroll_depth_reached` | 25%, 50%, 75%, and 90%, once per page load | Numeric milestone only |
 | `section_viewed` | At least 50% visible for one second | Once per named section per page load |
 
-The former `lead_email_intent_generated` event is retired because lead delivery now uses the
-API. `lead_submission_succeeded` represents an accepted API response, not a later sales outcome.
+The former `lead_email_intent_generated` and browser-side `lead_submission_succeeded` events are
+retired. `lead_submission_accepted` represents provider-accepted lead delivery, not a later sales
+qualification or customer conversion. Because analytics remains consent-gated, the provider or a
+future CRM remains the source of truth for total commercial leads.
 
 ## PostHog operations
 
@@ -71,7 +74,7 @@ Create the main funnel in the configured production project:
 2. `solution_selected` or `cta_clicked`
 3. `lead_form_opened`
 4. `lead_form_started`
-5. `lead_submission_succeeded`
+5. `lead_submission_accepted`
 
 Create dashboard insights for page traffic, acquisition sources, CTA rate, product interest,
 form progression, submissions, failures, selected product pills, and opened FAQ items. Validate

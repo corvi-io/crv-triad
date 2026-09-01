@@ -107,6 +107,7 @@ const envSchema = z
     POSTHOG_UPSTREAM_URL: z
       .enum(["https://us.i.posthog.com", "https://eu.i.posthog.com"])
       .default("https://us.i.posthog.com"),
+    POSTHOG_PROJECT_KEY: z.string().trim().default(""),
   })
   .superRefine((value, context) => {
     if (!value.AUTH_TRUSTED_ORIGINS.includes(value.IDP_STUDIO_URL)) {

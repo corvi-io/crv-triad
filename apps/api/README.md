@@ -24,3 +24,6 @@ Runtime env:
 - `POSTHOG_UPSTREAM_URL` selects one of the explicitly supported PostHog US or EU ingestion
   origins. `/e/*` is not a general-purpose proxy: destinations are fixed, private browser headers
   are discarded, and upstream error bodies are never exposed.
+- `POSTHOG_PROJECT_KEY` is the public project key used for consent-correlated, server-confirmed
+  lead analytics. An empty value disables server-side capture outside production; the deployment
+  manifest requires the corresponding source value for the `prd` target.
