@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/corvi-io/crv-triad/compare/v0.4.0...v0.5.0) (2026-09-01)
+
+
+### Features
+
+* **auth:** refine transactional email templates ([86175f4](https://github.com/corvi-io/crv-triad/commit/86175f4dcde0a06771150354b043b2bda00fb40c))
+
 ## [0.4.0](https://github.com/corvi-io/crv-triad/compare/v0.3.0...v0.4.0) (2026-08-31)
 
 
