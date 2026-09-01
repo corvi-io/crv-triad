@@ -13,7 +13,8 @@ and no-PII event contract.
 - The deployment source is optional `API__POSTHOG_UPSTREAM_URL` in Infisical `/api`.
 - `POSTHOG_PROJECT_KEY` is the browser-safe project key used by the API only to emit
   `lead_submission_accepted` after the lead email provider accepts delivery. Its deployment source
-  is optional `API__POSTHOG_PROJECT_KEY` in Infisical `/api`.
+  is `API__POSTHOG_PROJECT_KEY` in Infisical `/api`: optional outside production and required for
+  the `prd` deployment target.
 - Server-confirmed lead capture occurs only when the browser supplies a consented, validated
   anonymous distinct ID. Provider failure is logged without identifiers and never changes the
   lead response.

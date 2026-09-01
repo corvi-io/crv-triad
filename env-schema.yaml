@@ -33,7 +33,7 @@ apps:
       - { source: API__LEAD_TURNSTILE_SECRET_KEY, runtime: LEAD_TURNSTILE_SECRET_KEY, github: secret, required: true }
       - { source: API__LEAD_TURNSTILE_HOSTNAMES, runtime: LEAD_TURNSTILE_HOSTNAMES, github: variable, required: true }
       - { source: API__POSTHOG_UPSTREAM_URL, runtime: POSTHOG_UPSTREAM_URL, github: variable, required: false }
-      - { source: API__POSTHOG_PROJECT_KEY, runtime: POSTHOG_PROJECT_KEY, github: variable, required: false }
+      - { source: API__POSTHOG_PROJECT_KEY, runtime: POSTHOG_PROJECT_KEY, github: variable, required: false, required_targets: [prd] }
   site:
     owner: apps/site
     runtime: cloudflare-pages-static
