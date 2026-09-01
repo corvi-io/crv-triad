@@ -29,6 +29,8 @@ describe("authentication email templates", () => {
     expect(message.text).not.toContain("Perfil de acesso")
     expect(message.html).toContain("background-color:#86652f")
     expect(contrastRatio("#86652f", "#ffffff")).toBeGreaterThanOrEqual(4.5)
+    expect(message.html).toContain("color:#5f6b7f")
+    expect(contrastRatio("#5f6b7f", "#f8f5ee")).toBeGreaterThanOrEqual(4.5)
     expect(message.html).not.toContain("<script")
     expect(message.html).not.toContain("<img")
   })

@@ -143,7 +143,7 @@ const styles = {
     margin: "0 0 8px",
   },
   footerNote: {
-    color: "#69758a",
+    color: "#5f6b7f",
     fontSize: "11px",
     lineHeight: "18px",
     margin: "0",
