@@ -129,11 +129,7 @@ export async function buildInvitationMessage(
     timeZone: "America/Recife",
   }).format(input.expiresAt)
   const rendered = await renderAuthEmail(
-    <InvitationEmailTemplate
-      actionUrl={actionUrl.toString()}
-      expiresAtLabel={expiresAt}
-      invitationRole={input.role}
-    />,
+    <InvitationEmailTemplate actionUrl={actionUrl.toString()} expiresAtLabel={expiresAt} />,
     invitationEmailSubject,
     actionUrl.toString(),
     [new URL(env.IDP_STUDIO_URL).origin],
