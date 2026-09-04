@@ -20,6 +20,7 @@ export type ClientNote = {
   createdAt: string
   id: string
   updatedAt: string
+  version?: number
 }
 
 export type ClientAppointment = {
@@ -53,6 +54,7 @@ export type ClientRecord = {
   servicePreferences: readonly string[]
   status: ClientStatus
   tags: readonly string[]
+  version?: number
 }
 
 export type ClientInput = Pick<
@@ -105,8 +107,14 @@ export interface ClientRepository {
   ): Promise<readonly DuplicateWarning[]>
   get(id: string, scenarioId: ClientScenarioId): Promise<ClientRecord>
   list(query: ClientListQuery): Promise<ClientPage>
-  removeNote(clientId: string, noteId: string): Promise<ClientRecord>
-  setArchived(id: string, archived: boolean): Promise<ClientRecord>
-  update(id: string, input: ClientInput): Promise<ClientRecord>
-  updateNote(clientId: string, noteId: string, input: NoteInput): Promise<ClientRecord>
+  listTags(scenarioId: ClientScenarioId): Promise<readonly string[]>
+  removeNote(clientId: string, noteId: string, version: number): Promise<ClientRecord>
+  setArchived(id: string, archived: boolean, version: number): Promise<ClientRecord>
+  update(id: string, input: ClientInput, version: number): Promise<ClientRecord>
+  updateNote(
+    clientId: string,
+    noteId: string,
+    input: NoteInput,
+    version: number,
+  ): Promise<ClientRecord>
 }

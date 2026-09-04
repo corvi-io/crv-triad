@@ -6,6 +6,7 @@ source:
     api: /api
     site: /site
     studio: /studio
+    backstage: /backstage
     infrastructure: /infrastructure
 apps:
   api:
@@ -60,3 +61,13 @@ apps:
       - { source: STUDIO__VITE_SCHEDULING_SOURCE, runtime: VITE_SCHEDULING_SOURCE, github: variable, required: false }
       - { source: STUDIO__VITE_BARBERSHOP_SETUP_SOURCE, runtime: VITE_BARBERSHOP_SETUP_SOURCE, github: variable, required: false }
       - { source: STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE, runtime: VITE_CLIENT_MANAGEMENT_SOURCE, github: variable, required: false }
+  backstage:
+    owner: apps/backstage
+    runtime: cloudflare-pages-static
+    targets:
+      dev: { github_environment: dev, cloudflare_pages_branch: dev }
+      hml: { github_environment: hml, cloudflare_pages_branch: hml }
+      prd: { github_environment: prd, cloudflare_pages_branch: main }
+    env:
+      - { source: BACKSTAGE__VITE_AUTH_BASE_URL, runtime: VITE_AUTH_BASE_URL, github: variable, required: true }
+      - { source: BACKSTAGE__VITE_DEPLOY_TARGET, runtime: VITE_DEPLOY_TARGET, github: variable, required: false }

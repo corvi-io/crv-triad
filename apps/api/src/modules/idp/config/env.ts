@@ -69,7 +69,7 @@ const envSchema = z
       )
       .pipe(z.array(configuredHttpOrigin)),
     AUTH_SESSION_EXPIRES_IN_SECONDS: z.coerce.number().int().positive().default(2_592_000),
-    AUTH_PASSWORD_MIN_LENGTH: z.coerce.number().int().min(15).default(15),
+    AUTH_PASSWORD_MIN_LENGTH: z.coerce.number().int().min(8).default(8),
     AUTH_PASSWORD_MAX_LENGTH: z.coerce.number().int().min(256).default(256),
     AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS: z.coerce.number().int().positive().default(3_600),
     AUTH_GOOGLE_CLIENT_ID: requiredProviderValue,

@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Link } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
@@ -29,12 +29,12 @@ type ScreenState = InvitationResolution["state"] | "network_error" | "validating
 export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
   const [invitationToken] = useState(token)
   const [resolution, setResolution] = useState<InvitationResolution | null>(null)
+  const navigate = useNavigate()
   const [screenState, setScreenState] = useState<ScreenState>(
     invitationToken ? "validating" : "invalid",
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [succeeded, setSucceeded] = useState(false)
   const {
     formState: { errors },
     handleSubmit,
@@ -94,7 +94,7 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
         }
         return
       }
-      setSucceeded(true)
+      await navigate({ replace: true, to: "/overview" })
     } catch {
       setSubmitError("Não foi possível criar sua senha agora. Tente novamente.")
     } finally {
@@ -107,18 +107,7 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
       title="Criar senha de acesso"
       description="Conclua seu convite para acessar o TRIAD Studio."
     >
-      {succeeded ? (
-        <div className="space-y-5">
-          <AuthFeedback tone="success">
-            Sua senha foi criada. Entre normalmente para iniciar uma sessão.
-          </AuthFeedback>
-          <Link className={buttonVariants({ className: "w-full", size: "lg" })} to="/login">
-            Ir para entrar
-          </Link>
-        </div>
-      ) : null}
-
-      {!succeeded && screenState === "validating" ? (
+      {screenState === "validating" ? (
         <div
           className="flex items-center justify-center gap-3 text-sm text-muted-foreground"
           role="status"
@@ -128,7 +117,7 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
         </div>
       ) : null}
 
-      {!succeeded && screenState === "network_error" ? (
+      {screenState === "network_error" ? (
         <div className="space-y-4">
           <AuthFeedback tone="error">
             Não foi possível validar o convite. Confira sua conexão e tente novamente.
@@ -139,7 +128,7 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
         </div>
       ) : null}
 
-      {!succeeded && isTerminalState(screenState) ? (
+      {isTerminalState(screenState) ? (
         <div className="space-y-5">
           <AuthFeedback tone="error">{terminalStateCopy[screenState]}</AuthFeedback>
           <Link className={buttonVariants({ className: "w-full", variant: "outline" })} to="/login">
@@ -148,7 +137,7 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
         </div>
       ) : null}
 
-      {!succeeded && screenState === "valid" ? (
+      {screenState === "valid" ? (
         <form className="space-y-5" noValidate onSubmit={handleSubmit(handleAccept)}>
           <AuthFeedback tone="info">
             Convite válido para o perfil de{" "}

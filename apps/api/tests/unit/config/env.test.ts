@@ -12,7 +12,7 @@ const validEnv = {
   BETTER_AUTH_URL: "http://127.0.0.1:8000",
   AUTH_TRUSTED_ORIGINS: "http://localhost:3000, http://localhost:3001",
   AUTH_SESSION_EXPIRES_IN_SECONDS: "60",
-  AUTH_PASSWORD_MIN_LENGTH: "15",
+  AUTH_PASSWORD_MIN_LENGTH: "8",
   AUTH_PASSWORD_MAX_LENGTH: "256",
   AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS: "3600",
   AUTH_GOOGLE_CLIENT_ID: "test-google-client-id",
@@ -28,7 +28,7 @@ describe("parseEnv", () => {
 
     expect(env.API_PORT).toBe(8000)
     expect(env.AUTH_SESSION_EXPIRES_IN_SECONDS).toBe(60)
-    expect(env.AUTH_PASSWORD_MIN_LENGTH).toBe(15)
+    expect(env.AUTH_PASSWORD_MIN_LENGTH).toBe(8)
     expect(env.AUTH_TRUSTED_ORIGINS).toEqual(["http://localhost:3000", "http://localhost:3001"])
     expect(env.IDP_RESEND_API_URL).toBe("https://api.resend.com")
     expect(env.IDP_STUDIO_URL).toBe("http://localhost:3000")

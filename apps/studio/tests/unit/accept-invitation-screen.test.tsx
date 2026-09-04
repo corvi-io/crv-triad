@@ -44,27 +44,38 @@ describe("invitation acceptance", () => {
     expect(password).toHaveAttribute("autocomplete", "new-password")
     expect(password).toHaveAttribute("aria-describedby", expect.stringContaining("guidance"))
     expect(screen.getByRole("list", { name: "Requisitos da nova senha" })).toHaveTextContent(
-      "Ter pelo menos 15 caracteres",
+      "Ter pelo menos 8 caracteres",
+    )
+    expect(screen.getByRole("list", { name: "Requisitos da nova senha" })).toHaveTextContent(
+      "Ter uma letra maiúscula",
+    )
+    expect(screen.getByRole("list", { name: "Requisitos da nova senha" })).toHaveTextContent(
+      "Ter uma letra minúscula",
+    )
+    expect(screen.getByRole("list", { name: "Requisitos da nova senha" })).toHaveTextContent(
+      "Ter um número",
+    )
+    expect(screen.getByRole("list", { name: "Requisitos da nova senha" })).toHaveTextContent(
+      "Ter um caractere especial",
     )
   })
 
-  it("prevents duplicate submission and returns to login without creating a session", async () => {
+  it("prevents duplicate submission and redirects to the authenticated overview", async () => {
     let finish: (value: object) => void = () => undefined
     acceptInvitation.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
     const user = userEvent.setup()
-    renderAcceptance()
+    const router = renderAcceptance()
 
     await user.click(await screen.findByLabelText("Nova senha"))
-    await user.paste("uma frase longa e exclusiva")
+    await user.paste("Senha válida 1!")
     await user.click(screen.getByLabelText("Confirmar nova senha"))
-    await user.paste("uma frase longa e exclusiva")
+    await user.paste("Senha válida 1!")
     const submit = screen.getByRole("button", { name: "Criar senha" })
     await user.dblClick(submit)
 
     expect(acceptInvitation).toHaveBeenCalledTimes(1)
     finish({ status: true })
-    expect(await screen.findByText(/Entre normalmente para iniciar uma sessão/)).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Ir para entrar" })).toHaveAttribute("href", "/login")
+    await waitFor(() => expect(router.state.location.pathname).toBe("/overview"))
   })
 
   it.each([
@@ -86,8 +97,8 @@ describe("invitation acceptance", () => {
     const user = userEvent.setup()
     renderAcceptance()
     const password = await screen.findByLabelText("Nova senha")
-    await user.type(password, "uma frase longa e exclusiva")
-    await user.type(screen.getByLabelText("Confirmar nova senha"), "uma frase longa e exclusiva")
+    await user.type(password, "Senha válida 1!")
+    await user.type(screen.getByLabelText("Confirmar nova senha"), "Senha válida 1!")
     await user.click(screen.getByRole("button", { name: "Criar senha" }))
 
     expect(

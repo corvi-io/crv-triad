@@ -681,6 +681,11 @@
 }
 
 @layer base {
+  button[data-tsd-control]:has([data-triad-devtools-internal-trigger]) {
+    opacity: 0;
+    pointer-events: none;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }

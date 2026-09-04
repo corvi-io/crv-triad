@@ -10,8 +10,8 @@ provider credentials, account-linking decisions, or persistence.
   notice/resend, verified-email confirmation, and safe provider callback errors.
 - `/accept-invitation` reads only an opaque query proof, removes it from browser history, resolves
   the lifecycle through the IDP, and offers password creation only for a valid result. It renders
-  explicit validating, invalid, expired, revoked, used, superseded, network, submitting, and success
-  states. Success returns to login without a session.
+  explicit validating, invalid, expired, revoked, used, superseded, network, and submitting states.
+  Success creates a session and replaces the route with the authenticated `/overview` screen.
 - `/forgot-password` validates an email and always uses enumeration-safe result copy. Its native
   `requestPasswordReset` call sets `redirectTo` to the fixed browser-origin
   `/reset-password` route.

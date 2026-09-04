@@ -2,7 +2,7 @@
 set -euo pipefail
 
 target="${1:?target environment is required}"
-app="${2:?app is required: api, site, or studio}"
+app="${2:?app is required: api, site, studio, or backstage}"
 
 case "$target" in
   dev)
@@ -11,6 +11,7 @@ case "$target" in
     pages_branch="dev"
     site_health_url="${PUBLIC_SITE_URL:-}"
     studio_health_url="${INFRA__STUDIO_URL:-}"
+    backstage_health_url="${INFRA__BACKSTAGE_URL:-}"
     ;;
   hml)
     api_config="apps/api/fly.hml.toml"
@@ -18,6 +19,7 @@ case "$target" in
     pages_branch="hml"
     site_health_url="${PUBLIC_SITE_URL:-}"
     studio_health_url="${INFRA__STUDIO_URL:-}"
+    backstage_health_url="${INFRA__BACKSTAGE_URL:-}"
     ;;
   prd)
     api_config="apps/api/fly.prd.toml"
@@ -25,6 +27,7 @@ case "$target" in
     pages_branch="main"
     site_health_url="${PUBLIC_SITE_URL:-}"
     studio_health_url="${INFRA__STUDIO_URL:-}"
+    backstage_health_url="${INFRA__BACKSTAGE_URL:-}"
     ;;
   *)
     echo "Unknown deploy target: $target"
@@ -144,6 +147,31 @@ if [[ "$app" == "studio" ]]; then
     --commit-dirty=true
 
   wait_for_health "$studio_health_url"
+  exit 0
+fi
+
+if [[ "$app" == "backstage" ]]; then
+  bun .github/scripts/env-management.ts validate --app backstage --target "$target"
+
+  if should_skip_dev_cloudflare_pages_deploy "${INFRA__CLOUDFLARE_BACKSTAGE_PROJECT_NAME:-}"; then
+    echo "Cloudflare Pages deploy is not fully configured for dev. Skipping backstage deploy."
+    exit 0
+  fi
+
+  if [[ -z "${INFRA__CLOUDFLARE_API_TOKEN:-}" || -z "${INFRA__CLOUDFLARE_ACCOUNT_ID:-}" || -z "${INFRA__CLOUDFLARE_BACKSTAGE_PROJECT_NAME:-}" ]]; then
+    echo "Cloudflare credentials and INFRA__CLOUDFLARE_BACKSTAGE_PROJECT_NAME are required to deploy backstage."
+    exit 1
+  fi
+
+  bun --filter backstage build
+  CLOUDFLARE_API_TOKEN="$INFRA__CLOUDFLARE_API_TOKEN" \
+    CLOUDFLARE_ACCOUNT_ID="$INFRA__CLOUDFLARE_ACCOUNT_ID" \
+    bunx wrangler pages deploy apps/backstage/dist \
+    --project-name "$INFRA__CLOUDFLARE_BACKSTAGE_PROJECT_NAME" \
+    --branch "$pages_branch" \
+    --commit-dirty=true
+
+  wait_for_health "$backstage_health_url"
   exit 0
 fi
 

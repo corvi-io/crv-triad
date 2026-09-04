@@ -101,13 +101,13 @@ describe("security and access preferences", () => {
     expect(screen.getByRole("button", { name: "Desconectar Google" })).toBeEnabled()
 
     await user.type(screen.getByLabelText("Senha atual"), "old-password-123")
-    await user.type(screen.getByLabelText("Nova senha"), "new-password-123")
-    await user.type(screen.getByLabelText("Confirmar nova senha"), "new-password-123")
+    await user.type(screen.getByLabelText("Nova senha"), "New-password-123!")
+    await user.type(screen.getByLabelText("Confirmar nova senha"), "New-password-123!")
     await user.click(screen.getByRole("button", { name: "Alterar senha" }))
 
     expect(authMocks.changePassword).toHaveBeenCalledWith({
       currentPassword: "old-password-123",
-      newPassword: "new-password-123",
+      newPassword: "New-password-123!",
     })
     expect(await screen.findByText(/As outras sessões foram encerradas/)).toBeInTheDocument()
   })
@@ -121,8 +121,8 @@ describe("security and access preferences", () => {
 
     await user.type(await screen.findByLabelText("Senha atual"), "old-password-123")
     const newPasswordInput = screen.getByLabelText("Nova senha")
-    await user.type(newPasswordInput, "new-password-123")
-    await user.type(screen.getByLabelText("Confirmar nova senha"), "new-password-123")
+    await user.type(newPasswordInput, "New-password-123!")
+    await user.type(screen.getByLabelText("Confirmar nova senha"), "New-password-123!")
     await user.click(screen.getByRole("button", { name: "Alterar senha" }))
 
     expect(await screen.findByText("Escolha uma senha menos comum ou previsível.")).toBeVisible()

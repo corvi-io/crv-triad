@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import path from "node:path"
 import tailwindcss from "@tailwindcss/vite"
+import { devtools } from "@tanstack/devtools-vite"
 import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import react from "@vitejs/plugin-react"
 import { loadEnv } from "vite"
@@ -34,15 +35,17 @@ export default defineConfig(({ command, mode }) => {
   const barbershopSetupSourceEntry = barbershopSetupSourceEnabled
     ? "./src/dev/barbershop-setup/entry.ts"
     : "./src/modules/shared/config/barbershop-setup-source-disabled.ts"
-  const clientManagementSourceEnabled = isMemorySourceEnabled(
+  const clientManagementMemoryEnabled = isMemorySourceEnabled(
     publicEnv.VITE_CLIENT_MANAGEMENT_SOURCE,
     publicEnv.VITE_DEPLOY_TARGET,
   )
-  const clientManagementSourceEntry = clientManagementSourceEnabled
+  const clientManagementSourceEntry = clientManagementMemoryEnabled
     ? "./src/dev/clients/entry.ts"
-    : "./src/modules/shared/config/client-management-source-disabled.ts"
+    : publicEnv.VITE_CLIENT_MANAGEMENT_SOURCE === "http"
+      ? "./src/modules/clients/http-entry.ts"
+      : "./src/modules/shared/config/client-management-source-disabled.ts"
   const reportingSourceEntry =
-    schedulingPrototypeEnabled && clientManagementSourceEnabled
+    schedulingPrototypeEnabled && clientManagementMemoryEnabled
       ? "./src/dev/reporting/entry.ts"
       : "./src/modules/shared/config/reporting-source-disabled.ts"
   const operationalNotificationsSourceEntry = schedulingPrototypeEnabled
@@ -51,6 +54,7 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     plugins: [
+      ...devtools({ removeDevtoolsOnBuild: true }),
       tanstackRouter({
         target: "react",
         autoCodeSplitting: true,

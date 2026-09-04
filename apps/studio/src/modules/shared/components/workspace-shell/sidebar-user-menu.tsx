@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router"
 import { ChevronsUpDownIcon, LogOutIcon, Settings2Icon, UserRoundIcon } from "lucide-react"
+import type { ReactNode } from "react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/modules/shared/components/ui/avatar"
 import {
@@ -18,7 +19,12 @@ import {
   useSidebar,
 } from "@/modules/shared/components/ui/sidebar"
 
-export function SidebarUserMenu({ user, isSigningOut, onSignOut }: SidebarUserMenuProps) {
+export function SidebarUserMenu({
+  user,
+  isSigningOut,
+  onSignOut,
+  workspaceSwitcher,
+}: SidebarUserMenuProps) {
   const { isMobile } = useSidebar()
 
   return (
@@ -69,18 +75,24 @@ export function SidebarUserMenu({ user, isSigningOut, onSignOut }: SidebarUserMe
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link to="/profile" />}>
-              <UserRoundIcon className="size-4" aria-hidden="true" />
-              Meu perfil
-            </DropdownMenuItem>
-            <DropdownMenuItem render={<Link to="/preferences" />}>
-              <Settings2Icon className="size-4" aria-hidden="true" />
-              Preferências
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled={isSigningOut || !onSignOut} onClick={onSignOut}>
-              <LogOutIcon className="size-4" aria-hidden="true" />
-              Sair
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuItem render={<Link to="/profile" />}>
+                <UserRoundIcon className="size-4" aria-hidden="true" />
+                Meu perfil
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<Link to="/preferences" />}>
+                <Settings2Icon className="size-4" aria-hidden="true" />
+                Preferências
+              </DropdownMenuItem>
+              {workspaceSwitcher}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem disabled={isSigningOut || !onSignOut} onClick={onSignOut}>
+                <LogOutIcon className="size-4" aria-hidden="true" />
+                Sair
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
@@ -91,6 +103,7 @@ export function SidebarUserMenu({ user, isSigningOut, onSignOut }: SidebarUserMe
 type SidebarUserMenuProps = {
   isSigningOut?: boolean
   onSignOut?: () => void
+  workspaceSwitcher?: ReactNode
   user: {
     email: string
     image?: string | null

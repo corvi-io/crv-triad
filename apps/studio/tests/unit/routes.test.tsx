@@ -6,6 +6,7 @@ import { type ReactNode, useEffect } from "react"
 import { describe, expect, it, vi } from "vitest"
 
 import { type AuthState, AuthStateProvider } from "@/modules/auth/services/auth-provider"
+import { clientSearchDefaults } from "@/modules/clients/search"
 import { ThemeProvider } from "@/modules/shared/theme/theme-provider"
 import { routeTree } from "@/routeTree.gen"
 
@@ -175,5 +176,24 @@ describe("routes", () => {
       expect(router.state.location.search.from).not.toBe("2025-01-01")
       expect(router.state.location.search.to).not.toBe("2026-12-31")
     })
+  })
+
+  it("omits default client search state and preserves shareable drawer intent", async () => {
+    const { router } = renderRoute("/workspace-preview", authenticatedState())
+
+    await router.navigate({ search: clientSearchDefaults, to: "/clients" })
+    expect(router.state.location.href).toBe("/clients")
+
+    await router.navigate({
+      search: { ...clientSearchDefaults, client: "client_01" },
+      to: "/clients",
+    })
+    expect(router.state.location.href).toBe("/clients?client=client_01")
+
+    await router.navigate({
+      search: { ...clientSearchDefaults, client: "client_01", mode: "edit" },
+      to: "/clients",
+    })
+    expect(router.state.location.href).toBe("/clients?client=client_01&mode=edit")
   })
 })

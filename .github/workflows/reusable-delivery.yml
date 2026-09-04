@@ -17,6 +17,9 @@ on:
       studio-deployed:
         description: Whether Studio was deployed.
         value: ${{ jobs.studio.outputs.deployed }}
+      backstage-deployed:
+        description: Whether Backstage was deployed.
+        value: ${{ jobs.backstage.outputs.deployed }}
 permissions:
   contents: read
 jobs:
@@ -27,6 +30,7 @@ jobs:
       api: ${{ steps.affected.outputs.api }}
       site: ${{ steps.affected.outputs.site }}
       studio: ${{ steps.affected.outputs.studio }}
+      backstage: ${{ steps.affected.outputs.backstage }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -75,3 +79,11 @@ jobs:
     permissions: { contents: read, id-token: write }
     uses: ./.github/workflows/reusable-app-delivery.yml
     with: { app: studio, deploy: "${{ inputs.deploy }}", environment: "${{ inputs.environment }}", target: "${{ inputs.target }}" }
+  backstage:
+    name: Backstage delivery
+    needs: [detect, security]
+    if: ${{ needs.detect.outputs.backstage == 'true' }}
+    permissions: { contents: read, id-token: write }
+    uses: ./.github/workflows/reusable-app-delivery.yml
+    # Backstage quality remains required, but deployment stays disabled until its hosting is provisioned.
+    with: { app: backstage, deploy: false, environment: "${{ inputs.environment }}", target: "${{ inputs.target }}" }

@@ -21,12 +21,16 @@ export function WorkspaceShellSidebar({
   isSigningOut,
   onSignOut,
   pathname,
+  workspaceSwitcher,
+  hiddenPrimaryPaths = [],
   user,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   isSigningOut?: boolean
   onSignOut?: () => void
   pathname: string
+  workspaceSwitcher?: React.ReactNode
+  hiddenPrimaryPaths?: readonly string[]
   user: {
     email: string
     image?: string | null
@@ -34,6 +38,10 @@ export function WorkspaceShellSidebar({
     name: string
   }
 }) {
+  const primaryItems = workspacePrimaryNavigation.filter(
+    (item) => !hiddenPrimaryPaths.includes(item.path),
+  )
+
   return (
     <Sidebar aria-label="Navegação do TRIAD Studio" collapsible="icon" variant="sidebar" {...props}>
       <SidebarHeader className="h-20 p-2">
@@ -41,14 +49,19 @@ export function WorkspaceShellSidebar({
       </SidebarHeader>
       <SidebarContent>
         <nav aria-label="Navegação principal" className="flex min-h-0 flex-1 flex-col">
-          <SidebarPrimaryNavigation items={workspacePrimaryNavigation} pathname={pathname} />
+          <SidebarPrimaryNavigation items={primaryItems} pathname={pathname} />
         </nav>
       </SidebarContent>
       <SidebarFooter className="gap-2 p-0">
         <nav aria-label="Navegação secundária">
           <SidebarSecondaryNavigation items={workspaceSecondaryNavigation} pathname={pathname} />
         </nav>
-        <SidebarUserMenu user={user} isSigningOut={isSigningOut} onSignOut={onSignOut} />
+        <SidebarUserMenu
+          user={user}
+          isSigningOut={isSigningOut}
+          onSignOut={onSignOut}
+          workspaceSwitcher={workspaceSwitcher}
+        />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

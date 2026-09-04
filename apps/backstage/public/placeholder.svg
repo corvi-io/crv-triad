@@ -1,0 +1,10 @@
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Imagem placeholder</title>
+  <desc id="desc">Área reservada para imagem do produto.</desc>
+  <rect width="1200" height="1200" fill="#2F2F2F"/>
+  <path d="M0 600H1200M600 0V1200M0 0L1200 1200M1200 0L0 1200" stroke="#292929" stroke-width="2"/>
+  <circle cx="600" cy="600" r="96" stroke="#242424" stroke-width="2"/>
+  <rect x="562" y="562" width="76" height="76" rx="10" stroke="#1F1F1F" stroke-width="8"/>
+  <path d="M574 622L592 604L608 620L620 608L634 622" stroke="#1F1F1F" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="622" cy="580" r="8" fill="#1F1F1F"/>
+</svg>

@@ -2,6 +2,7 @@ import {
   ArchiveIcon,
   ContactIcon,
   CopyCheckIcon,
+  Edit3Icon,
   EyeIcon,
   PlusIcon,
   RotateCcwIcon,
@@ -33,11 +34,13 @@ import { PageHeader } from "@/modules/shared/components/layout/page-header"
 import { ActionDrawer } from "@/modules/shared/components/overlays/action-drawer"
 import { ConfirmationDialog } from "@/modules/shared/components/overlays/confirmation-dialog"
 import { Button } from "@/modules/shared/components/ui/button"
+import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import { applyInputMask } from "@/modules/shared/lib/input-masks"
+import { ClientEditDrawer } from "./client-edit-drawer"
 import { ClientForm } from "./client-form"
 import { ClientProfileDrawer } from "./client-profile-drawer"
 import type { ClientInput, ClientRecord } from "./contracts"
-import { useClients, useCreateClient, useSetClientArchived } from "./queries"
+import { useClients, useClientTags, useCreateClient, useSetClientArchived } from "./queries"
 import type { ClientSearch } from "./search"
 
 export function ClientDirectoryPage({
@@ -49,7 +52,6 @@ export function ClientDirectoryPage({
 }) {
   const [searchText, setSearchText] = useState("")
   const deferredSearch = useDeferredValue(searchText)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [confirmingArchive, setConfirmingArchive] = useState<ClientRecord | null>(null)
   const [rowMenu, setRowMenu] = useState<{
@@ -62,6 +64,7 @@ export function ClientDirectoryPage({
     search: deferredSearch,
     sort: { direction: search.sortDirection, field: search.sortField },
   })
+  const tagsQuery = useClientTags(search.scenario)
   const createClient = useCreateClient()
   const archiveClient = useSetClientArchived()
 
@@ -78,7 +81,7 @@ export function ClientDirectoryPage({
       const created = (await createClient.mutateAsync(input)) as ClientRecord
       toast.success("Cliente criado.")
       setCreating(false)
-      setSelectedId(created.id)
+      openClient(created)
     } catch {
       toast.error("Não foi possível criar o cliente. Tente novamente.")
     }
@@ -86,7 +89,11 @@ export function ClientDirectoryPage({
 
   async function toggleArchived(client: ClientRecord) {
     try {
-      await archiveClient.mutateAsync({ archived: client.status === "active", id: client.id })
+      await archiveClient.mutateAsync({
+        archived: client.status === "active",
+        id: client.id,
+        version: client.version ?? 1,
+      })
       toast.success(client.status === "active" ? "Cliente arquivado." : "Cliente restaurado.")
       setConfirmingArchive(null)
     } catch {
@@ -101,6 +108,19 @@ export function ClientDirectoryPage({
     Boolean(search.tag) ||
     searchText
   const page = query.data
+  const selectedId = search.client && search.mode !== "edit" ? search.client : null
+  const editingId = search.client && search.mode === "edit" ? search.client : null
+
+  function openClient(client: ClientRecord | string, mode: "edit" | "view" = "view") {
+    onSearchChange({
+      client: typeof client === "string" ? client : client.id,
+      mode: mode === "edit" ? "edit" : undefined,
+    })
+  }
+
+  function closeClient() {
+    onSearchChange({ client: undefined, mode: undefined })
+  }
 
   return (
     <>
@@ -174,9 +194,10 @@ export function ClientDirectoryPage({
                 }
                 options={[
                   { label: "Todas as tags", value: "all" },
-                  { label: "Frequente", value: "frequente" },
-                  { label: "Manhã", value: "manha" },
-                  { label: "Barba", value: "barba" },
+                  ...(tagsQuery.data ?? []).map((tag) => ({
+                    label: formatTagLabel(tag),
+                    value: tag,
+                  })),
                 ]}
               />
             </fieldset>
@@ -185,11 +206,7 @@ export function ClientDirectoryPage({
         bodyClassName="min-h-0"
         bodyViewportClassName="flex min-h-full flex-col"
       >
-        {query.isLoading ? (
-          <div role="status" className="rounded-lg border p-6">
-            Carregando clientes…
-          </div>
-        ) : null}
+        {query.isLoading ? <ClientDirectorySkeleton /> : null}
         {query.isError ? (
           <div role="alert" className="space-y-3 rounded-lg border border-destructive/40 p-6">
             <p>Não foi possível carregar os clientes.</p>
@@ -272,7 +289,7 @@ export function ClientDirectoryPage({
                 <ClientRow
                   client={client}
                   key={client.id}
-                  onOpen={() => setSelectedId(client.id)}
+                  onOpen={() => openClient(client)}
                   onContext={(x, y) =>
                     setRowMenu({ anchor: createDataTablePointAnchor(x, y), client })
                   }
@@ -292,7 +309,12 @@ export function ClientDirectoryPage({
                 {
                   icon: EyeIcon,
                   label: "Visualizar",
-                  onSelect: () => setSelectedId(rowMenu.client.id),
+                  onSelect: () => openClient(rowMenu.client),
+                },
+                {
+                  icon: Edit3Icon,
+                  label: "Editar",
+                  onSelect: () => openClient(rowMenu.client, "edit"),
                 },
                 {
                   icon: rowMenu.client.status === "active" ? ArchiveIcon : RotateCcwIcon,
@@ -307,8 +329,14 @@ export function ClientDirectoryPage({
       <ClientProfileDrawer
         clientId={selectedId}
         scenarioId={search.scenario}
-        onOpenChange={(open) => !open && setSelectedId(null)}
-        onInspectClient={setSelectedId}
+        onOpenChange={(open) => !open && closeClient()}
+        onEditClient={(id) => openClient(id, "edit")}
+        onInspectClient={(id) => openClient(id)}
+      />
+      <ClientEditDrawer
+        clientId={editingId}
+        scenarioId={search.scenario}
+        onOpenChange={(open) => !open && closeClient()}
       />
       <ActionDrawer
         isOpen={creating}
@@ -357,6 +385,34 @@ export function ClientDirectoryPage({
         />
       ) : null}
     </>
+  )
+}
+
+function ClientDirectorySkeleton() {
+  const columns = ["client", "contact", "tags", "last", "next", "created", "status"] as const
+  const rows = ["one", "two", "three", "four", "five", "six"] as const
+  return (
+    <div
+      aria-label="Carregando clientes"
+      className="flex min-h-[22rem] flex-1 flex-col"
+      role="status"
+    >
+      <div className="grid grid-cols-7 gap-4 border-b px-4 py-3">
+        {columns.map((column) => (
+          <Skeleton className="h-4 w-full max-w-28" key={column} />
+        ))}
+      </div>
+      {rows.map((row) => (
+        <div className="grid grid-cols-7 gap-4 border-b px-4 py-4" key={row}>
+          {columns.map((column) => (
+            <Skeleton
+              className={column === "client" ? "h-5 w-32" : "h-4 w-full max-w-24"}
+              key={column}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -416,4 +472,8 @@ function ClientRow({
 
 function formatDate(value: string | null) {
   return value ? new Intl.DateTimeFormat("pt-BR").format(new Date(value)) : "-"
+}
+
+function formatTagLabel(value: string) {
+  return value ? `${value[0]?.toLocaleUpperCase("pt-BR")}${value.slice(1)}` : value
 }
