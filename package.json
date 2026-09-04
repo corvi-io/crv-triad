@@ -5,7 +5,7 @@
   "overrides": {
     "js-yaml": "4.3.1",
     "svgo": "4.0.2",
-    "fast-uri": "3.1.5",
+    "fast-uri": "3.1.6",
     "@hono/node-server": "2.0.10",
     "brace-expansion": "5.0.9",
     "ip-address": "10.3.1",
@@ -39,5 +39,8 @@
     "@commitlint/config-conventional": "^21.0.1",
     "lefthook": "^2.1.6",
     "turbo": "^2.9.14"
+  },
+  "dependencies": {
+    "fast-uri": "3.1.6"
   }
 }
