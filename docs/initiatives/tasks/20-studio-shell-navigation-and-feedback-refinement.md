@@ -4,8 +4,8 @@
 
 - PRD: `docs/initiatives/prds/20-studio-shell-navigation-and-feedback-refinement.md`
 - Related issue/PR:
-- Approval state: Awaiting approval
-- Approved PRD version/date: Previous scope approved 2026-09-04; revised version awaiting approval
+- Approval state: Approved
+- Approved PRD version/date: Revised scope approved 2026-09-04
 
 ## Implementation Principles
 

@@ -3,11 +3,11 @@
 ## Status
 
 - Planning state: Ready
-- Approval state: Awaiting approval
+- Approval state: Approved
 - Delivery state: Not started
 - Owner: CRV Triad
 - Last updated: 2026-09-04
-- Approved by/date:
+- Approved by/date: User / 2026-09-04
 
 ## Summary
 
@@ -620,3 +620,4 @@ presentation-only.
 | 2026-09-04 | Approved | User | Approved without requested changes |
 | 2026-09-04 | Changes requested | User | Reopened to add a cross-product authentication visual and motion direction for Studio and Backstage |
 | 2026-09-04 | Awaiting approval |  | Revised with the TRIAD family direction and complete auth-journey scope |
+| 2026-09-04 | Approved | User | Revised cross-product authentication scope approved without further changes |
