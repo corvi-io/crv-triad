@@ -12,6 +12,7 @@ import {
   clientFormValuesToInput,
   createClientFormDefaults,
 } from "./client-schema"
+import { ClientTagInput } from "./client-tag-input"
 import type { ClientInput } from "./contracts"
 import { useClientRepository } from "./repository-context"
 
@@ -77,6 +78,7 @@ export function ClientForm({
           autoComplete="name"
           aria-invalid={Boolean(form.formState.errors.name)}
           aria-describedby={form.formState.errors.name ? `${fieldPrefix}-name-error` : undefined}
+          placeholder="Ex.: Gabriel Silva"
           {...form.register("name")}
         />
       </FormField>
@@ -105,6 +107,7 @@ export function ClientForm({
             <MaskedInput
               id={`${fieldPrefix}-phone`}
               mask="brPhone"
+              placeholder="(81) 99999-9999"
               value={field.value}
               onBlur={field.onBlur}
               onValueChange={field.onChange}
@@ -125,6 +128,7 @@ export function ClientForm({
           id={`${fieldPrefix}-email`}
           type="email"
           autoComplete="email"
+          placeholder="Ex.: gabriel@email.com"
           aria-invalid={Boolean(form.formState.errors.email)}
           aria-describedby={form.formState.errors.email ? `${fieldPrefix}-email-error` : undefined}
           {...form.register("email")}
@@ -135,11 +139,20 @@ export function ClientForm({
         id={`${fieldPrefix}-tags`}
         label="Tags"
       >
-        <Input
-          id={`${fieldPrefix}-tags`}
-          placeholder="frequente, manhã"
-          aria-invalid={Boolean(form.formState.errors.tagsText)}
-          {...form.register("tagsText")}
+        <Controller
+          control={form.control}
+          name="tagsText"
+          render={({ field }) => (
+            <ClientTagInput
+              id={`${fieldPrefix}-tags`}
+              value={field.value}
+              onValueChange={field.onChange}
+              aria-invalid={Boolean(form.formState.errors.tagsText)}
+              aria-describedby={
+                form.formState.errors.tagsText ? `${fieldPrefix}-tags-error` : undefined
+              }
+            />
+          )}
         />
       </FormField>
       <FormField
@@ -161,6 +174,7 @@ export function ClientForm({
       >
         <Textarea
           id={`${fieldPrefix}-preference-note`}
+          placeholder="Ex.: Confirmar o acabamento antes de finalizar"
           aria-invalid={Boolean(form.formState.errors.preferenceNote)}
           {...form.register("preferenceNote")}
         />

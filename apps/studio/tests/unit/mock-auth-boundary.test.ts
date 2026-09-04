@@ -7,16 +7,16 @@ describe("development mock boundary", () => {
     const packageJson = JSON.parse(
       await readFile(path.resolve(process.cwd(), "package.json"), "utf8"),
     ) as { scripts: Record<string, string> }
+    const exampleEnv = await readFile(path.resolve(process.cwd(), ".env.example"), "utf8")
 
     expect(packageJson.scripts["test:production-boundary"]).toMatch(
-      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=disabled /,
+      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=http /,
     )
     expect(packageJson.scripts["test:e2e:production"]).toMatch(
-      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=disabled /,
+      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=http /,
     )
-    expect(packageJson.scripts.dev).toContain(
-      "VITE_DEPLOY_TARGET=local VITE_SCHEDULING_SOURCE=memory VITE_BARBERSHOP_SETUP_SOURCE=memory VITE_CLIENT_MANAGEMENT_SOURCE=memory",
-    )
+    expect(packageJson.scripts.dev).toBe("vite --port 3000")
+    expect(exampleEnv).toContain("VITE_CLIENT_MANAGEMENT_SOURCE=http")
   })
 
   it("contains no auth interception or network mocking", async () => {

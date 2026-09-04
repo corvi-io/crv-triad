@@ -1,12 +1,13 @@
 import { type BetterAuthOptions, betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { APIError, createAuthMiddleware } from "better-auth/api"
-import { eq } from "drizzle-orm"
+import { organization } from "better-auth/plugins/organization"
+import { and, count, eq } from "drizzle-orm"
 
 import type { IdpEnv } from "../config/env.js"
 import type { IdpDatabase } from "../database/client.js"
 import * as schema from "../database/schema.js"
-import { user } from "../database/schema.js"
+import { member, user } from "../database/schema.js"
 import { createId } from "../infra/ids.js"
 import { decideIdentityAccess, normalizeEmail } from "./access-policy.js"
 import {
@@ -15,7 +16,11 @@ import {
   readInvitationToken,
   resolveInvitationProof,
 } from "./invitation-proof.js"
-import { acceptInvitationForUser, findPendingInvitationByEmail } from "./invitations.js"
+import {
+  acceptInvitationForUser,
+  acceptOrganizationInvitationsForUser,
+  findPendingInvitationByEmail,
+} from "./invitations.js"
 import { evaluatePassword } from "./password-policy.js"
 import {
   type AuthEmailSender,
@@ -49,6 +54,7 @@ export type AuthEmailDeliveryFailureObserver = (event: AuthEmailDeliveryFailureE
 
 const STANDARD_COOKIE_PREFIX = "triad-auth"
 const PARTITIONED_COOKIE_PREFIX = "triad-auth-partitioned"
+export const MAX_ACTIVE_ORGANIZATION_MEMBERSHIPS = 50
 
 const defaultAuthEmailDeliveryFailureObserver: AuthEmailDeliveryFailureObserver = (event) => {
   console.error(JSON.stringify(event))
@@ -114,7 +120,62 @@ export function createAuthOptions(
         invitation: schema.invitation,
       },
     }),
-    plugins: [invitationProofPlugin()],
+    plugins: [
+      organization({
+        allowUserToCreateOrganization: false,
+        disableOrganizationDeletion: true,
+        creatorRole: "owner",
+        dynamicAccessControl: { enabled: false },
+        schema: {
+          session: { fields: { activeOrganizationId: "active_organization_id" } },
+          organization: {
+            modelName: "organization",
+            additionalFields: {
+              status: {
+                type: ["active", "disabled"],
+                required: false,
+                defaultValue: "active",
+                input: false,
+              },
+            },
+          },
+          member: {
+            modelName: "member",
+            additionalFields: {
+              status: {
+                type: ["active", "disabled"],
+                required: false,
+                defaultValue: "active",
+                input: false,
+              },
+            },
+          },
+          invitation: { modelName: "organizationInvitation" },
+        },
+        organizationHooks: {
+          beforeAddMember: async ({ member: incomingMember }) => {
+            const [result] = await db
+              .select({ value: count() })
+              .from(member)
+              .where(and(eq(member.userId, incomingMember.userId), eq(member.status, "active")))
+
+            if ((result?.value ?? 0) >= MAX_ACTIVE_ORGANIZATION_MEMBERSHIPS) {
+              throw new APIError("BAD_REQUEST", {
+                code: "MEMBERSHIP_LIMIT_REACHED",
+                message: "Active organization membership limit reached.",
+              })
+            }
+          },
+          beforeCreateInvitation: async () => {
+            throw new APIError("FORBIDDEN", {
+              code: "ORGANIZATION_INVITATIONS_DISABLED",
+              message: "Organization invitations are disabled.",
+            })
+          },
+        },
+      }),
+      invitationProofPlugin(),
+    ],
     logger: { disabled: true },
     hooks: {
       before: createAuthMiddleware(async (context) => {
@@ -154,7 +215,7 @@ export function createAuthOptions(
     },
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
+      requireEmailVerification: false,
       minPasswordLength: env.AUTH_PASSWORD_MIN_LENGTH,
       maxPasswordLength: env.AUTH_PASSWORD_MAX_LENGTH * 2,
       resetPasswordTokenExpiresIn: env.AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS,
@@ -322,7 +383,13 @@ export function createAuthOptions(
 
             const token = readInvitationToken(context as never)
             const consumed = token
-              ? await consumeInvitationProof(context as never, token, candidate.userId)
+              ? await consumeInvitationProof(
+                  context as never,
+                  token,
+                  candidate.userId,
+                  new Date(),
+                  (email, userId) => acceptOrganizationInvitationsForUser(db, email, userId),
+                )
               : false
 
             if (!consumed) throwInvalidInvitationProof()
@@ -331,7 +398,12 @@ export function createAuthOptions(
       },
       session: {
         create: {
-          before: async (incomingSession) => {
+          before: async (incomingSession, context) => {
+            // Better Auth creates the sign-up session before the new user is visible
+            // to a separate database query. Invitation proof and the active/verified
+            // user fields are enforced by the sign-up hooks above.
+            if (context?.path === "/sign-up/email") return
+
             const [sessionUser] = await db
               .select()
               .from(user)

@@ -7,6 +7,7 @@ export const clientQueryKeys = {
   detail: (id: string, scenarioId: ClientScenarioId) =>
     [...clientQueryKeys.all, "detail", scenarioId, id] as const,
   list: (query: ClientListQuery) => [...clientQueryKeys.all, "list", query] as const,
+  tags: (scenarioId: ClientScenarioId) => [...clientQueryKeys.all, "tags", scenarioId] as const,
 }
 
 export function useClients(query: ClientListQuery) {
@@ -20,6 +21,14 @@ export function useClient(id: string | null, scenarioId: ClientScenarioId) {
     enabled: Boolean(id),
     queryKey: clientQueryKeys.detail(id ?? "", scenarioId),
     queryFn: () => repository.get(id ?? "", scenarioId),
+  })
+}
+
+export function useClientTags(scenarioId: ClientScenarioId) {
+  const repository = useClientRepository()
+  return useQuery({
+    queryKey: clientQueryKeys.tags(scenarioId),
+    queryFn: () => repository.listTags(scenarioId),
   })
 }
 

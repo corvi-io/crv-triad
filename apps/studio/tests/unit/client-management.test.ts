@@ -45,10 +45,12 @@ describe("client management contracts", () => {
       resolveClientScenario,
     )
     expect(result).toEqual({
+      client: undefined,
       contact: "all",
       duplicate: "possible",
+      mode: undefined,
       page: 1,
-      pageSize: 10,
+      pageSize: 20,
       scenario: "typical",
       sortDirection: "asc",
       sortField: "name",
@@ -74,6 +76,22 @@ describe("client management contracts", () => {
       name: "Cliente Sintético Novo",
     })
     expect(clientFormValuesToInput(valid).email).toBe("cliente@example.invalid")
+  })
+
+  it("accepts a real localized tag as URL-backed filter state", () => {
+    expect(validateClientSearch({ tag: "Manhã VIP" }, resolveClientScenario).tag).toBe("Manhã VIP")
+  })
+
+  it("restores a shareable client drawer and only serializes edit as a mode", () => {
+    expect(
+      validateClientSearch({ client: "client_01", mode: "edit" }, resolveClientScenario),
+    ).toMatchObject({ client: "client_01", mode: "edit" })
+    expect(
+      validateClientSearch({ client: "client_01", mode: "view" }, resolveClientScenario),
+    ).toMatchObject({ client: "client_01", mode: undefined })
+    expect(
+      validateClientSearch({ client: "../unsafe" }, resolveClientScenario).client,
+    ).toBeUndefined()
   })
 
   it.each([

@@ -1,4 +1,4 @@
-import { ArchiveIcon, Edit3Icon, RotateCcwIcon, SaveIcon, Trash2Icon } from "lucide-react"
+import { ArchiveIcon, Edit3Icon, RotateCcwIcon, Trash2Icon } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { StatusBadge } from "@/modules/shared/components/feedback/status-badge"
@@ -15,17 +15,16 @@ import {
   DrawerTabsRoot,
 } from "@/modules/shared/components/overlays/drawer-tabs"
 import { Button } from "@/modules/shared/components/ui/button"
+import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import { Textarea } from "@/modules/shared/components/ui/textarea"
 import { applyInputMask } from "@/modules/shared/lib/input-masks"
-import { ClientForm } from "./client-form"
 import { noteSchema } from "./client-schema"
-import type { ClientInput, ClientNote, ClientRecord, ClientScenarioId } from "./contracts"
+import type { ClientNote, ClientRecord, ClientScenarioId } from "./contracts"
 import {
   useAddClientNote,
   useClient,
   useRemoveClientNote,
   useSetClientArchived,
-  useUpdateClient,
   useUpdateClientNote,
 } from "./queries"
 import { useClientRepository } from "./repository-context"
@@ -38,34 +37,22 @@ const tabs = [
 
 export function ClientProfileDrawer({
   clientId,
+  onEditClient,
   onInspectClient,
   onOpenChange,
   scenarioId,
 }: {
   clientId: string | null
+  onEditClient: (id: string) => void
   onInspectClient: (id: string) => void
   onOpenChange: (open: boolean) => void
   scenarioId: ClientScenarioId
 }) {
   const query = useClient(clientId, scenarioId)
-  const updateClient = useUpdateClient()
   const archiveClient = useSetClientArchived()
-  const [mode, setMode] = useState<"view" | "edit">("view")
   const [tab, setTab] = useState("summary")
   const [confirmArchive, setConfirmArchive] = useState(false)
   const client = query.data
-  const formId = "client-profile-form"
-
-  async function save(input: ClientInput) {
-    if (!client) return
-    try {
-      await updateClient.mutateAsync({ id: client.id, input })
-      toast.success("Cliente atualizado.")
-      setMode("view")
-    } catch {
-      toast.error("Não foi possível atualizar. Tente novamente.")
-    }
-  }
 
   async function setArchived() {
     if (!client) return
@@ -85,64 +72,39 @@ export function ClientProfileDrawer({
     <>
       <ActionDrawer
         isOpen={Boolean(clientId)}
-        onOpenChange={(open) => {
-          if (!open) setMode("view")
-          onOpenChange(open)
-        }}
+        onOpenChange={onOpenChange}
         context="Clientes"
-        title={mode === "edit" ? "Editar cliente" : (client?.name ?? "Perfil do cliente")}
+        title={client?.name ?? "Perfil do cliente"}
         description="Perfil do cliente"
         size="lg"
         tabs={
-          mode === "view" ? (
-            <DrawerTabsRoot value={tab} onValueChange={(value) => setTab(String(value))}>
-              <DrawerTabsList items={tabs} label="Seções do perfil do cliente" />
-            </DrawerTabsRoot>
-          ) : undefined
+          <DrawerTabsRoot value={tab} onValueChange={(value) => setTab(String(value))}>
+            <DrawerTabsList items={tabs} label="Seções do perfil do cliente" />
+          </DrawerTabsRoot>
         }
         secondaryActions={
           client ? (
-            mode === "edit" ? (
-              <Button type="button" variant="outline" onClick={() => setMode("view")}>
-                Cancelar
+            <>
+              <Button type="button" variant="outline" onClick={() => onEditClient(client.id)}>
+                <Edit3Icon aria-hidden="true" /> Editar
               </Button>
-            ) : (
-              <>
-                <Button type="button" variant="outline" onClick={() => setMode("edit")}>
-                  <Edit3Icon aria-hidden="true" />
-                  Editar
-                </Button>
-                <Button
-                  type="button"
-                  variant={client.status === "active" ? "destructive" : "outline"}
-                  onClick={() => setConfirmArchive(true)}
-                >
-                  {client.status === "active" ? (
-                    <ArchiveIcon aria-hidden="true" />
-                  ) : (
-                    <RotateCcwIcon aria-hidden="true" />
-                  )}
-                  {client.status === "active" ? "Arquivar" : "Restaurar"}
-                </Button>
-              </>
-            )
-          ) : undefined
-        }
-        primaryAction={
-          mode === "edit" ? (
-            <Button
-              form={formId}
-              type="submit"
-              isLoading={updateClient.isPending}
-              className="hidden sm:inline-flex"
-            >
-              <SaveIcon aria-hidden="true" />
-              Salvar
-            </Button>
+              <Button
+                type="button"
+                variant={client.status === "active" ? "destructive" : "outline"}
+                onClick={() => setConfirmArchive(true)}
+              >
+                {client.status === "active" ? (
+                  <ArchiveIcon aria-hidden="true" />
+                ) : (
+                  <RotateCcwIcon aria-hidden="true" />
+                )}
+                {client.status === "active" ? "Arquivar" : "Restaurar"}
+              </Button>
+            </>
           ) : undefined
         }
       >
-        {query.isLoading ? <div role="status">Carregando perfil…</div> : null}
+        {query.isLoading ? <ClientProfileSkeleton /> : null}
         {query.isError ? (
           <div role="alert" className="space-y-3">
             <p>Não foi possível carregar o perfil.</p>
@@ -151,17 +113,7 @@ export function ClientProfileDrawer({
             </Button>
           </div>
         ) : null}
-        {client && mode === "edit" ? (
-          <ClientForm
-            client={client}
-            clientId={client.id}
-            formId={formId}
-            isSubmitting={updateClient.isPending}
-            onCancel={() => setMode("view")}
-            onSubmit={save}
-          />
-        ) : null}
-        {client && mode === "view" ? (
+        {client ? (
           <DrawerTabsRoot value={tab}>
             <DrawerTabsPanel value="summary">
               <ClientSummary client={client} onInspectClient={onInspectClient} />
@@ -192,6 +144,28 @@ export function ClientProfileDrawer({
         />
       ) : null}
     </>
+  )
+}
+
+function ClientProfileSkeleton() {
+  const sections = ["contact", "service"] as const
+  const items = ["primary", "secondary", "tertiary", "quaternary"] as const
+  return (
+    <div aria-label="Carregando perfil do cliente" className="space-y-6" role="status">
+      {sections.map((section) => (
+        <section className="space-y-3" key={section}>
+          <Skeleton className="h-5 w-36" />
+          <div className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
+            {items.map((item) => (
+              <div className="space-y-2" key={item}>
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-5 w-36" />
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
   )
 }
 
@@ -321,38 +295,52 @@ function Notes({ client }: { client: ClientRecord }) {
   const removeNote = useRemoveClientNote()
   const [body, setBody] = useState("")
   const [editing, setEditing] = useState<ClientNote | null>(null)
+  const [editingBody, setEditingBody] = useState("")
   const [removing, setRemoving] = useState<ClientNote | null>(null)
-  const [error, setError] = useState("")
+  const [newNoteError, setNewNoteError] = useState("")
+  const [editingError, setEditingError] = useState("")
 
-  async function save() {
+  async function add() {
     const parsed = noteSchema.safeParse({ body })
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Revise a nota.")
+      setNewNoteError(parsed.error.issues[0]?.message ?? "Revise a nota.")
       return
     }
     try {
-      if (editing) {
-        await updateNote.mutateAsync({
-          clientId: client.id,
-          noteId: editing.id,
-          input: parsed.data,
-        })
-      } else {
-        await addNote.mutateAsync({ clientId: client.id, input: parsed.data })
-      }
-      toast.success(editing ? "Nota atualizada." : "Nota adicionada.")
+      await addNote.mutateAsync({ clientId: client.id, input: parsed.data })
+      toast.success("Nota adicionada.")
       setBody("")
-      setEditing(null)
-      setError("")
+      setNewNoteError("")
     } catch {
       toast.error("Não foi possível salvar a nota. Tente novamente.")
     }
   }
 
-  async function remove() {
-    if (!removing) return
+  async function saveEdit() {
+    if (!editing) return
+    const parsed = noteSchema.safeParse({ body: editingBody })
+    if (!parsed.success) {
+      setEditingError(parsed.error.issues[0]?.message ?? "Revise a nota.")
+      return
+    }
     try {
-      await removeNote.mutateAsync({ clientId: client.id, noteId: removing.id })
+      await updateNote.mutateAsync({
+        clientId: client.id,
+        noteId: editing.id,
+        input: parsed.data,
+      })
+      toast.success("Nota atualizada.")
+      setEditing(null)
+      setEditingBody("")
+      setEditingError("")
+    } catch {
+      toast.error("Não foi possível salvar a nota. Tente novamente.")
+    }
+  }
+
+  async function remove(note: ClientNote) {
+    try {
+      await removeNote.mutateAsync({ clientId: client.id, noteId: note.id })
       toast.success("Nota removida.")
       setRemoving(null)
     } catch {
@@ -369,73 +357,155 @@ function Notes({ client }: { client: ClientRecord }) {
         </p>
       </div>
       <label className="block space-y-2 text-sm font-medium" htmlFor="client-note-body">
-        {editing ? "Editar nota" : "Nova nota"}
+        Nova nota
         <Textarea
           id="client-note-body"
           value={body}
           onChange={(event) => setBody(event.currentTarget.value)}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? "client-note-error" : "client-note-guidance"}
+          aria-invalid={Boolean(newNoteError)}
+          aria-describedby={newNoteError ? "client-note-error" : "client-note-guidance"}
         />
       </label>
       <p id="client-note-guidance" className="sr-only">
         Use apenas contexto necessário ao atendimento.
       </p>
-      {error ? (
+      {newNoteError ? (
         <p id="client-note-error" role="alert" className="text-sm text-destructive">
-          {error}
+          {newNoteError}
         </p>
       ) : null}
-      <div className="flex gap-2">
-        <Button type="button" onClick={save} isLoading={addNote.isPending || updateNote.isPending}>
-          {editing ? "Salvar nota" : "Adicionar nota"}
+      <div>
+        <Button type="button" onClick={add} isLoading={addNote.isPending}>
+          Adicionar nota
         </Button>
-        {editing ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setEditing(null)
-              setBody("")
-            }}
-          >
-            Cancelar
-          </Button>
-        ) : null}
       </div>
       <div className="space-y-3">
-        {client.notes.map((note) => (
-          <article key={note.id} className="rounded-lg border p-3">
-            <p className="whitespace-pre-wrap text-sm">{note.body}</p>
-            <p className="mt-2 text-xs text-muted-foreground">{formatDateTime(note.updatedAt)}</p>
-            <div className="mt-3 flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setEditing(note)
-                  setBody(note.body)
-                }}
-              >
-                <Edit3Icon aria-hidden="true" /> Editar
-              </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setRemoving(note)}>
-                <Trash2Icon aria-hidden="true" /> Remover
-              </Button>
-            </div>
-          </article>
-        ))}
+        {client.notes.map((note) => {
+          const isEditing = editing?.id === note.id
+          const isRemoving = removing?.id === note.id
+
+          return (
+            <article key={note.id} className="rounded-lg border p-3">
+              {isEditing ? (
+                <div className="animate-in space-y-3 fade-in duration-200 motion-reduce:animate-none">
+                  <label
+                    className="block space-y-2 text-sm font-medium"
+                    htmlFor={`note-${note.id}`}
+                  >
+                    Editar nota
+                    <Textarea
+                      id={`note-${note.id}`}
+                      autoFocus
+                      value={editingBody}
+                      onChange={(event) => setEditingBody(event.currentTarget.value)}
+                      aria-invalid={Boolean(editingError)}
+                      aria-describedby={editingError ? `note-${note.id}-error` : undefined}
+                    />
+                  </label>
+                  {editingError ? (
+                    <p
+                      id={`note-${note.id}-error`}
+                      role="alert"
+                      className="text-sm text-destructive"
+                    >
+                      {editingError}
+                    </p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditing(null)
+                        setEditingBody("")
+                        setEditingError("")
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={saveEdit}
+                      isLoading={updateNote.isPending}
+                    >
+                      Salvar nota
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="animate-in fade-in duration-200 motion-reduce:animate-none">
+                  <p className="whitespace-pre-wrap text-sm">{note.body}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {formatDateTime(note.updatedAt)}
+                  </p>
+                  {isRemoving ? (
+                    <div
+                      className="animate-in mt-3 rounded-lg bg-destructive/10 p-3 fade-in duration-200 motion-reduce:animate-none"
+                      role="alert"
+                    >
+                      <p className="text-sm font-medium">Remover esta nota?</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Essa ação não pode ser desfeita.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          autoFocus
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setRemoving(null)}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          isLoading={removeNote.isPending}
+                          onClick={() => remove(note)}
+                        >
+                          <Trash2Icon aria-hidden="true" /> Remover nota
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="animate-in mt-3 flex gap-2 fade-in duration-150 motion-reduce:animate-none">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setRemoving(null)
+                          setEditing(note)
+                          setEditingBody(note.body)
+                          setEditingError("")
+                        }}
+                      >
+                        <Edit3Icon aria-hidden="true" /> Editar
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditing(null)
+                          setEditingBody("")
+                          setEditingError("")
+                          setRemoving(note)
+                        }}
+                      >
+                        <Trash2Icon aria-hidden="true" /> Remover
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </article>
+          )
+        })}
       </div>
-      <ConfirmationDialog
-        isOpen={Boolean(removing)}
-        title="Remover nota?"
-        description="Esta nota será removida apenas da memória da sessão."
-        cancelLabel="Cancelar"
-        confirmLabel="Remover"
-        onCancel={() => setRemoving(null)}
-        onConfirm={remove}
-      />
     </section>
   )
 }

@@ -1,0 +1,2 @@
+ALTER TABLE "access_audit" ADD COLUMN "reason" text;--> statement-breakpoint
+ALTER TABLE "access_audit" ADD CONSTRAINT "access_audit_reason_length_check" CHECK ("access_audit"."reason" is null or char_length("access_audit"."reason") between 10 and 500);

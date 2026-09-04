@@ -1,9 +1,11 @@
+import { organizationClient } from "better-auth/client/plugins"
 import { createAuthClient } from "better-auth/react"
 
 import { env } from "@/modules/shared/config/env"
 
 export const authClient = createAuthClient({
   baseURL: getAbsoluteAuthBaseUrl(),
+  plugins: [organizationClient()],
 })
 
 export async function signInWithEmail(input: { email: string; password: string }) {
@@ -129,6 +131,10 @@ function getBrowserOrigin() {
   return typeof window === "undefined" ? "http://localhost:3000" : window.location.origin
 }
 
-function getIdpUrl(path: string) {
+export function getApiUrl(path: string) {
   return new URL(path, getAbsoluteAuthBaseUrl()).toString()
+}
+
+function getIdpUrl(path: string) {
+  return getApiUrl(path)
 }

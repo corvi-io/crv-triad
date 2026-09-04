@@ -25,6 +25,7 @@ import { Route as AuthenticatedOverviewIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedPreferencesIndexRouteImport } from './routes/_authenticated/preferences/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
 import { Route as AuthenticatedReportsIndexRouteImport } from './routes/_authenticated/reports/index'
+import { Route as AuthenticatedSelectWorkspaceIndexRouteImport } from './routes/_authenticated/select-workspace/index'
 import { Route as AuthenticatedServiceDeskIndexRouteImport } from './routes/_authenticated/service-desk/index'
 import { Route as WorkspacePreviewAgendaIndexRouteImport } from './routes/workspace-preview/agenda/index'
 import { Route as WorkspacePreviewSandboxIndexRouteImport } from './routes/workspace-preview/sandbox/index'
@@ -118,6 +119,12 @@ const AuthenticatedReportsIndexRoute =
     path: '/reports/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSelectWorkspaceIndexRoute =
+  AuthenticatedSelectWorkspaceIndexRouteImport.update({
+    id: '/select-workspace/',
+    path: '/select-workspace/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedServiceDeskIndexRoute =
   AuthenticatedServiceDeskIndexRouteImport.update({
     id: '/service-desk/',
@@ -165,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/preferences/': typeof AuthenticatedPreferencesIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
   '/reports/': typeof AuthenticatedReportsIndexRoute
+  '/select-workspace/': typeof AuthenticatedSelectWorkspaceIndexRoute
   '/service-desk/': typeof AuthenticatedServiceDeskIndexRoute
   '/workspace-preview/agenda/': typeof WorkspacePreviewAgendaIndexRoute
   '/workspace-preview/sandbox/': typeof WorkspacePreviewSandboxIndexRoute
@@ -187,6 +195,7 @@ export interface FileRoutesByTo {
   '/preferences': typeof AuthenticatedPreferencesIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
   '/reports': typeof AuthenticatedReportsIndexRoute
+  '/select-workspace': typeof AuthenticatedSelectWorkspaceIndexRoute
   '/service-desk': typeof AuthenticatedServiceDeskIndexRoute
   '/workspace-preview/agenda': typeof WorkspacePreviewAgendaIndexRoute
   '/workspace-preview/sandbox': typeof WorkspacePreviewSandboxIndexRoute
@@ -211,6 +220,7 @@ export interface FileRoutesById {
   '/_authenticated/preferences/': typeof AuthenticatedPreferencesIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
   '/_authenticated/reports/': typeof AuthenticatedReportsIndexRoute
+  '/_authenticated/select-workspace/': typeof AuthenticatedSelectWorkspaceIndexRoute
   '/_authenticated/service-desk/': typeof AuthenticatedServiceDeskIndexRoute
   '/workspace-preview/agenda/': typeof WorkspacePreviewAgendaIndexRoute
   '/workspace-preview/sandbox/': typeof WorkspacePreviewSandboxIndexRoute
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/preferences/'
     | '/profile/'
     | '/reports/'
+    | '/select-workspace/'
     | '/service-desk/'
     | '/workspace-preview/agenda/'
     | '/workspace-preview/sandbox/'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/preferences'
     | '/profile'
     | '/reports'
+    | '/select-workspace'
     | '/service-desk'
     | '/workspace-preview/agenda'
     | '/workspace-preview/sandbox'
@@ -280,6 +292,7 @@ export interface FileRouteTypes {
     | '/_authenticated/preferences/'
     | '/_authenticated/profile/'
     | '/_authenticated/reports/'
+    | '/_authenticated/select-workspace/'
     | '/_authenticated/service-desk/'
     | '/workspace-preview/agenda/'
     | '/workspace-preview/sandbox/'
@@ -412,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/select-workspace/': {
+      id: '/_authenticated/select-workspace/'
+      path: '/select-workspace'
+      fullPath: '/select-workspace/'
+      preLoaderRoute: typeof AuthenticatedSelectWorkspaceIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/service-desk/': {
       id: '/_authenticated/service-desk/'
       path: '/service-desk'
@@ -461,6 +481,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPreferencesIndexRoute: typeof AuthenticatedPreferencesIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
   AuthenticatedReportsIndexRoute: typeof AuthenticatedReportsIndexRoute
+  AuthenticatedSelectWorkspaceIndexRoute: typeof AuthenticatedSelectWorkspaceIndexRoute
   AuthenticatedServiceDeskIndexRoute: typeof AuthenticatedServiceDeskIndexRoute
   AuthenticatedServiceDeskSessionIdIndexRoute: typeof AuthenticatedServiceDeskSessionIdIndexRoute
   AuthenticatedServiceDeskSessionIdCheckoutIndexRoute: typeof AuthenticatedServiceDeskSessionIdCheckoutIndexRoute
@@ -478,6 +499,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPreferencesIndexRoute: AuthenticatedPreferencesIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
   AuthenticatedReportsIndexRoute: AuthenticatedReportsIndexRoute,
+  AuthenticatedSelectWorkspaceIndexRoute:
+    AuthenticatedSelectWorkspaceIndexRoute,
   AuthenticatedServiceDeskIndexRoute: AuthenticatedServiceDeskIndexRoute,
   AuthenticatedServiceDeskSessionIdIndexRoute:
     AuthenticatedServiceDeskSessionIdIndexRoute,

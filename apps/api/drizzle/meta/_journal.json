@@ -36,6 +36,55 @@
       "when": 1788194249096,
       "tag": "0004_black_slayback",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788529522238,
+      "tag": "0005_curly_firedrake",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788529595811,
+      "tag": "0006_loving_felicia_hardy",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788530338279,
+      "tag": "0007_panoramic_venom",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788530366571,
+      "tag": "0008_sleepy_nick_fury",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788531941784,
+      "tag": "0009_bent_hitman",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788535300718,
+      "tag": "0010_foamy_miss_america",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788536401467,
+      "tag": "0011_flashy_rick_jones",
+      "breakpoints": true
     }
   ]
 }

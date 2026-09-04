@@ -23,6 +23,7 @@ describe("detect-affected-apps", () => {
 
     expect(runDetection(repository, baseSha)).toEqual({
       api: "false",
+      backstage: "false",
       site: "false",
       studio: "true",
     })
@@ -37,8 +38,25 @@ describe("detect-affected-apps", () => {
 
     expect(runDetection(repository, baseSha)).toEqual({
       api: "true",
+      backstage: "true",
       site: "true",
       studio: "true",
+    })
+  })
+
+  it("marks only Backstage for an apps/backstage change", () => {
+    const repository = createRepository()
+    const baseSha = git(repository, "rev-parse", "HEAD")
+
+    mkdirSync(join(repository, "apps/backstage"), { recursive: true })
+    writeFileSync(join(repository, "apps/backstage/changed.ts"), "export const changed = true\n")
+    commitAll(repository, "test: change backstage")
+
+    expect(runDetection(repository, baseSha)).toEqual({
+      api: "false",
+      backstage: "true",
+      site: "false",
+      studio: "false",
     })
   })
 })

@@ -82,8 +82,8 @@
         alone must never authorize credential creation.
   - [ ] Atomically consume one pending token, activate the Better Auth user with
         the invitation role, mark mailbox proof, and record acceptance.
-  - [ ] Do not auto-sign in after acceptance; return a stable success outcome
-        that directs the user to normal login.
+  - [ ] Create an authenticated session after acceptance and redirect directly
+        to the Studio overview.
   - [ ] Rotate the secret on resend and invalidate the previous link before the
         replacement is usable.
   - [ ] Ensure revoke, expiry, prior use, supersession, malformed input, and
@@ -145,8 +145,8 @@
         client-edited email or role as authorization.
   - [ ] Prevent duplicate submission in the UI while relying on server-side
         one-time/idempotent behavior for actual safety.
-  - [ ] On success, clear token-bearing route state where practical and direct
-        the user to login without creating a session.
+  - [ ] On success, clear token-bearing route state and redirect the authenticated
+        user to the Studio overview.
 - [ ] Introduce the IDP React Email foundation:
   - [ ] Add React Email/React dependencies to `apps/idp` with Bun and configure
         TypeScript/JSX without changing unrelated packages.

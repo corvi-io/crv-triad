@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "node:crypto"
 import { and, desc, eq, gt, isNotNull, sql } from "drizzle-orm"
 
 import type { IdpDatabase } from "../database/client.js"
-import { invitation } from "../database/schema.js"
+import { invitation, member, organizationInvitation } from "../database/schema.js"
 import { createId } from "../infra/ids.js"
 import { type IdpRole, normalizeEmail } from "./access-policy.js"
 
@@ -182,7 +182,54 @@ export async function acceptInvitationForUser(db: IdpDatabase, email: string, us
     .where(and(eq(invitation.id, pendingInvitation.id), eq(invitation.status, "pending")))
     .returning()
 
+  if (accepted) await acceptOrganizationInvitationsForUser(db, email, userId)
   return accepted
+}
+
+export async function acceptOrganizationInvitationsForUser(
+  db: IdpDatabase,
+  email: string,
+  userId: string,
+) {
+  const normalizedEmail = normalizeEmail(email)
+  const result = await db
+    .select()
+    .from(organizationInvitation)
+    .where(
+      and(
+        eq(organizationInvitation.email, normalizedEmail),
+        eq(organizationInvitation.status, "pending"),
+        gt(organizationInvitation.expiresAt, new Date()),
+      ),
+    )
+  const pending = Array.isArray(result) ? result : []
+
+  for (const record of pending) {
+    await db.transaction(async (transaction) => {
+      const tx = transaction as unknown as IdpDatabase
+      const [acceptedOrganizationInvitation] = await tx
+        .update(organizationInvitation)
+        .set({ status: "accepted" })
+        .where(
+          and(
+            eq(organizationInvitation.id, record.id),
+            eq(organizationInvitation.status, "pending"),
+          ),
+        )
+        .returning()
+      if (!acceptedOrganizationInvitation) return
+      await tx
+        .insert(member)
+        .values({
+          id: createId(),
+          organizationId: record.organizationId,
+          role: record.role ?? "member",
+          status: "active",
+          userId,
+        })
+        .onConflictDoNothing()
+    })
+  }
 }
 
 export function createInvitationSecret(): { digest: string; token: string } {

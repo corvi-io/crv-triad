@@ -68,7 +68,7 @@ jobs:
           project-slug: ${{ vars.INFRA__INFISICAL_PROJECT_SLUG }}
           secret-path: /infrastructure
       - name: Export static build environment
-        if: ${{ inputs.app == 'site' || inputs.app == 'studio' }}
+        if: ${{ inputs.app == 'site' || inputs.app == 'studio' || inputs.app == 'backstage' }}
         run: bun .github/scripts/env-management.ts export --app "${{ inputs.app }}" --target "${{ inputs.target }}" --github-env "$GITHUB_ENV"
       - name: Set up flyctl
         if: ${{ inputs.app == 'api' }}
@@ -86,4 +86,6 @@ jobs:
             echo "public-url=$SITE__PUBLIC_SITE_URL" >> "$GITHUB_OUTPUT"
           elif [[ "$APP" == "studio" ]]; then
             echo "public-url=$INFRA__STUDIO_URL" >> "$GITHUB_OUTPUT"
+          elif [[ "$APP" == "backstage" ]]; then
+            echo "public-url=$INFRA__BACKSTAGE_URL" >> "$GITHUB_OUTPUT"
           fi

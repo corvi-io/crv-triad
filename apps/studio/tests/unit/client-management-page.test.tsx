@@ -14,7 +14,7 @@ const defaultSearch: ClientSearch = {
   contact: "all",
   duplicate: "all",
   page: 1,
-  pageSize: 10,
+  pageSize: 20,
   scenario: "typical",
   sortDirection: "asc",
   sortField: "name",
@@ -56,7 +56,9 @@ describe("client management pages", () => {
 
   it("renders slow loading, empty, and filtered-empty directory states", async () => {
     const slow = renderDirectory({ scenario: "slow" })
-    expect(screen.getByRole("status")).toHaveTextContent("Carregando clientes…")
+    const loadingState = screen.getByRole("status", { name: "Carregando clientes" })
+    expect(loadingState).toBeVisible()
+    expect(loadingState.querySelector("[data-slot=skeleton]")).not.toBeNull()
     expect(await screen.findByRole("table", { name: "Diretório de clientes" })).toBeVisible()
     slow.unmount()
 
@@ -124,28 +126,53 @@ describe("client management pages", () => {
     expect(await within(drawer).findByText("Contato e estado")).toBeVisible()
   })
 
-  it("uses explicit edit mode and focuses the first localized validation error", async () => {
+  it("opens a distinct edit drawer and focuses the first localized validation error", async () => {
     const user = userEvent.setup()
     renderDirectory()
     await user.click(await screen.findByRole("button", { name: "Cliente Sintético 05" }))
-    const drawer = await screen.findByRole("dialog", {
+    const profileDrawer = await screen.findByRole("dialog", {
       name: /Clientes \/ Cliente Sintético 05/,
     })
 
-    await user.click(within(drawer).getByRole("button", { name: "Editar" }))
-    expect(await within(drawer).findByText("Editar cliente")).toBeVisible()
-    expect(within(drawer).queryByRole("tab", { name: "Resumo" })).not.toBeInTheDocument()
+    await user.click(within(profileDrawer).getByRole("button", { name: "Editar" }))
+    const editDrawer = await screen.findByRole("dialog", {
+      name: /Clientes \/ Editar cliente/,
+    })
+    expect(editDrawer).not.toBe(profileDrawer)
+    expect(within(editDrawer).queryByRole("tab", { name: "Resumo" })).not.toBeInTheDocument()
+    await waitFor(() => expect(profileDrawer).not.toBeInTheDocument())
 
-    const name = within(drawer).getByLabelText("Nome")
+    const name = within(editDrawer).getByLabelText("Nome")
     await user.clear(name)
-    const save = within(drawer).getAllByRole("button", { name: "Salvar" })[0]
+    const save = within(editDrawer).getByRole("button", { name: "Salvar alterações" })
     expect(save).toBeDefined()
     if (!save) return
     await user.click(save)
 
-    expect(await within(drawer).findByText("Informe o nome do cliente.")).toBeVisible()
+    expect(await within(editDrawer).findByText("Informe o nome do cliente.")).toBeVisible()
     expect(name).toHaveAttribute("aria-invalid", "true")
     expect(name).toHaveFocus()
+  })
+
+  it("provides placeholders and adds or removes tags without comma-separated typing", async () => {
+    const user = userEvent.setup()
+    renderDirectory()
+
+    await user.click(screen.getByRole("button", { name: "Novo cliente" }))
+    const drawer = await screen.findByRole("dialog", { name: /Clientes \/ Novo cliente/ })
+
+    expect(within(drawer).getByPlaceholderText("Ex.: Gabriel Silva")).toBeVisible()
+    expect(within(drawer).getByPlaceholderText("(81) 99999-9999")).toBeVisible()
+    expect(within(drawer).getByPlaceholderText("Ex.: gabriel@email.com")).toBeVisible()
+    expect(
+      within(drawer).getByPlaceholderText("Ex.: Confirmar o acabamento antes de finalizar"),
+    ).toBeVisible()
+
+    const tagInput = within(drawer).getByLabelText("Tags")
+    await user.type(tagInput, "Cliente frequente{Enter}")
+    expect(within(drawer).getByText("Cliente frequente")).toBeVisible()
+    await user.click(within(drawer).getByRole("button", { name: "Remover tag Cliente frequente" }))
+    expect(within(drawer).queryByText("Cliente frequente")).not.toBeInTheDocument()
   })
 
   it("confirms archive, restore, and note removal before mutating", async () => {
@@ -172,8 +199,14 @@ describe("client management pages", () => {
     expect(noteArticle).not.toBeNull()
     if (!noteArticle) return
     await user.click(within(noteArticle).getByRole("button", { name: "Remover" }))
-    const removeDialog = await screen.findByRole("dialog", { name: "Remover nota?" })
-    await user.click(within(removeDialog).getByRole("button", { name: "Remover" }))
+    expect(screen.queryByRole("dialog", { name: "Remover nota?" })).not.toBeInTheDocument()
+    expect(within(noteArticle).getByText("Essa ação não pode ser desfeita.")).toBeVisible()
+    expect(within(noteArticle).queryByRole("button", { name: "Editar" })).not.toBeInTheDocument()
+    await user.click(within(noteArticle).getByRole("button", { name: "Cancelar" }))
+    expect(within(noteArticle).getByRole("button", { name: "Editar" })).toBeVisible()
+
+    await user.click(within(noteArticle).getByRole("button", { name: "Remover" }))
+    await user.click(within(noteArticle).getByRole("button", { name: "Remover nota" }))
     await waitFor(() => expect(note).not.toBeInTheDocument())
   })
 
@@ -190,6 +223,7 @@ describe("client management pages", () => {
     const viewAction = await screen.findByRole("menuitem", { name: "Visualizar" })
     viewAction.focus()
     expect(viewAction).toHaveFocus()
+    expect(screen.getByRole("menuitem", { name: "Editar" })).toBeVisible()
     const archiveAction = screen.getByRole("menuitem", { name: "Arquivar" })
     archiveAction.focus()
     expect(archiveAction).toHaveFocus()

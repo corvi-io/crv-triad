@@ -73,11 +73,13 @@ export async function consumeInvitationProof(
   token: string,
   userId: string,
   now = new Date(),
+  onAccepted?: (email: string, userId: string) => Promise<void>,
 ): Promise<boolean> {
   const digest = digestInvitationToken(token)
   if (!digest) return false
 
   const adapter = await getCurrentAdapter(context.context.adapter)
+  const invitation = onAccepted ? await resolveInvitationProof(context, token, now) : null
   const updated = await adapter.updateMany({
     model: "invitation",
     update: {
@@ -93,6 +95,8 @@ export async function consumeInvitationProof(
       { field: "tokenIssuedAt", operator: "ne", value: null },
     ],
   })
+
+  if (updated === 1 && onAccepted && invitation) await onAccepted(invitation.email, userId)
 
   return updated === 1
 }

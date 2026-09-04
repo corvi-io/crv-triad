@@ -128,6 +128,29 @@ describe("authenticated workspace shell", () => {
       "href",
       "/preferences",
     )
+
+    await user.click(screen.getByRole("menuitem", { name: "Trocar de barbearia" }))
+    const dialog = await screen.findByRole("dialog", { name: "Escolha uma barbearia" })
+    const barbershopOptions = within(dialog)
+      .getAllByRole("button")
+      .filter((button) => button.hasAttribute("aria-pressed"))
+    expect(barbershopOptions.map((button) => button.textContent)).toEqual([
+      "BDBarbearia de testeProprietárioAtual",
+      "BDBarbearia doisAdministrador",
+    ])
+    expect(barbershopOptions[0]).toBeDisabled()
+
+    await user.click(within(dialog).getByRole("button", { name: /Barbearia dois/ }))
+    await user.click(within(dialog).getByRole("button", { name: "Continuar" }))
+    expect(dialog).toHaveAccessibleName("Confirme a troca de barbearia")
+    expect(dialog).toHaveTextContent("Você está em")
+    expect(dialog).toHaveTextContent("Barbearia de teste")
+    expect(dialog).toHaveTextContent("Você vai para")
+    expect(dialog).toHaveTextContent("Barbearia dois")
+    expect(dialog).toHaveTextContent("Alterações ainda não salvas serão perdidas.")
+    expect(within(dialog).getByRole("button", { name: "Trocar de barbearia" })).toBeVisible()
+    await user.click(within(dialog).getByRole("button", { name: "Voltar" }))
+    expect(dialog).toHaveAccessibleName("Escolha uma barbearia")
   })
 
   it("uses a full-label mobile dialog and restores focus when it closes", async () => {

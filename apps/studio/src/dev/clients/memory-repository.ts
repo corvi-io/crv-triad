@@ -71,6 +71,13 @@ export class ClientMemoryRepository implements ClientRepository {
     return this.#read(id)
   }
 
+  async listTags(scenarioId: ClientScenarioId) {
+    this.#ensureScenario(scenarioId)
+    return [...new Set(this.#engine.values().flatMap(({ tags }) => tags))].sort((left, right) =>
+      left.localeCompare(right, "pt-BR"),
+    )
+  }
+
   async create(input: ClientInput) {
     return this.#mutate("create", () => {
       validateInput(input)

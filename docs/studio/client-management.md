@@ -49,18 +49,36 @@ The identifiers are technical inputs and do not appear in ordinary product chrom
 constructs a new repository, restores the selected scenario, deterministic IDs, records, notes,
 appointments, and one-shot failure state, and removes session mutations.
 
+Default list state is omitted from generated URLs: page `1`, page size `20`, active status,
+name/ascending sorting, unfiltered controls, and the typical scenario. `client` identifies an open
+client drawer. View is implicit when `mode` is absent; `mode=edit` restores the separate edit drawer.
+Closing either drawer removes both parameters, so copied links preserve intentional overlay state
+without serializing the entire default list configuration.
+
 ## Interaction And Privacy
 
 The directory supports repository-backed search, state/contact/duplicate filters, allowlisted
 sorting, and 10/20/50-row pages. A client name is the primary row action; right-click and
-`Shift+F10` expose contextual view and archive/restore commands without an `Ações` column.
+`Shift+F10` expose contextual view, edit, and archive/restore commands without an `Ações` column.
+The tag filter loads its bounded option catalog from the active barbershop through
+`GET /api/clients/tags`; it does not use hard-coded choices or infer facets from the visible page.
 
-The focus-managed profile drawer exposes `Resumo`, `Agendamentos`, and `Notas`. Appointment lists
-are bounded and progressively expanded. Create/edit requires a name and phone or email, uses the
-shared Brazilian phone mask, React Hook Form, Zod, linked errors, and first-invalid focus. Duplicate
+The focus-managed, read-only profile drawer exposes `Resumo`, `Agendamentos`, and `Notas`; editing
+uses a separate form drawer so each surface keeps one clear intent. Appointment lists are bounded
+and progressively expanded. Create/edit requires a name and phone or email, uses the shared
+Brazilian phone mask, a one-at-a-time removable tag input, React Hook Form, Zod, linked errors, and
+first-invalid focus. Duplicate
 warnings identify only exact normalized email or phone matches and allow candidate inspection; no
 merge command exists. Note removal and archive/restore require confirmation. Notes explicitly warn
 against credentials, payment cards, documents, health data, and other sensitive data.
+Table, profile, and edit-form loading states use layout-shaped skeletons with accessible status
+names instead of visible loading copy.
+
+Service preferences remain compatible with the current client contract during Initiative 19. When
+the tenant-scoped service catalog is available, the free-text field must be replaced by a
+multi-select populated from the active barbershop's real services. The form must persist stable
+service references defined by that API, avoid hard-coded Studio options, and preserve a readable
+state when a previously selected service is later archived.
 
 The implementation sends no network requests, stores nothing in browser storage, intercepts no
 authentication traffic, emits no analytics, and logs no record or form payload.
