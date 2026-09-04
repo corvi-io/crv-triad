@@ -7,13 +7,9 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/modules/shared/components/ui/sidebar"
-import {
-  workspacePrimaryNavigation,
-  workspaceSecondaryNavigation,
-} from "@/modules/shared/workspace/module-registry"
+import { workspacePrimaryNavigation } from "@/modules/shared/workspace/module-registry"
 
 import { SidebarPrimaryNavigation } from "./sidebar-primary-navigation"
-import { SidebarSecondaryNavigation } from "./sidebar-secondary-navigation"
 import { SidebarUserMenu } from "./sidebar-user-menu"
 import { WorkspaceBrand } from "./workspace-brand"
 
@@ -52,10 +48,7 @@ export function WorkspaceShellSidebar({
           <SidebarPrimaryNavigation items={primaryItems} pathname={pathname} />
         </nav>
       </SidebarContent>
-      <SidebarFooter className="gap-2 p-0">
-        <nav aria-label="Navegação secundária">
-          <SidebarSecondaryNavigation items={workspaceSecondaryNavigation} pathname={pathname} />
-        </nav>
+      <SidebarFooter className="p-0">
         <SidebarUserMenu
           user={user}
           isSigningOut={isSigningOut}

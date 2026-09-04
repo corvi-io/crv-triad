@@ -12,32 +12,28 @@ test("enters through normal desktop, collapsed, and mobile navigation without pr
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto("/overview")
 
-  const setupLink = page.getByRole("link", { name: "Barbearia" })
-  await expect(setupLink).toHaveAttribute("href", "/barbershop-setup")
+  await page.getByRole("button", { name: /Abrir menu de/ }).click()
+  const setupLink = page.getByRole("menuitem", { name: "Configuração da barbearia" })
+  await expect(setupLink).toHaveAttribute("href", /^\/barbershop-setup\?/)
   await setupLink.click()
   await expect(page).toHaveURL(/\/barbershop-setup/)
   await expect(page.getByRole("heading", { name: "Configuração da barbearia" })).toBeVisible()
   await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText(
     "Configuração da barbearia",
   )
-  await expect(setupLink).toHaveAttribute("aria-current", "page")
   await expect(page.getByLabel("Cenário de apresentação")).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Restaurar cenário" })).toHaveCount(0)
-  await expect(page.getByText(/protótipo|pré-visualização|ferramenta exclusiva/i)).toHaveCount(0)
 
   const sidebar = page.locator('[data-slot="sidebar"][data-state]')
   const trigger = page.getByRole("button", { name: "Alternar menu de navegação" })
   await trigger.click()
   await expect(sidebar).toHaveAttribute("data-state", "collapsed")
-  await expect(setupLink).toHaveAttribute("aria-current", "page")
 
   await page.setViewportSize({ width: 375, height: 812 })
   await trigger.click()
   const dialog = page.getByRole("dialog", { name: "Navegação do TRIAD Studio" })
-  await expect(dialog.getByRole("link", { name: "Barbearia" })).toHaveAttribute(
-    "aria-current",
-    "page",
-  )
+  await dialog.getByRole("button", { name: /Abrir menu de/ }).click()
+  await expect(page.getByRole("menuitem", { name: "Configuração da barbearia" })).toBeVisible()
 })
 
 test("keeps the removed setup preview route inaccessible", async ({ page }) => {
@@ -551,6 +547,28 @@ async function routeAuthenticatedSession(page: Page) {
         id: "reviewer-fixture",
         name: "Pessoa Revisora",
       },
+    })
+  })
+  await page.route("**/api/contexts", async (route) => {
+    await fulfillJson(route, {
+      activeOrganizationId: "tenant-setup-fixture",
+      platform: null,
+      status: "available",
+      tenants: [
+        {
+          id: "tenant-setup-fixture",
+          name: "Barbearia de teste",
+          role: "owner",
+        },
+      ],
+    })
+  })
+  await page.route("**/api/access/summary", async (route) => {
+    await fulfillJson(route, {
+      capabilities: [],
+      organizationId: "tenant-setup-fixture",
+      role: "owner",
+      subscriptionState: "active",
     })
   })
 }

@@ -54,6 +54,9 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-workspace-selection-overlay: var(--workspace-selection-overlay);
+  --color-workspace-selection-foreground: var(--workspace-selection-foreground);
+  --color-workspace-selection-muted: var(--workspace-selection-muted);
   --color-schedule-scheduled: var(--schedule-scheduled);
   --color-schedule-scheduled-foreground: var(--schedule-scheduled-foreground);
   --color-schedule-scheduled-border: var(--schedule-scheduled-border);
@@ -102,6 +105,16 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+@keyframes auth-drift {
+  0%,
+  100% {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: scale(1.06) translate3d(-0.6%, -0.4%, 0);
+  }
 }
 
 :root {
@@ -271,6 +284,9 @@
   --sidebar-selected-foreground: var(--primitive-navy-900);
   --sidebar-border: var(--primitive-navy-200);
   --sidebar-ring: var(--primitive-gold-700);
+  --workspace-selection-overlay: color-mix(in srgb, var(--primitive-navy-950) 82%, transparent);
+  --workspace-selection-foreground: var(--primitive-navy-50);
+  --workspace-selection-muted: var(--primitive-navy-200);
 
   /* Scheduling semantic tokens: presentation-only roles, never backend status vocabulary. */
   --schedule-scheduled: var(--primitive-gold-50);

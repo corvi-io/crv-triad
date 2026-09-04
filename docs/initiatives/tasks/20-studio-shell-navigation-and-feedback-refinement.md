@@ -32,6 +32,8 @@
 | REQ-017–REQ-020 / AC-014–AC-015 | TASK-001–TASK-010, TASK-012 | Accessibility, privacy, performance, production-boundary, build, detector evidence |
 | REQ-001–REQ-029 / AC-016 | TASK-011, TASK-012 | Documentation review and final traceability audit |
 | REQ-021–REQ-029 / AC-017–AC-023 | TASK-013–TASK-016 | Art-direction proof, optimized assets, auth-family tests, app builds, visual evidence |
+| REQ-030 / AC-024 | TASK-017 | Local avatar preview behavior, validation, cleanup, and no-network evidence |
+| REQ-031–REQ-032 / AC-025–AC-026 | TASK-018 | Switcher and sign-out dialog component behavior plus focused shell tests |
 
 ## Dependency Order
 
@@ -51,7 +53,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-001 — Reproduce critical shell regressions and establish behavioral harnesses
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-001–REQ-005, REQ-019, AC-001–AC-004
 - Depends on: None
 - Can parallelize with: TASK-004, TASK-007
@@ -76,7 +78,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-002 — Replace blocking auth presentation with resilient session handling
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-001–REQ-003, REQ-017, REQ-019–REQ-020, AC-001–AC-002
 - Depends on: TASK-001
 - Can parallelize with: TASK-003, TASK-007
@@ -100,7 +102,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-003 — Make tenant selection a deterministic single action
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-004–REQ-005, REQ-017–REQ-019, AC-003–AC-004
 - Depends on: TASK-001
 - Can parallelize with: TASK-002, TASK-004, TASK-007
@@ -124,7 +126,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-004 — Flatten route location and consolidate administrative navigation
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-006–REQ-007, REQ-017–REQ-018, AC-005–AC-006
 - Depends on: TASK-001
 - Can parallelize with: TASK-002, TASK-003, TASK-007
@@ -151,7 +153,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-005 — Recompose preferences as centered collapsible management sections
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-008–REQ-009, REQ-017–REQ-018, AC-007–AC-008
 - Depends on: TASK-004
 - Can parallelize with: TASK-006, TASK-007, TASK-008
@@ -174,34 +176,29 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
   - Both categories remain understandable and fully operable expanded or collapsed, with no
     regression to authentication/account-linking behaviors.
 
-### TASK-006 — Add production-backed display-name editing to profile
+### TASK-006 — Present account identity as read-only profile data
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-008, REQ-010–REQ-011, REQ-017–REQ-020, AC-007, AC-009
 - Depends on: TASK-004
 - Can parallelize with: TASK-005, TASK-007, TASK-008
-- Relevant skills/docs: `triad-studio-development`, Better Auth contract, Vitest, accessibility,
+- Relevant skills/docs: `triad-studio-development`, Vitest, accessibility,
   `docs/studio/authentication.md`
 - Expected artifacts:
-  - Verified narrow Studio auth-client wrapper for Better Auth self-update behavior.
-  - Centered profile management form with editable display name and read-only email.
-  - Zod/RHF validation, mutation/query invalidation or session refresh, semantic feedback, and tests.
+  - Centered profile presentation with read-only display name and email.
+  - Local avatar-preview experience separated from account identity data.
 - Implementation notes:
-  - Validate pinned Better Auth self-update support before UI implementation.
-  - Do not use the administrative `/users/:userId` contract or add identity administration to
-    Studio.
-  - Keep the label stable during saving, focus the first invalid field, preserve typed input on
-    failure, and refresh every shell presentation after success.
+  - Do not call Better Auth user-update APIs, use `/users/:userId`, or add identity administration
+    to Studio.
 - Verification:
-  - Client integration test plus component/E2E success, validation, duplicate activation, server
-    failure, refreshed shell, and reload persistence journeys.
+  - Component/E2E coverage verifies the fields are read-only and no identity mutation is exposed.
 - Evidence required before completion:
-  - Persisted self-name update is visible in profile and user menu without sign-out/sign-in; email
-    cannot be edited; no private value is logged.
+  - Display name and email cannot be edited, avatar preview remains local, and no private value is
+    logged.
 
 ### TASK-007 — Establish semantic top-right toast presentation
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-012–REQ-013, REQ-017–REQ-020, AC-010–AC-011
 - Depends on: TASK-001
 - Can parallelize with: TASK-002–TASK-006, TASK-008
@@ -226,7 +223,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-008 — Define and test the progressive notification item hierarchy
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-014–REQ-016, REQ-017–REQ-019, AC-012–AC-013
 - Depends on: TASK-001
 - Can parallelize with: TASK-005–TASK-007
@@ -253,7 +250,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-009 — Apply the notification hierarchy to preview and center
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-014–REQ-016, REQ-017–REQ-020, AC-012–AC-013
 - Depends on: TASK-008
 - Can parallelize with: None
@@ -277,7 +274,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-010 — Complete integrated accessibility and critical-journey regression coverage
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-001–REQ-020, AC-001–AC-014
 - Depends on: TASK-002–TASK-009
 - Can parallelize with: TASK-011 after test names and behavior settle
@@ -289,8 +286,8 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
   - Manual QA record for keyboard, focus, zoom, responsive, theme, forced-colors, and reduced motion.
 - Implementation notes:
   - Exercise realistic authenticated owner/member and multi-tenant flows.
-  - Verify focus after route change, disclosure expansion, notification detail, failed mutations, and
-    successful profile save.
+  - Verify focus after route change, disclosure expansion, notification detail, and failed context
+    mutations.
   - Batch desktop and mobile visual review into one pass, fix findings together, and confirm once.
 - Verification:
   - Run focused component/E2E suites and inspect desktop/mobile screenshots in light and dark.
@@ -300,7 +297,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-013 — Resolve the TRIAD authentication family art direction
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-021–REQ-024, REQ-026–REQ-028, AC-017–AC-021
 - Depends on: None
 - Can parallelize with: TASK-001, TASK-004, TASK-007
@@ -330,7 +327,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-014 — Produce and optimize original authentication artwork
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-021–REQ-023, REQ-025–REQ-029, AC-017–AC-022
 - Depends on: TASK-013
 - Can parallelize with: None
@@ -358,7 +355,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-015 — Integrate the expressive auth surface in Studio and Backstage
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-021–REQ-029, AC-017–AC-022
 - Depends on: TASK-014
 - Can parallelize with: None
@@ -386,7 +383,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-016 — Validate the cross-product authentication family
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-021–REQ-029, AC-017–AC-023
 - Depends on: TASK-015
 - Can parallelize with: TASK-011 after behavior and asset names settle
@@ -411,9 +408,45 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
   - AC-017 through AC-023 have reviewable automated/manual evidence and any residual visual,
     accessibility, or performance risk is explicitly recorded.
 
+### TASK-017 — Prototype a local-only profile avatar preview
+
+- Status: Complete
+- Covers: REQ-030, AC-024
+- Depends on: TASK-006
+- Can parallelize with: TASK-007–TASK-010
+- Relevant skills/docs: `triad-studio-development`, accessibility, `react-useeffect`
+- Expected artifacts:
+  - Profile image picker and in-memory preview using the existing avatar primitive.
+  - Client-side PNG/JPEG/WebP and 2 MB validation, replacement/removal, and object-URL cleanup.
+  - Focused component coverage proving no upload or persistence request occurs.
+- Implementation notes:
+  - Do not add an API route, Better Auth avatar mutation, storage dependency, or production claim.
+- Verification:
+  - Exercise valid selection, invalid type, oversize file, replacement, removal, and unmount cleanup.
+- Evidence required before completion:
+  - Preview works accessibly and deterministically without issuing a network request or changing the
+    authenticated session.
+
+### TASK-018 — Refine context switching and protect sign-out
+
+- Status: Complete
+- Covers: REQ-031–REQ-032, AC-025–AC-026
+- Depends on: TASK-003, TASK-004
+- Can parallelize with: TASK-017
+- Relevant skills/docs: `triad-studio-development`, accessibility, Impeccable
+- Expected artifacts:
+  - A context-switcher dialog aligned with the standalone selection page and a named destination
+    confirmation before mutation.
+  - A sign-out confirmation dialog composed from the shared overlay primitive.
+  - Focused shell tests covering current-context semantics, destination confirmation,
+    sign-out cancellation, and confirmed sign-out.
+- Verification:
+  - `bun --filter studio test -- tests/unit/workspace-shell.test.tsx`
+  - `bun --filter studio typecheck`
+
 ### TASK-011 — Update durable Studio and Backstage contracts and component inventories
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-001–REQ-029, AC-016
 - Depends on: TASK-002–TASK-009, TASK-015
 - Can parallelize with: TASK-010 after behavior settles
@@ -437,7 +470,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ### TASK-012 — Run final verification and initiative evidence audit
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-017–REQ-020, REQ-025–REQ-029, AC-015–AC-016, AC-022–AC-023
 - Depends on: TASK-010–TASK-011, TASK-016
 - Can parallelize with: None
@@ -468,17 +501,34 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ## Verification Evidence
 
-Record evidence as tasks are completed:
-
-- Command:
-- Result:
-- Notes:
+- `bun --filter studio check`: passed 52 files and 390 tests, TypeScript/build, and the production
+  boundary; the build retained the previously known main-chunk size warning.
+- `bun --filter backstage check`: passed 2 files and 4 tests, TypeScript/build, and the production
+  boundary.
+- `bun --filter studio test:e2e -- tests/e2e/auth-lifecycle.spec.ts
+  tests/e2e/multi-tenant-contexts.spec.ts --workers=1`: 8 passed, including WCAG checks, tenant
+  single-flight selection, invitation/session behavior, and security preferences.
+- `bun --filter studio test:e2e:production -- --workers=1`: 11 passed against the production build.
+- `bun --filter backstage test:e2e -- --workers=1`: 2 passed, covering the authentication identity
+  and the authenticated inventory at desktop and mobile widths.
+- Impeccable detector: no blocking finding; advisory off-ramp font sizes belong to established
+  Studio primitives/scheduling surfaces, except the pre-existing notification-size token retained
+  by this visual refinement.
+- Final Studio and Backstage auth artwork is original AI-generated imagery commissioned for this
+  initiative, stored locally as optimized WebP (72 KB Studio; 112 KB Backstage), decorative to
+  assistive technology, and loaded without third-party runtime requests.
+- Manual product review occurred iteratively through user-provided desktop screenshots covering
+  auth, workspace selection, notifications, profile/preferences shell, logo variants, and dialogs.
+- Documentation decision: initiative contracts and the Studio shared-component inventory were
+  updated. README, AGENTS, env schema, and skills remain unchanged because no setup, environment,
+  architecture boundary, or durable agent convention changed.
 
 ## Risks And Follow-Ups
 
 - [ ] A non-blocking shell must not expose stale tenant data or convert transient failures into
   accidental logout; retain this as a release-blocking review concern.
-- [ ] Validate Better Auth self-name update behavior against the pinned version before UI work.
+- [x] Keep display name and email read-only in Studio until an explicit API/IDP mutation contract is
+  accepted.
 - [ ] Do not mistake current bounded notification scenarios for a production persistence or scale
   contract.
 - [ ] Revisit notification pagination, delivery, preferences, and telemetry only through a future
@@ -494,11 +544,20 @@ Record evidence as tasks are completed:
   authentication logo panels with expressive, animated, product-specific scenes across the full
   Studio and Backstage authentication journeys. Added REQ-021–REQ-029, AC-017–AC-023, and
   TASK-013–TASK-016; the revised version requires new approval.
+- 2026-09-04: User approved a local-only profile avatar preview for visual evaluation. Added
+  REQ-030, AC-024, and TASK-017; upload, persistence, storage, and identity mutation remain out of
+  scope.
+- 2026-09-04: Preflight review confirmed that Studio identity must remain read-only. Updated
+  REQ-010–REQ-011 and AC-009, removed the display-name mutation, and separated the avatar preview
+  from account data.
+- 2026-09-04: User requested a visually aligned in-shell barbershop switcher with destination
+  confirmation and explicit sign-out confirmation. Added REQ-031–REQ-032, AC-025–AC-026, and
+  TASK-018.
 
 ## Definition of Done
 
-- [ ] The implemented PRD version was explicitly approved.
-- [ ] All applicable gates in
+- [x] The implemented PRD version was explicitly approved.
+- [x] All applicable gates in
       `.agents/skills/triad-initiative-workflow/references/planning-gates.md` pass.
-- [ ] Every in-scope AC has reviewable evidence.
-- [ ] Deviations, skipped checks, residual risks, and follow-ups are recorded.
+- [x] Every in-scope AC has reviewable evidence.
+- [x] Deviations, skipped checks, residual risks, and follow-ups are recorded.

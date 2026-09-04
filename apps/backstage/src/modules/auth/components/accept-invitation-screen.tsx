@@ -105,7 +105,7 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
   return (
     <AuthShell
       title="Criar senha de acesso"
-      description="Conclua seu convite para acessar o TRIAD Backstage."
+      description="Conclua o convite e proteja seu acesso interno."
     >
       {screenState === "validating" ? (
         <div

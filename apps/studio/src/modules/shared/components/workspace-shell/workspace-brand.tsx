@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router"
 
+import { StudioLogo } from "@/modules/shared/components/branding/studio-logo"
+
 export function WorkspaceBrand() {
   return (
     <Link
@@ -8,32 +10,10 @@ export function WorkspaceBrand() {
       to="/overview"
     >
       <span className="flex min-w-0 items-center group-data-[collapsible=icon]:hidden">
-        <img
-          alt=""
-          aria-hidden="true"
-          className="h-auto w-(--workspace-brand-horizontal-width) dark:hidden"
-          src="/brand/crv-triad-horizontal-gold.svg"
-        />
-        <img
-          alt=""
-          aria-hidden="true"
-          className="hidden h-auto w-(--workspace-brand-horizontal-width) dark:block"
-          src="/brand/crv-triad-horizontal-white.svg"
-        />
+        <StudioLogo className="w-(--workspace-brand-horizontal-width)" />
       </span>
       <span className="hidden items-center justify-center group-data-[collapsible=icon]:flex">
-        <img
-          alt=""
-          aria-hidden="true"
-          className="h-auto w-(--workspace-brand-symbol-collapsed-width) dark:hidden"
-          src="/brand/crv-triad-symbol-gold.svg"
-        />
-        <img
-          alt=""
-          aria-hidden="true"
-          className="hidden h-auto w-(--workspace-brand-symbol-collapsed-width) dark:block"
-          src="/brand/crv-triad-symbol-white.svg"
-        />
+        <StudioLogo className="size-(--workspace-brand-symbol-collapsed-width)" variant="icon" />
       </span>
     </Link>
   )

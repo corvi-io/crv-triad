@@ -119,8 +119,8 @@ export function LoginScreen({ error, verified }: LoginScreenProps) {
 
   return (
     <AuthShell
-      title="Entrar no TRIAD Backstage"
-      description="Acesso exclusivo para a equipe interna da Corvi."
+      title="Bem-vindo de volta"
+      description="Use sua conta Corvi para acessar a operação interna."
     >
       {verified && !error ? (
         <AuthFeedback tone="success">E-mail confirmado. Você já pode entrar.</AuthFeedback>

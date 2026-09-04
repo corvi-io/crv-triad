@@ -1,7 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router"
-import { Building2Icon, LogOutIcon, RadioTowerIcon } from "lucide-react"
+import { Building2Icon, LogOutIcon } from "lucide-react"
 import type { ReactNode } from "react"
 import { signOut } from "@/modules/auth/services/auth-client"
+import { BackstageLogo } from "./branding/backstage-logo"
 import { Button } from "./ui/button"
 
 export function BackstageShell({ children }: { children: ReactNode }) {
@@ -15,13 +16,7 @@ export function BackstageShell({ children }: { children: ReactNode }) {
       <aside className="border-b bg-[color:var(--sidebar)] lg:sticky lg:top-0 lg:h-svh lg:border-r lg:border-b-0">
         <div className="flex h-16 items-center px-5 lg:h-full lg:flex-col lg:items-stretch lg:px-6 lg:py-7">
           <Link className="flex items-center gap-3" to="/barbershops">
-            <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground">
-              <RadioTowerIcon className="size-4" />
-            </span>
-            <span>
-              <strong className="block text-sm tracking-tight">TRIAD Backstage</strong>
-              <small className="text-muted-foreground">Operação Corvi</small>
-            </span>
+            <BackstageLogo className="w-36" />
           </Link>
           <nav className="hidden pt-10 lg:block" aria-label="Navegação principal">
             <Link

@@ -83,9 +83,7 @@ describe("routes", () => {
       session: null,
     })
 
-    expect(
-      await screen.findByRole("heading", { name: "Entrar no TRIAD Studio" }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Bem-vindo de volta" })).toBeInTheDocument()
     expect(screen.queryByRole("heading", { name: "Meu perfil" })).not.toBeInTheDocument()
   })
 
@@ -104,9 +102,7 @@ describe("routes", () => {
         .getAllByRole("link", { name: "Dashboard" })
         .find((link) => link.hasAttribute("aria-current")),
     ).toHaveAttribute("href", "/overview")
-    expect(
-      screen.queryByRole("heading", { name: "Entrar no TRIAD Studio" }),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "Bem-vindo de volta" })).not.toBeInTheDocument()
   })
 
   it("redirects authenticated root and login visits to overview", async () => {
@@ -141,16 +137,19 @@ describe("routes", () => {
   })
 
   it("renders barbershop setup as a private module inside the workspace shell", async () => {
+    const user = userEvent.setup()
     renderRoute("/barbershop-setup?section=services", authenticatedState())
 
     expect(
       await screen.findByRole("heading", { name: "Configuração da barbearia" }),
     ).toBeInTheDocument()
-    const navigation = screen.getByRole("navigation", { name: "Navegação secundária" })
-    expect(within(navigation).getByRole("link", { name: "Barbearia" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    )
+    expect(
+      screen.queryByRole("navigation", { name: "Navegação secundária" }),
+    ).not.toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Abrir menu de Maria Souza" }))
+    expect(
+      await screen.findByRole("menuitem", { name: "Configuração da barbearia" }),
+    ).toHaveAttribute("href", expect.stringContaining("/barbershop-setup"))
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
       "Configuração da barbearia",
     )

@@ -4,7 +4,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event"
 import { type ReactNode, useEffect } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-
+import { signOut } from "@/modules/auth/services/auth-client"
 import { type AuthState, AuthStateProvider } from "@/modules/auth/services/auth-provider"
 import { ThemeProvider } from "@/modules/shared/theme/theme-provider"
 import { routeTree } from "@/routeTree.gen"
@@ -68,6 +68,7 @@ function IsolatedQueryClientProvider({
 
 describe("authenticated workspace shell", () => {
   beforeEach(() => {
+    vi.mocked(signOut).mockClear()
     window.localStorage.clear()
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 })
   })
@@ -109,14 +110,8 @@ describe("authenticated workspace shell", () => {
       within(primaryNavigation).queryByRole("link", { name: "Usuários" }),
     ).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Abrir notificações" })).not.toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Configurações" })).toHaveAttribute(
-      "href",
-      "/preferences",
-    )
-    expect(screen.getByRole("link", { name: "Barbearia" })).toHaveAttribute(
-      "href",
-      "/barbershop-setup",
-    )
+    expect(within(primaryNavigation).queryByRole("link", { name: "Configurações" })).toBeNull()
+    expect(within(primaryNavigation).queryByRole("link", { name: "Barbearia" })).toBeNull()
     expect(screen.getByText("MS")).toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "Abrir menu de Maria Souza" }))
@@ -130,27 +125,21 @@ describe("authenticated workspace shell", () => {
     )
 
     await user.click(screen.getByRole("menuitem", { name: "Trocar de barbearia" }))
-    const dialog = await screen.findByRole("dialog", { name: "Escolha uma barbearia" })
-    const barbershopOptions = within(dialog)
-      .getAllByRole("button")
-      .filter((button) => button.hasAttribute("aria-pressed"))
-    expect(barbershopOptions.map((button) => button.textContent)).toEqual([
-      "BDBarbearia de testeProprietárioAtual",
-      "BDBarbearia doisAdministrador",
-    ])
-    expect(barbershopOptions[0]).toBeDisabled()
+    const dialog = await screen.findByRole("dialog", { name: "Onde você quer trabalhar?" })
+    expect(within(dialog).getByRole("button", { name: /Barbearia de teste/ })).toBeDisabled()
+    expect(within(dialog).getByRole("button", { name: "Abrir Barbearia dois" })).toBeEnabled()
+    expect(dialog).toHaveTextContent("Escolha a barbearia em que deseja continuar trabalhando.")
+    expect(within(dialog).queryByRole("button", { name: "Continuar" })).toBeNull()
 
-    await user.click(within(dialog).getByRole("button", { name: /Barbearia dois/ }))
-    await user.click(within(dialog).getByRole("button", { name: "Continuar" }))
-    expect(dialog).toHaveAccessibleName("Confirme a troca de barbearia")
-    expect(dialog).toHaveTextContent("Você está em")
-    expect(dialog).toHaveTextContent("Barbearia de teste")
-    expect(dialog).toHaveTextContent("Você vai para")
-    expect(dialog).toHaveTextContent("Barbearia dois")
-    expect(dialog).toHaveTextContent("Alterações ainda não salvas serão perdidas.")
+    await user.click(within(dialog).getByRole("button", { name: "Abrir Barbearia dois" }))
+    await waitFor(() =>
+      expect(dialog).toHaveAccessibleName("Você realmente deseja trocar de barbearia?"),
+    )
+    expect(screen.getAllByRole("dialog")).toHaveLength(1)
+    expect(dialog).toHaveTextContent("Você passará a trabalhar em Barbearia dois.")
     expect(within(dialog).getByRole("button", { name: "Trocar de barbearia" })).toBeVisible()
     await user.click(within(dialog).getByRole("button", { name: "Voltar" }))
-    expect(dialog).toHaveAccessibleName("Escolha uma barbearia")
+    expect(dialog).toHaveAccessibleName("Onde você quer trabalhar?")
   })
 
   it("uses a full-label mobile dialog and restores focus when it closes", async () => {
@@ -166,11 +155,37 @@ describe("authenticated workspace shell", () => {
     const dialog = await screen.findByRole("dialog", { name: "Navegação do TRIAD Studio" })
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByRole("link", { name: "Dashboard" })).toBeVisible()
-    expect(within(dialog).getByRole("link", { name: "Barbearia" })).toBeVisible()
+    expect(within(dialog).getByRole("link", { name: "Agenda" })).toBeVisible()
 
     await user.keyboard("{Escape}")
     await waitFor(() => expect(dialog).not.toBeInTheDocument())
     expect(trigger).toHaveFocus()
+  })
+
+  it("requires confirmation before ending the session", async () => {
+    const user = userEvent.setup()
+    renderWorkspace()
+    await screen.findByRole("heading", { name: "Dashboard" })
+
+    await user.click(screen.getByRole("button", { name: "Abrir menu de Maria Souza" }))
+    await user.click(await screen.findByRole("menuitem", { name: "Sair" }))
+
+    const dialog = await screen.findByRole("dialog", { name: "Deseja realmente sair?" })
+    expect(signOut).not.toHaveBeenCalled()
+
+    await user.click(within(dialog).getByRole("button", { name: "Continuar no Studio" }))
+    await waitFor(() => expect(dialog).not.toBeInTheDocument())
+    expect(signOut).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole("button", { name: "Abrir menu de Maria Souza" }))
+    await user.click(await screen.findByRole("menuitem", { name: "Sair" }))
+    await user.click(
+      within(await screen.findByRole("dialog", { name: "Deseja realmente sair?" })).getByRole(
+        "button",
+        { name: "Sair da conta" },
+      ),
+    )
+    await waitFor(() => expect(signOut).toHaveBeenCalledOnce())
   })
 
   it("identifies the active module in the mobile header on a nested route", async () => {
@@ -201,8 +216,6 @@ describe("authenticated workspace shell", () => {
     expect(
       within(header as HTMLElement).getByRole("link", { name: "Notificações" }),
     ).toHaveAttribute("href", "/notifications")
-    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
-      "TRIAD StudioNotificações",
-    )
+    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent("Notificações")
   })
 })
