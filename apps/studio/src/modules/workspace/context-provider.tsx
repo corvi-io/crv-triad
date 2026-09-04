@@ -5,6 +5,7 @@ import { PageStatus } from "@/modules/shared/components/feedback/page-status"
 import { Button } from "@/modules/shared/components/ui/button"
 
 import {
+  type AvailableContexts,
   listAvailableContexts,
   selectTenantWorkspace,
   type TenantWorkspace,
@@ -39,12 +40,14 @@ export function WorkspaceContextProvider({ children }: { children: ReactNode }) 
   })
 
   async function selectTenant(organizationId: string) {
-    await selectTenantWorkspace(organizationId)
+    const selection = await selectTenantWorkspace(organizationId)
     await queryClient.cancelQueries()
+    queryClient.setQueryData<AvailableContexts>(contextQueryKey, (current) =>
+      current ? { ...current, activeOrganizationId: selection.activeOrganizationId } : current,
+    )
     queryClient.removeQueries({
       predicate: (query) => query.queryKey[0] !== contextQueryKey[0],
     })
-    await queryClient.invalidateQueries({ queryKey: contextQueryKey })
   }
 
   const activeTenant =

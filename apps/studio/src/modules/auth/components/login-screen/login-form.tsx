@@ -16,9 +16,9 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldSeparator,
 } from "@/modules/shared/components/ui/field"
 import { Input } from "@/modules/shared/components/ui/input"
+import { Separator } from "@/modules/shared/components/ui/separator"
 
 type LoginFormProps = {
   error?: string | null
@@ -63,7 +63,11 @@ export function LoginForm({ error, isSubmitting, onGoogleSignIn, onSignIn }: Log
           </Button>
         </Field>
 
-        <FieldSeparator>ou use e-mail e senha</FieldSeparator>
+        <div className="-my-2 flex items-center gap-3 text-sm text-muted-foreground">
+          <Separator className="flex-1" />
+          <span>ou use e-mail e senha</span>
+          <Separator className="flex-1" />
+        </div>
 
         <Field data-invalid={!!errors.email}>
           <FieldLabel htmlFor="email">E-mail</FieldLabel>

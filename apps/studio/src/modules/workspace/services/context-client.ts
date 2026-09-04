@@ -31,4 +31,8 @@ export async function selectTenantWorkspace(organizationId: string) {
     method: "POST",
   })
   if (!response.ok) throw new Error("Workspace selection failed.")
+  return response.json() as Promise<{
+    activeOrganizationId: string
+    status: "selected"
+  }>
 }

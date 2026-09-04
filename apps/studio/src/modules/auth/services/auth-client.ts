@@ -115,6 +115,10 @@ export async function signOut() {
   return authClient.signOut()
 }
 
+export async function updateDisplayName(name: string) {
+  return authClient.updateUser({ name })
+}
+
 function getAbsoluteAuthBaseUrl() {
   if (env.authBaseUrl.startsWith("http://") || env.authBaseUrl.startsWith("https://")) {
     return env.authBaseUrl

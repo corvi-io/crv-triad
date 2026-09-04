@@ -59,6 +59,27 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
+test("presents the Backstage authentication identity without redundant product copy", async ({
+  page,
+}) => {
+  await page.route("**/api/auth/**", async (route) => route.fulfill({ json: null }))
+  await page.setViewportSize({ height: 900, width: 1440 })
+  await page.goto("/login")
+
+  await expect(page.getByRole("img", { name: "TRIAD Backstage" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Bem-vindo de volta" })).toBeVisible()
+  await expect(page.getByText("Use sua conta Corvi para acessar a operação interna.")).toBeVisible()
+  await expect(page.getByText("Menos pontos cegos. Mais controle operacional.")).toBeVisible()
+  await expect(page.getByText("TRIAD Backstage", { exact: true })).toHaveCount(0)
+  expect((await new AxeBuilder({ page }).include("#main-content").analyze()).violations).toEqual([])
+
+  await page.setViewportSize({ height: 720, width: 320 })
+  await expect(page.getByRole("heading", { name: "Bem-vindo de volta" })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
+})
+
 test("renders the system barbershop inventory accessibly at desktop and mobile widths", async ({
   page,
 }) => {

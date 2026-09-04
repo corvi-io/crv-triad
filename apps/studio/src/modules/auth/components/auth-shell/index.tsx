@@ -1,5 +1,7 @@
 import { type ReactNode, useEffect, useRef } from "react"
 
+import { StudioLogo } from "@/modules/shared/components/branding/studio-logo"
+
 type AuthShellProps = {
   children: ReactNode
   description: string
@@ -21,19 +23,7 @@ export function AuthShell({ children, description, title }: AuthShellProps) {
       <section className="flex min-h-svh flex-col p-6 md:p-10 lg:h-svh lg:min-h-0 lg:overflow-y-auto">
         <header>
           <a aria-label="TRIAD Studio — ir para o início" className="block w-fit" href="/">
-            <span className="sr-only">TRIAD Studio — ir para o início</span>
-            <img
-              alt=""
-              aria-hidden="true"
-              className="h-auto w-36 dark:hidden"
-              src="/brand/crv-triad-horizontal-gold.svg"
-            />
-            <img
-              alt=""
-              aria-hidden="true"
-              className="hidden h-auto w-36 dark:block"
-              src="/brand/crv-triad-horizontal-white.svg"
-            />
+            <StudioLogo className="w-36" />
           </a>
         </header>
 
@@ -55,21 +45,26 @@ export function AuthShell({ children, description, title }: AuthShellProps) {
       </section>
 
       <section
-        className="auth-brand-surface relative hidden h-svh items-center justify-center overflow-hidden p-16 lg:flex"
+        className="auth-brand-surface group relative hidden h-svh overflow-hidden lg:block"
         aria-label="Identidade visual do TRIAD Studio"
       >
-        <img
-          alt=""
-          aria-hidden="true"
-          className="h-auto w-full max-w-xl dark:hidden"
-          src="/brand/crv-triad-stacked-gold.svg"
-        />
-        <img
-          alt=""
-          aria-hidden="true"
-          className="hidden h-auto w-full max-w-xl dark:block"
-          src="/brand/crv-triad-stacked-white.svg"
-        />
+        <div className="absolute inset-0 motion-safe:animate-[auth-drift_18s_ease-in-out_infinite] motion-reduce:transform-none">
+          <img
+            alt=""
+            aria-hidden="true"
+            className="size-full scale-[1.04] object-cover object-center"
+            src="/auth/studio-quiet-luxury.webp"
+          />
+        </div>
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,18,38,.28),transparent_35%),linear-gradient(0deg,rgba(8,18,38,.22),transparent_40%)]" />
+        <div className="absolute right-8 bottom-8 left-8 rounded-2xl border border-white/12 bg-[rgba(8,18,38,.58)] p-5 text-white shadow-2xl backdrop-blur-md">
+          <p className="max-w-md text-xl font-semibold text-balance">
+            Menos improviso. Mais controle do dia.
+          </p>
+          <p className="mt-1 max-w-lg text-sm text-white/72">
+            Agenda, equipe e atendimento organizados para sua barbearia operar com clareza.
+          </p>
+        </div>
       </section>
     </main>
   )

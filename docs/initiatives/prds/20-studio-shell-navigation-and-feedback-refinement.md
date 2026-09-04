@@ -4,7 +4,7 @@
 
 - Planning state: Ready
 - Approval state: Approved
-- Delivery state: Not started
+- Delivery state: Complete
 - Owner: CRV Triad
 - Last updated: 2026-09-04
 - Approved by/date: User / 2026-09-04
@@ -151,7 +151,9 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
   tenant-bound data after a context switch.
 - Creating notification persistence, delivery services, polling, WebSockets, push notifications,
   email/SMS delivery, notification preferences, or new operational notification rules.
-- Editing email, avatar, role, memberships, barbershop data, or other future profile attributes.
+- Editing email, role, memberships, barbershop data, or other future profile attributes.
+- Uploading or persisting profile images; this initiative includes only a local, session-bound avatar
+  preview used to validate the future interaction design.
 - Redesigning the product brand, primary operational modules, authentication forms, or authenticated
   Backstage workflows beyond the new branded shell.
 - Changing authentication validation, identity contracts, or route behavior merely to accommodate
@@ -249,6 +251,13 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
 - REQ-029: Authentication artwork and motion shall not delay form interactivity, produce material
   layout shift, trap focus, enter the accessibility tree as redundant content, or regress Studio or
   Backstage production build boundaries.
+- REQ-030: Profile shall offer a clearly labeled local-only avatar preview for PNG, JPEG, and WebP
+  files up to 2 MB, allow replacement/removal, and revoke temporary object URLs; no upload or
+  persistence shall occur.
+- REQ-031: The in-shell barbershop switcher shall reuse the selection page's hierarchy and require
+  an explicit confirmation naming the destination before changing the active tenant.
+- REQ-032: Sign-out shall require an explicit confirmation dialog; cancel shall preserve the
+  session, while confirmation shall expose the existing pending state and invoke sign-out once.
 
 ## Brainstorm
 
@@ -466,69 +475,76 @@ presentation-only.
 
 ## Acceptance Criteria
 
-- [ ] AC-001: Given an authenticated user refreshes or navigates within Studio, the shell remains
+- [x] AC-001: Given an authenticated user refreshes or navigates within Studio, the shell remains
   visible without rendering `Verificando acesso`, and protected route content remains covered by its
   own authorized loading/data lifecycle.
-- [ ] AC-002: Given session resolution returns confirmed unauthenticated status, Studio redirects to
+- [x] AC-002: Given session resolution returns confirmed unauthenticated status, Studio redirects to
   login; given `403`, it preserves the session and shows access denial; given network or `5xx`
   failure, it does not automatically sign out and offers recovery.
-- [ ] AC-003: Given a user selects a tenant on `/select-workspace`, one pointer click or keyboard
+- [x] AC-003: Given a user selects a tenant on `/select-workspace`, one pointer click or keyboard
   activation issues no more than one mutation, keeps the action visibly busy, and navigates once to
   `/overview`; failure restores retry without changing the confirmed tenant.
-- [ ] AC-004: The selector remains understandable with one, several, and long-named barbershops in
+- [x] AC-004: The selector remains understandable with one, several, and long-named barbershops in
   light/dark themes at desktop and 320 CSS pixels, with correct keyboard, focus, status, and error
   behavior.
-- [ ] AC-005: Each authenticated route header displays only its current route label with
+- [x] AC-005: Each authenticated route header displays only its current route label with
   current-location semantics and never prepends `TRIAD Studio`.
-- [ ] AC-006: The persistent secondary sidebar group is absent. The user menu groups account actions
+- [x] AC-006: The persistent secondary sidebar group is absent. The user menu groups account actions
   separately from `Configuração da barbearia`, includes notifications and context switching where
   applicable, and keeps sign-out separate.
-- [ ] AC-007: Profile and preferences render in centered, responsive shared layouts with one clear
+- [x] AC-007: Profile and preferences render in centered, responsive shared layouts with one clear
   scroll owner and no inaccessible nested overflow.
-- [ ] AC-008: Appearance and security/access preferences are accessible collapsible sections whose
+- [x] AC-008: Appearance and security/access preferences are accessible collapsible sections whose
   controls retain current behavior and whose collapsed summaries remain meaningful.
-- [ ] AC-009: A user can change their own non-empty display name, submit once, retain typed input on
+- [x] AC-009: A user can change their own non-empty display name, submit once, retain typed input on
   failure, see Portuguese validation/feedback, and see the persisted name update in the shell; email
   remains read-only.
-- [ ] AC-010: Toasts render in the upper-right with tested information/default, success, warning, and
+- [x] AC-010: Toasts render in the upper-right with tested information/default, success, warning, and
   error semantics, icons, direct copy, dismissal, reduced-motion behavior, and legible light/dark
   contrast without relying only on color.
-- [ ] AC-011: The affected toast call sites use stable, concise Brazilian Portuguese outcome copy
+- [x] AC-011: The affected toast call sites use stable, concise Brazilian Portuguese outcome copy
   and do not include private payload values.
-- [ ] AC-012: Notification preview items present a short title and concise preview first; selecting
+- [x] AC-012: Notification preview items present a short title and concise preview first; selecting
   an item reveals full content and the relevant action without showing the previous badge/action
   overload on every collapsed item.
-- [ ] AC-013: The full notification center preserves active/history, unread/read mutations,
+- [x] AC-013: The full notification center preserves active/history, unread/read mutations,
   destinations, loading, error, empty, overflow, long-copy, and missing-destination behavior using
   the simplified hierarchy.
-- [ ] AC-014: All changed journeys pass automated accessibility checks and manual keyboard/focus,
+- [x] AC-014: All changed journeys pass automated accessibility checks and manual keyboard/focus,
   200% zoom, reduced-motion, light/dark/system, desktop, and 320 CSS-pixel review.
-- [ ] AC-015: Studio format, lint, typecheck, unit/component tests, production-boundary test, build,
+- [x] AC-015: Studio format, lint, typecheck, unit/component tests, production-boundary test, build,
   focused E2E tests, and the Impeccable mechanical detector pass or any exception is recorded before
   completion.
-- [ ] AC-016: Durable Studio and Backstage authentication, component-system, art-direction, asset,
+- [x] AC-016: Durable Studio and Backstage authentication, component-system, art-direction, asset,
   and theme/feedback documentation is updated to match the implemented behavior; no README, AGENTS,
   env-schema, or skill change is made unless implementation reveals a durable workflow or convention
   change.
-- [ ] AC-017: Studio login, invitation, recovery, and password-reset screens replace the oversized
+- [x] AC-017: Studio login, invitation, recovery, and password-reset screens replace the oversized
   logo panel with the approved barbershop-operation scene while preserving every existing form
   success, validation, failure, redirect, and keyboard behavior.
-- [ ] AC-018: Backstage login, invitation, recovery, and password-reset screens use the approved
+- [x] AC-018: Backstage login, invitation, recovery, and password-reset screens use the approved
   system-observatory scene while preserving every existing form and operator-entry behavior.
-- [ ] AC-019: Side-by-side review identifies Studio and Backstage as members of one TRIAD family
+- [x] AC-019: Side-by-side review identifies Studio and Backstage as members of one TRIAD family
   through shared visual grammar while clearly distinguishing barbershop operation from platform
   governance without explanatory labels being required to tell them apart.
-- [ ] AC-020: Authentication motion remains subtle and smooth on supported desktop browsers, does
+- [x] AC-020: Authentication motion remains subtle and smooth on supported desktop browsers, does
   not delay or intercept form input, and becomes an intentional static composition under reduced
   motion or when animation capability is unavailable.
-- [ ] AC-021: Authentication remains fully usable at 320 CSS pixels, 200% zoom, light/dark/system,
+- [x] AC-021: Authentication remains fully usable at 320 CSS pixels, 200% zoom, light/dark/system,
   keyboard-only, forced-colors where relevant, slow media loading, failed media loading, and reduced
   motion, with no horizontal overflow or content obstruction.
-- [ ] AC-022: Final art assets are original, locally stored per owning app, provenance-recorded,
+- [x] AC-022: Final art assets are original, locally stored per owning app, provenance-recorded,
   responsive, production-optimized, free of embedded UI copy or private data, and introduce no
   runtime third-party image request.
-- [ ] AC-023: `bun --filter backstage check` and focused Backstage auth E2E/visual checks pass in
+- [x] AC-023: `bun --filter backstage check` and focused Backstage auth E2E/visual checks pass in
   addition to the Studio verification suite, or any exception is recorded before completion.
+- [x] AC-024: A user can select, preview, replace, and remove a valid local profile image; invalid
+  type/size receives an accessible Portuguese error, reload loses the preview, and no network request
+  or persisted identity change occurs.
+- [x] AC-025: From the user menu, a user can distinguish the current barbershop, choose another,
+  confirm the named destination, and reach `/overview`; cancellation preserves the current tenant.
+- [x] AC-026: Selecting `Sair` opens a named confirmation dialog; cancel performs no sign-out and
+  confirming performs exactly one sign-out while preventing duplicate submission.
 
 ## Verification Plan
 

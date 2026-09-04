@@ -119,8 +119,8 @@ export function LoginScreen({ error, verified }: LoginScreenProps) {
 
   return (
     <AuthShell
-      title="Entrar no TRIAD Studio"
-      description="Use o e-mail convidado para acessar o TRIAD Studio."
+      title="Bem-vindo de volta"
+      description="Use o e-mail convidado para acessar sua conta."
     >
       {verified && !error ? (
         <AuthFeedback tone="success">E-mail confirmado. Você já pode entrar.</AuthFeedback>

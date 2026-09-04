@@ -8,7 +8,6 @@ import {
 } from "lucide-react"
 import { defaultServiceDeskSearch } from "@/modules/service-desk/search"
 import { formatDateOnly } from "@/modules/shared/components/forms/date-picker"
-import { Badge } from "@/modules/shared/components/ui/badge"
 import { Button } from "@/modules/shared/components/ui/button"
 import { cn } from "@/modules/shared/lib/utils"
 import type { OperationalNotification } from "./contracts"
@@ -22,9 +21,9 @@ const severityLabels = {
 } as const
 
 const severityClasses = {
-  attention: "border-feedback-warning-border text-feedback-warning-foreground",
-  critical: "border-feedback-destructive-border text-feedback-destructive-foreground",
-  informational: "border-feedback-info-border text-feedback-info-foreground",
+  attention: "bg-feedback-warning text-feedback-warning-foreground",
+  critical: "bg-feedback-destructive text-feedback-destructive-foreground",
+  informational: "bg-feedback-info text-feedback-info-foreground",
 } as const
 
 const categoryIcons = {
@@ -53,41 +52,47 @@ export function NotificationItem({
   return (
     <article
       className={cn(
-        "flex min-w-0 gap-3 rounded-lg border bg-card text-card-foreground",
-        compact ? "p-2.5" : "p-4",
-        !notification.isRead && notification.lifecycle === "active" && "border-primary/70",
+        "flex min-w-0 gap-3 bg-card text-card-foreground transition-colors hover:bg-muted/25",
+        compact ? "px-1 py-3" : "p-4 sm:p-5",
       )}
       data-notification-id={notification.id}
     >
       <span
         aria-hidden="true"
         className={cn(
-          "grid size-9 shrink-0 place-items-center rounded-lg border",
+          "grid size-9 shrink-0 place-items-center rounded-lg",
           severityClasses[notification.severity],
         )}
       >
         <Icon className="size-4" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex items-start justify-between gap-2">
           <h3 className="text-sm font-semibold">
             {notificationCategoryLabels[notification.category]}
           </h3>
-          <Badge variant="outline" className={severityClasses[notification.severity]}>
-            {severityLabels[notification.severity]}
-          </Badge>
-          <Badge variant={notification.isRead ? "outline" : "secondary"}>
-            {notification.isRead ? "Lida" : "Não lida"}
-          </Badge>
-          {notification.lifecycle === "resolved" ? (
-            <Badge variant="outline">Resolvida na origem</Badge>
+          {!notification.isRead && notification.lifecycle === "active" ? (
+            <span className="mt-1 size-2 shrink-0 rounded-full bg-primary">
+              <span className="sr-only">Não lida</span>
+            </span>
           ) : null}
         </div>
         <p className="mt-1 text-sm font-medium">{notification.summary}</p>
         {!compact ? (
-          <p className="mt-1 text-sm text-muted-foreground">{notification.detail}</p>
+          <details className="mt-2 group/detail">
+            <summary className="cursor-pointer text-sm font-medium text-primary">
+              Ver detalhes
+            </summary>
+            <div className="mt-2 space-y-2 border-l-2 border-border pl-3">
+              <p className="text-sm text-muted-foreground">{notification.detail}</p>
+              <p className="text-xs text-muted-foreground">
+                {severityLabels[notification.severity]}
+                {notification.lifecycle === "resolved" ? " · Resolvida na origem" : ""}
+              </p>
+            </div>
+          </details>
         ) : null}
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-1">
           {destination ? (
             <DestinationLink destination={destination} />
           ) : (
@@ -105,7 +110,7 @@ export function NotificationItem({
                 />
               }
               size="sm"
-              variant="outline"
+              variant="ghost"
             >
               Destino indisponível · Abrir Agenda
             </Button>
@@ -149,9 +154,9 @@ function DestinationLink({
           />
         }
         size="sm"
-        variant="outline"
+        variant="ghost"
       >
-        Abrir destino
+        Abrir na agenda
       </Button>
     )
   }
@@ -166,9 +171,9 @@ function DestinationLink({
           />
         }
         size="sm"
-        variant="outline"
+        variant="ghost"
       >
-        Abrir destino
+        Abrir pagamento
       </Button>
     )
   }
@@ -183,9 +188,9 @@ function DestinationLink({
           />
         }
         size="sm"
-        variant="outline"
+        variant="ghost"
       >
-        Abrir destino
+        Abrir atendimento
       </Button>
     )
   }
@@ -193,9 +198,9 @@ function DestinationLink({
     <Button
       render={<Link search={{ notificationScenario: undefined }} to="/notifications" />}
       size="sm"
-      variant="outline"
+      variant="ghost"
     >
-      Abrir destino
+      Abrir notificações
     </Button>
   )
 }

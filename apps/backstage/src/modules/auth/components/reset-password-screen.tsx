@@ -63,7 +63,7 @@ export function ResetPasswordScreen({ invalidToken, token }: ResetPasswordScreen
   return (
     <AuthShell
       title="Criar nova senha"
-      description="Defina uma nova senha para voltar a acessar o TRIAD Backstage."
+      description="Defina uma nova senha para recuperar seu acesso interno."
     >
       {result === "invalid" ? (
         <div className="space-y-5">

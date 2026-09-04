@@ -9,7 +9,7 @@ test("keeps public auth journeys focused, responsive, and accessible", async ({ 
   await routeUnauthenticatedSession(page)
 
   await page.goto("/login")
-  await expect(page.getByRole("heading", { name: "Entrar no TRIAD Studio" })).toBeFocused()
+  await expect(page.getByRole("heading", { name: "Bem-vindo de volta" })).toBeFocused()
   await expect(page.getByRole("button", { name: "Continuar com Google" })).toBeVisible()
   await page.keyboard.press("Tab")
   await expect(page.getByRole("button", { name: "Continuar com Google" })).toBeFocused()
@@ -99,6 +99,7 @@ test("accepts one invitation, creates a session, and rejects its replay", async 
   let accepted = false
   let authenticated = false
   let acceptanceRequests = 0
+  await routeTenantContext(page)
   await page.setViewportSize({ height: 720, width: 320 })
   await page.route("**/invitations/resolve", async (route) => {
     if (await fulfillPreflight(route)) return
@@ -138,7 +139,7 @@ test("accepts one invitation, creates a session, and rejects its replay", async 
   await page.getByLabel("Confirmar nova senha").fill("Senha válida 1!")
   await page.getByRole("button", { name: "Criar senha" }).dblclick()
 
-  await expect(page).toHaveURL(/\/overview$/)
+  await expect(page).toHaveURL(/\/overview(?:\?|$)/)
   expect(acceptanceRequests).toBe(1)
   const accessibility = await new AxeBuilder({ page })
     .include("#main-content")
@@ -153,6 +154,7 @@ test("accepts one invitation, creates a session, and rejects its replay", async 
 })
 
 test("keeps a Google-only user from removing the last access method", async ({ page }) => {
+  await routeTenantContext(page)
   await page.route("**/api/auth/**", async (route) => {
     if (await fulfillPreflight(route)) return
 
@@ -182,7 +184,7 @@ test("keeps a Google-only user from removing the last access method", async ({ p
   await expect(page.getByText(/Crie uma senha antes de desconectar/)).toBeVisible()
 
   const accessibility = await new AxeBuilder({ page })
-    .include('[aria-labelledby="security-access-heading"]')
+    .include('[aria-label="Configurações de segurança e acesso"]')
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze()
   expect(accessibility.violations).toEqual([])
@@ -191,6 +193,7 @@ test("keeps a Google-only user from removing the last access method", async ({ p
 test("does not trust a Google callback marker when the account list disagrees", async ({
   page,
 }) => {
+  await routeTenantContext(page)
   await page.route("**/api/auth/**", async (route) => {
     if (await fulfillPreflight(route)) return
 
@@ -224,6 +227,25 @@ async function routeUnauthenticatedSession(page: Page) {
   await page.route("**/api/auth/**", async (route) => {
     if (await fulfillPreflight(route)) return
     await fulfillJson(route, null)
+  })
+}
+
+async function routeTenantContext(page: Page) {
+  await page.route("**/api/contexts**", async (route) => {
+    await fulfillJson(route, {
+      activeOrganizationId: "tenant-a",
+      platform: null,
+      status: "available",
+      tenants: [{ id: "tenant-a", name: "Barbearia Aurora", role: "owner" }],
+    })
+  })
+  await page.route("**/api/access/summary", async (route) => {
+    await fulfillJson(route, {
+      capabilities: [],
+      organizationId: "tenant-a",
+      role: "owner",
+      subscriptionState: "active",
+    })
   })
 }
 

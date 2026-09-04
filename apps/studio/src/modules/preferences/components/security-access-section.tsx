@@ -167,19 +167,7 @@ export function SecurityAccessSection({ googleResult }: SecurityAccessSectionPro
   const visibleMessage = actionMessage ?? callbackMessage
 
   return (
-    <section
-      aria-labelledby="security-access-heading"
-      className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm"
-    >
-      <div className="space-y-1">
-        <h2 className="text-base font-semibold" id="security-access-heading">
-          Segurança e acesso
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Consulte e gerencie os métodos usados para entrar na sua conta.
-        </p>
-      </div>
-
+    <section aria-label="Configurações de segurança e acesso">
       {visibleMessage ? (
         <p
           className={
