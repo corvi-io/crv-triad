@@ -7,7 +7,7 @@
 - Delivery state: Not started
 - Owner: CRV Triad
 - Last updated: 2026-09-04
-- Approved by/date: User / 2026-09-04
+- Approved by/date:
 
 ## Summary
 
@@ -256,8 +256,9 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
 
 - This is not eight unrelated cosmetic requests. It is one shared-shell problem: the Studio gives
   too much visual weight to internal state and too little hierarchy to the user's immediate task.
-- The primary affected user is already authenticated or attempting to resume authenticated work;
-  speed, context confidence, and recovery matter more than decorative novelty.
+- The affected user is either entering a known TRIAD product through authentication or resuming
+  authenticated work. The entrance should build product recognition without slowing the task;
+  inside the product, speed, context confidence, and recovery outweigh decorative novelty.
 - Success is observable when routine refresh/navigation no longer flashes an access page, one tenant
   activation works once, administrative destinations are predictable, and feedback can be scanned
   without decoding multiple visual labels.
@@ -265,7 +266,8 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
 ### Gaps And Unknowns
 
 - Product gaps: no measured baseline exists for selection retries, auth interstitial exposure, or
-  notification comprehension time.
+  notification comprehension time. Authentication art has no existing product-specific narrative
+  beyond the shared logo.
 - Technical gaps: the exact cause of the reported second-click selection must be reproduced before
   choosing whether the defect is in event handling, provider state, session propagation, or route
   redirection.
@@ -274,6 +276,8 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
 - Operational gaps: there is no frontend-wide response interceptor today; implementation must choose
   a central session-invalid signal compatible with Better Auth and current repository adapters
   without inventing a broad networking framework.
+- Asset gaps: no approved Studio or Backstage hero artwork exists. Final composition, layer split,
+  crop, and measured media budget must be validated during the bounded concept/asset task.
 
 ### Counterpoints
 
@@ -307,9 +311,9 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
 
 | Option | Description | Pros | Cons | When To Choose |
 | --- | --- | --- | --- | --- |
-| A | Cosmetic-only pass over current components | Smallest code change | Does not solve auth interruption, tenant-selection defect, information architecture, or profile editing | Use only if runtime behavior cannot change |
-| B | Targeted shared-shell and feedback refinement with existing contracts | Solves the observed workflows, creates reusable UI patterns, avoids new backend scope | Touches several shared components and requires broad regression coverage | Selected for Initiative 20 |
-| C | New shell plus notification platform and generalized settings system | Strong long-term expansion surface | Premature abstraction, new persistence/API/ops scope, substantially higher risk | Reconsider when delivery channels and real settings inventory are defined |
+| A | Cosmetic-only pass plus one shared auth background | Smallest code and asset change | Does not solve workflow defects and makes Studio/Backstage visually interchangeable | Use only if runtime behavior and product distinction cannot change |
+| B | Targeted shell/feedback refinement plus one family grammar with product-specific auth scenes | Solves observed workflows, gives authentication meaning, avoids new backend and heavy media scope | Touches two apps and requires art, performance, accessibility, and broad regression review | Selected for Initiative 20 |
+| C | Shared auth package, real-time 3D/video scenes, notification platform, and generalized settings | Maximum reuse and spectacle | Premature abstraction, high runtime cost, new persistence/ops scope, substantially higher risk | Reconsider only after Barber exists and delivery requirements are real |
 
 ### Recommendation
 

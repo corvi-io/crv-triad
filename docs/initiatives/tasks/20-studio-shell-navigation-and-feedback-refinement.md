@@ -30,7 +30,7 @@
 | REQ-012–REQ-013 / AC-010–AC-011 | TASK-007, TASK-010 | Toaster stories/tests, call-site review, visual/theme evidence |
 | REQ-014–REQ-016 / AC-012–AC-013 | TASK-008, TASK-009, TASK-010 | Notification component and existing scenario E2E tests |
 | REQ-017–REQ-020 / AC-014–AC-015 | TASK-001–TASK-010, TASK-012 | Accessibility, privacy, performance, production-boundary, build, detector evidence |
-| REQ-001–REQ-020 / AC-016 | TASK-011, TASK-012 | Documentation review and final traceability audit |
+| REQ-001–REQ-029 / AC-016 | TASK-011, TASK-012 | Documentation review and final traceability audit |
 | REQ-021–REQ-029 / AC-017–AC-023 | TASK-013–TASK-016 | Art-direction proof, optimized assets, auth-family tests, app builds, visual evidence |
 
 ## Dependency Order
@@ -414,7 +414,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 ### TASK-011 — Update durable Studio and Backstage contracts and component inventories
 
 - Status: Pending
-- Covers: REQ-001–REQ-020, AC-016
+- Covers: REQ-001–REQ-029, AC-016
 - Depends on: TASK-002–TASK-009, TASK-015
 - Can parallelize with: TASK-010 after behavior settles
 - Relevant skills/docs: `triad-architecture`, `triad-studio-development`,
@@ -438,7 +438,7 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 ### TASK-012 — Run final verification and initiative evidence audit
 
 - Status: Pending
-- Covers: REQ-017–REQ-020, AC-015–AC-016
+- Covers: REQ-017–REQ-020, REQ-025–REQ-029, AC-015–AC-016, AC-022–AC-023
 - Depends on: TASK-010–TASK-011, TASK-016
 - Can parallelize with: None
 - Relevant skills/docs: `triad-preflight-review`, `triad-testing`, Impeccable detector,
