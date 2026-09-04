@@ -196,6 +196,14 @@ export function createAuthOptions(
           context.context.returned &&
           !(context.context.returned instanceof APIError)
         ) {
+          const createdSession = context.context.newSession
+          if (createdSession?.user) {
+            await acceptOrganizationInvitationsForUser(
+              db,
+              createdSession.user.email,
+              createdSession.user.id,
+            )
+          }
           return context.json({ status: true })
         }
       }),
@@ -383,13 +391,7 @@ export function createAuthOptions(
 
             const token = readInvitationToken(context as never)
             const consumed = token
-              ? await consumeInvitationProof(
-                  context as never,
-                  token,
-                  candidate.userId,
-                  new Date(),
-                  (email, userId) => acceptOrganizationInvitationsForUser(db, email, userId),
-                )
+              ? await consumeInvitationProof(context as never, token, candidate.userId)
               : false
 
             if (!consumed) throwInvalidInvitationProof()

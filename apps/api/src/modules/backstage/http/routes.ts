@@ -63,8 +63,9 @@ export function createBackstageRoutes(
     const credential = headers.get("authorization")?.match(/^Support ([A-Za-z0-9_-]+)$/)?.[1]
     if (!credential) throw new BackstageError("support_context_required")
     const [support] = await db
-      .select()
+      .select({ support: supportContext })
       .from(supportContext)
+      .innerJoin(organization, eq(organization.id, supportContext.organizationId))
       .where(
         and(
           eq(supportContext.id, contextId),
@@ -72,11 +73,12 @@ export function createBackstageRoutes(
           eq(supportContext.credentialDigest, digestSupportCredential(credential)),
           gt(supportContext.expiresAt, new Date()),
           isNull(supportContext.revokedAt),
+          eq(organization.status, "active"),
         ),
       )
       .limit(1)
     if (!support) throw new BackstageError("support_context_invalid")
-    return support
+    return support.support
   }
 
   return new Elysia({ name: "backstage-routes", prefix: "/api/backstage" })

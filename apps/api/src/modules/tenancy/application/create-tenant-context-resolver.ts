@@ -24,7 +24,10 @@ export function createTenantContextResolver(
 
     return resolveTenantContext(
       {
-        session: { activeOrganizationId: persistedSession?.activeOrganizationId },
+        session: {
+          activeOrganizationId: persistedSession?.activeOrganizationId,
+          createdAt: new Date(authSession.session.createdAt),
+        },
         user: { id: authSession.user.id },
       },
       memberships,

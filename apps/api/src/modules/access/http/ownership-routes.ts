@@ -16,6 +16,8 @@ export function createOwnershipRoutes(db: IdpDatabase, resolveContext: TenantCon
         return status(resolved.reason === "unauthenticated" ? 401 : 403, { code: resolved.reason })
       const actor = resolved.context
       if (actor.role !== "owner") return status(403, { code: "capability_forbidden" })
+      if (!actor.authenticatedAt || Date.now() - actor.authenticatedAt.getTime() >= 5 * 60 * 1_000)
+        return status(403, { code: "recent_authentication_required" })
 
       const transferred = await db.transaction(async (tx) => {
         await tx.execute(
@@ -29,6 +31,7 @@ export function createOwnershipRoutes(db: IdpDatabase, resolveContext: TenantCon
               eq(member.id, body.targetMembershipId),
               eq(member.organizationId, actor.organizationId),
               eq(member.status, "active"),
+              eq(member.role, "admin"),
             ),
           )
           .limit(1)
@@ -70,6 +73,11 @@ export function createOwnershipRoutes(db: IdpDatabase, resolveContext: TenantCon
       if (!transferred) return status(404, { code: "not_found" })
       return { status: "transferred" as const }
     },
-    { body: t.Object({ targetMembershipId: t.String({ maxLength: 128 }) }) },
+    {
+      body: t.Object({
+        confirmed: t.Literal(true),
+        targetMembershipId: t.String({ maxLength: 128 }),
+      }),
+    },
   )
 }

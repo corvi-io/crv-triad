@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, ne } from "drizzle-orm"
 import { Elysia, t } from "elysia"
 
 import type { IdpDatabase } from "../../idp/database/client.js"
@@ -7,7 +7,12 @@ import { createId } from "../../shared/infra/ids.js"
 import type { TenantContextResolver } from "../../tenancy/application/create-tenant-context-resolver.js"
 import type { TenantActionAuthorizer } from "../application/authorize-tenant-action.js"
 import { accessRequest, planEntitlement, tenantSubscription } from "../database/schema.js"
-import { capabilities, decideAccess } from "../domain/access-decision.js"
+import {
+  type Capability,
+  capabilities,
+  capabilitiesForRole,
+  decideAccess,
+} from "../domain/access-decision.js"
 
 export function createAccessRoutes(
   db: IdpDatabase,
@@ -140,8 +145,13 @@ export function createAccessRoutes(
             )
             .returning()
           const reviewed = result[0]
-          if (reviewed && body.decision === "approved" && body.approvedRole)
-            await tx
+          if (reviewed && body.decision === "approved") {
+            if (
+              !body.approvedRole ||
+              !capabilitiesForRole(body.approvedRole).includes(reviewed.capabilityKey as Capability)
+            )
+              throw new AccessRouteError("capability_forbidden")
+            const [updatedMembership] = await tx
               .update(member)
               .set({ role: body.approvedRole })
               .where(
@@ -149,8 +159,12 @@ export function createAccessRoutes(
                   eq(member.id, reviewed.requesterMembershipId),
                   eq(member.organizationId, tenant.organizationId),
                   eq(member.status, "active"),
+                  ne(member.role, "owner"),
                 ),
               )
+              .returning({ id: member.id })
+            if (!updatedMembership) throw new AccessRouteError("capability_forbidden")
+          }
           return result
         })
         if (!updated) throw new AccessRouteError("version_conflict")

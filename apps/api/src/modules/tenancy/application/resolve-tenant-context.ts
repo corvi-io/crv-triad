@@ -1,7 +1,7 @@
 import type { TenantContextDecision, TenantRole } from "../domain/business-context.js"
 
 export type AuthenticatedBusinessSession = Readonly<{
-  session: Readonly<{ activeOrganizationId?: string | null }>
+  session: Readonly<{ activeOrganizationId?: string | null; createdAt?: Date }>
   user: Readonly<{ id: string }>
 }>
 
@@ -38,6 +38,7 @@ export async function resolveTenantContext(
     allowed: true,
     context: {
       actorUserId: session.user.id,
+      authenticatedAt: session.session.createdAt,
       membershipId: membership.membershipId,
       organizationId: membership.organizationId,
       organizationName: membership.organizationName,

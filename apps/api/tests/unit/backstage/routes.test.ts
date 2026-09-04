@@ -367,7 +367,7 @@ describe("Backstage route authority", () => {
     const headers = { authorization: "Support valid-token", "x-request-id": "request-a" }
     const summaryDb = operationalDatabase([
       [activeOperator],
-      [support],
+      [{ support }],
       [{ id: "tenant-a", name: "Barbearia A", status: "active" }],
       [{ value: 2 }],
       [{ value: 4 }],
@@ -386,7 +386,7 @@ describe("Backstage route authority", () => {
 
     const clientsDb = operationalDatabase([
       [activeOperator],
-      [support],
+      [{ support }],
       [{ value: 1 }],
       [{ id: "client-a", name: "Cliente A", status: "active" }],
     ])

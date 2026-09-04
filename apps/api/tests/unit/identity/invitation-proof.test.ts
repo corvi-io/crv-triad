@@ -61,37 +61,4 @@ describe("invitation proof transaction seam", () => {
     expect(updateMany).toHaveBeenCalledTimes(2)
     expect(JSON.stringify(updateMany.mock.calls)).not.toContain(secret.token)
   })
-
-  it("activates organization access only after consuming a valid proof", async () => {
-    const secret = createInvitationSecret()
-    const onAccepted = vi.fn(async () => undefined)
-    const context = {
-      body: { invitationToken: secret.token },
-      context: {
-        adapter: {
-          findOne: vi.fn(async () => ({
-            email: "owner@example.com",
-            expiresAt: new Date("2099-01-01T00:00:00Z"),
-            id: "invitation-id",
-            role: "member",
-            status: "pending",
-            tokenIssuedAt: new Date("2098-12-31T00:00:00Z"),
-          })),
-          updateMany: vi.fn(async () => 1),
-        },
-      },
-      path: "/sign-up/email",
-    }
-
-    await expect(
-      consumeInvitationProof(
-        context as never,
-        secret.token,
-        "user-id",
-        new Date("2098-12-31T12:00:00Z"),
-        onAccepted,
-      ),
-    ).resolves.toBe(true)
-    expect(onAccepted).toHaveBeenCalledWith("owner@example.com", "user-id")
-  })
 })

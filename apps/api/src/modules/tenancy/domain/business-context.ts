@@ -4,6 +4,7 @@ export type TenantRole = (typeof tenantRoles)[number]
 
 export type TenantContext = Readonly<{
   actorUserId: string
+  authenticatedAt?: Date
   membershipId: string
   organizationId: string
   organizationName: string

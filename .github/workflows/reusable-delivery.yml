@@ -85,4 +85,5 @@ jobs:
     if: ${{ needs.detect.outputs.backstage == 'true' }}
     permissions: { contents: read, id-token: write }
     uses: ./.github/workflows/reusable-app-delivery.yml
-    with: { app: backstage, deploy: "${{ inputs.deploy }}", environment: "${{ inputs.environment }}", target: "${{ inputs.target }}" }
+    # Backstage quality remains required, but deployment stays disabled until its hosting is provisioned.
+    with: { app: backstage, deploy: false, environment: "${{ inputs.environment }}", target: "${{ inputs.target }}" }
