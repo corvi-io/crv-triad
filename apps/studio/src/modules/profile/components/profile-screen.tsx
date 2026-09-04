@@ -1,56 +1,18 @@
-import { zodResolver } from "@hookform/resolvers/zod"
 import { CameraIcon, MailIcon, Trash2Icon, UserRoundIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { useForm } from "react-hook-form"
-import { toast } from "sonner"
-import { z } from "zod"
 
-import { updateDisplayName } from "@/modules/auth/services/auth-client"
 import type { AuthSession } from "@/modules/auth/services/auth-provider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/modules/shared/components/ui/avatar"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Input } from "@/modules/shared/components/ui/input"
 
-const profileSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Informe um nome com pelo menos 2 caracteres.")
-    .max(80, "Use no máximo 80 caracteres."),
-})
-
-type ProfileValues = z.infer<typeof profileSchema>
-
-export function ProfileScreen({
-  session,
-  onUpdated,
-}: {
-  session: AuthSession
-  onUpdated: () => void
-}) {
+export function ProfileScreen({ session }: { session: AuthSession }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [avatarPreview, setAvatarPreview] = useState({
     isLocal: false,
     url: session.user.image ?? null,
   })
   const [avatarError, setAvatarError] = useState<string | null>(null)
-  const form = useForm<ProfileValues>({
-    defaultValues: { name: session.user.name ?? "" },
-    resolver: zodResolver(profileSchema),
-  })
-
-  async function submit(values: ProfileValues) {
-    try {
-      const result = await updateDisplayName(values.name.trim())
-      if (result.error) throw new Error("update failed")
-      onUpdated()
-      toast.success("Nome atualizado.")
-    } catch {
-      toast.error("Não foi possível atualizar seu nome. Tente novamente.")
-    }
-  }
-
-  const nameError = form.formState.errors.name?.message
   const initial = (
     session.user.name?.trim()[0] ||
     session.user.email?.trim()[0] ||
@@ -79,12 +41,8 @@ export function ProfileScreen({
   }
 
   return (
-    <form
-      className="w-full space-y-5 rounded-xl border bg-card p-5"
-      noValidate
-      onSubmit={form.handleSubmit(submit)}
-    >
-      <section className="flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-center">
+    <div className="w-full space-y-4">
+      <section className="flex flex-col gap-4 rounded-xl border bg-card p-5 sm:flex-row sm:items-center">
         <Avatar className="size-20" size="lg">
           {avatarPreview.url ? (
             <AvatarImage alt="Prévia da foto de perfil" src={avatarPreview.url} />
@@ -132,41 +90,41 @@ export function ProfileScreen({
           ) : null}
         </div>
       </section>
-      <div className="space-y-1.5">
-        <label className="flex items-center gap-2 text-sm font-medium" htmlFor="profile-name">
-          <UserRoundIcon className="size-4" aria-hidden="true" />
-          Nome
-        </label>
-        <Input
-          id="profile-name"
-          aria-describedby={nameError ? "profile-name-error" : undefined}
-          aria-invalid={!!nameError}
-          autoComplete="name"
-          {...form.register("name")}
-        />
-        {nameError ? (
-          <p className="text-sm text-destructive" id="profile-name-error">
-            {nameError}
-          </p>
-        ) : null}
-      </div>
-      <div className="space-y-1.5">
-        <label className="flex items-center gap-2 text-sm font-medium" htmlFor="profile-email">
-          <MailIcon className="size-4" aria-hidden="true" />
-          E-mail
-        </label>
-        <Input
-          id="profile-email"
-          className="cursor-default bg-muted/60 text-muted-foreground shadow-none focus-visible:border-input focus-visible:ring-0 dark:bg-muted/45"
-          readOnly
-          value={session.user.email ?? "E-mail não informado"}
-        />
-      </div>
-      <div className="flex justify-end">
-        <Button isLoading={form.formState.isSubmitting} type="submit">
-          Salvar alterações
-        </Button>
-      </div>
-    </form>
+      <section
+        className="space-y-5 rounded-xl border bg-card p-5"
+        aria-labelledby="account-data-title"
+      >
+        <div>
+          <h2 className="font-semibold" id="account-data-title">
+            Dados da conta
+          </h2>
+          <p className="text-sm text-muted-foreground">Informações vinculadas ao seu acesso.</p>
+        </div>
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-2 text-sm font-medium" htmlFor="profile-name">
+            <UserRoundIcon className="size-4" aria-hidden="true" />
+            Nome
+          </label>
+          <Input
+            id="profile-name"
+            className="cursor-default bg-muted/60 text-muted-foreground shadow-none focus-visible:border-input focus-visible:ring-0 dark:bg-muted/45"
+            readOnly
+            value={session.user.name ?? "Nome não informado"}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-2 text-sm font-medium" htmlFor="profile-email">
+            <MailIcon className="size-4" aria-hidden="true" />
+            E-mail
+          </label>
+          <Input
+            id="profile-email"
+            className="cursor-default bg-muted/60 text-muted-foreground shadow-none focus-visible:border-input focus-visible:ring-0 dark:bg-muted/45"
+            readOnly
+            value={session.user.email ?? "E-mail não informado"}
+          />
+        </div>
+      </section>
+    </div>
   )
 }
