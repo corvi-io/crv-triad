@@ -78,20 +78,18 @@ export function NotificationItem({
           ) : null}
         </div>
         <p className="mt-1 text-sm font-medium">{notification.summary}</p>
-        {!compact ? (
-          <details className="mt-2 group/detail">
-            <summary className="cursor-pointer text-sm font-medium text-primary">
-              Ver detalhes
-            </summary>
-            <div className="mt-2 space-y-2 border-l-2 border-border pl-3">
-              <p className="text-sm text-muted-foreground">{notification.detail}</p>
-              <p className="text-xs text-muted-foreground">
-                {severityLabels[notification.severity]}
-                {notification.lifecycle === "resolved" ? " · Resolvida na origem" : ""}
-              </p>
-            </div>
-          </details>
-        ) : null}
+        <details className="mt-2 group/detail">
+          <summary className="cursor-pointer text-sm font-medium text-primary">
+            Ver detalhes
+          </summary>
+          <div className="mt-2 space-y-2 border-l-2 border-border pl-3">
+            <p className="text-sm text-muted-foreground">{notification.detail}</p>
+            <p className="text-xs text-muted-foreground">
+              {severityLabels[notification.severity]}
+              {notification.lifecycle === "resolved" ? " · Resolvida na origem" : ""}
+            </p>
+          </div>
+        </details>
         <div className="mt-2 flex flex-wrap items-center gap-1">
           {destination ? (
             <DestinationLink destination={destination} />

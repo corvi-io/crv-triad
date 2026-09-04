@@ -176,30 +176,25 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
   - Both categories remain understandable and fully operable expanded or collapsed, with no
     regression to authentication/account-linking behaviors.
 
-### TASK-006 — Add production-backed display-name editing to profile
+### TASK-006 — Present account identity as read-only profile data
 
 - Status: Complete
 - Covers: REQ-008, REQ-010–REQ-011, REQ-017–REQ-020, AC-007, AC-009
 - Depends on: TASK-004
 - Can parallelize with: TASK-005, TASK-007, TASK-008
-- Relevant skills/docs: `triad-studio-development`, Better Auth contract, Vitest, accessibility,
+- Relevant skills/docs: `triad-studio-development`, Vitest, accessibility,
   `docs/studio/authentication.md`
 - Expected artifacts:
-  - Verified narrow Studio auth-client wrapper for Better Auth self-update behavior.
-  - Centered profile management form with editable display name and read-only email.
-  - Zod/RHF validation, mutation/query invalidation or session refresh, semantic feedback, and tests.
+  - Centered profile presentation with read-only display name and email.
+  - Local avatar-preview experience separated from account identity data.
 - Implementation notes:
-  - Validate pinned Better Auth self-update support before UI implementation.
-  - Do not use the administrative `/users/:userId` contract or add identity administration to
-    Studio.
-  - Keep the label stable during saving, focus the first invalid field, preserve typed input on
-    failure, and refresh every shell presentation after success.
+  - Do not call Better Auth user-update APIs, use `/users/:userId`, or add identity administration
+    to Studio.
 - Verification:
-  - Client integration test plus component/E2E success, validation, duplicate activation, server
-    failure, refreshed shell, and reload persistence journeys.
+  - Component/E2E coverage verifies the fields are read-only and no identity mutation is exposed.
 - Evidence required before completion:
-  - Persisted self-name update is visible in profile and user menu without sign-out/sign-in; email
-    cannot be edited; no private value is logged.
+  - Display name and email cannot be edited, avatar preview remains local, and no private value is
+    logged.
 
 ### TASK-007 — Establish semantic top-right toast presentation
 
@@ -291,8 +286,8 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
   - Manual QA record for keyboard, focus, zoom, responsive, theme, forced-colors, and reduced motion.
 - Implementation notes:
   - Exercise realistic authenticated owner/member and multi-tenant flows.
-  - Verify focus after route change, disclosure expansion, notification detail, failed mutations, and
-    successful profile save.
+  - Verify focus after route change, disclosure expansion, notification detail, and failed context
+    mutations.
   - Batch desktop and mobile visual review into one pass, fix findings together, and confirm once.
 - Verification:
   - Run focused component/E2E suites and inspect desktop/mobile screenshots in light and dark.
@@ -532,7 +527,8 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 
 - [ ] A non-blocking shell must not expose stale tenant data or convert transient failures into
   accidental logout; retain this as a release-blocking review concern.
-- [ ] Validate Better Auth self-name update behavior against the pinned version before UI work.
+- [x] Keep display name and email read-only in Studio until an explicit API/IDP mutation contract is
+  accepted.
 - [ ] Do not mistake current bounded notification scenarios for a production persistence or scale
   contract.
 - [ ] Revisit notification pagination, delivery, preferences, and telemetry only through a future
@@ -551,6 +547,9 @@ work, and TASK-012 performs the final bounded verification and evidence audit.
 - 2026-09-04: User approved a local-only profile avatar preview for visual evaluation. Added
   REQ-030, AC-024, and TASK-017; upload, persistence, storage, and identity mutation remain out of
   scope.
+- 2026-09-04: Preflight review confirmed that Studio identity must remain read-only. Updated
+  REQ-010–REQ-011 and AC-009, removed the display-name mutation, and separated the avatar preview
+  from account data.
 - 2026-09-04: User requested a visually aligned in-shell barbershop switcher with destination
   confirmation and explicit sign-out confirmation. Added REQ-031–REQ-032, AC-025–AC-026, and
   TASK-018.

@@ -99,8 +99,8 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
      and barbershop administration (`Configuração da barbearia`), followed by sign-out.
   6. Profile and preferences use a centered, responsive, standard scroll-owned layout. Preferences
      group `Aparência` and `Segurança e acesso` into accessible collapsible sections.
-  7. The user edits their display name through a validated profile form; email remains visible and
-     read-only. Successful saving refreshes the session so the new name appears in the shell.
+  7. The profile presents display name and email as clearly read-only account data. A separate
+     local-only avatar preview supports visual evaluation without an identity mutation.
   8. Toasts appear in the upper-right and distinguish success, error, information, and warning with
      semantic icon, restrained color, direct copy, and equivalent light/dark legibility.
   9. The bell preview shows a short title and concise preview for the most relevant notifications.
@@ -120,9 +120,7 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
   - Session refresh failure caused by connectivity does not erase the session or cached user input.
   - Workspace selection failure clears the busy state, preserves the previous confirmed context,
     announces the failure, and permits one-click retry.
-  - Duplicate activation while selection or profile saving is pending is ignored.
-  - Invalid profile names show a field-level Portuguese reason and focus the invalid field.
-  - Profile save failure preserves the typed name and provides a retry path.
+  - Duplicate tenant activation while selection is pending is ignored.
   - Toasts and notifications remain understandable without color, animation, pointer input, or an
     icon being perceived.
   - Notification loading, empty, error, long-copy, missing-destination, unread, read, resolved, and
@@ -193,11 +191,10 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
 - REQ-009: Preferences shall present `Aparência` and `Segurança e acesso` as keyboard-operable,
   semantically named collapsible sections with useful summaries; content shall remain reachable and
   state changes understandable when sections are collapsed.
-- REQ-010: An authenticated user shall edit and persist their own non-empty display name through
-  the existing Better Auth account contract. Email shall remain visible and read-only, and a
-  successful update shall refresh all current-session name presentations.
-- REQ-011: Profile editing shall prevent duplicate submission, preserve input after recoverable
-  failure, expose field-level Portuguese validation, and communicate save success or failure.
+- REQ-010: An authenticated user shall see their display name and email as read-only account data;
+  Studio shall not expose an identity mutation for either field.
+- REQ-011: The profile shall keep the local-only avatar preview visually separate from read-only
+  account data and shall not imply that the preview is persisted by a general save action.
 - REQ-012: The shared toaster shall appear in the upper-right and support default/information,
   success, warning, and error semantics with stable labels, appropriate icons, restrained semantic
   color, dismiss behavior, and readable light/dark presentation.
@@ -245,7 +242,7 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
   themes; overlays shall keep actions and focused content within the viewport.
 - REQ-019: Session revalidation and notification presentation shall not add polling, duplicate
   network calls, route-wide render churn, or new unbounded queries.
-- REQ-020: Authentication errors, profile changes, tenant identifiers, notification details,
+- REQ-020: Authentication errors, profile data, tenant identifiers, notification details,
   credentials, tokens, and private request data shall not be added to logs, analytics, URLs, or
   traces by this initiative.
 - REQ-029: Authentication artwork and motion shall not delay form interactivity, produce material
@@ -334,24 +331,23 @@ brand panel with a shared visual grammar named **Three Forces, One Rhythm**: lay
 coordinated focal elements converge around a protected center. Studio interprets the grammar as
 barbershop operation; Backstage interprets it as the system observatory; future Barber can later
 interpret it as the professional at the point of service. Preserve existing auth contracts, use
-the existing Better Auth self-update capability for display name, and keep notifications
-presentation-only.
+identity data read-only in Studio, and keep notifications presentation-only.
 
 ## Architecture And Boundaries
 
 - Site impact: none.
 - API impact: no new business API. Existing protected endpoints remain authoritative and continue
   returning authentication and authorization failures.
-- IDP impact: the existing Better Auth `/api/auth/*` account update contract persists the user's
-  display name. No custom identity-administration route, schema change, or new IDP policy is planned.
+- IDP impact: none. Studio does not mutate account identity and no custom identity-administration
+  route, schema change, or new IDP policy is planned.
 - Studio impact: primary scope. Changes belong to the complete authentication shell, auth/session
   presentation, the authenticated route
   composition, workspace context selection, shared shell navigation, profile, preferences, Sonner
   feedback, and operational-notification presentation.
 - Backstage impact: the complete authentication shell and its local branded assets/styles. Operator
   authorization, tenant operations, and authenticated Backstage workflows do not change.
-- Data/persistence impact: existing IDP user `name` changes through Better Auth. No migration,
-  backfill, notification persistence, or business schema change.
+- Data/persistence impact: none. No migration, backfill, identity mutation, notification
+  persistence, or business schema change.
 - External provider impact: image generation may be used during implementation to create original
   source artwork. Final runtime assets are reviewed, optimized, stored locally, and do not depend on
   the generation provider.
@@ -361,16 +357,16 @@ presentation-only.
 | Concern | Classification | Rationale | Relevant skills/docs |
 | --- | --- | --- | --- |
 | Product workflow | Applicable | Eight observed concerns form one authenticated-shell workflow with explicit failure and recovery states | `requirements-analysis`, `spec-writer`, Impeccable `shape` |
-| Architecture | Applicable | Work spans Studio, Backstage, and the existing IDP account contract while keeping each app and asset owner independent | `triad-architecture`, root/Studio/Backstage `AGENTS.md` |
-| API | Applicable | Existing `401`/`403` and Better Auth self-update contracts must remain correctly interpreted; no new route | `triad-studio-development`, `docs/studio/authentication.md` |
-| Identity and authorization | Applicable | Session revalidation and self-name update affect identity presentation; server authorization remains unchanged | `triad-studio-development`, Initiative 19 |
-| Persistence | Applicable | Only the existing IDP user name is updated; no schema, index, migration, or backfill | Better Auth contract, Initiative 19 |
+| Architecture | Applicable | Work spans Studio and Backstage while keeping each app and asset owner independent | `triad-architecture`, root/Studio/Backstage `AGENTS.md` |
+| API | Applicable | Existing `401`/`403` contracts must remain correctly interpreted; no new route or identity mutation | `triad-studio-development`, `docs/studio/authentication.md` |
+| Identity and authorization | Applicable | Session revalidation affects identity presentation while account data stays read-only and server authorization remains unchanged | `triad-studio-development`, Initiative 19 |
+| Persistence | Not applicable | No schema, index, migration, backfill, or identity update is introduced | Initiative 19 |
 | Studio UI | Applicable | This includes the full Studio auth family plus authenticated shell, settings, feedback, and notification refinement | `triad-studio-development`, Impeccable, theme/component docs |
 | Backstage UI | Applicable | The full Backstage auth family receives its own system-observatory scene without changing operator workflows | `triad-backstage-development`, Impeccable, Backstage design contract |
 | Site UI | Not applicable | No public-site surface changes; Backstage is an independent internal React app | `AGENTS.md` |
 | Accessibility | Applicable | Menus, disclosures, overlays, async status, form validation, toast, and notification semantics change | `accessibility`, WCAG 2.2 AA |
 | Performance and scale | Applicable | Auth and notification work must avoid duplicate requests, polling, and route-wide churn | `triad-studio-development` |
-| Security and privacy | Applicable | Auth failure classification, stale tenant data, self-update, and private notification content require review | `AGENTS.md`, Studio product contract |
+| Security and privacy | Applicable | Auth failure classification, stale tenant data, read-only identity, and private notification content require review | `AGENTS.md`, Studio product contract |
 | Observability | Applicable | Client-side failures need diagnosable categories without logging payloads or identity data | Studio authentication docs |
 | Reliability and delivery | Applicable | Shared-shell behavior requires compatibility, retry, rollback, and production-boundary checks | Studio validation commands |
 | Testing and QA | Applicable | Critical auth, context selection, responsive, theme, keyboard, and notification journeys need automation and browser evidence | Vitest, Playwright, axe |
@@ -400,14 +396,14 @@ presentation-only.
 
 - Auth/session impact: session checks remain active and protected requests remain server-authorized.
   The UI distinguishes `401`, `403`, and transient failure rather than weakening enforcement.
-- Roles/access: any authenticated user may edit only their own display name. Tenant and module
-  permissions do not change.
+- Roles/access: account identity remains read-only in Studio. Tenant and module permissions do not
+  change.
 - PII/secrets: display name, email, tenant identity, notification detail, tokens, cookies, and request
   bodies must not be logged or added to analytics.
-- Spam/abuse vectors: duplicate-submit suppression prevents repeated context and profile mutations.
+- Spam/abuse vectors: duplicate-submit suppression prevents repeated context mutations.
   No messaging or notification creation surface is introduced.
 - Rate limiting or throttling needs: existing Better Auth and API protections remain sufficient for
-  the bounded self-update and session calls; no new client retry loop is allowed.
+  the bounded session calls; no new client retry loop is allowed.
 
 ## Accessibility And UX
 
@@ -424,14 +420,14 @@ presentation-only.
 - Loading/error/empty states: route content uses shaped skeletons where needed. Profile, workspace,
   notifications, and session failure paths preserve actionable recovery and do not use generic
   visible loading text as their primary presentation.
-- Duplicate submission prevention: tenant activation and profile save keep stable labels, show the
-  shared loading treatment, expose `aria-busy`, and ignore repeated activation while pending.
+- Duplicate submission prevention: tenant activation keeps a stable label, shows the shared loading
+  treatment, exposes `aria-busy`, and ignores repeated activation while pending.
 
 ## Logging And Observability
 
 - Useful structured events: existing request diagnostics may classify session refresh failure,
-  confirmed unauthenticated response, context-selection failure, and self-profile update failure by
-  operation and safe error code. Adding analytics events is not required.
+  confirmed unauthenticated response, and context-selection failure by operation and safe error
+  code. Adding analytics events is not required.
 - Metrics: no product telemetry is introduced. Test evidence records whether a single activation
   produces one selection mutation and one successful navigation.
 - Traces/spans: preserve existing server request correlation; do not create browser spans containing
@@ -459,7 +455,7 @@ presentation-only.
   - No visible `Verificando acesso` interstitial during authenticated refresh or route navigation.
   - One tenant activation produces one selection mutation and one navigation to `/overview`.
   - All authenticated route headers show only their current route label.
-  - Profile display-name changes persist and update the open shell without sign-out/sign-in.
+  - Profile identity fields remain visibly read-only and expose no Studio mutation.
   - User-menu destinations, preference sections, semantic toast variants, and notification detail
     are operable by keyboard and readable in supported themes and widths.
   - Studio and Backstage authentication journeys are immediately distinguishable without losing
@@ -496,9 +492,8 @@ presentation-only.
   scroll owner and no inaccessible nested overflow.
 - [x] AC-008: Appearance and security/access preferences are accessible collapsible sections whose
   controls retain current behavior and whose collapsed summaries remain meaningful.
-- [x] AC-009: A user can change their own non-empty display name, submit once, retain typed input on
-  failure, see Portuguese validation/feedback, and see the persisted name update in the shell; email
-  remains read-only.
+- [x] AC-009: Display name and email appear as read-only account data, and Studio exposes no control
+  or client service that mutates either identity field.
 - [x] AC-010: Toasts render in the upper-right with tested information/default, success, warning, and
   error semantics, icons, direct copy, dismissal, reduced-motion behavior, and legible light/dark
   contrast without relying only on color.
@@ -551,13 +546,12 @@ presentation-only.
 - Unit tests:
   - Session outcome classification and non-blocking auth-gate behavior.
   - Single-flight workspace activation and recovery.
-  - Profile name schema, submission, session refresh, and failure preservation.
+  - Read-only profile identity and isolated local avatar-preview behavior.
   - Route-label resolution, menu grouping, disclosure state, toast variants, and notification
     collapsed/detail composition.
 - Integration/API tests:
-  - Exercise the existing Better Auth self-update client and refreshed session behavior without
-    introducing a custom route.
-  - Preserve existing `401`/`403` access contract coverage from Initiative 19.
+  - Preserve existing `401`/`403` access contract coverage from Initiative 19 and verify no custom
+    identity-update route is introduced.
 - UI tests:
   - Focused Vitest tests for shared shell, profile, preferences, toaster, and notification components.
   - Playwright journeys for refresh/session outcomes, single-click tenant selection, navigation
@@ -606,9 +600,8 @@ presentation-only.
 
 ## Assumptions
 
-- Better Auth's mounted self-update account contract supports display-name changes in the pinned
-  version — validate with an integration test before building the form; if unavailable, return the
-  initiative for a material API/IDP scope decision rather than adding an improvised endpoint.
+- Account identity remains read-only in Studio until a future initiative accepts an explicit
+  API/IDP mutation, authorization, validation, and audit contract.
 - The header bell remains the primary quick notification entry while the user menu adds a durable
   navigation destination — validate during product QA.
 - The current notification data and mutation contracts are product-valid for this visual pass —

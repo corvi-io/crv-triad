@@ -75,7 +75,7 @@ export function ContextSwitcherProvider({ children }: { children: ReactNode }) {
                 </Dialog.Title>
                 <Dialog.Description className="text-sm leading-6 text-muted-foreground">
                   {confirmationTenant
-                    ? "Confira o novo espaço antes de continuar."
+                    ? "Confira o novo espaço antes de continuar. Alterações não salvas serão perdidas."
                     : "Escolha a barbearia em que deseja continuar trabalhando."}
                 </Dialog.Description>
               </div>
