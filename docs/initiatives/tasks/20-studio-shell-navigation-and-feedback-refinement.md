@@ -1,11 +1,11 @@
-# 20 Studio Shell, Navigation And Feedback Refinement - Execution Plan
+# 20 TRIAD Authentication, Studio Shell, Navigation And Feedback Refinement - Execution Plan
 
 ## Source
 
 - PRD: `docs/initiatives/prds/20-studio-shell-navigation-and-feedback-refinement.md`
 - Related issue/PR:
-- Approval state: Changes requested
-- Approved PRD version/date: Previous scope approved on 2026-09-04; material revision pending
+- Approval state: Awaiting approval
+- Approved PRD version/date: Previous scope approved 2026-09-04; revised version awaiting approval
 
 ## Implementation Principles
 
@@ -31,6 +31,7 @@
 | REQ-014–REQ-016 / AC-012–AC-013 | TASK-008, TASK-009, TASK-010 | Notification component and existing scenario E2E tests |
 | REQ-017–REQ-020 / AC-014–AC-015 | TASK-001–TASK-010, TASK-012 | Accessibility, privacy, performance, production-boundary, build, detector evidence |
 | REQ-001–REQ-020 / AC-016 | TASK-011, TASK-012 | Documentation review and final traceability audit |
+| REQ-021–REQ-029 / AC-017–AC-023 | TASK-013–TASK-016 | Art-direction proof, optimized assets, auth-family tests, app builds, visual evidence |
 
 ## Dependency Order
 
@@ -41,8 +42,10 @@ and TASK-006 share layout and account concerns and should be sequenced if they e
 shell or test fixture. TASK-007 may proceed independently after shared-component inventory review.
 TASK-008 establishes the notification interaction hierarchy before TASK-009 applies it to both
 surfaces. TASK-010 consolidates cross-surface accessibility and browser regression coverage after
-the UI tasks settle. TASK-011 documents the durable result, and TASK-012 performs the final bounded
-verification and evidence audit.
+the Studio UI tasks settle. TASK-013 establishes the family art direction before TASK-014 produces
+optimized artwork and TASK-015 integrates it in each app. TASK-016 validates the authentication
+family across both apps. TASK-011 documents the durable result after operational and authentication
+work, and TASK-012 performs the final bounded verification and evidence audit.
 
 ## Tasks
 
@@ -295,18 +298,132 @@ verification and evidence audit.
   - AC-001 through AC-014 have reviewable automated or manual evidence with residual limitations
     recorded.
 
-### TASK-011 — Update durable Studio contracts and component inventory
+### TASK-013 — Resolve the TRIAD authentication family art direction
+
+- Status: Pending
+- Covers: REQ-021–REQ-024, REQ-026–REQ-028, AC-017–AC-021
+- Depends on: None
+- Can parallelize with: TASK-001, TASK-004, TASK-007
+- Relevant skills/docs: Impeccable new-work/shape, `triad-architecture`,
+  `triad-studio-development`, `triad-backstage-development`, Studio/Backstage `PRODUCT.md` and
+  `DESIGN.md`
+- Expected artifacts:
+  - A production-facing design brief for **Three Forces, One Rhythm** covering shared family grammar,
+    Studio barbershop-operation scene, Backstage system-observatory scene, and future Barber
+    extension constraints.
+  - A bounded set of visual concept variants for Studio and Backstage with desktop, crop, theme,
+    and reduced-motion intent.
+  - Selected concepts and rejection rationale recorded before production asset creation.
+- Implementation notes:
+  - Preserve navy/gold, Geist, restrained depth, and product truth while allowing authentication to
+    be more expressive than operational screens.
+  - Studio should feel human and operational; Backstage should feel systemic and governed. Avoid
+    dashboards, generic stock scenes, hacker motifs, literal server racks, text baked into art,
+    gradients without structure, and unrelated product worlds.
+  - Define a still composition first; motion enhances hierarchy and must not rescue weak artwork.
+- Verification:
+  - Side-by-side design review against product purpose, incumbent tokens, form hierarchy, 320px crop,
+    light/dark, reduced motion, and asset feasibility.
+- Evidence required before completion:
+  - One selected, implementable scene per current app with shared grammar and distinct subject; all
+    implementation-critical visual decisions resolved.
+
+### TASK-014 — Produce and optimize original authentication artwork
+
+- Status: Pending
+- Covers: REQ-021–REQ-023, REQ-025–REQ-029, AC-017–AC-022
+- Depends on: TASK-013
+- Can parallelize with: None
+- Relevant skills/docs: `imagegen`, Impeccable, app theme systems, accessibility
+- Expected artifacts:
+  - Original high-quality Studio and Backstage source artwork generated or composed from the
+    selected concepts.
+  - Locally owned responsive runtime assets and layers in each app's public asset boundary.
+  - Asset provenance, generation prompts/decisions where appropriate, dimensions, formats, and
+    measured optimized sizes recorded in durable design documentation or an asset manifest.
+- Implementation notes:
+  - Use image generation for original visual material, inspect it at source resolution, and remove
+    artifacts before acceptance.
+  - Prefer a stable hero layer plus a small bounded set of transparent/composited layers. Do not ship
+    an animation format merely because the source tool can generate it.
+  - Use available image conversion tooling for efficient browser formats and retain only necessary
+    source/runtime files. Do not place text, credentials, customer data, or fake product metrics in
+    imagery.
+- Verification:
+  - Inspect source and optimized assets at desktop, narrow crop, light/dark surfaces, standard and
+    high-density displays; confirm alpha edges, compression, color, no artifacts, and no remote URLs.
+- Evidence required before completion:
+  - Accepted product-specific assets satisfy the selected direction, have recorded provenance, and
+    meet a measured performance decision without unsupported numeric claims.
+
+### TASK-015 — Integrate the expressive auth surface in Studio and Backstage
+
+- Status: Pending
+- Covers: REQ-021–REQ-029, AC-017–AC-022
+- Depends on: TASK-014
+- Can parallelize with: None
+- Relevant skills/docs: `triad-studio-development`, `triad-backstage-development`, Impeccable,
+  accessibility, React best practices
+- Expected artifacts:
+  - Product-specific AuthShell visual compositions and local styles/assets in Studio and Backstage.
+  - Lightweight ambient layer motion, optional bounded pointer response if validated, and a designed
+    reduced-motion/static fallback.
+  - Preserved login, invitation, recovery, and reset form integration in both applications.
+- Implementation notes:
+  - Keep form DOM, input interaction, focus, feedback, and route behavior independent of artwork load.
+  - Use transform/opacity-based motion, avoid continuous React state/render loops, and ensure pointer
+    layers cannot receive input or obscure focus.
+  - Keep product-owned implementations separate; extract only stable non-visual logic if real
+    duplication already meets repository sharing rules.
+  - Collapse or crop the scene intentionally below the useful split-layout breakpoint; do not force
+    the form below a decorative mobile hero.
+- Verification:
+  - Component tests and manual inspection for media load/failure, motion/reduced motion, focus,
+    desktop/narrow crop, light/dark/system, zoom, forced colors, and route-family reuse.
+- Evidence required before completion:
+  - Both apps show the correct scene across all four auth journeys, forms remain immediately usable,
+    and animation produces no accessibility or interaction regression.
+
+### TASK-016 — Validate the cross-product authentication family
+
+- Status: Pending
+- Covers: REQ-021–REQ-029, AC-017–AC-023
+- Depends on: TASK-015
+- Can parallelize with: TASK-011 after behavior and asset names settle
+- Relevant skills/docs: `triad-testing`, `triad-product-qa`, Impeccable detector,
+  `triad-studio-development`, `triad-backstage-development`
+- Expected artifacts:
+  - Focused Studio and Backstage auth component/E2E results.
+  - Batched desktop/mobile screenshots for all auth journey types and selected themes/states.
+  - Performance/media-load inspection and final side-by-side family review.
+- Implementation notes:
+  - Review desktop and mobile together in one visual pass, batch corrections, then confirm once.
+  - Exercise form error, success, disabled/loading, media failure, offline where relevant, reduced
+    motion, keyboard, zoom, and theme behavior without changing accepted identity contracts.
+  - Run the Impeccable detector once over all changed UI targets after integration is complete.
+- Verification:
+  - `bun --filter studio check`
+  - `bun --filter backstage check`
+  - Focused auth Playwright suites for both apps
+  - Production builds and boundary scans for both apps
+  - Impeccable detector over changed Studio and Backstage targets
+- Evidence required before completion:
+  - AC-017 through AC-023 have reviewable automated/manual evidence and any residual visual,
+    accessibility, or performance risk is explicitly recorded.
+
+### TASK-011 — Update durable Studio and Backstage contracts and component inventories
 
 - Status: Pending
 - Covers: REQ-001–REQ-020, AC-016
-- Depends on: TASK-002–TASK-009
+- Depends on: TASK-002–TASK-009, TASK-015
 - Can parallelize with: TASK-010 after behavior settles
 - Relevant skills/docs: `triad-architecture`, `triad-studio-development`,
   `docs/studio/authentication.md`, `docs/studio/theme-system.md`,
   `docs/studio/component-system.md`
 - Expected artifacts:
   - Updated authentication/session behavior documentation.
-  - Updated shell navigation, feedback semantics, and exhaustive shared-component contracts.
+  - Updated shell navigation, feedback semantics, authentication art direction, asset provenance,
+    and exhaustive shared-component contracts in affected apps.
   - Recorded decision on README, AGENTS, env schema, and skill applicability.
 - Implementation notes:
   - Document durable behavior and extension rules, not transient implementation mechanics.
@@ -322,7 +439,7 @@ verification and evidence audit.
 
 - Status: Pending
 - Covers: REQ-017–REQ-020, AC-015–AC-016
-- Depends on: TASK-010–TASK-011
+- Depends on: TASK-010–TASK-011, TASK-016
 - Can parallelize with: None
 - Relevant skills/docs: `triad-preflight-review`, `triad-testing`, Impeccable detector,
   planning gates
@@ -342,6 +459,7 @@ verification and evidence audit.
   - `bun --filter studio test:production-boundary`
   - `bun --filter studio build`
   - `bun --filter studio check`
+  - `bun --filter backstage check`
   - Focused and, when feasible, full `bun --filter studio test:e2e`
   - `node .agents/skills/impeccable/scripts/detect.mjs --json <changed Studio targets>`
 - Evidence required before completion:
@@ -365,10 +483,17 @@ Record evidence as tasks are completed:
   contract.
 - [ ] Revisit notification pagination, delivery, preferences, and telemetry only through a future
   initiative with real production requirements.
+- [ ] Authentication spectacle must not compete with form completion or regress low-power devices;
+  treat measured load and reduced-motion behavior as release-blocking review concerns.
+- [ ] TRIAD Barber receives only a future-facing art-direction constraint in this initiative; do not
+  create its app, runtime component, or unused assets.
 
 ## Scope Changes
 
-- None.
+- 2026-09-04: After initial approval, the user reopened the initiative to replace the oversized
+  authentication logo panels with expressive, animated, product-specific scenes across the full
+  Studio and Backstage authentication journeys. Added REQ-021–REQ-029, AC-017–AC-023, and
+  TASK-013–TASK-016; the revised version requires new approval.
 
 ## Definition of Done
 

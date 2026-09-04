@@ -89,7 +89,11 @@ export function ClientDirectoryPage({
 
   async function toggleArchived(client: ClientRecord) {
     try {
-      await archiveClient.mutateAsync({ archived: client.status === "active", id: client.id })
+      await archiveClient.mutateAsync({
+        archived: client.status === "active",
+        id: client.id,
+        version: client.version ?? 1,
+      })
       toast.success(client.status === "active" ? "Cliente arquivado." : "Cliente restaurado.")
       setConfirmingArchive(null)
     } catch {

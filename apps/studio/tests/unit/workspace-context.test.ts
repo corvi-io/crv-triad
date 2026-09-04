@@ -77,4 +77,71 @@ describe("ClientHttpRepository", () => {
       expect.objectContaining({ credentials: "include" }),
     )
   })
+
+  it("sends the API sort key expected by the clients endpoint", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({ items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 1 }),
+        ),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await new ClientHttpRepository().list({
+      contact: "all",
+      duplicate: "all",
+      page: 1,
+      pageSize: 20,
+      scenarioId: "typical",
+      search: "",
+      sort: { direction: "desc", field: "createdAt" },
+      status: "active",
+      tag: "",
+    })
+
+    const requestedUrl = String(fetchMock.mock.calls[0]?.[0])
+    expect(requestedUrl).toContain("sortBy=createdAt")
+    expect(requestedUrl).not.toContain("sortField=")
+  })
+
+  it("updates with the version observed by the form without refetching", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({
+            appointments: [],
+            createdAt: "2026-09-04T00:00:00.000Z",
+            email: null,
+            id: "client-a",
+            lastVisitAt: null,
+            name: "Cliente A",
+            nextAppointmentAt: null,
+            notes: [],
+            phone: null,
+            preferenceNote: "",
+            servicePreferences: [],
+            status: "active",
+            tags: [],
+            version: 8,
+          }),
+        ),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await new ClientHttpRepository().update(
+      "client-a",
+      {
+        email: "",
+        name: "Cliente A",
+        phone: "",
+        preferenceNote: "",
+        servicePreferences: [],
+        tags: [],
+      },
+      7,
+    )
+
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({ version: 7 })
+  })
 })

@@ -299,6 +299,7 @@ describe("Backstage route authority", () => {
       [activeOperator],
       [],
       [{ id: "owner-a", status: "active" }],
+      [{ value: 0 }],
       [{ id: "plan-a", key: "manual" }],
       [{ id: "version-a", planId: "plan-a", version: 1 }],
       [{ id: "entitlement-a" }],
@@ -360,6 +361,46 @@ describe("Backstage route authority", () => {
     expect(response.status).toBe(201)
     await expect(response.json()).resolves.toMatchObject({ organizationId: "tenant-a" })
     expect(db.insert).toHaveBeenCalledTimes(2)
+  })
+
+  it("rejects a support reason that is only whitespace", async () => {
+    const db = operationalDatabase([[activeOperator]])
+    const app = createBackstageRoutes(auth("user-a") as never, db as never)
+    const response = await app.handle(
+      new Request("http://localhost/api/backstage/support-contexts", {
+        body: JSON.stringify({
+          durationMinutes: 30,
+          organizationId: "tenant-a",
+          reason: "          ",
+        }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({ code: "invalid_request" })
+    expect(db.insert).not.toHaveBeenCalled()
+  })
+
+  it("does not create a tenant beyond the active membership limit", async () => {
+    const db = operationalDatabase([
+      [activeOperator],
+      [],
+      [{ id: "owner-a", status: "active" }],
+      [{ value: 50 }],
+    ])
+    const app = createBackstageRoutes(auth("user-a") as never, db as never)
+    const response = await app.handle(
+      new Request("http://localhost/api/backstage/tenants", {
+        body: JSON.stringify({ name: "Barbearia A", ownerEmail: "owner@example.com" }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toMatchObject({ code: "membership_limit_reached" })
   })
 
   it("reads tenant support summaries and client lists with audit records", async () => {

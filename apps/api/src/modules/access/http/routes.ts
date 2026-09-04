@@ -94,6 +94,9 @@ export function createAccessRoutes(
         const tenant = await context(request.headers)
         if (!capabilities.some((capability) => capability === body.capabilityKey))
           throw new AccessRouteError("capability_denied")
+        const decision = await authorize(tenant, body.capabilityKey as Capability)
+        if (decision.allowed || decision.reason !== "capability_forbidden")
+          throw new AccessRouteError("capability_denied")
         const [existing] = await db
           .select({ id: accessRequest.id })
           .from(accessRequest)

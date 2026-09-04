@@ -1,9 +1,9 @@
-# 20 Studio Shell, Navigation And Feedback Refinement
+# 20 TRIAD Authentication, Studio Shell, Navigation And Feedback Refinement
 
 ## Status
 
-- Planning state: Draft
-- Approval state: Changes requested
+- Planning state: Ready
+- Approval state: Awaiting approval
 - Delivery state: Not started
 - Owner: CRV Triad
 - Last updated: 2026-09-04
@@ -11,12 +11,15 @@
 
 ## Summary
 
-Refine the shared TRIAD Studio experience so authenticated users can enter and move through their
+Create a distinctive authentication entrance for TRIAD Studio and TRIAD Backstage, then refine the
+shared TRIAD Studio experience so authenticated users can enter and move through their
 workspace without a disruptive full-screen access check, select a barbershop with one deliberate
 action, understand their current location immediately, and manage account or barbershop concerns
 from one coherent user menu. The initiative also turns profile, preferences, transient feedback,
-and operational notifications into calmer, more direct, accessible surfaces while preserving the
-existing navy-and-gold visual system and current notification data source.
+and operational notifications into calmer, more direct, accessible surfaces. Authentication uses a
+shared family art direction with product-specific scenes, restrained ambient motion, and equivalent
+reduced-motion presentation while preserving the navy-and-gold visual system and current
+notification data source.
 
 Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks/20-studio-shell-navigation-and-feedback-refinement.md)
 
@@ -37,6 +40,10 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
     neutral presentation.
   - Notification cards expose category, severity, read state, lifecycle, summary, detail, and
     several actions at once. The bell preview and full notification center reuse this dense card.
+  - Studio and Backstage share the same two-column `AuthShell`: the form occupies the left half and
+    the right half contains only a very large stacked TRIAD logo over a gradient surface.
+  - Login, invitation acceptance, password recovery, and password reset all reuse `AuthShell`, so
+    one product-specific branded surface can improve the complete authentication journey.
 - Problem: repeated access interruption, redundant hierarchy, distributed settings, weak feedback
   semantics, and visually dense notifications make routine use feel heavier than the actions
   require. The shell asks users to interpret the interface instead of keeping their attention on
@@ -99,6 +106,16 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
   9. The bell preview shows a short title and concise preview for the most relevant notifications.
      Selecting an item reveals its full content and necessary action with progressive disclosure;
      the full notification center follows the same hierarchy with less badge and action noise.
+  10. Every Studio authentication screen pairs the focused form on large viewports with an
+      expressive scene about orchestrating a barbershop: chair, mirror, people, schedule, client,
+      and business signals converge into one calm operating rhythm rather than depicting a literal
+      software dashboard.
+  11. Every Backstage authentication screen uses the same TRIAD family grammar but presents a
+      system observatory: connected product and tenant signals, governed access, platform health,
+      and a protected operational core, without hacker, server-rack, or surveillance clichés.
+  12. Each scene uses subtle ambient layer motion and, where pointer precision exists, an optional
+      low-amplitude response to the pointer. Reduced-motion preference receives a composed static
+      equivalent, not an empty or degraded panel.
 - Alternate/failure/recovery flows:
   - Session refresh failure caused by connectivity does not erase the session or cached user input.
   - Workspace selection failure clears the busy state, preserves the previous confirmed context,
@@ -121,6 +138,10 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
 - Establish a reusable, semantic, theme-safe transient feedback vocabulary.
 - Reduce notification cognitive load through progressive disclosure and direct Brazilian
   Portuguese copy.
+- Make authentication a memorable product entrance with one recognizable TRIAD family language and
+  a product-specific story for Studio and Backstage.
+- Establish art-direction and motion rules that can later extend to TRIAD Barber without creating
+  or pretending that the future app exists now.
 
 ## Non-Goals
 
@@ -131,7 +152,14 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
 - Creating notification persistence, delivery services, polling, WebSockets, push notifications,
   email/SMS delivery, notification preferences, or new operational notification rules.
 - Editing email, avatar, role, memberships, barbershop data, or other future profile attributes.
-- Redesigning the product brand, primary operational modules, login screen, or Backstage.
+- Redesigning the product brand, primary operational modules, authentication forms, or authenticated
+  Backstage workflows beyond the new branded shell.
+- Changing authentication validation, identity contracts, or route behavior merely to accommodate
+  artwork.
+- Implementing TRIAD Barber, creating Barber runtime assets, or adding a shared cross-app package
+  before real reuse exists.
+- Using autoplay video, remote runtime imagery, heavy 3D/WebGL, or motion required to understand or
+  complete authentication.
 - Adding a generic settings framework or a new shared package.
 
 ## Requirements
@@ -182,6 +210,29 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
 - REQ-016: Notification redesign shall preserve the current module contracts, bounded scenario
   source, destination behavior, read mutations, and production boundary; it shall not introduce a
   backend or background delivery mechanism.
+- REQ-021: Studio and Backstage authentication shells shall replace the oversized stacked-logo
+  panel with product-specific visual scenes derived from one documented TRIAD family art direction.
+- REQ-022: The Studio scene shall communicate coordinated barbershop ownership and operation through
+  an original visual composition, without reproducing a dashboard screenshot or relying on generic
+  stock photography.
+- REQ-023: The Backstage scene shall communicate the governed system behind the TRIAD product family
+  through an original observatory/network composition, without hacker, surveillance, or generic
+  infrastructure clichés.
+- REQ-024: The new branded surface shall apply consistently to login, invitation acceptance,
+  password recovery, and password reset in both Studio and Backstage while leaving each form's
+  existing functional behavior and Portuguese copy intact unless an accessibility issue requires a
+  focused correction.
+- REQ-025: Authentication artwork shall use locally owned, production-optimized assets with explicit
+  provenance and no runtime request to a third-party image service. Each app shall own its assets
+  until a real third consumer justifies extraction.
+- REQ-026: Authentication motion shall be ambient, bounded, non-blocking, and implemented with
+  lightweight composited properties. Pointer response, if retained after QA, shall be optional and
+  unavailable input modes shall lose no meaning.
+- REQ-027: `prefers-reduced-motion: reduce` shall disable non-essential motion and present an
+  intentional static composition with the same product identity and contrast.
+- REQ-028: At widths where the two-column composition cannot remain useful, the form shall retain
+  priority and the branded scene shall collapse or crop intentionally without causing horizontal
+  overflow, obscuring controls, or increasing task length.
 
 ### Non-Functional
 
@@ -195,6 +246,9 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
 - REQ-020: Authentication errors, profile changes, tenant identifiers, notification details,
   credentials, tokens, and private request data shall not be added to logs, analytics, URLs, or
   traces by this initiative.
+- REQ-029: Authentication artwork and motion shall not delay form interactivity, produce material
+  layout shift, trap focus, enter the accessibility tree as redundant content, or regress Studio or
+  Backstage production build boundaries.
 
 ## Brainstorm
 
@@ -237,8 +291,17 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
   `Notificações` destination in the grouped user menu.
 - Fully redesigning notification rules or storage would delay the usability outcome and cross into
   backend/product behavior the current request explicitly excludes.
+- Reusing exactly the same illustration in every product would create consistency but erase the
+  reason each application exists. Completely unrelated scenes would weaken the TRIAD family. The
+  selected direction shares composition grammar, materials, color, light, and motion behavior while
+  giving every product a distinct subject.
+- A single generated background image would be easy to ship but difficult to animate meaningfully
+  and adapt across themes or crops. Heavy 3D or video would provide spectacle at disproportionate
+  performance and accessibility cost. The selected approach uses an optimized hero asset plus a
+  small number of independently composited foreground and ambient layers.
 - Doing nothing preserves repeated interruption, makes tenant selection feel unreliable, and lets
-  inconsistent feedback patterns spread to future modules.
+  inconsistent feedback patterns spread to future modules while authentication remains visually
+  interchangeable and disconnected from each product's purpose.
 
 ### Options
 
@@ -250,11 +313,16 @@ Execution plan: [20-studio-shell-navigation-and-feedback-refinement.md](../tasks
 
 ### Recommendation
 
-Choose Option B. Treat the work as one Operate-mode refinement of the incumbent TRIAD Studio visual
-world: make internal validation quiet, actions deterministic, navigation flatter, administration
-grouped by intent, and feedback progressively disclosed. Preserve existing contracts wherever
-possible; use the existing Better Auth self-update capability for display name and keep operational
-notifications presentation-only.
+Choose an expanded Option B. Treat operational work as an Operate-mode refinement of the incumbent
+TRIAD Studio world, while treating authentication as the expressive threshold where brand can
+become more memorable. Make internal validation quiet, actions deterministic, navigation flatter,
+administration grouped by intent, and feedback progressively disclosed. Replace the empty auth
+brand panel with a shared visual grammar named **Three Forces, One Rhythm**: layered paths and three
+coordinated focal elements converge around a protected center. Studio interprets the grammar as
+barbershop operation; Backstage interprets it as the system observatory; future Barber can later
+interpret it as the professional at the point of service. Preserve existing auth contracts, use
+the existing Better Auth self-update capability for display name, and keep notifications
+presentation-only.
 
 ## Architecture And Boundaries
 
@@ -263,24 +331,30 @@ notifications presentation-only.
   returning authentication and authorization failures.
 - IDP impact: the existing Better Auth `/api/auth/*` account update contract persists the user's
   display name. No custom identity-administration route, schema change, or new IDP policy is planned.
-- Studio impact: primary scope. Changes belong to auth/session presentation, the authenticated route
+- Studio impact: primary scope. Changes belong to the complete authentication shell, auth/session
+  presentation, the authenticated route
   composition, workspace context selection, shared shell navigation, profile, preferences, Sonner
   feedback, and operational-notification presentation.
+- Backstage impact: the complete authentication shell and its local branded assets/styles. Operator
+  authorization, tenant operations, and authenticated Backstage workflows do not change.
 - Data/persistence impact: existing IDP user `name` changes through Better Auth. No migration,
   backfill, notification persistence, or business schema change.
-- External provider impact: none.
+- External provider impact: image generation may be used during implementation to create original
+  source artwork. Final runtime assets are reviewed, optimized, stored locally, and do not depend on
+  the generation provider.
 
 ## Project Standards Applicability
 
 | Concern | Classification | Rationale | Relevant skills/docs |
 | --- | --- | --- | --- |
 | Product workflow | Applicable | Eight observed concerns form one authenticated-shell workflow with explicit failure and recovery states | `requirements-analysis`, `spec-writer`, Impeccable `shape` |
-| Architecture | Applicable | Work spans Studio UI and the existing IDP account contract without changing product ownership | `triad-architecture`, root and Studio `AGENTS.md` |
+| Architecture | Applicable | Work spans Studio, Backstage, and the existing IDP account contract while keeping each app and asset owner independent | `triad-architecture`, root/Studio/Backstage `AGENTS.md` |
 | API | Applicable | Existing `401`/`403` and Better Auth self-update contracts must remain correctly interpreted; no new route | `triad-studio-development`, `docs/studio/authentication.md` |
 | Identity and authorization | Applicable | Session revalidation and self-name update affect identity presentation; server authorization remains unchanged | `triad-studio-development`, Initiative 19 |
 | Persistence | Applicable | Only the existing IDP user name is updated; no schema, index, migration, or backfill | Better Auth contract, Initiative 19 |
-| Studio UI | Applicable | This is an authenticated Studio shell, settings, feedback, and notification refinement | `triad-studio-development`, Impeccable, theme/component docs |
-| Site UI | Not applicable | No public-site surface changes | `AGENTS.md` |
+| Studio UI | Applicable | This includes the full Studio auth family plus authenticated shell, settings, feedback, and notification refinement | `triad-studio-development`, Impeccable, theme/component docs |
+| Backstage UI | Applicable | The full Backstage auth family receives its own system-observatory scene without changing operator workflows | `triad-backstage-development`, Impeccable, Backstage design contract |
+| Site UI | Not applicable | No public-site surface changes; Backstage is an independent internal React app | `AGENTS.md` |
 | Accessibility | Applicable | Menus, disclosures, overlays, async status, form validation, toast, and notification semantics change | `accessibility`, WCAG 2.2 AA |
 | Performance and scale | Applicable | Auth and notification work must avoid duplicate requests, polling, and route-wide churn | `triad-studio-development` |
 | Security and privacy | Applicable | Auth failure classification, stale tenant data, self-update, and private notification content require review | `AGENTS.md`, Studio product contract |
@@ -293,14 +367,18 @@ notifications presentation-only.
 
 - Expected data growth: user-menu, profile, preference, and toast content is constant-size.
   Notification item counts remain bounded by the existing source contracts.
-- Critical paths: private-route entry, session refresh, tenant activation, shell render, and opening
-  the notification preview.
+- Critical paths: private-route entry, session refresh, tenant activation, shell render, opening the
+  notification preview, authentication form interactivity, and largest visual asset delivery.
 - Query bounds/pagination: no new queries. The preview retains its small active limit. The current
   notification center limits remain unchanged; a production pagination contract is deferred until a
   real backend exists.
 - Concurrency risks: repeated tenant-selection and profile-save activation must be suppressed while
   pending. A late session result must not restore a logged-out or superseded tenant context.
 - External limits: no new external dependency or polling.
+- Authentication media budget: final assets shall be responsive and optimized, avoid autoplay
+  video/WebGL, lazy-load non-critical decorative layers where compatible with stable composition,
+  and keep the form usable before artwork finishes loading. Exact byte budgets must be established
+  from measured incumbent builds during implementation rather than invented in planning.
 - What happens with millions of records/items: no changed surface loads business records. A future
   persistent notification system must use server pagination and cannot reuse the evaluation source's
   bounded in-memory list as capacity evidence.
@@ -325,6 +403,9 @@ notifications presentation-only.
 - Screen reader states: async operations expose named busy/status states; errors use alerts; success
   and notification read-state changes use polite announcements; current route and grouped menu
   relationships are named.
+- Authentication art is decorative unless a short adjacent product statement conveys unique
+  meaning. Decorative layers stay outside the accessibility tree; meaningful text is real HTML, not
+  baked into imagery.
 - Responsive behavior: centered content uses fluid widths; menus, selector, notification detail, and
   toast remain within 320 CSS pixels without page-level horizontal scrolling.
 - Loading/error/empty states: route content uses shaped skeletons where needed. Profile, workspace,
@@ -350,8 +431,9 @@ notifications presentation-only.
 
 - Compatibility strategy: preserve existing routes and notification repository contracts. Introduce
   shared presentation changes behind current component APIs where practical.
-- Feature flag/rollout: no flag is required. The work ships as a Studio frontend refinement after
-  critical-route browser validation.
+- Feature flag/rollout: no flag is required. Studio and Backstage auth visuals may ship in the same
+  release train but remain independently revertible application builds after critical-route browser
+  validation.
 - Migration/backfill: none.
 - Rollback: revert the Studio presentation changes as one frontend release. Existing Better Auth,
   API, and persistence contracts remain compatible.
@@ -367,6 +449,9 @@ notifications presentation-only.
   - Profile display-name changes persist and update the open shell without sign-out/sign-in.
   - User-menu destinations, preference sections, semantic toast variants, and notification detail
     are operable by keyboard and readable in supported themes and widths.
+  - Studio and Backstage authentication journeys are immediately distinguishable without losing
+    shared TRIAD family recognition, and form interaction is available regardless of media load or
+    motion preference.
 - Baseline or measurement plan: no production analytics baseline exists. Use deterministic component
   and E2E assertions plus manual visual evidence before/after at desktop and 320-pixel widths.
 - Regression guardrails: automated tests prohibit the access-validation copy, duplicate tenant
@@ -417,9 +502,29 @@ notifications presentation-only.
 - [ ] AC-015: Studio format, lint, typecheck, unit/component tests, production-boundary test, build,
   focused E2E tests, and the Impeccable mechanical detector pass or any exception is recorded before
   completion.
-- [ ] AC-016: Durable Studio authentication, component-system, and theme/feedback documentation is
-  updated to match the implemented behavior; no README, AGENTS, env-schema, or skill change is made
-  unless implementation reveals a durable workflow or convention change.
+- [ ] AC-016: Durable Studio and Backstage authentication, component-system, art-direction, asset,
+  and theme/feedback documentation is updated to match the implemented behavior; no README, AGENTS,
+  env-schema, or skill change is made unless implementation reveals a durable workflow or convention
+  change.
+- [ ] AC-017: Studio login, invitation, recovery, and password-reset screens replace the oversized
+  logo panel with the approved barbershop-operation scene while preserving every existing form
+  success, validation, failure, redirect, and keyboard behavior.
+- [ ] AC-018: Backstage login, invitation, recovery, and password-reset screens use the approved
+  system-observatory scene while preserving every existing form and operator-entry behavior.
+- [ ] AC-019: Side-by-side review identifies Studio and Backstage as members of one TRIAD family
+  through shared visual grammar while clearly distinguishing barbershop operation from platform
+  governance without explanatory labels being required to tell them apart.
+- [ ] AC-020: Authentication motion remains subtle and smooth on supported desktop browsers, does
+  not delay or intercept form input, and becomes an intentional static composition under reduced
+  motion or when animation capability is unavailable.
+- [ ] AC-021: Authentication remains fully usable at 320 CSS pixels, 200% zoom, light/dark/system,
+  keyboard-only, forced-colors where relevant, slow media loading, failed media loading, and reduced
+  motion, with no horizontal overflow or content obstruction.
+- [ ] AC-022: Final art assets are original, locally stored per owning app, provenance-recorded,
+  responsive, production-optimized, free of embedded UI copy or private data, and introduce no
+  runtime third-party image request.
+- [ ] AC-023: `bun --filter backstage check` and focused Backstage auth E2E/visual checks pass in
+  addition to the Studio verification suite, or any exception is recorded before completion.
 
 ## Verification Plan
 
@@ -437,11 +542,15 @@ notifications presentation-only.
   - Focused Vitest tests for shared shell, profile, preferences, toaster, and notification components.
   - Playwright journeys for refresh/session outcomes, single-click tenant selection, navigation
     location, user menu, profile update, disclosures, toasts, and notification preview/center.
+  - Studio and Backstage auth-shell tests across login, invitation, recovery, reset, media success/
+    failure, reduced motion, and responsive presentation.
 - Manual/browser checks:
   - Authenticated owner with one and multiple tenants; invalid, forbidden, offline/transient, and
     successful states.
   - Chromium desktop and 320 CSS-pixel mobile viewport, light/dark/system, 200% zoom, keyboard-only,
     reduced motion, forced colors where relevant, and screenshot review.
+  - Side-by-side product-family review of Studio and Backstage authentication at desktop; validate
+    focal hierarchy, form competition, animation amplitude, crop, and static fallback.
 - Build/check commands:
   - `bun --filter studio routes:generate`
   - `bun --filter studio format`
@@ -451,6 +560,7 @@ notifications presentation-only.
   - `bun --filter studio test:production-boundary`
   - `bun --filter studio build`
   - `bun --filter studio check`
+  - `bun --filter backstage check`
   - Focused `bun --filter studio test:e2e -- <spec files>` followed by the full suite when feasible.
   - `node .agents/skills/impeccable/scripts/detect.mjs --json <changed Studio targets>` once after UI
     implementation is complete.
@@ -471,6 +581,8 @@ notifications presentation-only.
   implementation owner; choose the smallest accessible composition satisfying AC-012 and AC-013.
 - [ ] Establish production telemetry baselines only when privacy-safe product analytics for
   authenticated Studio workflows is separately approved — product owner.
+- [ ] Choose the exact generated composition from implementation variants after a bounded visual
+  review — product owner; the approved story, family grammar, and acceptance criteria remain fixed.
 
 ## Assumptions
 
@@ -484,6 +596,11 @@ notifications presentation-only.
 - No new reusable primitive is needed beyond existing Base UI/shadcn disclosure, scroll, popover,
   drawer, alert, button, and Sonner capabilities — inspect the component inventory before creating
   anything new.
+- Studio and Backstage can each own optimized copies and layers of their scene without premature
+  package extraction — revisit only when TRIAD Barber becomes a real runtime consumer.
+- Authentication scenes can be created as original raster artwork plus lightweight DOM/CSS layers;
+  validate visual quality, transparent-edge behavior, theme compatibility, and measured build/media
+  cost before accepting final assets.
 
 ## Definition of Ready
 
@@ -498,3 +615,4 @@ notifications presentation-only.
 | 2026-09-04 | Awaiting approval |  | Initial decision brief presented after product clarification |
 | 2026-09-04 | Approved | User | Approved without requested changes |
 | 2026-09-04 | Changes requested | User | Reopened to add a cross-product authentication visual and motion direction for Studio and Backstage |
+| 2026-09-04 | Awaiting approval |  | Revised with the TRIAD family direction and complete auth-journey scope |

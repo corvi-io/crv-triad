@@ -175,20 +175,26 @@ describe("client memory repository", () => {
     const created = await repository.create(input)
     expect(created.id).toBe("client-0001")
     expect(
-      (await repository.update(created.id, { ...input, name: "Cliente Sintético Editado" })).name,
+      (await repository.update(created.id, { ...input, name: "Cliente Sintético Editado" }, 1))
+        .name,
     ).toContain("Editado")
-    expect((await repository.setArchived(created.id, true)).status).toBe("archived")
-    expect((await repository.setArchived(created.id, false)).status).toBe("active")
+    expect((await repository.setArchived(created.id, true, 1)).status).toBe("archived")
+    expect((await repository.setArchived(created.id, false, 1)).status).toBe("active")
     const withNote = await repository.addNote(created.id, {
       body: "Nota sintética de atendimento.",
     })
     const note = withNote.notes[0]
     expect(note).toBeDefined()
-    const edited = await repository.updateNote(created.id, note?.id ?? "", {
-      body: "Nota revisada.",
-    })
+    const edited = await repository.updateNote(
+      created.id,
+      note?.id ?? "",
+      { body: "Nota revisada." },
+      note?.version ?? 1,
+    )
     expect(edited.notes[0]?.body).toBe("Nota revisada.")
-    expect((await repository.removeNote(created.id, note?.id ?? "")).notes).toHaveLength(0)
+    expect(
+      (await repository.removeNote(created.id, note?.id ?? "", note?.version ?? 1)).notes,
+    ).toHaveLength(0)
   })
 
   it("keeps failed mutations atomic so retry starts from the original snapshot", async () => {
@@ -196,11 +202,11 @@ describe("client memory repository", () => {
     const before = await repository.get("client-01", "typical")
     repository.failNextOperation()
     await expect(
-      repository.update(before.id, { ...before, name: "Alteração que deve falhar" }),
+      repository.update(before.id, { ...before, name: "Alteração que deve falhar" }, 1),
     ).rejects.toBeInstanceOf(SimulatedMockFailure)
     expect(await repository.get(before.id, "typical")).toEqual(before)
     await expect(
-      repository.update(before.id, { ...before, name: "Alteração após retry" }),
+      repository.update(before.id, { ...before, name: "Alteração após retry" }, 1),
     ).resolves.toMatchObject({ name: "Alteração após retry" })
   })
 
@@ -226,7 +232,7 @@ describe("client memory repository", () => {
     )
     const before = await failing.get("client-01", "next-failure")
     await expect(
-      failing.update(before.id, { ...before, name: "Cliente após retry" }),
+      failing.update(before.id, { ...before, name: "Cliente após retry" }, 1),
     ).resolves.toMatchObject({ name: "Cliente após retry" })
   })
 
@@ -241,10 +247,11 @@ describe("client memory repository", () => {
     const repository = new ClientMemoryRepository()
     await repository.list({ ...query, scenarioId: "slow" })
     const slowClient = await repository.get("client-01", "slow")
-    const staleMutation = repository.update(slowClient.id, {
-      ...slowClient,
-      name: "STALE MUTATION",
-    })
+    const staleMutation = repository.update(
+      slowClient.id,
+      { ...slowClient, name: "STALE MUTATION" },
+      1,
+    )
 
     await repository.list({ ...query, scenarioId: "typical" })
     const activeBefore = await repository.get(slowClient.id, "typical")

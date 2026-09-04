@@ -96,7 +96,7 @@ export class ClientMemoryRepository implements ClientRepository {
     })
   }
 
-  async update(id: string, input: ClientInput) {
+  async update(id: string, input: ClientInput, _version: number) {
     return this.#mutate("update", () => {
       validateInput(input)
       const updated = this.#engine.update(id, input)
@@ -105,7 +105,7 @@ export class ClientMemoryRepository implements ClientRepository {
     })
   }
 
-  async setArchived(id: string, archived: boolean) {
+  async setArchived(id: string, archived: boolean, _version: number) {
     return this.#mutate("update", () => {
       const updated = this.#engine.update(id, { status: archived ? "archived" : "active" })
       if (!updated) throw new ClientValidationError("Cliente não encontrado.")
@@ -128,7 +128,7 @@ export class ClientMemoryRepository implements ClientRepository {
     })
   }
 
-  async updateNote(clientId: string, noteId: string, input: NoteInput) {
+  async updateNote(clientId: string, noteId: string, input: NoteInput, _version: number) {
     return this.#mutate("update", () => {
       const record = this.#record(clientId)
       const body = validateNote(input)
@@ -144,7 +144,7 @@ export class ClientMemoryRepository implements ClientRepository {
     })
   }
 
-  async removeNote(clientId: string, noteId: string) {
+  async removeNote(clientId: string, noteId: string, _version: number) {
     return this.#mutate("delete", () => {
       const record = this.#record(clientId)
       if (!record.notes.some((note) => note.id === noteId))

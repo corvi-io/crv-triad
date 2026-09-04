@@ -20,6 +20,7 @@ import {
   user,
 } from "../../idp/database/schema.js"
 import type { IdpAuth } from "../../idp/identity/auth.js"
+import { MAX_ACTIVE_ORGANIZATION_MEMBERSHIPS } from "../../idp/identity/auth.js"
 import {
   createInvitationSecret,
   findPendingInvitationByEmail,
@@ -89,17 +90,19 @@ export function createBackstageRoutes(
         return { code: code === "VALIDATION" ? "invalid_request" : "internal_error", requestId }
       }
       set.status =
-        error.code === "unauthenticated"
-          ? 401
-          : error.code === "not_found"
-            ? 404
-            : error.code === "conflict" ||
-                error.code === "slug_conflict" ||
-                error.code === "pending_invitation_exists"
-              ? 409
-              : error.code === "owner_not_found" || error.code === "owner_disabled"
-                ? 422
-                : 403
+        error.code === "invalid_request"
+          ? 400
+          : error.code === "unauthenticated"
+            ? 401
+            : error.code === "not_found"
+              ? 404
+              : error.code === "conflict" ||
+                  error.code === "slug_conflict" ||
+                  error.code === "pending_invitation_exists"
+                ? 409
+                : error.code === "owner_not_found" || error.code === "owner_disabled"
+                  ? 422
+                  : 403
       return { code: error.code, requestId }
     })
     .get("/me", async ({ request }) => {
@@ -226,6 +229,12 @@ export function createBackstageRoutes(
             token: string
           } = null
           if (owner?.status === "active") {
+            const [membershipCount] = await tx
+              .select({ value: count() })
+              .from(member)
+              .where(and(eq(member.userId, owner.id), eq(member.status, "active")))
+            if ((membershipCount?.value ?? 0) >= MAX_ACTIVE_ORGANIZATION_MEMBERSHIPS)
+              throw new BackstageError("membership_limit_reached")
             await tx.insert(member).values({
               id: createId(),
               organizationId: tenantId,
@@ -347,6 +356,7 @@ export function createBackstageRoutes(
         await operator(request.headers, ["system_owner", "operations"])
         const session = await auth.api.getSession({ headers: request.headers })
         if (!session) throw new BackstageError("unauthenticated")
+        const reason = normalizedReason(body.reason)
         const [updated] = await db.transaction(async (tx) => {
           const rows = await tx
             .update(organization)
@@ -369,7 +379,7 @@ export function createBackstageRoutes(
             organizationId: record.id,
             outcome: "allowed",
             requestId: request.headers.get("x-request-id") ?? crypto.randomUUID(),
-            reason: body.reason.trim(),
+            reason,
             targetId: record.id,
           })
           return rows
@@ -389,6 +399,7 @@ export function createBackstageRoutes(
       "/support-contexts",
       async ({ body, request, status }) => {
         const actor = await operator(request.headers, ["system_owner", "operations", "support"])
+        const reason = normalizedReason(body.reason)
         const [tenant] = await db
           .select({ id: organization.id })
           .from(organization)
@@ -406,7 +417,7 @@ export function createBackstageRoutes(
             id,
             operatorId: actor.id,
             organizationId: tenant.id,
-            reason: body.reason,
+            reason,
           })
           await tx.insert(supportAudit).values({
             action: "support_context.created",
@@ -556,4 +567,10 @@ class BackstageError extends Error {
   constructor(readonly code: string) {
     super("Backstage access denied.")
   }
+}
+
+function normalizedReason(value: string) {
+  const reason = value.trim()
+  if (reason.length < 10 || reason.length > 500) throw new BackstageError("invalid_request")
+  return reason
 }

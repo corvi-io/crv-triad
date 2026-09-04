@@ -60,6 +60,7 @@ export function ClientProfileDrawer({
       await archiveClient.mutateAsync({
         archived: client.status === "active",
         id: client.id,
+        version: client.version ?? 1,
       })
       toast.success(client.status === "active" ? "Cliente arquivado." : "Cliente restaurado.")
       setConfirmArchive(false)
@@ -328,6 +329,7 @@ function Notes({ client }: { client: ClientRecord }) {
         clientId: client.id,
         noteId: editing.id,
         input: parsed.data,
+        version: editing.version ?? 1,
       })
       toast.success("Nota atualizada.")
       setEditing(null)
@@ -340,7 +342,11 @@ function Notes({ client }: { client: ClientRecord }) {
 
   async function remove(note: ClientNote) {
     try {
-      await removeNote.mutateAsync({ clientId: client.id, noteId: note.id })
+      await removeNote.mutateAsync({
+        clientId: client.id,
+        noteId: note.id,
+        version: note.version ?? 1,
+      })
       toast.success("Nota removida.")
       setRemoving(null)
     } catch {

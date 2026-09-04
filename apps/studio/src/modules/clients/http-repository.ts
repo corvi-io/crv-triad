@@ -23,7 +23,7 @@ export class ClientHttpRepository implements ClientRepository {
       pageSize: String(query.pageSize),
       search: query.search,
       sortDirection: query.sort.direction,
-      sortField: query.sort.field,
+      sortBy: query.sort.field,
       status: query.status,
       tag: query.tag,
     })
@@ -43,22 +43,20 @@ export class ClientHttpRepository implements ClientRepository {
     return mapClient(await request<ApiClient>("/api/clients/", { body: input, method: "POST" }))
   }
 
-  async update(id: string, input: ClientInput): Promise<ClientRecord> {
-    const current = await this.get(id)
+  async update(id: string, input: ClientInput, version: number): Promise<ClientRecord> {
     return mapClient(
       await request<ApiClient>(`/api/clients/${encodeURIComponent(id)}`, {
-        body: { ...input, version: current.version ?? 1 },
+        body: { ...input, version },
         method: "PATCH",
       }),
     )
   }
 
-  async setArchived(id: string, archived: boolean): Promise<ClientRecord> {
-    const current = await this.get(id)
+  async setArchived(id: string, archived: boolean, version: number): Promise<ClientRecord> {
     return mapClient(
       await request<ApiClient>(
         `/api/clients/${encodeURIComponent(id)}/${archived ? "archive" : "restore"}`,
-        { body: { version: current.version ?? 1 }, method: "POST" },
+        { body: { version }, method: "POST" },
       ),
     )
   }
@@ -86,24 +84,25 @@ export class ClientHttpRepository implements ClientRepository {
     )
   }
 
-  async updateNote(clientId: string, noteId: string, input: NoteInput): Promise<ClientRecord> {
-    const current = await this.get(clientId)
-    const note = current.notes.find((item) => item.id === noteId)
+  async updateNote(
+    clientId: string,
+    noteId: string,
+    input: NoteInput,
+    version: number,
+  ): Promise<ClientRecord> {
     return mapClient(
       await request<ApiClient>(
         `/api/clients/${encodeURIComponent(clientId)}/notes/${encodeURIComponent(noteId)}`,
-        { body: { ...input, version: note?.version ?? 1 }, method: "PATCH" },
+        { body: { ...input, version }, method: "PATCH" },
       ),
     )
   }
 
-  async removeNote(clientId: string, noteId: string): Promise<ClientRecord> {
-    const current = await this.get(clientId)
-    const note = current.notes.find((item) => item.id === noteId)
+  async removeNote(clientId: string, noteId: string, version: number): Promise<ClientRecord> {
     return mapClient(
       await request<ApiClient>(
         `/api/clients/${encodeURIComponent(clientId)}/notes/${encodeURIComponent(noteId)}`,
-        { body: { version: note?.version ?? 1 }, method: "DELETE" },
+        { body: { version }, method: "DELETE" },
       ),
     )
   }
