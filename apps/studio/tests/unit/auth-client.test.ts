@@ -83,6 +83,7 @@ describe("auth client", () => {
     })
     await expect(
       acceptInvitation({
+        name: "Pessoa Convidada",
         password: "Senha válida 1!",
         token: "synthetic-invitation-proof",
       }),

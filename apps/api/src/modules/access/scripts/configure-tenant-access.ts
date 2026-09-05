@@ -79,9 +79,12 @@ export async function configureTenantAccess(db: IdpDatabase, input: z.infer<type
       .select()
       .from(planEntitlement)
       .where(eq(planEntitlement.planVersionId, version.id))
-    if (existing.length === 0) {
+    const missingCapabilities = capabilities.filter(
+      (capability) => !existing.some((item) => item.capabilityKey === capability),
+    )
+    if (missingCapabilities.length > 0) {
       await tx.insert(planEntitlement).values(
-        capabilities.map((capability) => ({
+        missingCapabilities.map((capability) => ({
           capabilityKey: capability,
           enabled: true,
           id: createId(),

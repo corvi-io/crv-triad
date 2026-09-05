@@ -97,11 +97,6 @@ describe("client management contracts", () => {
   it.each([
     ["name", "x".repeat(101), "Use no máximo 100 caracteres no nome."],
     ["phone", "1".repeat(14), "Informe um telefone com no máximo 13 dígitos."],
-    [
-      "servicePreferencesText",
-      "x".repeat(201),
-      "Use no máximo 200 caracteres nas preferências de serviço.",
-    ],
     ["tagsText", "x".repeat(121), "Use no máximo 120 caracteres nas tags."],
   ] as const)("localizes the %s maximum-length validation", (field, value, message) => {
     const result = clientFormSchema.safeParse({

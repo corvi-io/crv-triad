@@ -138,11 +138,10 @@ describe("routes", () => {
 
   it("renders barbershop setup as a private module inside the workspace shell", async () => {
     const user = userEvent.setup()
-    renderRoute("/barbershop-setup?section=services", authenticatedState())
+    const { router } = renderRoute("/barbershop-setup/services", authenticatedState())
 
-    expect(
-      await screen.findByRole("heading", { name: "Configuração da barbearia" }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Serviços" })).toBeInTheDocument()
+    expect(router.state.location.href).toBe("/barbershop-setup/services")
     expect(
       screen.queryByRole("navigation", { name: "Navegação secundária" }),
     ).not.toBeInTheDocument()
@@ -153,6 +152,15 @@ describe("routes", () => {
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
       "Configuração da barbearia",
     )
+  })
+
+  it("redirects barbershop setup defaults to a clean overview URL", async () => {
+    const { router } = renderRoute("/barbershop-setup", authenticatedState())
+
+    expect(
+      await screen.findByRole("heading", { name: "Configuração da barbearia" }),
+    ).toBeInTheDocument()
+    expect(router.state.location.href).toBe("/barbershop-setup/overview")
   })
 
   it("rejects a cash date that rolls over to another calendar day", async () => {

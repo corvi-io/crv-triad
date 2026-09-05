@@ -13,10 +13,10 @@ export const clientFormSchema = z
       .max(100, "Use no máximo 100 caracteres no nome."),
     phone: z.string().max(13, "Informe um telefone com no máximo 13 dígitos."),
     preferenceNote: z.string().trim().max(240, "Use no máximo 240 caracteres."),
-    servicePreferencesText: z
-      .string()
-      .max(200, "Use no máximo 200 caracteres nas preferências de serviço."),
+    professionalPreferenceIds: z.array(z.string()).max(5),
+    servicePreferenceIds: z.array(z.string()).max(20),
     tagsText: z.string().max(120, "Use no máximo 120 caracteres nas tags."),
+    unitPreferenceIds: z.array(z.string()).max(5),
   })
   .refine(({ email, phone }) => email.length > 0 || phone.length >= 10, {
     message: contactMessage,
@@ -31,8 +31,10 @@ export function createClientFormDefaults(client?: ClientInput): ClientFormValues
     name: client?.name ?? "",
     phone: client?.phone ?? "",
     preferenceNote: client?.preferenceNote ?? "",
-    servicePreferencesText: client?.servicePreferences.join(", ") ?? "",
+    professionalPreferenceIds: [...(client?.professionalPreferenceIds ?? [])],
+    servicePreferenceIds: [...(client?.servicePreferenceIds ?? [])],
     tagsText: client?.tags.join(", ") ?? "",
+    unitPreferenceIds: [...(client?.unitPreferenceIds ?? [])],
   }
 }
 
@@ -42,8 +44,11 @@ export function clientFormValuesToInput(values: ClientFormValues): ClientInput {
     name: values.name.trim(),
     phone: values.phone,
     preferenceNote: values.preferenceNote.trim(),
-    servicePreferences: splitLabels(values.servicePreferencesText),
+    professionalPreferenceIds: values.professionalPreferenceIds,
+    servicePreferenceIds: values.servicePreferenceIds,
+    servicePreferences: [],
     tags: splitLabels(values.tagsText),
+    unitPreferenceIds: values.unitPreferenceIds,
   }
 }
 

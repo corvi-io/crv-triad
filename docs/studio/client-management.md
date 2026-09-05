@@ -1,5 +1,9 @@
 # Studio Client Management
 
+Client unit, professional, and service preferences are persisted as tenant-scoped catalog IDs.
+The form uses bounded catalog option endpoints, does not create arbitrary labels, and keeps archived
+selections readable. Legacy service labels remain read-only during the compatibility period.
+
 ## Scope
 
 `/clients` is an authenticated product-evaluation module owned by Studio. It provides a bounded

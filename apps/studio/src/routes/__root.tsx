@@ -54,7 +54,7 @@ function StudioDevtools() {
       />
       <button
         aria-label="Abrir TanStack Devtools"
-        className="fixed right-4 bottom-4 z-[2147483647] flex size-10 cursor-pointer items-center justify-center rounded-full border border-border bg-foreground text-xs font-bold text-background shadow-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="fixed right-4 top-16 z-[2147483647] flex size-10 cursor-pointer items-center justify-center rounded-full border border-border bg-foreground text-xs font-bold text-background shadow-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         type="button"
         onClick={() =>
           document

@@ -10,10 +10,10 @@ describe("development mock boundary", () => {
     const exampleEnv = await readFile(path.resolve(process.cwd(), ".env.example"), "utf8")
 
     expect(packageJson.scripts["test:production-boundary"]).toMatch(
-      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=http /,
+      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=http VITE_CLIENT_MANAGEMENT_SOURCE=http /,
     )
     expect(packageJson.scripts["test:e2e:production"]).toMatch(
-      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=http /,
+      /^VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=http VITE_CLIENT_MANAGEMENT_SOURCE=http /,
     )
     expect(packageJson.scripts.dev).toBe("vite --port 3000")
     expect(exampleEnv).toContain("VITE_CLIENT_MANAGEMENT_SOURCE=http")

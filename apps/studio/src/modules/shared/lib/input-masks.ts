@@ -10,6 +10,7 @@ export type InputMaskName =
   | "brDate"
   | "brYearModel"
   | "brMoney"
+  | "brPercent"
   | "brDecimal"
 
 export type InputMaskMetadata = {
@@ -79,6 +80,11 @@ export const INPUT_MASK_METADATA: Record<InputMaskName, InputMaskMetadata> = {
     maxLength: BR_MONEY_MAX_DISPLAY_LENGTH,
     type: "text",
   },
+  brPercent: {
+    inputMode: "decimal",
+    maxLength: 6,
+    type: "text",
+  },
   brDecimal: {
     inputMode: "decimal",
     maxLength: 20,
@@ -107,6 +113,7 @@ export function applyInputMask(mask: InputMaskName, value: string): string {
   if (mask === "brDate") return formatBrazilianDate(value)
   if (mask === "brYearModel") return formatBrazilianYearModel(value)
   if (mask === "brMoney") return formatBrazilianMoney(value)
+  if (mask === "brPercent") return formatBrazilianPercent(value)
   if (mask === "brDecimal") return formatBrazilianDecimal(value)
 
   return value
@@ -114,6 +121,7 @@ export function applyInputMask(mask: InputMaskName, value: string): string {
 
 export function normalizeInputMask(mask: InputMaskName, value: string): string {
   if (mask === "brMoney") return normalizeBrazilianMoney(value)
+  if (mask === "brPercent") return normalizeBrazilianPercent(value)
   if (mask === "brDecimal") return normalizeBrazilianDecimal(value)
   if (mask === "brRg") return normalizeBrazilianRg(value)
   if (mask === "brRegistration") return normalizeBrazilianRegistration(value)
@@ -122,7 +130,10 @@ export function normalizeInputMask(mask: InputMaskName, value: string): string {
 }
 
 const INPUT_MASK_CANONICAL_LENGTHS: Record<
-  Exclude<InputMaskName, "brMoney" | "brDecimal" | "brRg" | "brRegistration" | "brVehiclePlate">,
+  Exclude<
+    InputMaskName,
+    "brMoney" | "brPercent" | "brDecimal" | "brRg" | "brRegistration" | "brVehiclePlate"
+  >,
   number
 > &
   Partial<Record<InputMaskName, number>> = {
@@ -271,6 +282,20 @@ export function formatBrazilianMoney(value: string): string {
   const [integer = "0", fraction = "00"] = canonical.split(".")
   const groupedInteger = stripLeadingZeros(integer).replace(/\B(?=(\d{3})+(?!\d))/g, ".")
   return `R$ ${groupedInteger},${fraction.padEnd(2, "0").slice(0, 2)}`
+}
+
+export function normalizeBrazilianPercent(value: string): string {
+  const digits = onlyDigits(value).slice(0, 5)
+  if (!digits) return ""
+  const integer = stripLeadingZeros(digits.slice(0, -2) || "0")
+  return `${integer}.${digits.slice(-2).padStart(2, "0")}`
+}
+
+export function formatBrazilianPercent(value: string): string {
+  const canonical = /^\d+(?:\.\d{0,2})?$/.test(value) ? value : normalizeBrazilianPercent(value)
+  if (!canonical) return ""
+  const [integer = "0", fraction = "00"] = canonical.split(".")
+  return `${stripLeadingZeros(integer)},${fraction.padEnd(2, "0").slice(0, 2)}`
 }
 
 export function normalizeBrazilianDecimal(value: string): string {

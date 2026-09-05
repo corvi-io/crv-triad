@@ -51,16 +51,24 @@ export type ClientRecord = {
   notes: readonly ClientNote[]
   phone: string
   preferenceNote: string
+  professionalPreferenceIds?: readonly string[]
+  preferredServices?: readonly { id: string; name: string; status: ClientStatus }[]
+  servicePreferenceIds?: readonly string[]
   servicePreferences: readonly string[]
   status: ClientStatus
   tags: readonly string[]
+  unitPreferenceIds?: readonly string[]
   version?: number
 }
 
 export type ClientInput = Pick<
   ClientRecord,
   "email" | "name" | "phone" | "preferenceNote" | "servicePreferences" | "tags"
->
+> & {
+  professionalPreferenceIds?: readonly string[]
+  servicePreferenceIds?: readonly string[]
+  unitPreferenceIds?: readonly string[]
+}
 
 export type ClientListQuery = {
   contact: ContactCompleteness

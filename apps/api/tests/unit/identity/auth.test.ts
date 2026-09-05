@@ -670,7 +670,14 @@ describe("createAuthOptions", () => {
         }),
       }),
     }
-    const options = createAuthOptions(env as never, sessionHookDb as never, emailSender)
+    const onInvitationAccepted = vi.fn(async () => undefined)
+    const options = createAuthOptions(
+      env as never,
+      sessionHookDb as never,
+      emailSender,
+      undefined,
+      onInvitationAccepted,
+    )
     const auth = betterAuth({
       ...options,
       database: memoryAdapter(memoryDb),
@@ -713,6 +720,7 @@ describe("createAuthOptions", () => {
       acceptedByUserId: memoryDb.user[0]?.id,
       status: "accepted",
     })
+    expect(onInvitationAccepted).toHaveBeenCalledWith(expect.any(String), memoryDb.user[0]?.id)
   })
 
   it("rolls back invitation consumption and native identity writes after credential failure", async () => {

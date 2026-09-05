@@ -29,6 +29,7 @@ import { Route as AuthenticatedSelectWorkspaceIndexRouteImport } from './routes/
 import { Route as AuthenticatedServiceDeskIndexRouteImport } from './routes/_authenticated/service-desk/index'
 import { Route as WorkspacePreviewAgendaIndexRouteImport } from './routes/workspace-preview/agenda/index'
 import { Route as WorkspacePreviewSandboxIndexRouteImport } from './routes/workspace-preview/sandbox/index'
+import { Route as AuthenticatedBarbershopSetupSectionIndexRouteImport } from './routes/_authenticated/barbershop-setup/$section/index'
 import { Route as AuthenticatedServiceDeskSessionIdIndexRouteImport } from './routes/_authenticated/service-desk/$sessionId/index'
 import { Route as AuthenticatedServiceDeskSessionIdCheckoutIndexRouteImport } from './routes/_authenticated/service-desk/$sessionId/checkout/index'
 
@@ -143,6 +144,12 @@ const WorkspacePreviewSandboxIndexRoute =
     path: '/workspace-preview/sandbox/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedBarbershopSetupSectionIndexRoute =
+  AuthenticatedBarbershopSetupSectionIndexRouteImport.update({
+    id: '/barbershop-setup/$section/',
+    path: '/barbershop-setup/$section/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedServiceDeskSessionIdIndexRoute =
   AuthenticatedServiceDeskSessionIdIndexRouteImport.update({
     id: '/service-desk/$sessionId/',
@@ -176,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/service-desk/': typeof AuthenticatedServiceDeskIndexRoute
   '/workspace-preview/agenda/': typeof WorkspacePreviewAgendaIndexRoute
   '/workspace-preview/sandbox/': typeof WorkspacePreviewSandboxIndexRoute
+  '/barbershop-setup/$section/': typeof AuthenticatedBarbershopSetupSectionIndexRoute
   '/service-desk/$sessionId/': typeof AuthenticatedServiceDeskSessionIdIndexRoute
   '/service-desk/$sessionId/checkout/': typeof AuthenticatedServiceDeskSessionIdCheckoutIndexRoute
 }
@@ -199,6 +207,7 @@ export interface FileRoutesByTo {
   '/service-desk': typeof AuthenticatedServiceDeskIndexRoute
   '/workspace-preview/agenda': typeof WorkspacePreviewAgendaIndexRoute
   '/workspace-preview/sandbox': typeof WorkspacePreviewSandboxIndexRoute
+  '/barbershop-setup/$section': typeof AuthenticatedBarbershopSetupSectionIndexRoute
   '/service-desk/$sessionId': typeof AuthenticatedServiceDeskSessionIdIndexRoute
   '/service-desk/$sessionId/checkout': typeof AuthenticatedServiceDeskSessionIdCheckoutIndexRoute
 }
@@ -224,6 +233,7 @@ export interface FileRoutesById {
   '/_authenticated/service-desk/': typeof AuthenticatedServiceDeskIndexRoute
   '/workspace-preview/agenda/': typeof WorkspacePreviewAgendaIndexRoute
   '/workspace-preview/sandbox/': typeof WorkspacePreviewSandboxIndexRoute
+  '/_authenticated/barbershop-setup/$section/': typeof AuthenticatedBarbershopSetupSectionIndexRoute
   '/_authenticated/service-desk/$sessionId/': typeof AuthenticatedServiceDeskSessionIdIndexRoute
   '/_authenticated/service-desk/$sessionId/checkout/': typeof AuthenticatedServiceDeskSessionIdCheckoutIndexRoute
 }
@@ -249,6 +259,7 @@ export interface FileRouteTypes {
     | '/service-desk/'
     | '/workspace-preview/agenda/'
     | '/workspace-preview/sandbox/'
+    | '/barbershop-setup/$section/'
     | '/service-desk/$sessionId/'
     | '/service-desk/$sessionId/checkout/'
   fileRoutesByTo: FileRoutesByTo
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/service-desk'
     | '/workspace-preview/agenda'
     | '/workspace-preview/sandbox'
+    | '/barbershop-setup/$section'
     | '/service-desk/$sessionId'
     | '/service-desk/$sessionId/checkout'
   id:
@@ -296,6 +308,7 @@ export interface FileRouteTypes {
     | '/_authenticated/service-desk/'
     | '/workspace-preview/agenda/'
     | '/workspace-preview/sandbox/'
+    | '/_authenticated/barbershop-setup/$section/'
     | '/_authenticated/service-desk/$sessionId/'
     | '/_authenticated/service-desk/$sessionId/checkout/'
   fileRoutesById: FileRoutesById
@@ -453,6 +466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspacePreviewSandboxIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/barbershop-setup/$section/': {
+      id: '/_authenticated/barbershop-setup/$section/'
+      path: '/barbershop-setup/$section'
+      fullPath: '/barbershop-setup/$section/'
+      preLoaderRoute: typeof AuthenticatedBarbershopSetupSectionIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/service-desk/$sessionId/': {
       id: '/_authenticated/service-desk/$sessionId/'
       path: '/service-desk/$sessionId'
@@ -483,6 +503,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReportsIndexRoute: typeof AuthenticatedReportsIndexRoute
   AuthenticatedSelectWorkspaceIndexRoute: typeof AuthenticatedSelectWorkspaceIndexRoute
   AuthenticatedServiceDeskIndexRoute: typeof AuthenticatedServiceDeskIndexRoute
+  AuthenticatedBarbershopSetupSectionIndexRoute: typeof AuthenticatedBarbershopSetupSectionIndexRoute
   AuthenticatedServiceDeskSessionIdIndexRoute: typeof AuthenticatedServiceDeskSessionIdIndexRoute
   AuthenticatedServiceDeskSessionIdCheckoutIndexRoute: typeof AuthenticatedServiceDeskSessionIdCheckoutIndexRoute
 }
@@ -502,6 +523,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSelectWorkspaceIndexRoute:
     AuthenticatedSelectWorkspaceIndexRoute,
   AuthenticatedServiceDeskIndexRoute: AuthenticatedServiceDeskIndexRoute,
+  AuthenticatedBarbershopSetupSectionIndexRoute:
+    AuthenticatedBarbershopSetupSectionIndexRoute,
   AuthenticatedServiceDeskSessionIdIndexRoute:
     AuthenticatedServiceDeskSessionIdIndexRoute,
   AuthenticatedServiceDeskSessionIdCheckoutIndexRoute:

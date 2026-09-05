@@ -205,6 +205,7 @@ function BarbershopsPage() {
                   <th className="p-3">Assinatura</th>
                   <th className="p-3 text-right">Membros</th>
                   <th className="p-3 text-right">Clientes</th>
+                  <th className="p-3 text-right">Catálogos</th>
                   <th className="py-3 pl-4 text-right">Capacidade</th>
                 </tr>
               </thead>
@@ -236,6 +237,14 @@ function BarbershopsPage() {
                       {tenant.memberCount}
                     </td>
                     <td className="p-3 text-right tabular-nums">{tenant.clientCount}</td>
+                    <td
+                      className="p-3 text-right tabular-nums"
+                      title="Unidades + profissionais + serviços ativos"
+                    >
+                      {tenant.activeUnitCount +
+                        tenant.activeProfessionalCount +
+                        tenant.activeServiceCount}
+                    </td>
                     <td className="py-3 pl-4 text-right tabular-nums">
                       {tenant.activeClientLimit
                         ? `${tenant.clientCount}/${tenant.activeClientLimit}`

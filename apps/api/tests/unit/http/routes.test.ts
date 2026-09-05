@@ -451,6 +451,7 @@ describe("custom routes", () => {
     expect(first.headers.get("referrer-policy")).toBe("no-referrer")
     expect(payload).toEqual({
       expiresAt: "2099-01-01T00:00:00.000Z",
+      hasAccount: true,
       role: "member",
       state: "valid",
     })

@@ -105,19 +105,7 @@ export function SidebarUserMenu({
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuLabel>Administração da barbearia</DropdownMenuLabel>
-                <DropdownMenuItem
-                  render={
-                    <Link
-                      search={{
-                        availabilityDate: new Date().toLocaleDateString("en-CA"),
-                        availabilityView: "week",
-                        scenario: "normal",
-                        section: "overview",
-                      }}
-                      to="/barbershop-setup"
-                    />
-                  }
-                >
+                <DropdownMenuItem render={<Link to="/barbershop-setup" />}>
                   <Building2Icon className="size-4" aria-hidden="true" />
                   Configuração da barbearia
                 </DropdownMenuItem>

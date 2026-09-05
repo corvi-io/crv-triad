@@ -9,17 +9,19 @@ import {
   InputGroupInput,
 } from "@/modules/shared/components/ui/input-group"
 
-export function ClientTagInput({
+export function TagInput({
   "aria-describedby": ariaDescribedBy,
   "aria-invalid": ariaInvalid,
   id,
   onValueChange,
+  placeholder = "Ex.: Cliente frequente",
   value,
 }: {
   "aria-describedby"?: string
   "aria-invalid"?: boolean
   id: string
   onValueChange: (value: string) => void
+  placeholder?: string
   value: string
 }) {
   const [draft, setDraft] = useState("")
@@ -48,7 +50,7 @@ export function ClientTagInput({
           aria-describedby={ariaDescribedBy}
           aria-invalid={ariaInvalid}
           id={id}
-          placeholder="Ex.: Cliente frequente"
+          placeholder={placeholder}
           value={draft}
           onChange={(event) => setDraft(event.currentTarget.value)}
           onKeyDown={(event) => {

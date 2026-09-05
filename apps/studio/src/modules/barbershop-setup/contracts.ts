@@ -105,7 +105,10 @@ export type SetupCompletion = {
 }
 
 export type TimeRange = { end: string; start: string }
-export type BusinessHours = TimeRange & { days: readonly Weekday[] }
+export type BusinessHoursPeriod = TimeRange & { days: readonly Weekday[] }
+export type BusinessHours = BusinessHoursPeriod & {
+  periods?: readonly BusinessHoursPeriod[]
+}
 export type AvailabilityTimeBlock = TimeRange & {
   excludedDates: readonly string[]
   id: string
@@ -121,6 +124,7 @@ export type AvailabilityView = (typeof availabilityViews)[number]
 type SetupEntityBase = {
   id: string
   status: SetupEntityStatus
+  version?: number
 }
 
 export type SetupUnit = SetupEntityBase & {
@@ -135,8 +139,6 @@ export type SetupProfessional = SetupEntityBase & {
   accountAccess: AccountAccessStatus
   accessPolicy?: ProfessionalAccessPolicy
   commissionBasisPoints?: number
-  contactEmail?: string
-  contactPhone?: string
   kind: "professional"
   name: string
   role: string
@@ -212,7 +214,14 @@ export type SetupOverview = {
 }
 
 export type UnitInput = Omit<SetupUnit, "id" | "kind" | "status">
-export type ProfessionalInput = Omit<SetupProfessional, "id" | "kind" | "status">
+export type ProfessionalInput = {
+  commissionBasisPoints: number
+  invitationEmail: string
+  role: string
+  serviceIds: readonly string[]
+  specialties: readonly string[]
+  unitIds: readonly string[]
+}
 export type ServiceInput = Omit<SetupService, "id" | "kind" | "status">
 export type SetupEntityInput = ProfessionalInput | ServiceInput | UnitInput
 
@@ -267,6 +276,7 @@ export class SetupOperationInvalidatedError extends Error {
 }
 
 export interface BarbershopSetupRepository {
+  readonly catalogSource?: "http"
   copyAvailabilityToWeekdays(
     input: CopyAvailabilityToWeekdaysInput,
   ): Promise<readonly SetupAvailability[]>

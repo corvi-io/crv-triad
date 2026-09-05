@@ -14,7 +14,7 @@ import {
   Undo2Icon,
   UserRoundIcon,
 } from "lucide-react"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import {
   createDataTablePointAnchor,
@@ -55,7 +55,6 @@ import type {
   SetupEntityKind,
   SetupEntityStatus,
   SetupListQuery,
-  SetupProfessional,
   SetupScenarioId,
   SetupSection,
 } from "./contracts"
@@ -76,9 +75,9 @@ import {
   useSetupAvailability,
   useSetupCompletion,
   useSetupEntities,
-  useSetupOverview,
   useUpdateSetupEntity,
 } from "./queries"
+import { useBarbershopSetupRepository } from "./repository-context"
 import type { BarbershopSetupSearch } from "./search"
 
 const sectionItems: ReadonlyArray<{ icon: typeof Building2Icon; id: SetupSection; label: string }> =
@@ -92,6 +91,44 @@ const sectionItems: ReadonlyArray<{ icon: typeof Building2Icon; id: SetupSection
     { id: "availability", label: "Disponibilidade", icon: CalendarClockIcon },
   ]
 
+const sectionHeaders: Record<SetupSection, { description: string; title: string }> = {
+  overview: {
+    title: "Configuração da barbearia",
+    description: "Acompanhe o preparo dos catálogos essenciais para a operação.",
+  },
+  business: {
+    title: "Dados da barbearia",
+    description: "Mantenha as informações gerais e o contato principal da barbearia.",
+  },
+  units: {
+    title: "Unidades",
+    description: "Gerencie endereços, códigos e horários de funcionamento.",
+  },
+  professionals: {
+    title: "Profissionais",
+    description: "Gerencie a equipe, os vínculos e as permissões operacionais.",
+  },
+  services: {
+    title: "Serviços",
+    description: "Gerencie preços, duração e disponibilidade do catálogo.",
+  },
+  payments: {
+    title: "Pagamentos",
+    description: "Configure formas de pagamento e regras de comissão.",
+  },
+  availability: {
+    title: "Disponibilidade",
+    description: "Defina os períodos disponíveis para atendimento.",
+  },
+}
+
+function sectionToEntityKind(section: SetupSection): SetupEntityKind | undefined {
+  if (section === "units") return "unit"
+  if (section === "professionals") return "professional"
+  if (section === "services") return "service"
+  return undefined
+}
+
 export function BarbershopSetupPage({
   onSearchChange,
   search,
@@ -99,13 +136,32 @@ export function BarbershopSetupPage({
   onSearchChange: (next: Partial<BarbershopSetupSearch>) => Promise<void> | void
   search: BarbershopSetupSearch
 }) {
+  const header = sectionHeaders[search.section]
+  const [createRequest, setCreateRequest] = useState<{
+    kind: SetupEntityKind
+    trigger: HTMLButtonElement
+  } | null>(null)
+  const entityKind = sectionToEntityKind(search.section)
   return (
     <ModuleLayout
       head={
         <div className="flex flex-col gap-3">
           <PageHeader
-            title="Configuração da barbearia"
-            description="Gerencie unidades, profissionais, serviços e disponibilidade."
+            title={header.title}
+            description={header.description}
+            actions={
+              entityKind ? (
+                <Button
+                  type="button"
+                  onClick={(event) =>
+                    setCreateRequest({ kind: entityKind, trigger: event.currentTarget })
+                  }
+                >
+                  <PlusIcon aria-hidden="true" />
+                  {entityLabels[entityKind].newLabel}
+                </Button>
+              ) : undefined
+            }
           />
           <nav aria-label="Seções da configuração" className="overflow-x-auto">
             <ul className="flex min-w-max gap-1 border-b">
@@ -133,10 +189,11 @@ export function BarbershopSetupPage({
       }
       bodyViewportClassName="h-full min-h-0"
     >
-      <h2 className="sr-only">{sectionItems.find(({ id }) => id === search.section)?.label}</h2>
       <div key={search.scenario} className="h-full min-h-0">
         <SetupSectionContent
           search={search}
+          createRequest={createRequest}
+          onCreateRequestHandled={() => setCreateRequest(null)}
           onSectionChange={(section) => onSearchChange({ section })}
           onSearchChange={onSearchChange}
         />
@@ -146,29 +203,75 @@ export function BarbershopSetupPage({
 }
 
 function SetupSectionContent({
+  createRequest,
+  onCreateRequestHandled,
   search,
   onSectionChange,
   onSearchChange,
 }: {
+  createRequest: { kind: SetupEntityKind; trigger: HTMLButtonElement } | null
+  onCreateRequestHandled: () => void
   search: BarbershopSetupSearch
   onSectionChange: (section: SetupSection) => void
   onSearchChange: (next: Partial<BarbershopSetupSearch>) => Promise<void> | void
 }) {
+  const repository = useBarbershopSetupRepository()
+  const usesHttpCatalogs = repository.catalogSource === "http"
   switch (search.section) {
     case "overview":
       return <OverviewSection scenarioId={search.scenario} onSectionChange={onSectionChange} />
     case "business":
-      return <BusinessProfileSection scenarioId={search.scenario} />
+      return usesHttpCatalogs ? (
+        <UnavailableSetupSection
+          title="Dados da barbearia"
+          description="A edição dos dados gerais ainda não possui persistência de produção. Unidades, profissionais e serviços continuam disponíveis nas respectivas abas."
+        />
+      ) : (
+        <BusinessProfileSection scenarioId={search.scenario} />
+      )
     case "units":
-      return <EntitySection kind="unit" scenarioId={search.scenario} />
-    case "professionals":
-      return <EntitySection kind="professional" scenarioId={search.scenario} />
-    case "services":
-      return <EntitySection kind="service" scenarioId={search.scenario} />
-    case "payments":
-      return <PaymentsSection scenarioId={search.scenario} />
-    case "availability":
       return (
+        <EntitySection
+          createRequest={createRequest}
+          kind="unit"
+          scenarioId={search.scenario}
+          onCreateRequestHandled={onCreateRequestHandled}
+        />
+      )
+    case "professionals":
+      return (
+        <EntitySection
+          createRequest={createRequest}
+          kind="professional"
+          scenarioId={search.scenario}
+          onCreateRequestHandled={onCreateRequestHandled}
+        />
+      )
+    case "services":
+      return (
+        <EntitySection
+          createRequest={createRequest}
+          kind="service"
+          scenarioId={search.scenario}
+          onCreateRequestHandled={onCreateRequestHandled}
+        />
+      )
+    case "payments":
+      return usesHttpCatalogs ? (
+        <UnavailableSetupSection
+          title="Formas de pagamento"
+          description="A configuração de pagamentos ainda não possui persistência de produção. Nenhuma alteração será simulada ou armazenada somente no navegador."
+        />
+      ) : (
+        <PaymentsSection scenarioId={search.scenario} />
+      )
+    case "availability":
+      return usesHttpCatalogs ? (
+        <UnavailableSetupSection
+          title="Disponibilidade"
+          description="A agenda de disponibilidade ainda não possui persistência de produção. Configure primeiro os vínculos entre unidades, profissionais e serviços."
+        />
+      ) : (
         <AvailabilityCalendar
           date={search.availabilityDate}
           scenarioId={search.scenario}
@@ -179,6 +282,26 @@ function SetupSectionContent({
   }
 }
 
+function UnavailableSetupSection({ description, title }: { description: string; title: string }) {
+  return (
+    <section
+      aria-labelledby="unavailable-setup-section-title"
+      className="rounded-lg border border-dashed bg-card p-6"
+    >
+      <div className="flex max-w-2xl items-start gap-3">
+        <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
+        <div className="grid gap-1">
+          <h2 id="unavailable-setup-section-title" className="font-heading text-lg font-medium">
+            {title}
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+          <StatusBadge tone="info">Disponível em uma próxima etapa</StatusBadge>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function OverviewSection({
   scenarioId,
   onSectionChange,
@@ -187,14 +310,12 @@ function OverviewSection({
   onSectionChange: (section: SetupSection) => void
 }) {
   const completion = useSetupCompletion(scenarioId)
-  const overview = useSetupOverview(scenarioId)
-  if (overview.isPending || completion.isPending)
-    return <LoadingCards label="Carregando visão geral…" />
-  if (overview.isError || completion.isError)
+  if (completion.isPending) return <LoadingCards label="Carregando visão geral…" />
+  if (completion.isError)
     return (
       <ErrorState
         title="Não foi possível carregar a visão geral"
-        onRetry={() => Promise.all([overview.refetch(), completion.refetch()])}
+        onRetry={() => completion.refetch()}
       />
     )
   const nextItem = completion.data.readiness.steps.find(({ complete }) => !complete) ??
@@ -217,8 +338,8 @@ function OverviewSection({
               Prepare a barbearia para operar
             </h2>
             <CardDescription className="max-w-2xl">
-              Complete os cadastros na ordem recomendada para conectar unidades, equipe, serviços e
-              horários disponíveis para agendamento.
+              Cadastre unidades, equipe e serviços. Recursos operacionais que ainda não possuem
+              persistência aparecem como etapas futuras.
             </CardDescription>
           </div>
           <CardAction>
@@ -280,7 +401,6 @@ function OverviewSection({
                   )}
                 </div>
                 <h4 className="font-heading text-base font-medium leading-snug">{item.title}</h4>
-                <CardDescription>{item.description}</CardDescription>
                 <CardAction>
                   <StatusBadge tone={item.complete ? "success" : "warning"}>
                     {item.complete ? "Completa" : "Pendente"}
@@ -309,8 +429,8 @@ function OverviewSection({
           <CardHeader>
             <h3 className="font-heading text-base font-medium">Configuração pronta para operar</h3>
             <CardDescription>
-              Revise qualquer etapa quando a operação mudar. As escolhas deste protótipo permanecem
-              somente na sessão local.
+              Revise os catálogos quando a operação mudar. Disponibilidade, pagamentos e demais
+              configurações operacionais serão habilitados somente com persistência própria.
             </CardDescription>
           </CardHeader>
           <CardFooter className="justify-end">
@@ -331,10 +451,14 @@ type RowMenuState = {
 } | null
 
 function EntitySection({
+  createRequest,
   kind,
+  onCreateRequestHandled,
   scenarioId,
 }: {
+  createRequest: { kind: SetupEntityKind; trigger: HTMLButtonElement } | null
   kind: SetupEntityKind
+  onCreateRequestHandled: () => void
   scenarioId: SetupScenarioId
 }) {
   const [search, setSearch] = useState("")
@@ -353,6 +477,13 @@ function EntitySection({
   const updateEntity = useUpdateSetupEntity()
   const setArchived = useSetSetupEntityArchived()
 
+  useEffect(() => {
+    if (createRequest?.kind !== kind) return
+    returnFocusRef.current = createRequest.trigger
+    setDrawer({ kind: "create", entityKind: kind })
+    onCreateRequestHandled()
+  }, [createRequest, kind, onCreateRequestHandled])
+
   function closeDrawer() {
     setDrawer(null)
   }
@@ -366,7 +497,13 @@ function EntitySection({
       if (drawer?.kind === "edit")
         await updateEntity.mutateAsync({ id: drawer.entity.id, input, kind: entityKind })
       else await createEntity.mutateAsync({ input, kind: entityKind })
-      toast.success(drawer?.kind === "edit" ? "Registro atualizado." : "Registro criado.")
+      toast.success(
+        drawer?.kind === "edit"
+          ? "Registro atualizado."
+          : entityKind === "professional"
+            ? "Convite enviado. O profissional aparecerá após aceitar."
+            : "Registro criado.",
+      )
       closeDrawer()
     } catch (error) {
       toast.error(errorMessage(error))
@@ -414,27 +551,7 @@ function EntitySection({
   }
   const labels = entityLabels[kind]
   return (
-    <section aria-labelledby={`${kind}-title`} className="flex h-full min-h-[32rem] flex-col gap-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 id={`${kind}-title`} className="text-lg font-semibold">
-            {labels.plural}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Gerencie os registros e vínculos desta configuração.
-          </p>
-        </div>
-        <Button
-          type="button"
-          onClick={(event) => {
-            returnFocusRef.current = event.currentTarget
-            setDrawer({ kind: "create", entityKind: kind })
-          }}
-        >
-          <PlusIcon aria-hidden="true" />
-          {labels.newLabel}
-        </Button>
-      </div>
+    <section aria-label={labels.plural} className="flex h-full min-h-[32rem] flex-col gap-3">
       <fieldset className="flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto rounded-lg border bg-card p-2">
         <legend className="sr-only">
           Busca e filtros de {labels.plural.toLocaleLowerCase("pt-BR")}
@@ -708,8 +825,7 @@ function LoadingTable() {
 
 function entityDetail(entity: SetupEntity) {
   if (entity.kind === "unit") return `${entity.code} · ${entity.address}`
-  if (entity.kind === "professional")
-    return `${entity.role} · ${accountAccessLabel(entity.accountAccess)}`
+  if (entity.kind === "professional") return entity.role
   return `${entity.category} · ${entity.durationMinutes} min · ${formatMoney(entity.priceCents)}`
 }
 
@@ -718,14 +834,6 @@ function entityRelationships(entity: SetupEntity) {
   if (entity.kind === "professional")
     return `${entity.unitIds.length} unidade(s) · ${entity.serviceIds.length} serviço(s)`
   return `${entity.unitIds.length} unidade(s) · ${entity.professionalIds.length} profissional(is)`
-}
-
-function accountAccessLabel(value: SetupProfessional["accountAccess"]) {
-  return value === "connected"
-    ? "Acesso conectado"
-    : value === "invited"
-      ? "Convite pendente"
-      : "Sem acesso configurado"
 }
 
 function errorMessage(error: unknown) {

@@ -1,29 +1,38 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Building2Icon, Clock3Icon, MapPinIcon, ScissorsIcon, UserRoundIcon } from "lucide-react"
+import {
+  Building2Icon,
+  Clock3Icon,
+  MapPinIcon,
+  PlusIcon,
+  ScissorsIcon,
+  Trash2Icon,
+} from "lucide-react"
 import { type ReactNode, useEffect, useState } from "react"
-import { Controller, useForm } from "react-hook-form"
+import { Controller, useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
 import {
   FormField,
   FormSection,
   getFieldDescriptionIds,
 } from "@/modules/shared/components/forms/form-layout"
+import { MaskedInput } from "@/modules/shared/components/forms/masked-input"
+import { TagInput } from "@/modules/shared/components/forms/tag-input"
 import { ActionDrawer } from "@/modules/shared/components/overlays/action-drawer"
 import { Button } from "@/modules/shared/components/ui/button"
+import { Checkbox } from "@/modules/shared/components/ui/checkbox"
 import { Field, FieldLabel, FieldLegend, FieldSet } from "@/modules/shared/components/ui/field"
 import { Input } from "@/modules/shared/components/ui/input"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/modules/shared/components/ui/select"
-import { Switch } from "@/modules/shared/components/ui/switch"
 import { Textarea } from "@/modules/shared/components/ui/textarea"
-import { createDefaultAccessPolicy, normalizeAccessPolicy } from "./completion"
+import { ToggleGroup, ToggleGroupItem } from "@/modules/shared/components/ui/toggle-group"
 import type {
-  AccountAccessStatus,
   ProfessionalInput,
   ServiceInput,
   SetupEntity,
@@ -35,8 +44,6 @@ import type {
   UnitInput,
   Weekday,
 } from "./contracts"
-import { professionalAccessChoices } from "./contracts"
-import { useProfessionalOperationalSummary } from "./queries"
 
 const baseSchema = {
   name: z.string().trim().min(2, "Informe um nome com pelo menos 2 caracteres."),
@@ -54,6 +61,28 @@ export const unitFormSchema = z.object({
       ),
       start: z.string().regex(/^\d{2}:\d{2}$/, "Informe o horário inicial."),
       end: z.string().regex(/^\d{2}:\d{2}$/, "Informe o horário final."),
+      periods: z
+        .array(
+          z
+            .object({
+              days: z.array(
+                z.enum([
+                  "monday",
+                  "tuesday",
+                  "wednesday",
+                  "thursday",
+                  "friday",
+                  "saturday",
+                  "sunday",
+                ]),
+              ),
+              start: z.string().regex(/^\d{2}:\d{2}$/, "Informe o horário inicial."),
+              end: z.string().regex(/^\d{2}:\d{2}$/, "Informe o horário final."),
+            })
+            .refine(({ days }) => days.length > 0, "Selecione pelo menos um dia.")
+            .refine(({ end, start }) => start < end, "O término deve ser posterior ao início."),
+        )
+        .min(1, "Adicione pelo menos um período de funcionamento."),
     })
     .refine(({ days }) => days.length > 0, {
       message: "Selecione pelo menos um dia de funcionamento.",
@@ -62,33 +91,31 @@ export const unitFormSchema = z.object({
     .refine(({ end, start }) => start < end, {
       message: "O término deve ser posterior ao início.",
       path: ["end"],
-    }),
+    })
+    .refine(
+      ({ periods }) => {
+        const days = periods.flatMap((period) => period.days)
+        return new Set(days).size === days.length
+      },
+      {
+        message: "Cada dia pode pertencer a apenas um período.",
+        path: ["periods"],
+      },
+    ),
 })
 
 export const professionalFormSchema = z.object({
   kind: z.literal("professional"),
-  ...baseSchema,
   role: z.string().trim().min(2, "Informe a função do profissional."),
-  accountAccess: z.enum(["connected", "invited", "not-configured"]),
-  contactEmail: z.string().email("Informe um e-mail válido.").or(z.literal("")),
-  contactPhone: z.string().regex(/^\d{10,11}$/, "Informe um telefone válido."),
-  commissionBasisPoints: z.preprocess(
-    (value) => Math.round(Number(value) * 100),
-    z.number().int().min(0).max(10_000),
+  invitationEmail: z.string().email("Informe um e-mail válido.").or(z.literal("")),
+  commissionBasisPoints: z.preprocess((value) => {
+    const numericValue = Number(value)
+    return Math.round(numericValue <= 100 ? numericValue * 100 : numericValue)
+  }, z.number().int().min(0).max(10_000)),
+  specialties: z.array(
+    z.string().trim().min(2, "Informe especialidades com pelo menos 2 caracteres."),
   ),
-  specialties: z
-    .array(z.string().trim().min(2, "Informe especialidades com pelo menos 2 caracteres."))
-    .min(1, "Informe pelo menos uma especialidade."),
-  accessPolicy: z.object({
-    "own-schedule-only": z.boolean(),
-    "create-appointments": z.boolean(),
-    "change-prices": z.boolean(),
-    "register-payments": z.boolean(),
-    "view-revenue": z.boolean(),
-    "view-commissions": z.boolean(),
-    "access-other-professionals": z.boolean(),
-  }),
-  unitIds: z.array(z.string()).min(1, "Selecione pelo menos uma unidade."),
+  unitIds: z.array(z.string()),
   serviceIds: z.array(z.string()),
 })
 
@@ -100,10 +127,12 @@ export const serviceFormSchema = z.object({
   durationMinutes: z
     .number({ error: "Informe a duração em minutos." })
     .int("Informe a duração em minutos inteiros.")
-    .min(15, "Use duração mínima de 15 minutos."),
+    .min(15, "Use duração mínima de 15 minutos.")
+    .max(300, "Use duração máxima de 5 horas.")
+    .multipleOf(15, "Use intervalos de 15 minutos."),
   price: z.number({ error: "Informe o preço do serviço." }).min(0, "Informe um preço válido."),
-  unitIds: z.array(z.string()).min(1, "Selecione pelo menos uma unidade."),
-  professionalIds: z.array(z.string()).min(1, "Selecione pelo menos um profissional."),
+  unitIds: z.array(z.string()),
+  professionalIds: z.array(z.string()),
 })
 
 export const setupEntityFormSchema = z.discriminatedUnion("kind", [
@@ -253,8 +282,20 @@ function EntityForm({
     const parsed = setupEntityFormSchema.parse(values)
     if (parsed.kind === "unit") {
       const { kind: _kind, ...input } = parsed
-      await onSave("unit", input satisfies UnitInput)
+      const firstPeriod = input.businessHours.periods[0]
+      await onSave("unit", {
+        ...input,
+        businessHours: { ...firstPeriod, periods: input.businessHours.periods },
+      } satisfies UnitInput)
     } else if (parsed.kind === "professional") {
+      if (!entity && !parsed.invitationEmail) {
+        form.setError(
+          "invitationEmail",
+          { message: "Informe o e-mail do convite." },
+          { shouldFocus: true },
+        )
+        return
+      }
       const { kind: _kind, ...input } = parsed
       await onSave("professional", input satisfies ProfessionalInput)
     } else {
@@ -295,34 +336,36 @@ function EntityForm({
         onSubmit={form.handleSubmit(submit)}
       >
         <FormSection title="Identificação">
-          <FormField
-            id={`${formId}-name`}
-            label="Nome"
-            icon={
-              entityKind === "unit"
-                ? Building2Icon
-                : entityKind === "professional"
-                  ? UserRoundIcon
-                  : ScissorsIcon
-            }
-            required
-            error={form.formState.errors.name?.message}
-          >
-            <Input
+          {entityKind !== "professional" ? (
+            <FormField
               id={`${formId}-name`}
-              autoFocus
-              aria-invalid={Boolean(form.formState.errors.name)}
-              aria-describedby={getFieldDescriptionIds(
-                `${formId}-name`,
-                false,
-                Boolean(form.formState.errors.name),
-              )}
-              {...form.register("name")}
-            />
-          </FormField>
+              label="Nome"
+              icon={entityKind === "unit" ? Building2Icon : ScissorsIcon}
+              required
+              error={fieldMessage(form.formState.errors, "name")}
+            >
+              <Input
+                id={`${formId}-name`}
+                autoFocus
+                placeholder={entityPlaceholders[entityKind].name}
+                aria-invalid={Boolean(fieldMessage(form.formState.errors, "name"))}
+                aria-describedby={getFieldDescriptionIds(
+                  `${formId}-name`,
+                  false,
+                  Boolean(fieldMessage(form.formState.errors, "name")),
+                )}
+                {...form.register("name")}
+              />
+            </FormField>
+          ) : entity?.kind === "professional" ? (
+            <div className="grid gap-1">
+              <span className="text-sm font-medium">Identidade</span>
+              <span className="text-sm text-muted-foreground">{entity.name}</span>
+            </div>
+          ) : null}
           {entityKind === "unit" ? <UnitFields formId={formId} form={form} /> : null}
           {entityKind === "professional" ? (
-            <ProfessionalFields formId={formId} form={form} />
+            <ProfessionalFields formId={formId} form={form} isCreate={!entity} />
           ) : null}
           {entityKind === "service" ? <ServiceFields formId={formId} form={form} /> : null}
         </FormSection>
@@ -370,17 +413,55 @@ function EntityForm({
 }
 
 function UnitFields({ formId, form }: FormFieldsProps) {
+  const periods = useFieldArray({ control: form.control, name: "businessHours.periods" })
   const businessHoursErrors = form.formState.errors as {
     businessHours?: {
       days?: { message?: string }
       end?: { message?: string }
+      periods?:
+        | { message?: string; root?: { message?: string } }
+        | Array<{
+            days?: { message?: string }
+            end?: { message?: string }
+            start?: { message?: string }
+          }>
       start?: { message?: string }
     }
   }
+  const periodErrors = businessHoursErrors.businessHours?.periods
+  const periodError = Array.isArray(periodErrors)
+    ? (periodErrors.find(Boolean)?.days?.message ??
+      periodErrors.find(Boolean)?.start?.message ??
+      periodErrors.find(Boolean)?.end?.message)
+    : (periodErrors?.message ?? periodErrors?.root?.message)
   const businessHoursError =
     businessHoursErrors.businessHours?.days?.message ??
     businessHoursErrors.businessHours?.start?.message ??
-    businessHoursErrors.businessHours?.end?.message
+    businessHoursErrors.businessHours?.end?.message ??
+    periodError
+
+  function handlePeriodDaysChange(index: number, nextDays: Weekday[]) {
+    const newlySelectedDays = nextDays.filter(
+      (day) => !form.getValues(`businessHours.periods.${index}.days`).includes(day),
+    )
+
+    for (let otherIndex = 0; otherIndex < periods.fields.length; otherIndex += 1) {
+      if (otherIndex === index) continue
+      const otherDays = form.getValues(`businessHours.periods.${otherIndex}.days`)
+      const remainingDays = otherDays.filter((day) => !newlySelectedDays.includes(day))
+      if (remainingDays.length !== otherDays.length) {
+        form.setValue(`businessHours.periods.${otherIndex}.days`, remainingDays, {
+          shouldDirty: true,
+          shouldValidate: form.formState.isSubmitted,
+        })
+      }
+    }
+
+    form.setValue(`businessHours.periods.${index}.days`, nextDays, {
+      shouldDirty: true,
+      shouldValidate: form.formState.isSubmitted,
+    })
+  }
   return (
     <>
       <FormField
@@ -391,6 +472,7 @@ function UnitFields({ formId, form }: FormFieldsProps) {
       >
         <Input
           id={`${formId}-code`}
+          placeholder="Ex.: CENTRO"
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "code"))}
           aria-describedby={getFieldDescriptionIds(
             `${formId}-code`,
@@ -409,6 +491,7 @@ function UnitFields({ formId, form }: FormFieldsProps) {
       >
         <Input
           id={`${formId}-address`}
+          placeholder="Ex.: Rua do Sol, 120, Centro"
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "address"))}
           aria-describedby={getFieldDescriptionIds(
             `${formId}-address`,
@@ -418,98 +501,166 @@ function UnitFields({ formId, form }: FormFieldsProps) {
           {...form.register("address")}
         />
       </FormField>
-      <FormField
-        id={`${formId}-business-hours-start`}
-        label="Funcionamento"
-        icon={Clock3Icon}
-        required
-        description="Escolha um único período e os dias em que ele se aplica."
-        error={businessHoursError}
-      >
-        <div className="grid gap-2">
-          <fieldset className="grid grid-cols-[1fr_auto_1fr] items-center overflow-hidden rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring">
-            <legend className="sr-only">Período de funcionamento</legend>
-            <label className="grid gap-0.5 px-3 py-1.5" htmlFor={`${formId}-business-hours-start`}>
-              <span className="text-xs text-muted-foreground">Início</span>
-              <input
-                id={`${formId}-business-hours-start`}
-                type="time"
-                step={900}
-                className="min-w-0 bg-transparent text-sm outline-none"
-                aria-invalid={Boolean(businessHoursError)}
-                aria-describedby={getFieldDescriptionIds(
-                  `${formId}-business-hours-start`,
-                  true,
-                  Boolean(businessHoursError),
-                )}
-                {...form.register("businessHours.start")}
-              />
-            </label>
-            <span aria-hidden="true" className="text-muted-foreground">
-              —
-            </span>
-            <label className="grid gap-0.5 px-3 py-1.5" htmlFor={`${formId}-business-hours-end`}>
-              <span className="text-xs text-muted-foreground">Fim</span>
-              <input
-                id={`${formId}-business-hours-end`}
-                type="time"
-                step={900}
-                className="min-w-0 bg-transparent text-sm outline-none"
-                aria-invalid={Boolean(businessHoursError)}
-                aria-describedby={getFieldDescriptionIds(
-                  `${formId}-business-hours-start`,
-                  true,
-                  Boolean(businessHoursError),
-                )}
-                {...form.register("businessHours.end")}
-              />
-            </label>
-          </fieldset>
-          <Controller
-            control={form.control}
-            name="businessHours.days"
-            render={({ field }) => (
-              <fieldset>
-                <legend className="sr-only">Dias de funcionamento</legend>
-                <div className="flex flex-wrap gap-1.5">
-                  {weekdayOptions.map(({ label, value }) => {
-                    const checked = field.value.includes(value)
-                    return (
-                      <label
-                        key={value}
-                        className="cursor-pointer rounded-md border px-2.5 py-1.5 text-xs transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-2 has-focus-visible:ring-ring"
-                      >
-                        <input
-                          className="sr-only"
-                          type="checkbox"
-                          value={value}
-                          checked={checked}
-                          onBlur={field.onBlur}
-                          onChange={(event) =>
-                            field.onChange(
-                              event.currentTarget.checked
-                                ? [...field.value, value]
-                                : field.value.filter((day) => day !== value),
-                            )
-                          }
-                        />
+      <FieldSet data-invalid={Boolean(businessHoursError)}>
+        <FieldLegend variant="label" className="flex items-center gap-2">
+          <Clock3Icon aria-hidden="true" className="size-4" />
+          Funcionamento *
+        </FieldLegend>
+        <p className="text-sm text-muted-foreground">
+          Crie períodos diferentes para cada grupo de dias.
+        </p>
+        <div className="grid gap-3">
+          {periods.fields.map((period, index) => (
+            <div key={period.id} className="grid gap-3 rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium">Período {index + 1}</p>
+                {periods.fields.length > 1 ? (
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label={`Remover período ${index + 1}`}
+                    onClick={() => periods.remove(index)}
+                  >
+                    <Trash2Icon aria-hidden="true" />
+                  </Button>
+                ) : null}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Controller
+                  control={form.control}
+                  name={`businessHours.periods.${index}.start`}
+                  render={({ field }) => (
+                    <TimePicker
+                      id={`${formId}-period-${index}-start`}
+                      label="Início"
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    />
+                  )}
+                />
+                <Controller
+                  control={form.control}
+                  name={`businessHours.periods.${index}.end`}
+                  render={({ field }) => (
+                    <TimePicker
+                      id={`${formId}-period-${index}-end`}
+                      label="Fim"
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    />
+                  )}
+                />
+              </div>
+              <Controller
+                control={form.control}
+                name={`businessHours.periods.${index}.days`}
+                render={({ field }) => (
+                  <ToggleGroup
+                    aria-label={`Dias do período ${index + 1}`}
+                    className="flex-wrap"
+                    multiple
+                    value={field.value}
+                    variant="outline"
+                    onValueChange={(value) => handlePeriodDaysChange(index, value as Weekday[])}
+                  >
+                    {weekdayOptions.map(({ label, value }) => (
+                      <ToggleGroupItem key={value} value={value} aria-label={label}>
                         {label}
-                      </label>
-                    )
-                  })}
-                </div>
-              </fieldset>
-            )}
-          />
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                )}
+              />
+            </div>
+          ))}
         </div>
-      </FormField>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-fit"
+          onClick={() => {
+            const assignedDays = new Set(
+              form.getValues("businessHours.periods").flatMap((period) => period.days),
+            )
+            const firstAvailableDay = weekdayOptions.find(({ value }) => !assignedDays.has(value))
+            periods.append({
+              days: firstAvailableDay ? [firstAvailableDay.value] : [],
+              start: "09:00",
+              end: "12:00",
+            })
+          }}
+        >
+          <PlusIcon aria-hidden="true" />
+          Adicionar período
+        </Button>
+        {businessHoursError ? (
+          <p role="alert" className="text-sm text-destructive">
+            {businessHoursError}
+          </p>
+        ) : null}
+      </FieldSet>
     </>
   )
 }
 
-function ProfessionalFields({ formId, form }: FormFieldsProps) {
+const timeOptions = Array.from({ length: 96 }, (_, index) => {
+  const hour = Math.floor(index / 4)
+  const minute = (index % 4) * 15
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+})
+
+function TimePicker({
+  id,
+  label,
+  onValueChange,
+  value,
+}: {
+  id: string
+  label: string
+  onValueChange: (value: string) => void
+  value: string
+}) {
+  return (
+    <label className="grid gap-1.5" htmlFor={id}>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <Select value={value} onValueChange={(next) => next && onValueChange(next)}>
+        <SelectTrigger id={id}>
+          <SelectValue>{value}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {timeOptions.map((time) => (
+              <SelectItem key={time} value={time}>
+                {time}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </label>
+  )
+}
+
+function ProfessionalFields({ formId, form, isCreate }: FormFieldsProps & { isCreate: boolean }) {
   return (
     <>
+      {isCreate ? (
+        <FormField
+          id={`${formId}-email`}
+          label="E-mail do convite"
+          required
+          error={fieldMessage(form.formState.errors, "invitationEmail")}
+        >
+          <Input
+            id={`${formId}-email`}
+            type="email"
+            placeholder="Ex.: profissional@email.com"
+            aria-invalid={Boolean(fieldMessage(form.formState.errors, "invitationEmail"))}
+            {...form.register("invitationEmail")}
+          />
+        </FormField>
+      ) : null}
       <FormField
         id={`${formId}-role`}
         label="Função"
@@ -518,38 +669,9 @@ function ProfessionalFields({ formId, form }: FormFieldsProps) {
       >
         <Input
           id={`${formId}-role`}
+          placeholder="Ex.: Barbeiro"
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "role"))}
-          aria-describedby={getFieldDescriptionIds(
-            `${formId}-role`,
-            false,
-            Boolean(fieldMessage(form.formState.errors, "role")),
-          )}
           {...form.register("role")}
-        />
-      </FormField>
-      <FormField
-        id={`${formId}-phone`}
-        label="Telefone"
-        required
-        error={fieldMessage(form.formState.errors, "contactPhone")}
-      >
-        <Input
-          id={`${formId}-phone`}
-          inputMode="tel"
-          aria-invalid={Boolean(fieldMessage(form.formState.errors, "contactPhone"))}
-          {...form.register("contactPhone")}
-        />
-      </FormField>
-      <FormField
-        id={`${formId}-email`}
-        label="E-mail"
-        error={fieldMessage(form.formState.errors, "contactEmail")}
-      >
-        <Input
-          id={`${formId}-email`}
-          type="email"
-          aria-invalid={Boolean(fieldMessage(form.formState.errors, "contactEmail"))}
-          {...form.register("contactEmail")}
         />
       </FormField>
       <FormField
@@ -558,147 +680,63 @@ function ProfessionalFields({ formId, form }: FormFieldsProps) {
         required
         error={fieldMessage(form.formState.errors, "commissionBasisPoints")}
       >
-        <Input
-          id={`${formId}-commission`}
-          type="number"
-          min={0}
-          max={100}
-          step="0.01"
-          aria-invalid={Boolean(fieldMessage(form.formState.errors, "commissionBasisPoints"))}
-          {...form.register("commissionBasisPoints", { valueAsNumber: true })}
+        <Controller
+          control={form.control}
+          name="commissionBasisPoints"
+          render={({ field }) => (
+            <div className="relative">
+              <MaskedInput
+                id={`${formId}-commission`}
+                className="pr-9"
+                mask="brPercent"
+                placeholder="40,00"
+                value={String(field.value ?? "")}
+                onBlur={field.onBlur}
+                onValueChange={(value) => field.onChange(value ? Number(value) : 0)}
+                aria-invalid={Boolean(fieldMessage(form.formState.errors, "commissionBasisPoints"))}
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground"
+              >
+                %
+              </span>
+            </div>
+          )}
         />
       </FormField>
       <FormField
         id={`${formId}-specialties`}
         label="Especialidades"
-        required
-        description="Separe as especialidades por vírgulas."
         error={fieldMessage(form.formState.errors, "specialties")}
       >
         <Controller
           control={form.control}
           name="specialties"
           render={({ field, fieldState }) => (
-            <SpecialtiesInput
+            <TagInput
               id={`${formId}-specialties`}
-              describedBy={getFieldDescriptionIds(
+              aria-describedby={getFieldDescriptionIds(
                 `${formId}-specialties`,
-                true,
+                false,
                 fieldState.invalid,
               )}
-              initialValue={field.value}
-              inputRef={field.ref}
-              invalid={fieldState.invalid}
-              onBlur={field.onBlur}
-              onValueChange={field.onChange}
+              aria-invalid={fieldState.invalid}
+              placeholder="Ex.: Corte clássico"
+              value={field.value.join(", ")}
+              onValueChange={(value) =>
+                field.onChange(
+                  value
+                    .split(",")
+                    .map((item) => item.trim())
+                    .filter(Boolean),
+                )
+              }
             />
           )}
         />
       </FormField>
-      <FormField
-        id={`${formId}-access`}
-        label="Acesso à conta"
-        description="Situação atual do acesso deste profissional."
-      >
-        <Controller
-          control={form.control}
-          name="accountAccess"
-          render={({ field }) => (
-            <Select value={field.value as AccountAccessStatus} onValueChange={field.onChange}>
-              <SelectTrigger
-                id={`${formId}-access`}
-                ref={field.ref}
-                aria-describedby={getFieldDescriptionIds(`${formId}-access`, true, false)}
-              >
-                <SelectValue>{accessLabels[field.value as AccountAccessStatus]}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="connected">Conectado</SelectItem>
-                <SelectItem value="invited">Convite pendente</SelectItem>
-                <SelectItem value="not-configured">Não configurado</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-        />
-      </FormField>
-      <FieldSet>
-        <FieldLegend variant="label">Acesso demonstrativo</FieldLegend>
-        <p className="text-sm text-muted-foreground">
-          Estas escolhas descrevem política de negócio. Elas não alteram login, rotas nem
-          autorização do servidor.
-        </p>
-        <div className="grid gap-2">
-          {professionalAccessChoices.map((choice) => (
-            <Controller
-              control={form.control}
-              key={choice}
-              name={`accessPolicy.${choice}`}
-              render={({ field }) => (
-                <div className="flex min-h-10 items-center justify-between gap-3 rounded-md border px-3 py-2">
-                  <span>{professionalAccessLabels[choice]}</span>
-                  <Switch
-                    checked={field.value}
-                    aria-label={professionalAccessLabels[choice]}
-                    onCheckedChange={(checked) => {
-                      const normalized = normalizeAccessPolicy({
-                        ...form.getValues("accessPolicy"),
-                        [choice]: checked,
-                      })
-                      for (const accessChoice of professionalAccessChoices) {
-                        form.setValue(`accessPolicy.${accessChoice}`, normalized[accessChoice], {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        })
-                      }
-                    }}
-                  />
-                </div>
-              )}
-            />
-          ))}
-        </div>
-      </FieldSet>
     </>
-  )
-}
-
-function SpecialtiesInput({
-  describedBy,
-  id,
-  initialValue,
-  inputRef,
-  invalid,
-  onBlur,
-  onValueChange,
-}: {
-  describedBy?: string
-  id: string
-  initialValue: readonly string[]
-  inputRef: (element: HTMLInputElement | null) => void
-  invalid: boolean
-  onBlur: () => void
-  onValueChange: (value: string[]) => void
-}) {
-  const [text, setText] = useState(initialValue.join(", "))
-  return (
-    <Input
-      id={id}
-      ref={inputRef}
-      value={text}
-      aria-invalid={invalid}
-      aria-describedby={describedBy}
-      onBlur={onBlur}
-      onChange={(event) => {
-        const next = event.target.value
-        setText(next)
-        onValueChange(
-          next
-            .split(",")
-            .map((value) => value.trim())
-            .filter(Boolean),
-        )
-      }}
-    />
   )
 }
 
@@ -713,6 +751,7 @@ function ServiceFields({ formId, form }: FormFieldsProps) {
       >
         <Input
           id={`${formId}-category`}
+          placeholder="Ex.: Cabelo"
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "category"))}
           aria-describedby={getFieldDescriptionIds(
             `${formId}-category`,
@@ -730,6 +769,7 @@ function ServiceFields({ formId, form }: FormFieldsProps) {
       >
         <Textarea
           id={`${formId}-description`}
+          placeholder="Ex.: Corte masculino com acabamento e finalização"
           aria-invalid={Boolean(fieldMessage(form.formState.errors, "description"))}
           aria-describedby={getFieldDescriptionIds(
             `${formId}-description`,
@@ -745,18 +785,31 @@ function ServiceFields({ formId, form }: FormFieldsProps) {
         required
         error={fieldMessage(form.formState.errors, "durationMinutes")}
       >
-        <Input
-          id={`${formId}-duration`}
-          type="number"
-          min={15}
-          step={15}
-          aria-invalid={Boolean(fieldMessage(form.formState.errors, "durationMinutes"))}
-          aria-describedby={getFieldDescriptionIds(
-            `${formId}-duration`,
-            false,
-            Boolean(fieldMessage(form.formState.errors, "durationMinutes")),
+        <Controller
+          control={form.control}
+          name="durationMinutes"
+          render={({ field }) => (
+            <Select
+              value={String(field.value)}
+              onValueChange={(value) => value && field.onChange(Number(value))}
+            >
+              <SelectTrigger
+                id={`${formId}-duration`}
+                aria-invalid={fieldMessage(form.formState.errors, "durationMinutes") !== undefined}
+              >
+                <SelectValue>{formatDuration(Number(field.value))}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {durationOptions.map((minutes) => (
+                    <SelectItem key={minutes} value={String(minutes)}>
+                      {formatDuration(minutes)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           )}
-          {...form.register("durationMinutes", { valueAsNumber: true })}
         />
       </FormField>
       <FormField
@@ -765,18 +818,20 @@ function ServiceFields({ formId, form }: FormFieldsProps) {
         required
         error={fieldMessage(form.formState.errors, "price")}
       >
-        <Input
-          id={`${formId}-price`}
-          type="number"
-          min={0}
-          step="0.50"
-          aria-invalid={Boolean(fieldMessage(form.formState.errors, "price"))}
-          aria-describedby={getFieldDescriptionIds(
-            `${formId}-price`,
-            false,
-            Boolean(fieldMessage(form.formState.errors, "price")),
+        <Controller
+          control={form.control}
+          name="price"
+          render={({ field }) => (
+            <MaskedInput
+              id={`${formId}-price`}
+              mask="brMoney"
+              placeholder="R$ 55,00"
+              value={String(field.value ?? "")}
+              onBlur={field.onBlur}
+              onValueChange={(value) => field.onChange(Number(value))}
+              aria-invalid={Boolean(fieldMessage(form.formState.errors, "price"))}
+            />
           )}
-          {...form.register("price", { valueAsNumber: true })}
         />
       </FormField>
     </>
@@ -784,6 +839,15 @@ function ServiceFields({ formId, form }: FormFieldsProps) {
 }
 
 type RelationName = "professionalIds" | "serviceIds" | "unitIds"
+
+const durationOptions = Array.from({ length: 20 }, (_, index) => (index + 1) * 15)
+
+function formatDuration(minutes: number) {
+  if (minutes < 60) return `${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  const remainder = minutes % 60
+  return remainder ? `${hours}h ${remainder}min` : `${hours}h`
+}
 
 function RelationField({
   control,
@@ -844,18 +908,16 @@ function RelationField({
                   const id = `${groupId}-${option.id}`
                   return (
                     <Field key={option.id} orientation="horizontal">
-                      <input
+                      <Checkbox
                         id={id}
                         ref={index === 0 ? field.ref : undefined}
                         name={field.name}
-                        type="checkbox"
-                        className="size-5 accent-primary"
                         checked={values.includes(option.id)}
                         aria-describedby={describedBy || undefined}
                         aria-invalid={fieldState.invalid}
                         onBlur={field.onBlur}
-                        onChange={(event) => {
-                          const nextValues = event.currentTarget.checked
+                        onCheckedChange={(checked) => {
+                          const nextValues = checked
                             ? [...values, option.id]
                             : values.filter((value) => value !== option.id)
                           field.onChange(nextValues)
@@ -909,14 +971,8 @@ function EntityDetails({
             ["Função", entity.role],
             ["Unidades", namesFor(entity.unitIds, units)],
             ["Serviços", namesFor(entity.serviceIds, services)],
-            ["Acesso", accessLabels[entity.accountAccess]],
-            [
-              "Contato",
-              [entity.contactPhone, entity.contactEmail].filter(Boolean).join(" · ") || "-",
-            ],
             ["Especialidades", entity.specialties?.join(", ") || "-"],
             ["Comissão", `${(entity.commissionBasisPoints ?? 0) / 100}%`],
-            ["Política de acesso", "Demonstrativa; não concede autorização real."],
           ]
         : [
             ["Categoria", entity.category],
@@ -948,93 +1004,7 @@ function EntityDetails({
           </Detail>
         ))}
       </dl>
-      {entity.kind === "professional" ? (
-        <ProfessionalOperationDetails professional={entity} services={services} />
-      ) : null}
     </ActionDrawer>
-  )
-}
-
-function ProfessionalOperationDetails({
-  professional,
-  services,
-}: {
-  professional: SetupProfessional
-  services: readonly SetupService[]
-}) {
-  const today = new Intl.DateTimeFormat("en-CA").format(new Date())
-  const summary = useProfessionalOperationalSummary(professional.id, today)
-  return (
-    <div className="mt-5 grid gap-4 border-t pt-4">
-      <section aria-labelledby="professional-operation-title" className="grid gap-2">
-        <h3 id="professional-operation-title" className="font-heading font-medium">
-          Operação de hoje
-        </h3>
-        {summary.isPending ? (
-          <p className="text-sm text-muted-foreground">Carregando Agenda e disponibilidade…</p>
-        ) : summary.isError ? (
-          <p className="text-sm text-destructive">
-            Não foi possível carregar o resumo operacional.
-          </p>
-        ) : (
-          <>
-            <p className="text-sm">
-              {summary.data.availabilityLabel} · {summary.data.commissionLabel}
-            </p>
-            {summary.data.unavailableReason ? (
-              <p className="text-sm text-muted-foreground">{summary.data.unavailableReason}</p>
-            ) : summary.data.appointments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum agendamento para hoje.</p>
-            ) : (
-              <ul className="grid gap-1 text-sm">
-                {summary.data.appointments.slice(0, 5).map((appointment) => (
-                  <li key={appointment.id}>
-                    {appointment.start} · {appointment.customerName} · {appointment.status}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <a
-              className="w-fit rounded-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              href={`/agenda?date=${today}&period=today&scope=day&view=board&unit=centro&professional=${summary.data.agendaProfessionalId ?? professional.id}`}
-            >
-              Abrir Agenda deste profissional
-            </a>
-          </>
-        )}
-      </section>
-      <section aria-labelledby="professional-services-title" className="grid gap-2">
-        <h3 id="professional-services-title" className="font-heading font-medium">
-          Serviços e exceções
-        </h3>
-        <ul className="grid gap-1 text-sm text-muted-foreground">
-          {(summary.data?.serviceAssignments ?? []).map((assignment) => (
-            <li key={assignment.serviceId}>
-              {services.find(({ id }) => id === assignment.serviceId)?.name ?? assignment.serviceId}
-              : {assignment.durationMinutes} min · {formatMoney(assignment.priceCents)}
-              {assignment.source === "professional-override" ? " · Exceção" : " · Padrão"}
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section aria-labelledby="professional-access-title" className="grid gap-2">
-        <h3 id="professional-access-title" className="font-heading font-medium">
-          Acesso demonstrativo
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Esta apresentação não concede acesso real, não altera sessões e não substitui autorização
-          no servidor.
-        </p>
-        <ul className="grid gap-1 text-sm">
-          {professionalAccessChoices.map((choice) => (
-            <li key={choice}>
-              {professional.accessPolicy?.[choice] ? "Permitido" : "Não permitido"} ·{" "}
-              {professionalAccessLabels[choice]}
-            </li>
-          ))}
-        </ul>
-      </section>
-    </div>
   )
 }
 
@@ -1056,11 +1026,26 @@ function getDefaultValues(kind: SetupEntityKind, entity?: SetupEntity): SetupEnt
       code: unit?.code ?? "",
       address: unit?.address ?? "",
       businessHours: unit
-        ? { ...unit.businessHours, days: [...unit.businessHours.days] }
+        ? {
+            ...unit.businessHours,
+            days: [...unit.businessHours.days],
+            periods: (unit.businessHours.periods ?? [unit.businessHours]).map((period) => ({
+              ...period,
+              days: [...period.days],
+            })),
+          }
         : {
             days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
             start: "09:00",
             end: "18:00",
+            periods: [
+              {
+                days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+                start: "09:00",
+                end: "18:00",
+              },
+              { days: ["saturday"], start: "09:00", end: "12:00" },
+            ],
           },
     }
   }
@@ -1068,13 +1053,9 @@ function getDefaultValues(kind: SetupEntityKind, entity?: SetupEntity): SetupEnt
     const professional = entity?.kind === "professional" ? entity : undefined
     return {
       kind,
-      name: professional?.name ?? "",
-      role: professional?.role ?? "Profissional de atendimento",
-      accountAccess: professional?.accountAccess ?? "not-configured",
-      accessPolicy: professional?.accessPolicy ?? createDefaultAccessPolicy(),
+      invitationEmail: "",
+      role: professional?.role ?? "Barbeiro",
       commissionBasisPoints: (professional?.commissionBasisPoints ?? 5000) / 100,
-      contactEmail: professional?.contactEmail ?? "",
-      contactPhone: professional?.contactPhone ?? "",
       unitIds: [...(professional?.unitIds ?? [])],
       serviceIds: [...(professional?.serviceIds ?? [])],
       specialties: [...(professional?.specialties ?? [])],
@@ -1111,10 +1092,14 @@ export function formatMoney(cents: number) {
 }
 
 export function formatBusinessHours(hours: SetupUnit["businessHours"]) {
-  const labels = hours.days.map(
-    (day) => weekdayOptions.find(({ value }) => value === day)?.label ?? day,
-  )
-  return `${labels.join(", ")} · ${hours.start}–${hours.end}`
+  return (hours.periods ?? [hours])
+    .map((period) => {
+      const labels = period.days.map(
+        (day) => weekdayOptions.find(({ value }) => value === day)?.label ?? day,
+      )
+      return `${labels.join(", ")} · ${period.start}–${period.end}`
+    })
+    .join("; ")
 }
 
 const weekdayOptions: ReadonlyArray<{ label: string; value: Weekday }> = [
@@ -1127,6 +1112,12 @@ const weekdayOptions: ReadonlyArray<{ label: string; value: Weekday }> = [
   { label: "Dom", value: "sunday" },
 ]
 
+const entityPlaceholders: Record<SetupEntityKind, { name: string }> = {
+  unit: { name: "Ex.: Unidade Centro" },
+  professional: { name: "Ex.: Gabriel Silva" },
+  service: { name: "Ex.: Corte masculino" },
+}
+
 export const entityLabels = {
   unit: {
     emptyLabel: "Nenhuma unidade configurada",
@@ -1136,7 +1127,7 @@ export const entityLabels = {
   },
   professional: {
     emptyLabel: "Nenhum profissional configurado",
-    newLabel: "Novo profissional",
+    newLabel: "Convidar profissional",
     plural: "Profissionais",
     singular: "profissional",
   },
@@ -1146,22 +1137,6 @@ export const entityLabels = {
     plural: "Serviços",
     singular: "serviço",
   },
-} as const
-
-const accessLabels: Record<AccountAccessStatus, string> = {
-  connected: "Conectado",
-  invited: "Convite pendente",
-  "not-configured": "Não configurado",
-}
-
-const professionalAccessLabels = {
-  "own-schedule-only": "Visualizar apenas a própria Agenda",
-  "create-appointments": "Criar agendamentos",
-  "change-prices": "Alterar preços",
-  "register-payments": "Registrar pagamentos",
-  "view-revenue": "Visualizar faturamento",
-  "view-commissions": "Visualizar comissões",
-  "access-other-professionals": "Acessar dados de outros profissionais",
 } as const
 
 export type { EntityDrawerState }

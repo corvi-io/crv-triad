@@ -1,7 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useId, useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
+import { getApiUrl } from "@/modules/auth/services/auth-client"
 import { MaskedInput } from "@/modules/shared/components/forms/masked-input"
+import { TagInput } from "@/modules/shared/components/forms/tag-input"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/modules/shared/components/ui/field"
 import { Input } from "@/modules/shared/components/ui/input"
@@ -12,7 +14,6 @@ import {
   clientFormValuesToInput,
   createClientFormDefaults,
 } from "./client-schema"
-import { ClientTagInput } from "./client-tag-input"
 import type { ClientInput } from "./contracts"
 import { useClientRepository } from "./repository-context"
 
@@ -143,7 +144,7 @@ export function ClientForm({
           control={form.control}
           name="tagsText"
           render={({ field }) => (
-            <ClientTagInput
+            <TagInput
               id={`${fieldPrefix}-tags`}
               value={field.value}
               onValueChange={field.onChange}
@@ -155,18 +156,48 @@ export function ClientForm({
           )}
         />
       </FormField>
-      <FormField
-        error={form.formState.errors.servicePreferencesText?.message}
-        id={`${fieldPrefix}-preferences`}
-        label="Preferências de serviço"
-      >
-        <Input
-          id={`${fieldPrefix}-preferences`}
-          placeholder="Corte clássico, Barba"
-          aria-invalid={Boolean(form.formState.errors.servicePreferencesText)}
-          {...form.register("servicePreferencesText")}
-        />
-      </FormField>
+      <Controller
+        control={form.control}
+        name="unitPreferenceIds"
+        render={({ field }) => (
+          <CatalogPreferenceField
+            id={`${fieldPrefix}-unit-preferences`}
+            kind="units"
+            label="Unidades preferidas"
+            limit={5}
+            value={field.value}
+            onChange={field.onChange}
+          />
+        )}
+      />
+      <Controller
+        control={form.control}
+        name="professionalPreferenceIds"
+        render={({ field }) => (
+          <CatalogPreferenceField
+            id={`${fieldPrefix}-professional-preferences`}
+            kind="professionals"
+            label="Profissionais preferidos"
+            limit={5}
+            value={field.value}
+            onChange={field.onChange}
+          />
+        )}
+      />
+      <Controller
+        control={form.control}
+        name="servicePreferenceIds"
+        render={({ field }) => (
+          <CatalogPreferenceField
+            id={`${fieldPrefix}-service-preferences`}
+            kind="services"
+            label="Serviços preferidos"
+            limit={20}
+            value={field.value}
+            onChange={field.onChange}
+          />
+        )}
+      />
       <FormField
         error={form.formState.errors.preferenceNote?.message}
         id={`${fieldPrefix}-preference-note`}
@@ -191,6 +222,87 @@ export function ClientForm({
         </Button>
       </div>
     </form>
+  )
+}
+
+type CatalogOption = { id: string; name: string; status: "active" | "archived" }
+function CatalogPreferenceField({
+  id,
+  kind,
+  label,
+  limit,
+  value,
+  onChange,
+}: {
+  id: string
+  kind: "professionals" | "services" | "units"
+  label: string
+  limit: number
+  value: readonly string[]
+  onChange: (value: string[]) => void
+}) {
+  const [options, setOptions] = useState<readonly CatalogOption[]>([])
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    const controller = new AbortController()
+    const query = new URLSearchParams({ selectedIds: value.join(",") })
+    fetch(getApiUrl(`/api/${kind}/options?${query}`), {
+      credentials: "include",
+      signal: controller.signal,
+    })
+      .then((response) =>
+        response.ok ? (response.json() as Promise<CatalogOption[]>) : Promise.reject(),
+      )
+      .then((items) => {
+        setOptions(items)
+        setFailed(false)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setFailed(true)
+      })
+    return () => controller.abort()
+  }, [kind, value])
+  return (
+    <FormField id={id} label={label}>
+      <fieldset id={id} className="grid gap-2 rounded-md border p-3">
+        <legend className="sr-only">{label}</legend>
+        <span className="text-xs text-muted-foreground">Selecione até {limit}.</span>
+        {failed ? (
+          <span role="status" className="text-sm text-destructive">
+            Não foi possível carregar as opções.
+          </span>
+        ) : null}
+        {!failed && options.length === 0 ? (
+          <span className="text-sm text-muted-foreground">Nenhuma opção ativa disponível.</span>
+        ) : null}
+        {options.map((option) => {
+          const checked = value.includes(option.id)
+          return (
+            <label
+              key={option.id}
+              className="flex min-h-10 cursor-pointer items-center gap-2 text-sm"
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                disabled={option.status === "archived" && !checked}
+                onChange={(event) =>
+                  onChange(
+                    event.currentTarget.checked
+                      ? [...value, option.id].slice(0, limit)
+                      : value.filter((item) => item !== option.id),
+                  )
+                }
+              />
+              <span>
+                {option.name}
+                {option.status === "archived" ? " (arquivado)" : ""}
+              </span>
+            </label>
+          )
+        })}
+      </fieldset>
+    </FormField>
   )
 }
 

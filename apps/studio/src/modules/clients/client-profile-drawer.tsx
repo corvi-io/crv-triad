@@ -235,7 +235,18 @@ function ClientSummary({
         <DrawerItem>
           <dl className="grid gap-4 sm:grid-cols-2">
             <Detail label="Tags" value={client.tags.join(", ") || "-"} />
-            <Detail label="Preferências" value={client.servicePreferences.join(", ") || "-"} />
+            <Detail
+              label="Preferências"
+              value={
+                client.preferredServices
+                  ?.map(({ name, status }) =>
+                    status === "archived" ? `${name} (arquivado)` : name,
+                  )
+                  .join(", ") ||
+                client.servicePreferences.join(", ") ||
+                "-"
+              }
+            />
             <Detail label="Última visita" value={formatDateTime(client.lastVisitAt)} />
             <Detail label="Próximo agendamento" value={formatDateTime(client.nextAppointmentAt)} />
             <Detail

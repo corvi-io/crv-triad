@@ -113,6 +113,8 @@ type ApiClient = Omit<ClientRecord, "appointments" | "email" | "phone"> & {
   email: string | null
   phone: string | null
   notes?: readonly ClientNote[]
+  professionalPreferences?: readonly { id: string; name: string; status: "active" | "archived" }[]
+  unitPreferences?: readonly { id: string; name: string; status: "active" | "archived" }[]
 }
 type ApiClientPage = Omit<ClientPage, "items"> & { items: readonly ApiClient[] }
 type ApiDuplicate = Omit<DuplicateWarning, "label">
@@ -124,6 +126,10 @@ function mapClient(record: ApiClient): ClientRecord {
     email: record.email ?? "",
     notes: record.notes ?? [],
     phone: record.phone ?? "",
+    professionalPreferenceIds: record.professionalPreferences?.map(({ id }) => id) ?? [],
+    preferredServices: record.preferredServices ?? [],
+    servicePreferenceIds: record.preferredServices?.map(({ id }) => id) ?? [],
+    unitPreferenceIds: record.unitPreferences?.map(({ id }) => id) ?? [],
   }
 }
 

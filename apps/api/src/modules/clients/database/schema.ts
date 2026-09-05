@@ -11,6 +11,9 @@ import {
 } from "drizzle-orm/pg-core"
 
 import { organization, user } from "../../idp/database/schema.js"
+import { professional } from "../../professionals/database/schema.js"
+import { service } from "../../services/database/schema.js"
+import { unit } from "../../units/database/schema.js"
 
 export const client = pgTable(
   "clients",
@@ -96,6 +99,93 @@ export const clientNote = pgTable(
       table.clientId,
       table.id,
     ),
+  ],
+)
+
+export const clientServicePreference = pgTable(
+  "client_service_preferences",
+  {
+    organizationId: text("organization_id").notNull(),
+    clientId: text("client_id").notNull(),
+    serviceId: text("service_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.organizationId, table.clientId],
+      foreignColumns: [client.organizationId, client.id],
+      name: "client_service_preferences_tenant_client_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.organizationId, table.serviceId],
+      foreignColumns: [service.organizationId, service.id],
+      name: "client_service_preferences_tenant_service_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("client_service_preferences_pair_unique").on(
+      table.organizationId,
+      table.clientId,
+      table.serviceId,
+    ),
+    index("client_service_preferences_service_idx").on(table.organizationId, table.serviceId),
+  ],
+)
+
+export const clientProfessionalPreference = pgTable(
+  "client_professional_preferences",
+  {
+    organizationId: text("organization_id").notNull(),
+    clientId: text("client_id").notNull(),
+    professionalId: text("professional_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.organizationId, table.clientId],
+      foreignColumns: [client.organizationId, client.id],
+      name: "client_professional_preferences_tenant_client_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.organizationId, table.professionalId],
+      foreignColumns: [professional.organizationId, professional.id],
+      name: "client_professional_preferences_tenant_professional_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("client_professional_preferences_pair_unique").on(
+      table.organizationId,
+      table.clientId,
+      table.professionalId,
+    ),
+    index("client_professional_preferences_professional_idx").on(
+      table.organizationId,
+      table.professionalId,
+    ),
+  ],
+)
+
+export const clientUnitPreference = pgTable(
+  "client_unit_preferences",
+  {
+    organizationId: text("organization_id").notNull(),
+    clientId: text("client_id").notNull(),
+    unitId: text("unit_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.organizationId, table.clientId],
+      foreignColumns: [client.organizationId, client.id],
+      name: "client_unit_preferences_tenant_client_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.organizationId, table.unitId],
+      foreignColumns: [unit.organizationId, unit.id],
+      name: "client_unit_preferences_tenant_unit_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("client_unit_preferences_pair_unique").on(
+      table.organizationId,
+      table.clientId,
+      table.unitId,
+    ),
+    index("client_unit_preferences_unit_idx").on(table.organizationId, table.unitId),
   ],
 )
 

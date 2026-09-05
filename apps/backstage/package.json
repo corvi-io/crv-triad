@@ -17,7 +17,7 @@
     "test:production-boundary": "VITE_DEPLOY_TARGET=prd bun run build && bun ./scripts/assert-production-boundary.ts",
     "test:e2e": "playwright test",
     "test:e2e:sandbox": "playwright test tests/e2e/sandbox.spec.ts",
-    "test:e2e:production": "VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=disabled VITE_CLIENT_MANAGEMENT_SOURCE=http bun run build && playwright test --config playwright.production.config.ts"
+    "test:e2e:production": "VITE_DEPLOY_TARGET=prd VITE_SCHEDULING_SOURCE=disabled VITE_BARBERSHOP_SETUP_SOURCE=http VITE_CLIENT_MANAGEMENT_SOURCE=http bun run build && playwright test --config playwright.production.config.ts"
   },
   "dependencies": {
     "@base-ui-components/react": "^1.0.0-rc.0",

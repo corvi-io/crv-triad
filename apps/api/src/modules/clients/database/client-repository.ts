@@ -1,13 +1,23 @@
 import { and, asc, count, desc, eq, ilike, isNotNull, isNull, ne, or, sql } from "drizzle-orm"
 import type { IdpDatabase } from "../../idp/database/client.js"
+import { user } from "../../idp/database/schema.js"
+import { professional } from "../../professionals/database/schema.js"
+import { service } from "../../services/database/schema.js"
 import { createId } from "../../shared/infra/ids.js"
+import { unit } from "../../units/database/schema.js"
 import type {
   ClientDetail,
   ClientRepository,
   DuplicateCandidate,
 } from "../application/client-repository.js"
 import type { ClientListQuery } from "../domain/client-query.js"
-import { client, clientNote } from "./schema.js"
+import {
+  client,
+  clientNote,
+  clientProfessionalPreference,
+  clientServicePreference,
+  clientUnitPreference,
+} from "./schema.js"
 
 const clientProjection = {
   createdAt: client.createdAt,
@@ -35,25 +45,82 @@ export function createDrizzleClientRepository(db: IdpDatabase): ClientRepository
       .limit(1)
     if (!record) return null
 
-    const notes = await db
-      .select({
-        body: clientNote.body,
-        createdAt: clientNote.createdAt,
-        id: clientNote.id,
-        updatedAt: clientNote.updatedAt,
-        version: clientNote.version,
-      })
-      .from(clientNote)
-      .where(
-        and(
-          eq(clientNote.organizationId, input.organizationId),
-          eq(clientNote.clientId, input.clientId),
-        ),
-      )
-      .orderBy(desc(clientNote.createdAt), desc(clientNote.id))
-      .limit(100)
+    const [notes, professionalPreferences, preferredServices, unitPreferences] = await Promise.all([
+      db
+        .select({
+          body: clientNote.body,
+          createdAt: clientNote.createdAt,
+          id: clientNote.id,
+          updatedAt: clientNote.updatedAt,
+          version: clientNote.version,
+        })
+        .from(clientNote)
+        .where(
+          and(
+            eq(clientNote.organizationId, input.organizationId),
+            eq(clientNote.clientId, input.clientId),
+          ),
+        )
+        .orderBy(desc(clientNote.createdAt), desc(clientNote.id))
+        .limit(100),
+      db
+        .select({ id: professional.id, name: user.name, status: professional.status })
+        .from(clientProfessionalPreference)
+        .innerJoin(
+          professional,
+          and(
+            eq(professional.organizationId, clientProfessionalPreference.organizationId),
+            eq(professional.id, clientProfessionalPreference.professionalId),
+          ),
+        )
+        .innerJoin(user, eq(user.id, professional.globalUserId))
+        .where(
+          and(
+            eq(clientProfessionalPreference.organizationId, input.organizationId),
+            eq(clientProfessionalPreference.clientId, input.clientId),
+          ),
+        )
+        .orderBy(asc(user.name))
+        .limit(5),
+      db
+        .select({ id: service.id, name: service.name, status: service.status })
+        .from(clientServicePreference)
+        .innerJoin(
+          service,
+          and(
+            eq(service.organizationId, clientServicePreference.organizationId),
+            eq(service.id, clientServicePreference.serviceId),
+          ),
+        )
+        .where(
+          and(
+            eq(clientServicePreference.organizationId, input.organizationId),
+            eq(clientServicePreference.clientId, input.clientId),
+          ),
+        )
+        .orderBy(asc(service.name))
+        .limit(20),
+      db
+        .select({ id: unit.id, name: unit.name, status: unit.status })
+        .from(clientUnitPreference)
+        .innerJoin(
+          unit,
+          and(
+            eq(unit.organizationId, clientUnitPreference.organizationId),
+            eq(unit.id, clientUnitPreference.unitId),
+          ),
+        )
+        .where(
+          and(
+            eq(clientUnitPreference.organizationId, input.organizationId),
+            eq(clientUnitPreference.clientId, input.clientId),
+          ),
+        )
+        .orderBy(asc(unit.name))
+        .limit(5),
+    ])
 
-    return { ...record, notes }
+    return { ...record, notes, professionalPreferences, preferredServices, unitPreferences }
   }
 
   return {
@@ -77,12 +144,23 @@ export function createDrizzleClientRepository(db: IdpDatabase): ClientRepository
           if (await clientCapacityReached(tx, organizationId, activeClientLimit)) return null
         }
         const newId = createId()
+        const {
+          professionalPreferenceIds,
+          servicePreferenceIds,
+          unitPreferenceIds,
+          ...storedProfile
+        } = profile
         await tx.insert(client).values({
-          ...profile,
+          ...storedProfile,
           id: newId,
           organizationId,
           servicePreferences: [...profile.servicePreferences],
           tags: [...profile.tags],
+        })
+        await replacePreferences(tx, organizationId, newId, {
+          professionalPreferenceIds: professionalPreferenceIds ?? [],
+          servicePreferenceIds: servicePreferenceIds ?? [],
+          unitPreferenceIds: unitPreferenceIds ?? [],
         })
         return newId
       })
@@ -216,23 +294,39 @@ export function createDrizzleClientRepository(db: IdpDatabase): ClientRepository
     },
 
     async update(input) {
-      const updated = await db
-        .update(client)
-        .set({
-          ...input.profile,
-          servicePreferences: [...input.profile.servicePreferences],
-          tags: [...input.profile.tags],
-          updatedAt: new Date(),
-          version: sql`${client.version} + 1`,
-        })
-        .where(
-          and(
-            eq(client.organizationId, input.organizationId),
-            eq(client.id, input.clientId),
-            eq(client.version, input.version),
-          ),
-        )
-        .returning({ id: client.id })
+      const updated = await db.transaction(async (transaction) => {
+        const tx = transaction as unknown as IdpDatabase
+        const {
+          professionalPreferenceIds,
+          servicePreferenceIds,
+          unitPreferenceIds,
+          ...storedProfile
+        } = input.profile
+        const rows = await tx
+          .update(client)
+          .set({
+            ...storedProfile,
+            servicePreferences: [...input.profile.servicePreferences],
+            tags: [...input.profile.tags],
+            updatedAt: new Date(),
+            version: sql`${client.version} + 1`,
+          })
+          .where(
+            and(
+              eq(client.organizationId, input.organizationId),
+              eq(client.id, input.clientId),
+              eq(client.version, input.version),
+            ),
+          )
+          .returning({ id: client.id })
+        if (rows.length)
+          await replacePreferences(tx, input.organizationId, input.clientId, {
+            professionalPreferenceIds: professionalPreferenceIds ?? [],
+            servicePreferenceIds: servicePreferenceIds ?? [],
+            unitPreferenceIds: unitPreferenceIds ?? [],
+          })
+        return rows
+      })
       if (updated.length > 0) return "updated"
       return classifyClientMiss(db, input)
     },
@@ -270,6 +364,106 @@ async function clientCapacityReached(
     .from(client)
     .where(and(eq(client.organizationId, organizationId), eq(client.status, "active")))
   return (usage?.value ?? 0) >= activeClientLimit
+}
+
+async function replacePreferences(
+  db: IdpDatabase,
+  organizationId: string,
+  clientId: string,
+  input: {
+    professionalPreferenceIds: readonly string[]
+    servicePreferenceIds: readonly string[]
+    unitPreferenceIds: readonly string[]
+  },
+) {
+  const [professionals, services, units] = await Promise.all([
+    input.professionalPreferenceIds.length
+      ? db
+          .select({ value: count() })
+          .from(professional)
+          .where(
+            and(
+              eq(professional.organizationId, organizationId),
+              eq(professional.status, "active"),
+              or(...input.professionalPreferenceIds.map((id) => eq(professional.id, id))),
+            ),
+          )
+      : [{ value: 0 }],
+    input.servicePreferenceIds.length
+      ? db
+          .select({ value: count() })
+          .from(service)
+          .where(
+            and(
+              eq(service.organizationId, organizationId),
+              eq(service.status, "active"),
+              or(...input.servicePreferenceIds.map((id) => eq(service.id, id))),
+            ),
+          )
+      : [{ value: 0 }],
+    input.unitPreferenceIds.length
+      ? db
+          .select({ value: count() })
+          .from(unit)
+          .where(
+            and(
+              eq(unit.organizationId, organizationId),
+              eq(unit.status, "active"),
+              or(...input.unitPreferenceIds.map((id) => eq(unit.id, id))),
+            ),
+          )
+      : [{ value: 0 }],
+  ])
+  if (
+    (professionals[0]?.value ?? 0) !== input.professionalPreferenceIds.length ||
+    (services[0]?.value ?? 0) !== input.servicePreferenceIds.length ||
+    (units[0]?.value ?? 0) !== input.unitPreferenceIds.length
+  )
+    throw new Error("invalid_catalog_preference")
+  await Promise.all([
+    db
+      .delete(clientProfessionalPreference)
+      .where(
+        and(
+          eq(clientProfessionalPreference.organizationId, organizationId),
+          eq(clientProfessionalPreference.clientId, clientId),
+        ),
+      ),
+    db
+      .delete(clientServicePreference)
+      .where(
+        and(
+          eq(clientServicePreference.organizationId, organizationId),
+          eq(clientServicePreference.clientId, clientId),
+        ),
+      ),
+    db
+      .delete(clientUnitPreference)
+      .where(
+        and(
+          eq(clientUnitPreference.organizationId, organizationId),
+          eq(clientUnitPreference.clientId, clientId),
+        ),
+      ),
+  ])
+  if (input.professionalPreferenceIds.length)
+    await db.insert(clientProfessionalPreference).values(
+      input.professionalPreferenceIds.map((professionalId) => ({
+        clientId,
+        organizationId,
+        professionalId,
+      })),
+    )
+  if (input.servicePreferenceIds.length)
+    await db
+      .insert(clientServicePreference)
+      .values(
+        input.servicePreferenceIds.map((serviceId) => ({ clientId, organizationId, serviceId })),
+      )
+  if (input.unitPreferenceIds.length)
+    await db
+      .insert(clientUnitPreference)
+      .values(input.unitPreferenceIds.map((unitId) => ({ clientId, organizationId, unitId })))
 }
 
 function createListPredicate(organizationId: string, query: ClientListQuery) {

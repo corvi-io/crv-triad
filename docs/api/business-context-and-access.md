@@ -1,5 +1,9 @@
 # Business Context And Access Contract
 
+Catalog access uses `catalogs.read` and `catalogs.manage`. Owners and administrators receive both;
+members receive read access only. The commercial entitlement pipeline enables both capabilities for
+existing plan versions through the additive catalog migration and for new versions during setup.
+
 This document freezes the first multi-tenant business contract introduced by Initiative 19. It is
 the implementation contract for tenant selection, client management, platform support, commercial
 access decisions, and their HTTP vocabulary. Identity remains global; business authority is always
@@ -53,8 +57,10 @@ memberships. Trusted membership creation rejects the fifty-first membership with
 - One `idp_users.id` remains the global person identity across all contexts.
 - Membership answers whether a user may administer a tenant; its role is `owner`, `admin`, or
   `member`.
-- A future professional is a tenant-owned business record that may reference `idp_users.id` and is
-  independent from membership.
+- A professional is always an `idp_users.id` identity with an active tenant membership and a
+  tenant-owned employment relationship. The relationship stores only business attributes; it never
+  duplicates identity name, email, phone, or credentials. Before acceptance only a bounded pending
+  professional invitation exists.
 - A client is a tenant-owned customer record. Its nullable `globalUserId` is never populated by
   contact matching and grants no authentication, organization listing, or Studio access.
 - Email is a login/contact attribute, never a relational identity key.

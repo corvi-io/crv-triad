@@ -36,11 +36,18 @@ export function createClientService(repository: ClientRepository) {
     },
 
     async create(organizationId: string, input: unknown, activeClientLimit?: number) {
-      const result = await repository.create({
-        activeClientLimit,
-        organizationId,
-        profile: validateClientProfile(input),
-      })
+      let result: Awaited<ReturnType<ClientRepository["create"]>>
+      try {
+        result = await repository.create({
+          activeClientLimit,
+          organizationId,
+          profile: validateClientProfile(input),
+        })
+      } catch (error) {
+        if (error instanceof Error && error.message === "invalid_catalog_preference")
+          throw new ClientValidationError({ preferences: ["invalid_catalog_preference"] })
+        throw error
+      }
       if (result === "quota_reached") throw new ClientQuotaReachedError(activeClientLimit ?? 0)
       return result
     },
@@ -108,16 +115,22 @@ export function createClientService(repository: ClientRepository) {
     },
 
     async update(organizationId: string, clientId: string, version: number, input: unknown) {
-      return resolveMutation(
-        await repository.update({
-          clientId,
+      try {
+        return resolveMutation(
+          await repository.update({
+            clientId,
+            organizationId,
+            profile: validateClientProfile(input),
+            version,
+          }),
           organizationId,
-          profile: validateClientProfile(input),
-          version,
-        }),
-        organizationId,
-        clientId,
-      )
+          clientId,
+        )
+      } catch (error) {
+        if (error instanceof Error && error.message === "invalid_catalog_preference")
+          throw new ClientValidationError({ preferences: ["invalid_catalog_preference"] })
+        throw error
+      }
     },
 
     async updateNote(
