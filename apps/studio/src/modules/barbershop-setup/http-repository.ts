@@ -58,13 +58,12 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
     return request<SetupEntity>(`/api/${plural(kind)}/`, { body: input, method: "POST" })
   }
 
-  async update(kind: SetupEntityKind, id: string, input: SetupEntityInput) {
-    const current = await request<SetupEntity>(`/api/${plural(kind)}/${encodeURIComponent(id)}`)
+  async update(kind: SetupEntityKind, id: string, input: SetupEntityInput, version = 1) {
     return request<SetupEntity>(`/api/${plural(kind)}/${encodeURIComponent(id)}`, {
       body:
         kind === "professional"
-          ? { ...input, invitationEmail: undefined, version: current.version ?? 1 }
-          : { ...input, version: current.version ?? 1 },
+          ? { ...input, invitationEmail: undefined, version }
+          : { ...input, version },
       method: "PATCH",
     })
   }
@@ -154,7 +153,7 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
     })
   }
   private options(kind: SetupEntityKind) {
-    return request<SetupEntity[]>(`/api/${plural(kind)}/options`)
+    return request<SetupEntity[]>(`/api/${plural(kind)}/options?all=true`)
   }
   private unsupported(): never {
     throw new SetupValidationError("Este recurso ainda não está disponível em produção.")

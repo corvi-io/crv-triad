@@ -96,6 +96,10 @@ function unique(values: readonly string[]) {
   return [...new Set(values)]
 }
 
+function uniqueRows<T extends { id: string }>(rows: readonly T[]) {
+  return [...new Map(rows.map((row) => [row.id, row])).values()]
+}
+
 export function createCatalogService(db: IdpDatabase) {
   async function relations(organizationId: string, kind: CatalogKind, ids: readonly string[]) {
     const result = new Map<
@@ -159,6 +163,7 @@ export function createCatalogService(db: IdpDatabase) {
     organizationId: string,
     tableKind: "professional" | "service" | "unit",
     ids: readonly string[],
+    existingIds: readonly string[] = [],
   ) {
     const values = unique(ids)
     if (values.length === 0) return
@@ -170,7 +175,7 @@ export function createCatalogService(db: IdpDatabase) {
             .where(
               and(
                 eq(unit.organizationId, organizationId),
-                eq(unit.status, "active"),
+                or(eq(unit.status, "active"), inArray(unit.id, unique(existingIds))),
                 inArray(unit.id, values),
               ),
             )
@@ -181,7 +186,10 @@ export function createCatalogService(db: IdpDatabase) {
               .where(
                 and(
                   eq(professional.organizationId, organizationId),
-                  eq(professional.status, "active"),
+                  or(
+                    eq(professional.status, "active"),
+                    inArray(professional.id, unique(existingIds)),
+                  ),
                   inArray(professional.id, values),
                 ),
               )
@@ -191,7 +199,7 @@ export function createCatalogService(db: IdpDatabase) {
               .where(
                 and(
                   eq(service.organizationId, organizationId),
-                  eq(service.status, "active"),
+                  or(eq(service.status, "active"), inArray(service.id, unique(existingIds))),
                   inArray(service.id, values),
                 ),
               )
@@ -203,19 +211,43 @@ export function createCatalogService(db: IdpDatabase) {
     organizationId: string,
     professionalId: string,
     input: z.infer<typeof professionalInput>,
+    preserveArchived = false,
   ) {
-    await validateActiveIds(organizationId, "unit", input.unitIds)
+    const [existingUnits, existingServices] = preserveArchived
+      ? await Promise.all([
+          db
+            .select({ id: professionalUnit.unitId })
+            .from(professionalUnit)
+            .where(
+              and(
+                eq(professionalUnit.organizationId, organizationId),
+                eq(professionalUnit.professionalId, professionalId),
+              ),
+            ),
+          db
+            .select({ id: professionalService.serviceId })
+            .from(professionalService)
+            .where(
+              and(
+                eq(professionalService.organizationId, organizationId),
+                eq(professionalService.professionalId, professionalId),
+              ),
+            ),
+        ])
+      : [[], []]
+    await validateActiveIds(
+      organizationId,
+      "unit",
+      input.unitIds,
+      existingUnits.map(({ id }) => id),
+    )
     if (input.serviceIds.length) {
-      const activeServices = await db
-        .select({ id: service.id })
-        .from(service)
-        .where(
-          and(
-            eq(service.organizationId, organizationId),
-            eq(service.status, "active"),
-            inArray(service.id, unique(input.serviceIds)),
-          ),
-        )
+      await validateActiveIds(
+        organizationId,
+        "service",
+        input.serviceIds,
+        existingServices.map(({ id }) => id),
+      )
       const sharedServices = await db
         .select({ serviceId: serviceUnit.serviceId })
         .from(serviceUnit)
@@ -227,7 +259,6 @@ export function createCatalogService(db: IdpDatabase) {
           ),
         )
       if (
-        activeServices.length !== unique(input.serviceIds).length ||
         new Set(sharedServices.map((row) => row.serviceId)).size !== unique(input.serviceIds).length
       )
         throw new CatalogError("invalid_relation")
@@ -267,9 +298,42 @@ export function createCatalogService(db: IdpDatabase) {
     organizationId: string,
     serviceId: string,
     input: z.infer<typeof serviceInput>,
+    preserveArchived = false,
   ) {
-    await validateActiveIds(organizationId, "unit", input.unitIds)
-    await validateActiveIds(organizationId, "professional", input.professionalIds)
+    const [existingUnits, existingProfessionals] = preserveArchived
+      ? await Promise.all([
+          db
+            .select({ id: serviceUnit.unitId })
+            .from(serviceUnit)
+            .where(
+              and(
+                eq(serviceUnit.organizationId, organizationId),
+                eq(serviceUnit.serviceId, serviceId),
+              ),
+            ),
+          db
+            .select({ id: professionalService.professionalId })
+            .from(professionalService)
+            .where(
+              and(
+                eq(professionalService.organizationId, organizationId),
+                eq(professionalService.serviceId, serviceId),
+              ),
+            ),
+        ])
+      : [[], []]
+    await validateActiveIds(
+      organizationId,
+      "unit",
+      input.unitIds,
+      existingUnits.map(({ id }) => id),
+    )
+    await validateActiveIds(
+      organizationId,
+      "professional",
+      input.professionalIds,
+      existingProfessionals.map(({ id }) => id),
+    )
     if (input.professionalIds.length) {
       const shared = await db
         .select({ professionalId: professionalUnit.professionalId })
@@ -439,27 +503,32 @@ export function createCatalogService(db: IdpDatabase) {
       const search = rawQuery.search?.trim()
         ? `%${rawQuery.search.trim().replace(/[\\%_]/g, "\\$&")}%`
         : undefined
-      const rows = await db
+      const activeRows = await db
         .select({ id: professional.id, name: user.name, status: professional.status })
         .from(professional)
         .innerJoin(user, eq(professional.globalUserId, user.id))
         .where(
           and(
             eq(professional.organizationId, organizationId),
-            or(
-              eq(professional.status, "active"),
-              selectedIds.length ? inArray(professional.id, selectedIds) : undefined,
-            ),
-            search
-              ? or(
-                  ilike(user.name, search),
-                  selectedIds.length ? inArray(professional.id, selectedIds) : undefined,
-                )
-              : undefined,
+            eq(professional.status, "active"),
+            search ? ilike(user.name, search) : undefined,
           ),
         )
         .orderBy(asc(user.name), asc(professional.id))
-        .limit(50)
+        .limit(rawQuery.all === "true" ? 10_000 : 50)
+      const selectedRows = selectedIds.length
+        ? await db
+            .select({ id: professional.id, name: user.name, status: professional.status })
+            .from(professional)
+            .innerJoin(user, eq(professional.globalUserId, user.id))
+            .where(
+              and(
+                eq(professional.organizationId, organizationId),
+                inArray(professional.id, selectedIds),
+              ),
+            )
+        : []
+      const rows = uniqueRows([...selectedRows, ...activeRows])
       const relationMap = await relations(
         organizationId,
         kind,
@@ -475,26 +544,25 @@ export function createCatalogService(db: IdpDatabase) {
     const search = rawQuery.search?.trim()
       ? `%${rawQuery.search.trim().replace(/[\\%_]/g, "\\$&")}%`
       : undefined
-    const rows = await db
+    const activeRows = await db
       .select()
       .from(table)
       .where(
         and(
           eq(table.organizationId, organizationId),
-          or(
-            eq(table.status, "active"),
-            selectedIds.length ? inArray(table.id, selectedIds) : undefined,
-          ),
-          search
-            ? or(
-                ilike(table.name, search),
-                selectedIds.length ? inArray(table.id, selectedIds) : undefined,
-              )
-            : undefined,
+          eq(table.status, "active"),
+          search ? ilike(table.name, search) : undefined,
         ),
       )
       .orderBy(asc(table.name), asc(table.id))
-      .limit(50)
+      .limit(rawQuery.all === "true" ? 10_000 : 50)
+    const selectedRows = selectedIds.length
+      ? await db
+          .select()
+          .from(table)
+          .where(and(eq(table.organizationId, organizationId), inArray(table.id, selectedIds)))
+      : []
+    const rows = uniqueRows([...selectedRows, ...activeRows])
     const relationMap = await relations(
       organizationId,
       kind,
@@ -773,7 +841,7 @@ export function createCatalogService(db: IdpDatabase) {
             )
             .returning({ id: professional.id })
           if (!changed.length) throw new CatalogError("version_conflict")
-          await replaceProfessionalRelations(tx, organizationId, id, input)
+          await replaceProfessionalRelations(tx, organizationId, id, input, true)
         } else {
           const input = serviceInput.parse(rawInput)
           const changed = await tx
@@ -797,7 +865,7 @@ export function createCatalogService(db: IdpDatabase) {
             )
             .returning({ id: service.id })
           if (!changed.length) throw new CatalogError("version_conflict")
-          await replaceServiceRelations(tx, organizationId, id, input)
+          await replaceServiceRelations(tx, organizationId, id, input, true)
         }
       })
       return get(organizationId, kind, id)

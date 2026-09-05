@@ -145,30 +145,14 @@ export async function resendInvitation(
 
     await lockPendingInvitationEmail(tx, current.email)
 
-    const [superseded] = await tx
+    const secret = createInvitationSecret()
+    const [rotated] = await tx
       .update(invitation)
-      .set({ status: "superseded", updatedAt: now })
+      .set({ expiresAt, tokenDigest: secret.digest, tokenIssuedAt: now, updatedAt: now })
       .where(and(eq(invitation.id, current.id), eq(invitation.status, "pending")))
       .returning()
 
-    if (!superseded) return null
-
-    const secret = createInvitationSecret()
-    const [created] = await tx
-      .insert(invitation)
-      .values({
-        id: createId(),
-        email: current.email,
-        role: current.role,
-        status: "pending",
-        invitedByUserId: current.invitedByUserId,
-        expiresAt,
-        tokenDigest: secret.digest,
-        tokenIssuedAt: now,
-      })
-      .returning()
-
-    return { invitation: created, token: secret.token }
+    return rotated ? { invitation: rotated, token: secret.token } : null
   })
 }
 

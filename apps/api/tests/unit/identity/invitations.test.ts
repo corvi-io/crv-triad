@@ -188,7 +188,7 @@ describe("invitations", () => {
     expect(calls.transactionCount).toBe(1)
   })
 
-  it("supersedes the previous invitation before issuing a replacement secret", async () => {
+  it("rotates the secret without changing the invitation identity", async () => {
     const previous = createInvitationSecret()
     const updatedValues: unknown[] = []
     const insertedValues: Array<Record<string, unknown>> = []
@@ -221,7 +221,7 @@ describe("invitations", () => {
         set: (values: unknown) => {
           updatedValues.push(values)
           return {
-            where: () => ({ returning: async () => [{ ...current, status: "superseded" }] }),
+            where: () => ({ returning: async () => [{ ...current, ...(values as object) }] }),
           }
         },
       }),
@@ -237,11 +237,15 @@ describe("invitations", () => {
       now,
     )
 
-    expect(updatedValues).toContainEqual(expect.objectContaining({ status: "superseded" }))
-    expect(insertedValues).toHaveLength(1)
-    expect(insertedValues[0]).not.toHaveProperty("token")
+    expect(updatedValues).toContainEqual(
+      expect.objectContaining({ tokenIssuedAt: now, updatedAt: now }),
+    )
+    expect(insertedValues).toHaveLength(0)
+    expect(replacement?.invitation.id).toBe(current.id)
     expect(replacement?.token).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(replacement?.token).not.toBe(previous.token)
-    expect(insertedValues[0]?.tokenDigest).toBe(digestInvitationToken(replacement?.token ?? ""))
+    expect(updatedValues[0]).toEqual(
+      expect.objectContaining({ tokenDigest: digestInvitationToken(replacement?.token ?? "") }),
+    )
   })
 })

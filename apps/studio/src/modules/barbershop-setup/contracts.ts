@@ -299,7 +299,12 @@ export interface BarbershopSetupRepository {
     input: SetProfessionalServiceOverrideInput,
   ): Promise<ProfessionalServiceOverride | undefined>
   setArchived(kind: SetupEntityKind, id: string, archived: boolean): Promise<SetupEntity>
-  update(kind: SetupEntityKind, id: string, input: SetupEntityInput): Promise<SetupEntity>
+  update(
+    kind: SetupEntityKind,
+    id: string,
+    input: SetupEntityInput,
+    version?: number,
+  ): Promise<SetupEntity>
   updateAvailability(input: SetupAvailability): Promise<SetupAvailability>
   updateAvailabilityBatch(
     input: UpdateAvailabilityBatchInput,

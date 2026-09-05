@@ -495,7 +495,12 @@ function EntitySection({
   async function save(entityKind: SetupEntityKind, input: SetupEntityInput) {
     try {
       if (drawer?.kind === "edit")
-        await updateEntity.mutateAsync({ id: drawer.entity.id, input, kind: entityKind })
+        await updateEntity.mutateAsync({
+          id: drawer.entity.id,
+          input,
+          kind: entityKind,
+          version: drawer.entity.version ?? 1,
+        })
       else await createEntity.mutateAsync({ input, kind: entityKind })
       toast.success(
         drawer?.kind === "edit"

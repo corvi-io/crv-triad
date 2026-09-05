@@ -18,9 +18,10 @@ import { LoginForm } from "./login-form"
 type LoginScreenProps = {
   error?: "auth" | "provider" | "session" | "verification_expired" | "verification_invalid"
   verified?: true
+  invitationToken?: string
 }
 
-export function LoginScreen({ error, verified }: LoginScreenProps) {
+export function LoginScreen({ error, invitationToken, verified }: LoginScreenProps) {
   const { isPending, session } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResending, setIsResending] = useState(false)
@@ -43,7 +44,11 @@ export function LoginScreen({ error, verified }: LoginScreenProps) {
   }
 
   if (session) {
-    return <Navigate to="/overview" replace />
+    return invitationToken ? (
+      <Navigate to="/accept-invitation" search={{ token: invitationToken }} replace />
+    ) : (
+      <Navigate to="/overview" replace />
+    )
   }
 
   async function handleEmailSignIn(values: LoginCredentialsFormValues) {

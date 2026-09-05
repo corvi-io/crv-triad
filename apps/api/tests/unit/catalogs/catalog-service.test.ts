@@ -151,6 +151,7 @@ describe("catalog service", () => {
     const first = createDatabase()
     first.queue(
       [serviceRow({ status: "archived" })],
+      [serviceRow({ status: "archived" })],
       [{ serviceId: "service-a", unitId: "unit-a" }],
       [{ professionalId: "professional-a", serviceId: "service-a" }],
     )
@@ -165,6 +166,7 @@ describe("catalog service", () => {
 
     const second = createDatabase()
     second.queue(
+      [{ id: "professional-a", name: "Marcus", status: "active" }],
       [{ id: "professional-a", name: "Marcus", status: "active" }],
       [{ professionalId: "professional-a", unitId: "unit-a" }],
       [],
@@ -301,6 +303,8 @@ describe("catalog service", () => {
     const professionalDb = createDatabase()
     professionalDb.queue(
       [{ id: "professional-a" }],
+      [],
+      [],
       undefined,
       undefined,
       [{ professional: professionalRow(), userName: "Marcus Gabriel" }],
@@ -325,6 +329,8 @@ describe("catalog service", () => {
     const serviceDb = createDatabase()
     serviceDb.queue(
       [{ id: "service-a" }],
+      [],
+      [],
       [{ id: "unit-a" }],
       [{ id: "professional-a" }],
       [{ professionalId: "professional-a", unitId: "unit-a" }],

@@ -118,7 +118,7 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
       const result = await acceptExistingInvitation(invitationToken)
       if ("error" in result) {
         if (result.error === "unauthenticated") {
-          await navigate({ to: "/login" })
+          await navigate({ search: { invitationToken }, to: "/login" })
           return
         }
         setSubmitError("Não foi possível aceitar o convite agora. Tente novamente.")
