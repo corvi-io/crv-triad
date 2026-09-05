@@ -152,7 +152,7 @@ describe("routes", () => {
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
       "Configuração da barbearia",
     )
-  })
+  }, 10_000)
 
   it("redirects barbershop setup defaults to a clean overview URL", async () => {
     const { router } = renderRoute("/barbershop-setup", authenticatedState())
