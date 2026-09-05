@@ -125,6 +125,25 @@ references, not permission to couple Revenue Operations to another module's priv
   memory repository, scenario controls, fake declines, commission projections, or browser-authoritative
   settlement logic.
 
+The prototype contract also leaks into Overview, Reporting, Scheduling dashboard projections, and
+Operational Notifications. Their current imports of `Checkout`, `PaidSale`, `BasisPoints`, commission
+snapshots, and an unbounded `listPaidSales()` are compatibility obligations to inventory, not a reason to
+retain out-of-scope finance concepts. Replace them with the narrow posted-receipt projections required by
+the approved contract, and keep reporting/notification development fixtures behind their existing dev-only
+composition. Registration must invalidate Revenue queries only; it must not call Service Desk completion or
+invalidate Scheduling as though payment changed operational state.
+
+Additional prototype removals confirmed by source inspection:
+
+- Browser-local `Date#getFullYear/getMonth/getDate` cannot determine operational dates; the API must use
+  the unit timezone snapshot and return the authoritative business date.
+- Caller-provided `responsiblePersonName` and generic `operationId` are replaced by authenticated actor
+  snapshots plus the explicit idempotency/version contract.
+- `paid`/`completePayment`, provider-style `declined`, commission preview, client-side daily projection,
+  and implicit day summaries are replaced by posted/reversed receipt and explicitly opened cash-day terms.
+- Query keys must contain stable identifiers and non-sensitive filters only. Reasons, money drafts, counts,
+  and idempotency fingerprints never belong in keys, URLs, logs, or browser persistence.
+
 ### First post-merge inspection
 
 Before TASK-001 can close, compare the sealed Initiative 23 diff against this map and record: its public
