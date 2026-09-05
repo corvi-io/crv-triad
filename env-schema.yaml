@@ -6,6 +6,7 @@ source:
     api: /api
     site: /site
     studio: /studio
+    backstage: /backstage
     infrastructure: /infrastructure
 apps:
   api:
@@ -33,6 +34,7 @@ apps:
       - { source: API__LEAD_TURNSTILE_SECRET_KEY, runtime: LEAD_TURNSTILE_SECRET_KEY, github: secret, required: true }
       - { source: API__LEAD_TURNSTILE_HOSTNAMES, runtime: LEAD_TURNSTILE_HOSTNAMES, github: variable, required: true }
       - { source: API__POSTHOG_UPSTREAM_URL, runtime: POSTHOG_UPSTREAM_URL, github: variable, required: false }
+      - { source: API__POSTHOG_PROJECT_KEY, runtime: POSTHOG_PROJECT_KEY, github: variable, required: false, required_targets: [prd] }
   site:
     owner: apps/site
     runtime: cloudflare-pages-static
@@ -59,3 +61,13 @@ apps:
       - { source: STUDIO__VITE_SCHEDULING_SOURCE, runtime: VITE_SCHEDULING_SOURCE, github: variable, required: false }
       - { source: STUDIO__VITE_BARBERSHOP_SETUP_SOURCE, runtime: VITE_BARBERSHOP_SETUP_SOURCE, github: variable, required: false }
       - { source: STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE, runtime: VITE_CLIENT_MANAGEMENT_SOURCE, github: variable, required: false }
+  backstage:
+    owner: apps/backstage
+    runtime: cloudflare-pages-static
+    targets:
+      dev: { github_environment: dev, cloudflare_pages_branch: dev }
+      hml: { github_environment: hml, cloudflare_pages_branch: hml }
+      prd: { github_environment: prd, cloudflare_pages_branch: main }
+    env:
+      - { source: BACKSTAGE__VITE_AUTH_BASE_URL, runtime: VITE_AUTH_BASE_URL, github: variable, required: true }
+      - { source: BACKSTAGE__VITE_DEPLOY_TARGET, runtime: VITE_DEPLOY_TARGET, github: variable, required: false }

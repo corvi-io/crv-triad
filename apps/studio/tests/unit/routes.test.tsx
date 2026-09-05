@@ -6,6 +6,7 @@ import { type ReactNode, useEffect } from "react"
 import { describe, expect, it, vi } from "vitest"
 
 import { type AuthState, AuthStateProvider } from "@/modules/auth/services/auth-provider"
+import { clientSearchDefaults } from "@/modules/clients/search"
 import { ThemeProvider } from "@/modules/shared/theme/theme-provider"
 import { routeTree } from "@/routeTree.gen"
 
@@ -82,9 +83,7 @@ describe("routes", () => {
       session: null,
     })
 
-    expect(
-      await screen.findByRole("heading", { name: "Entrar no TRIAD Studio" }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Bem-vindo de volta" })).toBeInTheDocument()
     expect(screen.queryByRole("heading", { name: "Meu perfil" })).not.toBeInTheDocument()
   })
 
@@ -103,9 +102,7 @@ describe("routes", () => {
         .getAllByRole("link", { name: "Dashboard" })
         .find((link) => link.hasAttribute("aria-current")),
     ).toHaveAttribute("href", "/overview")
-    expect(
-      screen.queryByRole("heading", { name: "Entrar no TRIAD Studio" }),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "Bem-vindo de volta" })).not.toBeInTheDocument()
   })
 
   it("redirects authenticated root and login visits to overview", async () => {
@@ -140,19 +137,24 @@ describe("routes", () => {
   })
 
   it("renders barbershop setup as a private module inside the workspace shell", async () => {
-    renderRoute("/barbershop-setup?section=services", authenticatedState())
+    const { router } = renderRoute("/barbershop-setup/services", authenticatedState())
+
+    expect(router.state.location.href).toBe("/barbershop-setup/services")
+    expect(
+      await screen.findByRole("navigation", { name: "Navegação principal" }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("navigation", { name: "Navegação secundária" }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("redirects barbershop setup defaults to a clean overview URL", async () => {
+    const { router } = renderRoute("/barbershop-setup", authenticatedState())
 
     expect(
       await screen.findByRole("heading", { name: "Configuração da barbearia" }),
     ).toBeInTheDocument()
-    const navigation = screen.getByRole("navigation", { name: "Navegação secundária" })
-    expect(within(navigation).getByRole("link", { name: "Barbearia" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    )
-    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
-      "Configuração da barbearia",
-    )
+    expect(router.state.location.href).toBe("/barbershop-setup/overview")
   })
 
   it("rejects a cash date that rolls over to another calendar day", async () => {
@@ -175,5 +177,24 @@ describe("routes", () => {
       expect(router.state.location.search.from).not.toBe("2025-01-01")
       expect(router.state.location.search.to).not.toBe("2026-12-31")
     })
+  })
+
+  it("omits default client search state and preserves shareable drawer intent", async () => {
+    const { router } = renderRoute("/workspace-preview", authenticatedState())
+
+    await router.navigate({ search: clientSearchDefaults, to: "/clients" })
+    expect(router.state.location.href).toBe("/clients")
+
+    await router.navigate({
+      search: { ...clientSearchDefaults, client: "client_01" },
+      to: "/clients",
+    })
+    expect(router.state.location.href).toBe("/clients?client=client_01")
+
+    await router.navigate({
+      search: { ...clientSearchDefaults, client: "client_01", mode: "edit" },
+      to: "/clients",
+    })
+    expect(router.state.location.href).toBe("/clients?client=client_01&mode=edit")
   })
 })

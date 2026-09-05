@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-04T00:00:00-03:00",
+  "title": "Design System: TRIAD Backstage",
+  "extensions": {
+    "colorMeta": {
+      "primary-light": {
+        "role": "primary",
+        "displayName": "Operational Gold",
+        "canonical": "#86652f"
+      },
+      "background-dark": { "role": "neutral", "displayName": "Navy Night", "canonical": "#0f172a" }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Page Headline",
+        "purpose": "Names the internal destination or tenant."
+      },
+      "body": {
+        "displayName": "Operational Body",
+        "purpose": "Supports dense system administration."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shell",
+        "value": "0 0.0625rem 0.125rem rgb(10 10 10 / 0.08)",
+        "purpose": "Authenticated shell separation only."
+      }
+    ],
+    "breakpoints": [{ "name": "sm", "value": "640px" }, { "name": "lg", "value": "1024px" }]
+  },
+  "components": [
+    {
+      "name": "Tenant Status",
+      "kind": "custom",
+      "description": "Text-first active or suspended tenant status using semantic feedback tokens.",
+      "html": "<span class=\"ds-tenant-status\">Ativo</span>",
+      "css": ".ds-tenant-status { display: inline-flex; border: 1px solid var(--feedback-success-border); border-radius: 9999px; padding: .25rem .75rem; color: var(--feedback-success-foreground); background: var(--feedback-success); font-size: .75rem; font-weight: 600; }"
+    },
+    {
+      "name": "Support Boundary",
+      "kind": "custom",
+      "description": "Persistent structural signature for reason-bound, expiring, read-only support.",
+      "html": "<header class=\"ds-support-boundary\"><strong>Suporte ativo</strong><small>Expira às 14:30</small><button>Sair do suporte</button></header>",
+      "css": ".ds-support-boundary { position: sticky; top: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding: .75rem 1rem; border-bottom: 1px solid var(--feedback-warning-border); background: var(--feedback-warning); color: var(--feedback-warning-foreground); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "System Observatory",
+    "overview": "A calm navy-and-gold internal control room where operator authority and tenant state are always explicit.",
+    "keyCharacteristics": [
+      "Factual system-wide inventory",
+      "Explicit operator authority",
+      "Bounded lifecycle controls",
+      "Structurally distinct read-only support"
+    ],
+    "rules": [
+      {
+        "name": "Gold Is Scarce",
+        "body": "Use gold only for identity, focus, selection, and primary action.",
+        "section": "colors"
+      },
+      {
+        "name": "State Has Text",
+        "body": "Never communicate tenant, subscription, or authority state by color alone.",
+        "section": "colors"
+      },
+      {
+        "name": "Flat by Default",
+        "body": "Use boundaries and tonal layers before elevation.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Show server-confirmed state",
+      "Keep Portuguese copy direct",
+      "Preserve 320px and keyboard operation"
+    ],
+    "donts": [
+      "Do not import Studio business modules",
+      "Do not imply impersonation",
+      "Do not fabricate analytics"
+    ]
+  }
+}

@@ -68,12 +68,12 @@ describe("password recovery routes", () => {
     const opaqueToken = "opaque-test-token"
     renderPublicRoute(`/reset-password?token=${opaqueToken}`)
     const user = userEvent.setup()
-    await user.type(await screen.findByLabelText("Nova senha"), "new-password-123")
-    await user.type(screen.getByLabelText("Confirmar nova senha"), "new-password-123")
+    await user.type(await screen.findByLabelText("Nova senha"), "New-password-123!")
+    await user.type(screen.getByLabelText("Confirmar nova senha"), "New-password-123!")
     await user.click(screen.getByRole("button", { name: "Redefinir senha" }))
 
     expect(resetPassword).toHaveBeenCalledWith({
-      newPassword: "new-password-123",
+      newPassword: "New-password-123!",
       token: opaqueToken,
     })
     expect(
@@ -92,8 +92,8 @@ describe("password recovery routes", () => {
     const user = userEvent.setup()
     renderPublicRoute("/reset-password?token=opaque-test-token")
 
-    await user.type(await screen.findByLabelText("Nova senha"), "new-password-123")
-    await user.type(screen.getByLabelText("Confirmar nova senha"), "new-password-123")
+    await user.type(await screen.findByLabelText("Nova senha"), "New-password-123!")
+    await user.type(screen.getByLabelText("Confirmar nova senha"), "New-password-123!")
     const submit = screen.getByRole("button", { name: "Redefinir senha" })
     await user.dblClick(submit)
 

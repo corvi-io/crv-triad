@@ -12,6 +12,7 @@ export type EnvEntry = {
   runtime: string
   github: GitHubSourceKind
   required: boolean
+  required_targets?: string[]
 }
 
 export type TargetConfig = {
@@ -182,6 +183,18 @@ export function assertSchema(value: unknown): asserts value is EnvSchema {
       if (typeof entry.required !== "boolean") {
         throw new EnvManagementError(`Source "${entry.source}" must declare required as a boolean.`)
       }
+
+      if (
+        entry.required_targets !== undefined &&
+        (!Array.isArray(entry.required_targets) ||
+          entry.required_targets.some(
+            (targetName) => typeof targetName !== "string" || !app.targets[targetName],
+          ))
+      ) {
+        throw new EnvManagementError(
+          `Source "${entry.source}" has required_targets outside the app targets.`,
+        )
+      }
     }
   }
 }
@@ -209,7 +222,11 @@ export function selectRuntimeEnv(
   }
 
   const missing = app.env
-    .filter((entry) => entry.required && !hasRequiredValue(sourceEnv[entry.source]))
+    .filter(
+      (entry) =>
+        (entry.required || entry.required_targets?.includes(targetName)) &&
+        !hasRequiredValue(sourceEnv[entry.source]),
+    )
     .map((entry) => entry.source)
 
   if (missing.length > 0) {

@@ -98,6 +98,24 @@ describe("barbershop setup module", () => {
     const user = userEvent.setup()
     renderSetup("new-business", "units")
     await user.click(await screen.findByRole("button", { name: "Nova unidade" }))
+    expect(await screen.findByText("Período 1")).toBeVisible()
+    expect(screen.getByText("Período 2")).toBeVisible()
+    expect(screen.getAllByRole("combobox", { name: "Início" })).toHaveLength(2)
+    expect(screen.getByRole("button", { name: "Adicionar período" })).toBeVisible()
+    const firstPeriod = screen.getByText("Período 1").closest("div")?.parentElement
+    expect(firstPeriod).toBeTruthy()
+    const monday = within(firstPeriod as HTMLElement).getByRole("button", { name: "Seg" })
+    const sunday = within(firstPeriod as HTMLElement).getByRole("button", { name: "Dom" })
+    const secondPeriod = screen.getByText("Período 2").closest("div")?.parentElement
+    expect(secondPeriod).toBeTruthy()
+    const secondPeriodSunday = within(secondPeriod as HTMLElement).getByRole("button", {
+      name: "Dom",
+    })
+    expect(monday).toHaveAttribute("aria-pressed", "true")
+    await user.click(sunday)
+    expect(monday).toHaveAttribute("aria-pressed", "true")
+    expect(sunday).toHaveAttribute("aria-pressed", "true")
+    expect(secondPeriodSunday).toHaveAttribute("aria-pressed", "false")
     await user.click(await screen.findByRole("button", { name: "Salvar" }))
     const name = screen.getByLabelText(/Nome/)
     expect(await screen.findByText("Informe um nome com pelo menos 2 caracteres.")).toBeVisible()
@@ -146,38 +164,65 @@ describe("barbershop setup module", () => {
     ).toEqual({ duration: "60", price: "75" })
   })
 
-  it("renders an editable specialties control with Portuguese validation", async () => {
+  it("uses a professional function, percentage mask, and tags for business data", async () => {
     const user = userEvent.setup()
     renderSetup("single-unit", "professionals")
-    await user.click(await screen.findByRole("button", { name: "Novo profissional" }))
+    await user.click(await screen.findByRole("button", { name: "Convidar profissional" }))
     const specialties = await screen.findByLabelText("Especialidades")
-    await user.type(specialties, "Corte, Barba")
-    expect(specialties).toHaveValue("Corte, Barba")
+    await user.type(specialties, "Corte{enter}")
+    expect(screen.getByText("Corte")).toBeVisible()
+
+    const role = screen.getByLabelText("Função")
+    expect(role).toHaveValue("Barbeiro")
+    expect(screen.queryByText("Administrador")).not.toBeInTheDocument()
+
+    const commission = screen.getByLabelText("Comissão padrão (%)")
+    await user.clear(commission)
+    await user.type(commission, "4050")
+    expect(commission).toHaveValue("40,50")
     expect(
-      professionalFormSchema
-        .safeParse({
-          accessPolicy: {
-            "access-other-professionals": false,
-            "change-prices": false,
-            "create-appointments": true,
-            "own-schedule-only": true,
-            "register-payments": false,
-            "view-commissions": false,
-            "view-revenue": false,
-          },
-          accountAccess: "not-configured",
-          commissionBasisPoints: 50,
-          contactEmail: "",
-          contactPhone: "81999999999",
-          kind: "professional",
-          name: "Pessoa Teste",
-          role: "Barbeiro",
-          serviceIds: [],
-          specialties: [],
-          unitIds: ["unit-center"],
-        })
-        .error?.issues.map(({ message }) => message),
-    ).toContain("Informe pelo menos uma especialidade.")
+      professionalFormSchema.safeParse({
+        commissionBasisPoints: 50,
+        invitationEmail: "pessoa@example.com",
+        kind: "professional",
+        role: "Barbeiro",
+        serviceIds: [],
+        specialties: [],
+        unitIds: ["unit-center"],
+      }).success,
+    ).toBe(true)
+    const parsedOnce = professionalFormSchema.parse({
+      commissionBasisPoints: 50,
+      invitationEmail: "pessoa@example.com",
+      kind: "professional",
+      role: "Barbeiro",
+      serviceIds: [],
+      specialties: [],
+      unitIds: ["unit-center"],
+    })
+    expect(parsedOnce.commissionBasisPoints).toBe(5_000)
+    expect(
+      professionalFormSchema.safeParse({
+        ...parsedOnce,
+        commissionBasisPoints: 101,
+      }).success,
+    ).toBe(false)
+  })
+
+  it("uses bounded 15-minute duration options and Brazilian money input for services", async () => {
+    const user = userEvent.setup()
+    renderSetup("single-unit", "services")
+    await user.click(await screen.findByRole("button", { name: "Novo serviço" }))
+
+    const duration = await screen.findByLabelText("Duração (min)")
+    await user.click(duration)
+    expect(screen.getByRole("option", { name: "15 min" })).toBeVisible()
+    expect(screen.getByRole("option", { name: "5h" })).toBeVisible()
+
+    const price = screen.getByLabelText("Preço (R$)")
+    await user.clear(price)
+    await user.type(price, "7676")
+    expect(price).toHaveValue("R$ 76,76")
   })
 
   it("uses filtered availability keys and hides conflicts outside the visible relationship", async () => {
@@ -468,10 +513,11 @@ describe("barbershop setup module", () => {
     expect(professional?.kind).toBe("professional")
     if (professional?.kind !== "professional") return
     await repository.update("professional", professional.id, {
-      accountAccess: professional.accountAccess,
-      name: professional.name,
+      commissionBasisPoints: professional.commissionBasisPoints ?? 0,
+      invitationEmail: "",
       role: professional.role,
       serviceIds: [],
+      specialties: professional.specialties ?? [],
       unitIds: ["unit-center"],
     })
 
@@ -514,10 +560,15 @@ describe("barbershop setup module", () => {
     ])
   })
 
-  it("validates unit opening hours as one composed period", () => {
+  it("validates multiple unit opening periods", () => {
     const result = unitFormSchema.safeParse({
       address: "Rua válida, 10",
-      businessHours: { days: ["monday"], start: "18:00", end: "09:00" },
+      businessHours: {
+        days: ["monday"],
+        start: "18:00",
+        end: "09:00",
+        periods: [{ days: ["monday"], start: "18:00", end: "09:00" }],
+      },
       code: "CTR",
       kind: "unit",
       name: "Unidade válida",

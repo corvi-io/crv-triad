@@ -10,6 +10,7 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/modules/shared/components/ui/popover"
+import { ScrollArea } from "@/modules/shared/components/ui/scroll-area"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import { NotificationItem } from "./notification-item"
 import { useNotificationMutations, useNotificationPreview } from "./queries"
@@ -38,7 +39,7 @@ export function OperationalNotificationTrigger({ scenarioId }: { scenarioId?: st
             {unread > 0 ? (
               <span
                 aria-hidden="true"
-                className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border border-background bg-primary px-1 text-[0.625rem] font-bold text-primary-foreground"
+                className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border border-background bg-primary px-1 text-xs font-bold text-primary-foreground"
               >
                 {unread > 99 ? "99+" : unread}
               </span>
@@ -58,53 +59,60 @@ export function OperationalNotificationTrigger({ scenarioId }: { scenarioId?: st
             <AlertDescription>Tente novamente. A notificação continua não lida.</AlertDescription>
           </Alert>
         ) : null}
-        <div className="mt-3 flex max-h-[min(26rem,70vh)] flex-col gap-2 overflow-y-auto">
-          {preview.isPending ? (
-            <>
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </>
-          ) : preview.isError ? (
-            <Alert variant="destructive">
-              <AlertTitle>Não foi possível carregar</AlertTitle>
-              <AlertDescription>Tente novamente ou abra o centro de notificações.</AlertDescription>
-            </Alert>
-          ) : preview.data?.active.length ? (
-            preview.data.active.map((notification) => (
-              <NotificationItem
-                compact
-                isMarkingRead={markRead.isPending && markRead.variables?.id === notification.id}
-                key={notification.id}
-                notification={notification}
-                onMarkRead={(id) => {
-                  setAnnouncement("")
-                  setReadFailed(false)
-                  markRead.mutate(
-                    { id, scenarioId },
-                    {
-                      onError: () => {
-                        setAnnouncement("Não foi possível marcar a notificação como lida.")
-                        setReadFailed(true)
+        <ScrollArea
+          className="mt-3 max-h-[min(26rem,70vh)]"
+          viewportClassName="max-h-[min(26rem,70vh)]"
+        >
+          <div className="divide-y divide-border/70 border-y border-border/70 pr-3">
+            {preview.isPending ? (
+              <>
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </>
+            ) : preview.isError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Não foi possível carregar</AlertTitle>
+                <AlertDescription>
+                  Tente novamente ou abra o centro de notificações.
+                </AlertDescription>
+              </Alert>
+            ) : preview.data?.active.length ? (
+              preview.data.active.map((notification) => (
+                <NotificationItem
+                  compact
+                  isMarkingRead={markRead.isPending && markRead.variables?.id === notification.id}
+                  key={notification.id}
+                  notification={notification}
+                  onMarkRead={(id) => {
+                    setAnnouncement("")
+                    setReadFailed(false)
+                    markRead.mutate(
+                      { id, scenarioId },
+                      {
+                        onError: () => {
+                          setAnnouncement("Não foi possível marcar a notificação como lida.")
+                          setReadFailed(true)
+                        },
+                        onSuccess: () => {
+                          setAnnouncement("Notificação marcada como lida.")
+                          setReadFailed(false)
+                        },
                       },
-                      onSuccess: () => {
-                        setAnnouncement("Notificação marcada como lida.")
-                        setReadFailed(false)
-                      },
-                    },
-                  )
-                }}
-              />
-            ))
-          ) : (
-            <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              Nenhuma notificação ativa.
-            </p>
-          )}
-        </div>
+                    )
+                  }}
+                />
+              ))
+            ) : (
+              <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                Nenhuma notificação ativa.
+              </p>
+            )}
+          </div>
+        </ScrollArea>
         <Button
           className="mt-3 w-full"
           render={<Link search={{ notificationScenario: scenarioId }} to="/notifications" />}
-          variant="outline"
+          variant="secondary"
         >
           Ver todas as notificações
         </Button>

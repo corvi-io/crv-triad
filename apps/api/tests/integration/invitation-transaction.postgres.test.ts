@@ -56,7 +56,7 @@ const env = {
   BETTER_AUTH_URL: baseUrl,
   AUTH_TRUSTED_ORIGINS: [trustedOrigin],
   AUTH_SESSION_EXPIRES_IN_SECONDS: 2_592_000,
-  AUTH_PASSWORD_MIN_LENGTH: 15,
+  AUTH_PASSWORD_MIN_LENGTH: 8,
   AUTH_PASSWORD_MAX_LENGTH: 256,
   AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS: 3_600,
   AUTH_GOOGLE_CLIENT_ID: "integration-google-client-placeholder",
@@ -135,7 +135,7 @@ describe("invitation transaction on PostgreSQL", () => {
       email: "untrusted-input@example.invalid",
       invitationToken: seeded.proof,
       name: "Usuário TRIAD",
-      password: "uma frase longa e exclusiva",
+      password: "Senha válida 1!",
       rememberMe: false,
     }
 
@@ -192,7 +192,7 @@ describe("invitation transaction on PostgreSQL", () => {
         email: "untrusted-input@example.invalid",
         invitationToken: seeded.proof,
         name: "Usuário TRIAD",
-        password: "uma frase longa e exclusiva",
+        password: "Senha válida 1!",
         rememberMe: false,
       })
       expect(response.status).not.toBe(200)

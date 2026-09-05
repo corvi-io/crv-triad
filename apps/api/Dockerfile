@@ -6,6 +6,7 @@ COPY package.json bun.lock turbo.json biome.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/site/package.json apps/site/package.json
 COPY apps/studio/package.json apps/studio/package.json
+COPY apps/backstage/package.json apps/backstage/package.json
 RUN bun install --frozen-lockfile --filter api
 COPY apps/api apps/api
 RUN bun --filter api build
@@ -16,6 +17,7 @@ COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/site/package.json apps/site/package.json
 COPY apps/studio/package.json apps/studio/package.json
+COPY apps/backstage/package.json apps/backstage/package.json
 RUN bun install --frozen-lockfile --production --filter api
 COPY --from=build /app/apps/api/dist apps/api/dist
 COPY --from=build /app/apps/api/drizzle apps/api/drizzle

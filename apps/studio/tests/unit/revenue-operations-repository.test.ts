@@ -59,15 +59,11 @@ describe("revenue operations memory coordinator", () => {
     expect(professional?.kind).toBe("professional")
     if (professional?.kind !== "professional") return
     await setup.update("professional", professional.id, {
-      accountAccess: professional.accountAccess,
-      accessPolicy: professional.accessPolicy,
       commissionBasisPoints: 2_500,
-      contactEmail: professional.contactEmail,
-      contactPhone: professional.contactPhone,
-      name: professional.name,
+      invitationEmail: "",
       role: professional.role,
       serviceIds: professional.serviceIds,
-      specialties: professional.specialties,
+      specialties: professional.specialties ?? [],
       unitIds: professional.unitIds,
     })
     await setup.setProfessionalServiceOverride({

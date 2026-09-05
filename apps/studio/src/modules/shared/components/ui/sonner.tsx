@@ -8,8 +8,9 @@ type ToasterProps = ComponentProps<typeof Sonner>
 function Toaster({ ...props }: ToasterProps) {
   return (
     <Sonner
-      position="top-center"
-      richColors={false}
+      position="top-right"
+      richColors
+      closeButton
       toastOptions={{
         classNames: {
           toast:

@@ -7,9 +7,11 @@ import { ThemeProvider } from "@/modules/shared/theme/theme-provider"
 import { routeTree } from "@/routeTree.gen"
 
 const acceptInvitation = vi.fn()
+const acceptExistingInvitation = vi.fn()
 const resolveInvitation = vi.fn()
 
 vi.mock("@/modules/auth/services/auth-client", () => ({
+  acceptExistingInvitation: (token: string) => acceptExistingInvitation(token),
   acceptInvitation: (input: unknown) => acceptInvitation(input),
   resolveInvitation: (token: string, signal?: AbortSignal) => resolveInvitation(token, signal),
 }))
@@ -31,6 +33,8 @@ describe("invitation acceptance", () => {
   beforeEach(() => {
     acceptInvitation.mockReset()
     acceptInvitation.mockResolvedValue({ status: true })
+    acceptExistingInvitation.mockReset()
+    acceptExistingInvitation.mockResolvedValue({ status: true })
     resolveInvitation.mockReset()
     resolveInvitation.mockResolvedValue({ state: "valid", role: "member" })
   })
@@ -39,32 +43,45 @@ describe("invitation acceptance", () => {
     renderAcceptance()
 
     expect(await screen.findByText(/Convite válido para o perfil de membro/)).toBeInTheDocument()
+    expect(screen.getByLabelText("Seu nome")).toHaveAttribute("autocomplete", "name")
     await waitFor(() => expect(window.location.search).toBe(""))
     const password = screen.getByLabelText("Nova senha")
     expect(password).toHaveAttribute("autocomplete", "new-password")
     expect(password).toHaveAttribute("aria-describedby", expect.stringContaining("guidance"))
     expect(screen.getByRole("list", { name: "Requisitos da nova senha" })).toHaveTextContent(
-      "Ter pelo menos 15 caracteres",
+      "Ter pelo menos 8 caracteres",
+    )
+    expect(screen.getByRole("list", { name: "Requisitos da nova senha" })).toHaveTextContent(
+      "Ter uma letra maiúscula",
+    )
+    expect(screen.getByRole("list", { name: "Requisitos da nova senha" })).toHaveTextContent(
+      "Ter uma letra minúscula",
+    )
+    expect(screen.getByRole("list", { name: "Requisitos da nova senha" })).toHaveTextContent(
+      "Ter um número",
+    )
+    expect(screen.getByRole("list", { name: "Requisitos da nova senha" })).toHaveTextContent(
+      "Ter um caractere especial",
     )
   })
 
-  it("prevents duplicate submission and returns to login without creating a session", async () => {
+  it("prevents duplicate submission and redirects to the authenticated overview", async () => {
     let finish: (value: object) => void = () => undefined
     acceptInvitation.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
     const user = userEvent.setup()
-    renderAcceptance()
+    const router = renderAcceptance()
 
+    await user.type(await screen.findByLabelText("Seu nome"), "Pessoa Convidada")
     await user.click(await screen.findByLabelText("Nova senha"))
-    await user.paste("uma frase longa e exclusiva")
+    await user.paste("Senha válida 1!")
     await user.click(screen.getByLabelText("Confirmar nova senha"))
-    await user.paste("uma frase longa e exclusiva")
+    await user.paste("Senha válida 1!")
     const submit = screen.getByRole("button", { name: "Criar senha" })
     await user.dblClick(submit)
 
     expect(acceptInvitation).toHaveBeenCalledTimes(1)
     finish({ status: true })
-    expect(await screen.findByText(/Entre normalmente para iniciar uma sessão/)).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Ir para entrar" })).toHaveAttribute("href", "/login")
+    await waitFor(() => expect(router.state.location.pathname).toBe("/overview"))
   })
 
   it.each([
@@ -85,15 +102,30 @@ describe("invitation acceptance", () => {
     acceptInvitation.mockResolvedValueOnce({ error: "password_policy" })
     const user = userEvent.setup()
     renderAcceptance()
+    await user.type(await screen.findByLabelText("Seu nome"), "Pessoa Convidada")
     const password = await screen.findByLabelText("Nova senha")
-    await user.type(password, "uma frase longa e exclusiva")
-    await user.type(screen.getByLabelText("Confirmar nova senha"), "uma frase longa e exclusiva")
+    await user.type(password, "Senha válida 1!")
+    await user.type(screen.getByLabelText("Confirmar nova senha"), "Senha válida 1!")
     await user.click(screen.getByRole("button", { name: "Criar senha" }))
 
     expect(
       await screen.findByText("Escolha uma senha menos comum ou previsível."),
     ).toBeInTheDocument()
     expect(password).toHaveFocus()
+  })
+
+  it("accepts an existing authenticated identity without replacing its profile", async () => {
+    resolveInvitation.mockResolvedValueOnce({ state: "valid", role: "member", hasAccount: true })
+    const user = userEvent.setup()
+    const router = renderAcceptance()
+
+    expect(await screen.findByText(/conta existente/)).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Entrar e aceitar convite" }))
+    expect(acceptExistingInvitation).toHaveBeenCalledWith("synthetic-invitation-proof")
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/barbershop-setup/professionals"),
+    )
+    expect(screen.queryByLabelText("Seu nome")).not.toBeInTheDocument()
   })
 
   it("recovers from a validation network failure without exposing the proof", async () => {

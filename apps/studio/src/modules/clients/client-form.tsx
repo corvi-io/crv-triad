@@ -1,7 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useQuery } from "@tanstack/react-query"
 import { useEffect, useId, useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { MaskedInput } from "@/modules/shared/components/forms/masked-input"
+import { TagInput } from "@/modules/shared/components/forms/tag-input"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/modules/shared/components/ui/field"
 import { Input } from "@/modules/shared/components/ui/input"
@@ -12,7 +14,7 @@ import {
   clientFormValuesToInput,
   createClientFormDefaults,
 } from "./client-schema"
-import type { ClientInput } from "./contracts"
+import type { ClientCatalogKind, ClientInput } from "./contracts"
 import { useClientRepository } from "./repository-context"
 
 export function ClientForm({
@@ -77,6 +79,7 @@ export function ClientForm({
           autoComplete="name"
           aria-invalid={Boolean(form.formState.errors.name)}
           aria-describedby={form.formState.errors.name ? `${fieldPrefix}-name-error` : undefined}
+          placeholder="Ex.: Gabriel Silva"
           {...form.register("name")}
         />
       </FormField>
@@ -105,6 +108,7 @@ export function ClientForm({
             <MaskedInput
               id={`${fieldPrefix}-phone`}
               mask="brPhone"
+              placeholder="(81) 99999-9999"
               value={field.value}
               onBlur={field.onBlur}
               onValueChange={field.onChange}
@@ -125,6 +129,7 @@ export function ClientForm({
           id={`${fieldPrefix}-email`}
           type="email"
           autoComplete="email"
+          placeholder="Ex.: gabriel@email.com"
           aria-invalid={Boolean(form.formState.errors.email)}
           aria-describedby={form.formState.errors.email ? `${fieldPrefix}-email-error` : undefined}
           {...form.register("email")}
@@ -135,25 +140,67 @@ export function ClientForm({
         id={`${fieldPrefix}-tags`}
         label="Tags"
       >
-        <Input
-          id={`${fieldPrefix}-tags`}
-          placeholder="frequente, manhã"
-          aria-invalid={Boolean(form.formState.errors.tagsText)}
-          {...form.register("tagsText")}
+        <Controller
+          control={form.control}
+          name="tagsText"
+          render={({ field }) => (
+            <TagInput
+              id={`${fieldPrefix}-tags`}
+              value={field.value}
+              onValueChange={field.onChange}
+              aria-invalid={Boolean(form.formState.errors.tagsText)}
+              aria-describedby={
+                form.formState.errors.tagsText ? `${fieldPrefix}-tags-error` : undefined
+              }
+            />
+          )}
         />
       </FormField>
-      <FormField
-        error={form.formState.errors.servicePreferencesText?.message}
-        id={`${fieldPrefix}-preferences`}
-        label="Preferências de serviço"
-      >
-        <Input
-          id={`${fieldPrefix}-preferences`}
-          placeholder="Corte clássico, Barba"
-          aria-invalid={Boolean(form.formState.errors.servicePreferencesText)}
-          {...form.register("servicePreferencesText")}
-        />
-      </FormField>
+      <Controller
+        control={form.control}
+        name="unitPreferenceIds"
+        render={({ field }) => (
+          <CatalogPreferenceField
+            id={`${fieldPrefix}-unit-preferences`}
+            kind="units"
+            label="Unidades preferidas"
+            limit={5}
+            value={field.value}
+            onChange={field.onChange}
+            repository={repository}
+          />
+        )}
+      />
+      <Controller
+        control={form.control}
+        name="professionalPreferenceIds"
+        render={({ field }) => (
+          <CatalogPreferenceField
+            id={`${fieldPrefix}-professional-preferences`}
+            kind="professionals"
+            label="Profissionais preferidos"
+            limit={5}
+            value={field.value}
+            onChange={field.onChange}
+            repository={repository}
+          />
+        )}
+      />
+      <Controller
+        control={form.control}
+        name="servicePreferenceIds"
+        render={({ field }) => (
+          <CatalogPreferenceField
+            id={`${fieldPrefix}-service-preferences`}
+            kind="services"
+            label="Serviços preferidos"
+            limit={20}
+            value={field.value}
+            onChange={field.onChange}
+            repository={repository}
+          />
+        )}
+      />
       <FormField
         error={form.formState.errors.preferenceNote?.message}
         id={`${fieldPrefix}-preference-note`}
@@ -161,6 +208,7 @@ export function ClientForm({
       >
         <Textarea
           id={`${fieldPrefix}-preference-note`}
+          placeholder="Ex.: Confirmar o acabamento antes de finalizar"
           aria-invalid={Boolean(form.formState.errors.preferenceNote)}
           {...form.register("preferenceNote")}
         />
@@ -177,6 +225,74 @@ export function ClientForm({
         </Button>
       </div>
     </form>
+  )
+}
+
+function CatalogPreferenceField({
+  id,
+  kind,
+  label,
+  limit,
+  value,
+  onChange,
+  repository,
+}: {
+  id: string
+  kind: ClientCatalogKind
+  label: string
+  limit: number
+  value: readonly string[]
+  onChange: (value: string[]) => void
+  repository: ReturnType<typeof useClientRepository>
+}) {
+  const selectedIds = [...value].sort()
+  const optionsQuery = useQuery({
+    queryKey: ["clients", "catalog-options", kind, selectedIds],
+    queryFn: () => repository.listCatalogOptions(kind, selectedIds),
+  })
+  const options = optionsQuery.data ?? []
+  const failed = optionsQuery.isError
+  return (
+    <FormField id={id} label={label}>
+      <fieldset id={id} className="grid gap-2 rounded-md border p-3">
+        <legend className="sr-only">{label}</legend>
+        <span className="text-xs text-muted-foreground">Selecione até {limit}.</span>
+        {failed ? (
+          <span role="status" className="text-sm text-destructive">
+            Não foi possível carregar as opções.
+          </span>
+        ) : null}
+        {!failed && options.length === 0 ? (
+          <span className="text-sm text-muted-foreground">Nenhuma opção ativa disponível.</span>
+        ) : null}
+        {options.map((option) => {
+          const checked = value.includes(option.id)
+          return (
+            <label
+              key={option.id}
+              className="flex min-h-10 cursor-pointer items-center gap-2 text-sm"
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                disabled={option.status === "archived" && !checked}
+                onChange={(event) =>
+                  onChange(
+                    event.currentTarget.checked
+                      ? [...value, option.id].slice(0, limit)
+                      : value.filter((item) => item !== option.id),
+                  )
+                }
+              />
+              <span>
+                {option.name}
+                {option.status === "archived" ? " (arquivado)" : ""}
+              </span>
+            </label>
+          )
+        })}
+      </fieldset>
+    </FormField>
   )
 }
 

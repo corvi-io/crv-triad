@@ -21,6 +21,10 @@
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:migrate": "bun src/modules/idp/database/migrate.ts",
     "bootstrap:admin": "bun src/modules/idp/scripts/bootstrap-admin.ts",
+    "bootstrap:tenant": "bun src/modules/tenancy/scripts/bootstrap-tenant.ts",
+    "bootstrap:backstage-owner": "bun src/modules/backstage/scripts/bootstrap-backstage-owner.ts",
+    "configure:tenant-access": "bun src/modules/access/scripts/configure-tenant-access.ts",
+    "recover:tenant-owner": "bun src/modules/access/scripts/recover-tenant-owner.ts",
     "email:preview": "email dev --dir src/modules/idp/identity/emails"
   },
   "dependencies": {

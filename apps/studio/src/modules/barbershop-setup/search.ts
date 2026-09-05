@@ -14,6 +14,26 @@ export type BarbershopSetupSearch = {
   section: SetupSection
 }
 
+export type BarbershopSetupRouteSearch = Omit<BarbershopSetupSearch, "section">
+
+export function createBarbershopSetupRouteSearchDefaults(
+  resolveScenario: (value: unknown) => SetupScenarioId,
+): BarbershopSetupRouteSearch {
+  return {
+    availabilityDate: localToday(),
+    availabilityView: "week",
+    scenario: resolveScenario(undefined),
+  }
+}
+
+export function validateBarbershopSetupRouteSearch(
+  search: Record<string, unknown>,
+  resolveScenario: (value: unknown) => SetupScenarioId,
+): BarbershopSetupRouteSearch {
+  const { section: _section, ...validated } = validateBarbershopSetupSearch(search, resolveScenario)
+  return validated
+}
+
 export function validateBarbershopSetupSearch(
   search: Record<string, unknown>,
   resolveScenario: (value: unknown) => SetupScenarioId,

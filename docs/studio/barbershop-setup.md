@@ -1,9 +1,11 @@
 # Studio Barbershop Setup
 
-ENG-41 integrates `/barbershop-setup` into the authenticated Studio workspace. The module uses the
+ENG-41 integrates `/barbershop-setup` into the authenticated Studio workspace. Each configuration
+section has its own route under `/barbershop-setup/{section}`; the base route redirects to the
+overview. The module uses the
 normal `AuthGate`, `WorkspaceShell`, secondary sidebar, active-navigation behavior, breadcrumbs, and
-responsive shell. The secondary label is `Barbearia`; the page and breadcrumb title are
-`Configuração da barbearia`.
+responsive shell. The secondary label is `Barbearia`; the page title and description identify the
+active section without repeating a second visible content title.
 
 The experience is realistic but not persistent. Local development and a configured deployed `dev`
 build use deterministic session-memory data. `hml` and `prd` resolve the setup source as disabled
@@ -11,8 +13,9 @@ until a separate initiative accepts API, persistence, tenancy, and authorization
 
 ## Experience Contract
 
-The stable URL state contains `section`, `availabilityView`, `availabilityDate`, and an optional
-technical `scenario` identifier. Supported calendar views are `day`, `week`, and `month`; the date
+The stable URL path contains the active section. Search state contains `availabilityView`,
+`availabilityDate`, and an optional technical `scenario` identifier. Supported calendar views are
+`day`, `week`, and `month`; the date
 is a validated canonical local `YYYY-MM-DD` value. Invalid temporal values resolve to the current
 local date and week view. Supported sections are `overview`, `units`, `professionals`, `services`,
 and `availability`. Missing or invalid scenarios resolve to `single-unit`. The scenario value exists
@@ -34,8 +37,10 @@ scrollbar is mounted only when the body has real overflow; when present, it move
 sticky header and external pagination stay fixed. Horizontal overflow remains independently
 operable. The catalogs support bounded search, status filtering, three-state sorting, pagination,
 inspect, create, edit, archive, and restore. Archive commands block active dependencies instead of
-silently orphaning records. Unit opening hours are a structured composed period with selectable
-weekdays instead of a free-text summary. Service
+silently orphaning records. Unit opening hours use a shadcn Select-based time picker and support
+multiple periods for disjoint weekday groups. Entity forms use the same
+placeholder and shared-mask conventions as client management; multi-selection relationships use
+the shadcn/Base UI checkbox. Service
 `professionalIds` are the canonical professional/service relationship in the memory adapter;
 professional `serviceIds` are synchronized after create, update, archive, restore, scenario
 selection, and reset. A selected professional must serve at least one active unit selected for the
@@ -83,7 +88,9 @@ scenario/reset/snapshot helpers for development tests; these mechanics are not p
 presentation port.
 
 Vite resolves `virtual:studio-barbershop-setup-source` to memory only when
-`VITE_BARBERSHOP_SETUP_SOURCE=memory` and `VITE_DEPLOY_TARGET` is `local` or `dev`. All other
+`VITE_BARBERSHOP_SETUP_SOURCE=memory` and `VITE_DEPLOY_TARGET` is `local` or `dev`. This remains an
+evaluation-only source. Set `VITE_BARBERSHOP_SETUP_SOURCE=http` to use the production-backed unit,
+professional, and service catalogs in any target. HTTP failures never fall back to fixtures. All other
 combinations resolve a disabled source. Local `bun --filter studio dev` enables memory explicitly;
 deployed `dev` receives the source through `STUDIO__VITE_BARBERSHOP_SETUP_SOURCE`. Scenario
 whitelisting and the `single-unit` default are exported by the memory source, so scenario names and
@@ -130,10 +137,11 @@ state, and confirms fixtures are absent. `/workspace-preview/barbershop-setup` n
 The original ENG-41 implementation inspected the existing Base UI/Vite and installed Studio
 components. `DataTable`, `FilterTrigger`, `ActionDrawer`, `ConfirmationDialog`, `FormSection`, field
 primitives, `EmptyState`, `StatusBadge`, `Button`, `Card`, `Select`, `Switch`, `Input`, `Textarea`,
-and `Skeleton` cover the module contract. `FilterTrigger` was promoted from Agenda after setup
+`Checkbox`, `ToggleGroup`, and `Skeleton` cover the module contract. `FilterTrigger` was promoted from Agenda after setup
 became its second concrete consumer. The dated calendar and composed time-range fields remain
-module-owned because their semantics are specific to barbershop configuration. No dependency,
-registry item, or token was added.
+module-owned because their semantics are specific to barbershop configuration. The official
+shadcn/Base UI checkbox source was added for relationship selection; no custom primitive or token
+was introduced.
 
 ## Verification And Residual Manual Work
 
@@ -158,11 +166,13 @@ remain available after completion, so onboarding does not create a second mainte
 Barbershop data is intentionally limited to display name, phone, email, and the address of the
 selected primary unit.
 
-Professional records include contact, specialties, linked units/services, commission, account
-presentation, and the seven official demonstrative access choices. The access switches describe
-business policy only and never grant routes, sessions, IDP accounts, or server authorization.
-Contradictory “own Agenda only” and “other professionals” choices are normalized in the form and
-rejected by the repository boundary. The professional detail surface reads current-day Agenda,
+Professional onboarding is invitation-only. Identity name, email, phone, and credentials remain
+owned by the invited user; the barbershop configures only the professional function, commission,
+specialties, and linked units/services. Every professional invite receives basic `member` access;
+administrator promotion belongs to the separate protected access configuration. An active
+professional always links an IDP user and tenant membership. Pending
+invites do not appear as active professionals. Development-memory invitations are accepted
+synchronously to keep deterministic UI scenarios. The professional detail surface reads current-day Agenda,
 availability, resolved service overrides, and commission facts through narrow public ports.
 
 Payment configuration requires one active base method; mixed payment requires two. A development

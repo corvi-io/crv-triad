@@ -1,8 +1,19 @@
 # TRIAD Studio
 
+Multi-tenant context routing and the production client HTTP source are documented in
+[`docs/studio/multi-tenant-contexts.md`](../../docs/studio/multi-tenant-contexts.md). Operational
+provisioning, ownership recovery, support, rollout, and rollback are documented in
+[`docs/operations/multi-tenant-access-runbook.md`](../../docs/operations/multi-tenant-access-runbook.md).
+
 Authenticated barbershop-management frontend for CRV Triad.
 
 ## Development
+
+The local development server exposes one unified TanStack Devtools launcher in the lower-right
+corner, with dedicated Query and Router panels. Query Devtools lets developers inspect query keys,
+cache state, fetch status, stale state, and mutations. The unified shell is hidden from preview-only
+surfaces and production builds. Studio owns the visible `TS` launcher and delegates its action to
+the unified shell because the upstream alpha trigger is not reliable across authenticated layouts.
 
 ```bash
 bun --filter studio dev
@@ -45,8 +56,9 @@ UI states, provider-error handling, accessibility, and test boundaries.
 
 Invitation acceptance removes the opaque query proof from browser history before form entry,
 uses a no-referrer policy, never accepts editable identity or role data, prevents duplicate submit,
-and returns to normal login without creating a session. Invitation, reset, and preference password
-forms share the same 15–256-character Portuguese guidance while the IDP remains authoritative.
+creates a session, and redirects directly to the authenticated overview. Invitation, reset, and
+preference password forms share the same 8–256-character composition guidance in Portuguese while
+the IDP remains authoritative.
 
 The preview and sandbox redirect to `/login` in production. The sandbox is deterministic and
 resettable, persists nothing, and never mocks authentication. Verify it with
@@ -137,7 +149,8 @@ Runtime env:
 
 - `VITE_APP_NAME`
 - `VITE_AUTH_BASE_URL`
-- `VITE_BARBERSHOP_SETUP_SOURCE` (`disabled` or `memory`; defaults to `disabled`)
+- `VITE_BARBERSHOP_SETUP_SOURCE` (`disabled`, `http`, or `memory`; defaults to `disabled`; use
+  `http` for production-backed catalogs)
 - `VITE_CLIENT_MANAGEMENT_SOURCE` (`disabled` or `memory`; defaults to `disabled`)
 - `VITE_DEPLOY_TARGET` (`local`, `dev`, `hml`, or `prd`; defaults to `local`)
 - `VITE_SCHEDULING_SOURCE` (`disabled` or `memory`; defaults to `disabled`)

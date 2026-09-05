@@ -82,9 +82,9 @@ function OverviewRoute() {
                         availabilityDate: search.date,
                         availabilityView: "week",
                         scenario: "single-unit",
-                        section: "services",
                       },
-                      to: "/barbershop-setup",
+                      to: "/barbershop-setup/$section",
+                      params: { section: "services" },
                     })
                   }
                   onSearchChange={(next) =>
@@ -118,9 +118,9 @@ function OverviewRoute() {
                     availabilityDate: search.date,
                     availabilityView: "week",
                     scenario: "single-unit",
-                    section: "services",
                   },
-                  to: "/barbershop-setup",
+                  to: "/barbershop-setup/$section",
+                  params: { section: "services" },
                 })
               }
               onSearchChange={(next) =>
@@ -154,9 +154,9 @@ function OverviewRoute() {
                 availabilityDate: search.date,
                 availabilityView: "week",
                 scenario: "single-unit",
-                section: "services",
               },
-              to: "/barbershop-setup",
+              to: "/barbershop-setup/$section",
+              params: { section: "services" },
             })
           }
           onSearchChange={(next) =>

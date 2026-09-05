@@ -9,7 +9,7 @@ test("keeps public auth journeys focused, responsive, and accessible", async ({ 
   await routeUnauthenticatedSession(page)
 
   await page.goto("/login")
-  await expect(page.getByRole("heading", { name: "Entrar no TRIAD Studio" })).toBeFocused()
+  await expect(page.getByRole("heading", { name: "Bem-vindo de volta" })).toBeFocused()
   await expect(page.getByRole("button", { name: "Continuar com Google" })).toBeVisible()
   await page.keyboard.press("Tab")
   await expect(page.getByRole("button", { name: "Continuar com Google" })).toBeFocused()
@@ -69,8 +69,8 @@ test("submits forgot and reset password through the native Better Auth contract"
   await expect(newPassword).toHaveAttribute("type", "password")
   await page.getByRole("button", { name: "Mostrar senha" }).first().click()
   await expect(newPassword).toHaveAttribute("type", "text")
-  await newPassword.fill("new-password-123")
-  await page.getByLabel("Confirmar nova senha").fill("new-password-123")
+  await newPassword.fill("New-password-123!")
+  await page.getByLabel("Confirmar nova senha").fill("New-password-123!")
   await page.getByRole("button", { name: "Redefinir senha" }).dblclick()
 
   await expect(page.getByRole("status")).toContainText("Sua senha foi redefinida")
@@ -95,11 +95,11 @@ test("maps verification failures without contradictory success and consumes the 
   await expect(page).not.toHaveURL(/verified=/)
 })
 
-test("accepts one invitation without creating a session and rejects its replay", async ({
-  page,
-}) => {
+test("accepts one invitation, creates a session, and rejects its replay", async ({ page }) => {
   let accepted = false
+  let authenticated = false
   let acceptanceRequests = 0
+  await routeTenantContext(page)
   await page.setViewportSize({ height: 720, width: 320 })
   await page.route("**/invitations/resolve", async (route) => {
     if (await fulfillPreflight(route)) return
@@ -116,7 +116,17 @@ test("accepts one invitation without creating a session and rejects its replay",
     if (pathname.endsWith("/sign-up/email")) {
       acceptanceRequests += 1
       accepted = true
+      authenticated = true
       await fulfillJson(route, { status: true })
+      return
+    }
+    if (pathname.endsWith("/get-session")) {
+      await fulfillJson(
+        route,
+        authenticated
+          ? { user: { email: "invited@example.invalid", id: "invited-user", name: "Invited" } }
+          : null,
+      )
       return
     }
     await fulfillJson(route, null)
@@ -125,13 +135,12 @@ test("accepts one invitation without creating a session and rejects its replay",
   await page.goto("/accept-invitation?token=opaque-test-proof")
   await expect(page).toHaveURL(/\/accept-invitation$/)
   await expect(page.getByText(/Convite válido para o perfil de membro/)).toBeVisible()
-  await page.getByLabel("Nova senha", { exact: true }).fill("uma frase longa e exclusiva")
-  await page.getByLabel("Confirmar nova senha").fill("uma frase longa e exclusiva")
+  await page.getByLabel("Nova senha", { exact: true }).fill("Senha válida 1!")
+  await page.getByLabel("Confirmar nova senha").fill("Senha válida 1!")
   await page.getByRole("button", { name: "Criar senha" }).dblclick()
 
-  await expect(page.getByRole("status")).toContainText("Entre normalmente")
+  await expect(page).toHaveURL(/\/overview(?:\?|$)/)
   expect(acceptanceRequests).toBe(1)
-  await expect(page.getByRole("link", { name: "Ir para entrar" })).toBeVisible()
   const accessibility = await new AxeBuilder({ page })
     .include("#main-content")
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
@@ -145,6 +154,7 @@ test("accepts one invitation without creating a session and rejects its replay",
 })
 
 test("keeps a Google-only user from removing the last access method", async ({ page }) => {
+  await routeTenantContext(page)
   await page.route("**/api/auth/**", async (route) => {
     if (await fulfillPreflight(route)) return
 
@@ -174,7 +184,7 @@ test("keeps a Google-only user from removing the last access method", async ({ p
   await expect(page.getByText(/Crie uma senha antes de desconectar/)).toBeVisible()
 
   const accessibility = await new AxeBuilder({ page })
-    .include('[aria-labelledby="security-access-heading"]')
+    .include('[aria-label="Configurações de segurança e acesso"]')
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze()
   expect(accessibility.violations).toEqual([])
@@ -183,6 +193,7 @@ test("keeps a Google-only user from removing the last access method", async ({ p
 test("does not trust a Google callback marker when the account list disagrees", async ({
   page,
 }) => {
+  await routeTenantContext(page)
   await page.route("**/api/auth/**", async (route) => {
     if (await fulfillPreflight(route)) return
 
@@ -216,6 +227,25 @@ async function routeUnauthenticatedSession(page: Page) {
   await page.route("**/api/auth/**", async (route) => {
     if (await fulfillPreflight(route)) return
     await fulfillJson(route, null)
+  })
+}
+
+async function routeTenantContext(page: Page) {
+  await page.route("**/api/contexts**", async (route) => {
+    await fulfillJson(route, {
+      activeOrganizationId: "tenant-a",
+      platform: null,
+      status: "available",
+      tenants: [{ id: "tenant-a", name: "Barbearia Aurora", role: "owner" }],
+    })
+  })
+  await page.route("**/api/access/summary", async (route) => {
+    await fulfillJson(route, {
+      capabilities: [],
+      organizationId: "tenant-a",
+      role: "owner",
+      subscriptionState: "active",
+    })
   })
 }
 

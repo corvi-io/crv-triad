@@ -22,7 +22,7 @@ const baseEnv = {
   BETTER_AUTH_URL: "http://idp.test",
   AUTH_TRUSTED_ORIGINS: [],
   AUTH_SESSION_EXPIRES_IN_SECONDS: 2_592_000,
-  AUTH_PASSWORD_MIN_LENGTH: 15,
+  AUTH_PASSWORD_MIN_LENGTH: 8,
   AUTH_PASSWORD_MAX_LENGTH: 256,
   AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS: 3_600,
 } as const
@@ -451,6 +451,7 @@ describe("custom routes", () => {
     expect(first.headers.get("referrer-policy")).toBe("no-referrer")
     expect(payload).toEqual({
       expiresAt: "2099-01-01T00:00:00.000Z",
+      hasAccount: true,
       role: "member",
       state: "valid",
     })

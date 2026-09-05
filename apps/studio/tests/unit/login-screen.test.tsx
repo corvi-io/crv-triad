@@ -55,9 +55,7 @@ describe("login screen", () => {
     const user = userEvent.setup()
     renderLogin()
 
-    expect(
-      await screen.findByRole("heading", { name: "Entrar no TRIAD Studio" }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Bem-vindo de volta" })).toBeInTheDocument()
     expect(
       screen.getByRole("region", { name: "Identidade visual do TRIAD Studio" }),
     ).toBeInTheDocument()

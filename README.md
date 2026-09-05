@@ -7,6 +7,7 @@ Internal product workspace for CRV Triad.
 - `apps/site`: public Astro marketing site.
 - `apps/api`: Bun/Elysia modular API with Better Auth, invitations, sessions, and protected lead intake.
 - `apps/studio`: TRIAD Studio authenticated barbershop-management frontend.
+- `apps/backstage`: internal tenant administration and support frontend.
 
 ## Requirements
 
@@ -22,6 +23,7 @@ bun --filter api dev
 bun --filter api db:migrate
 bun --filter api bootstrap:admin -- --email admin@example.com --name "Admin"
 bun --filter studio dev
+bun --filter backstage dev
 bun --filter site dev
 ```
 
@@ -29,7 +31,9 @@ Local ports:
 
 - API: `http://localhost:8000`
 - Studio: `http://localhost:3000`
-- Site: `http://localhost:3001`
+- Barber: `http://localhost:3001` (reserved)
+- Backstage: `http://localhost:3003`
+- Site: `http://localhost:3004`
 
 ## Auth Model
 
@@ -41,6 +45,7 @@ The API identity module uses email/password. Public self-registration is not ope
 - `bun run build`
 - `bun --filter api check`
 - `bun --filter studio check`
+- `bun --filter backstage check`
 - `bun --filter site check`
 
 ## Initiatives
@@ -51,11 +56,11 @@ the templates in `docs/initiatives/templates` and use
 
 ## Delivery And Releases
 
-Deployment environment metadata lives in `env-schema.yaml`; actual values belong in Infisical paths `/api`, `/site`, `/studio`, and `/infrastructure`. GitHub authenticates to Infisical with OIDC.
+Deployment environment metadata lives in `env-schema.yaml`; actual values belong in Infisical paths `/api`, `/site`, `/studio`, `/backstage`, and `/infrastructure`. GitHub authenticates to Infisical with OIDC.
 
 Custom GitHub configuration is categorized by ownership:
 
-- `API__*`, `SITE__*`, and `STUDIO__*` are app runtime inputs.
+- `API__*`, `SITE__*`, `STUDIO__*`, and `BACKSTAGE__*` are app runtime inputs.
 - `CICD__*` controls pipelines and releases.
 - `INFRA__*` identifies or authenticates infrastructure providers and deployed resources.
 

@@ -158,8 +158,12 @@ export function deriveSetupReadiness({
     },
     {
       complete:
-        Boolean(primaryUnit?.businessHours.days.length) &&
-        availability.some(({ closed, periods }) => !closed && periods.length > 0),
+        Boolean(
+          primaryUnit &&
+            (primaryUnit.businessHours.periods ?? [primaryUnit.businessHours]).every(
+              (period) => period.days.length > 0 && period.start < period.end,
+            ),
+        ) && availability.some(({ closed, periods }) => !closed && periods.length > 0),
       description: "Funcionamento, disponibilidade, pausas e folgas.",
       id: "hours" as const,
       section: "availability" as const,
@@ -169,8 +173,7 @@ export function deriveSetupReadiness({
       complete:
         activeProfessionals.length > 0 &&
         activeProfessionals.every(
-          ({ contactPhone, serviceIds, unitIds }) =>
-            /^\d{10,11}$/.test(contactPhone ?? "") && serviceIds.length > 0 && unitIds.length > 0,
+          ({ serviceIds, unitIds }) => serviceIds.length > 0 && unitIds.length > 0,
         ),
       description: "Equipe, contatos, serviços, unidades e acesso demonstrativo.",
       id: "professionals" as const,

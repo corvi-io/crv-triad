@@ -17,10 +17,12 @@ test("previews the neutral authenticated shell without product-domain navigation
     "page",
   )
   await expect(page.getByRole("link", { name: "Dashboard", exact: true })).toBeVisible()
-  await expect(page.getByRole("link", { name: "Configurações", exact: true })).toHaveAttribute(
+  await page.getByRole("button", { name: /Abrir menu de/ }).click()
+  await expect(page.getByRole("menuitem", { name: "Preferências", exact: true })).toHaveAttribute(
     "href",
     "/preferences",
   )
+  await page.keyboard.press("Escape")
 
   for (const path of ["/workspace-preview", "/workspace-preview/agenda?date=2026-07-22"]) {
     await page.goto(path)

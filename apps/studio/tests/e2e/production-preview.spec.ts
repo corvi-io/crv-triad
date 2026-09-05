@@ -10,7 +10,7 @@ test("redirects the development-only workspace preview in production", async ({ 
   await page.goto("/workspace-preview")
 
   await expect(page).toHaveURL(/\/login$/)
-  await expect(page.getByRole("heading", { name: "Entrar no TRIAD Studio" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Bem-vindo de volta" })).toBeVisible()
   await expect(page.getByText("Pré-visualização de desenvolvimento")).toHaveCount(0)
 })
 
@@ -36,33 +36,35 @@ test("keeps the removed setup preview route inaccessible in production", async (
   await expect(page.getByLabel("Cenário de apresentação")).toHaveCount(0)
 })
 
-test("keeps the authenticated setup route but disables its memory source in production", async ({
-  page,
-}) => {
+test("keeps the authenticated setup route on its HTTP source in production", async ({ page }) => {
   await page.unroute("**/api/auth/**")
   await routeAuthenticatedSession(page)
   await page.goto("/barbershop-setup?scenario=single-unit&section=overview")
 
   await expect(page.getByRole("heading", { name: "Configuração da barbearia" })).toBeVisible()
-  await expect(
-    page.getByText("A configuração da barbearia está indisponível neste ambiente."),
-  ).toBeVisible()
   await expect(page.getByLabel("Cenário de apresentação")).toHaveCount(0)
   await expect(page.getByText("Unidade Centro")).toHaveCount(0)
 })
 
-test("keeps the authenticated clients route but excludes its memory source in production", async ({
+test("keeps the authenticated clients API active but excludes memory fixtures in production", async ({
   page,
 }) => {
   await page.unroute("**/api/auth/**")
   await routeAuthenticatedSession(page)
+  await page.route("**/api/clients**", async (route) => {
+    const pathname = new URL(route.request().url()).pathname
+    await fulfillJson(
+      route,
+      pathname.endsWith("/tags")
+        ? []
+        : { items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 },
+    )
+  })
   await page.goto("/clients?scenario=dense")
 
   await expect(page.getByRole("heading", { name: "Clientes" })).toBeVisible()
-  await expect(
-    page.getByText("O gerenciamento de clientes está indisponível neste ambiente."),
-  ).toBeVisible()
-  await expect(page.getByRole("button", { name: "Novo cliente" })).toHaveCount(0)
+  await expect(page.getByRole("heading", { name: "Nenhum cliente cadastrado" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Novo cliente" })).toBeVisible()
   await expect(page.getByText("Cliente Sintético 01")).toHaveCount(0)
 })
 
@@ -149,6 +151,31 @@ async function routeAuthenticatedSession(page: Page) {
         id: "reviewer-fixture",
         name: "Pessoa Revisora",
       },
+    })
+  })
+  await page.route("**/api/contexts", async (route) => {
+    await fulfillJson(route, {
+      activeOrganizationId: "tenant-production-fixture",
+      platform: null,
+      status: "available",
+      tenants: [
+        {
+          id: "tenant-production-fixture",
+          name: "Barbearia de produção",
+          role: "owner",
+        },
+      ],
+    })
+  })
+  await page.route("**/api/access/summary", async (route) => {
+    await fulfillJson(route, {
+      capabilities: [
+        { allowed: true, capability: "clients.read", reason: null },
+        { allowed: true, capability: "clients.manage", reason: null },
+      ],
+      organizationId: "tenant-production-fixture",
+      role: "owner",
+      subscriptionState: "active",
     })
   })
 }

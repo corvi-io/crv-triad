@@ -9,7 +9,8 @@ permission, and test contracts. Never infer acceptance from implementation or
 test names.
 
 Prove that the run targets local or disposable infrastructure before writing.
-The CRV Triad default ports remain API `8000`, studio `3000`, and site `3001`; isolated
+The CRV Triad default ports remain API `8000`, studio `3000`, barber `3001` (reserved), backstage
+`3003`, and site `3004`; isolated
 test ports are allowed when recorded and must not attach to an unrelated server.
 
 ## 2. Build A Risk-Based Journey Matrix

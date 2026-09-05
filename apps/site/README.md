@@ -27,7 +27,7 @@ Runtime env:
 Lead recipients, Resend credentials, Turnstile secrets, and rate-limit secrets belong only to
 the API runtime. They must never use Astro's public env prefix.
 
-The local server runs at `http://localhost:3001`.
+The local server runs at `http://localhost:3004`.
 
 ## Analytics
 

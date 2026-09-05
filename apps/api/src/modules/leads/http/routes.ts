@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia"
 import type { Pool } from "pg"
 
+import type { CaptureAcceptedLead } from "../../analytics/lead-capture.js"
 import type { IdpEnv } from "../../idp/config/env.js"
 import { sendLeadEmail } from "../email.js"
 import { consumeLeadRateLimit } from "../rate-limit.js"
@@ -9,7 +10,23 @@ import { verifyLeadTurnstile } from "../turnstile.js"
 const minimumCompletionMs = 2_000
 const maximumCompletionMs = 7_200_000
 
-export function createLeadRoutes(env: IdpEnv, pool: Pool) {
+type LeadRouteDependencies = {
+  captureAcceptedLead?: CaptureAcceptedLead
+  consumeRateLimit?: typeof consumeLeadRateLimit
+  sendEmail?: typeof sendLeadEmail
+  verifyTurnstile?: typeof verifyLeadTurnstile
+}
+
+export function createLeadRoutes(
+  env: IdpEnv,
+  pool: Pool,
+  dependencies: LeadRouteDependencies = {},
+) {
+  const captureAcceptedLead = dependencies.captureAcceptedLead ?? (async () => undefined)
+  const consumeRateLimit = dependencies.consumeRateLimit ?? consumeLeadRateLimit
+  const sendEmail = dependencies.sendEmail ?? sendLeadEmail
+  const verifyTurnstile = dependencies.verifyTurnstile ?? verifyLeadTurnstile
+
   return new Elysia({ name: "lead-routes" }).post(
     "/leads",
     async ({ body, request, status }) => {
@@ -22,7 +39,7 @@ export function createLeadRoutes(env: IdpEnv, pool: Pool) {
       }
 
       const clientAddress = resolveClientAddress(request, env.APP_ENV)
-      const allowed = await consumeLeadRateLimit({
+      const allowed = await consumeRateLimit({
         pool,
         clientAddress,
         secret: env.LEAD_RATE_LIMIT_SECRET,
@@ -35,7 +52,7 @@ export function createLeadRoutes(env: IdpEnv, pool: Pool) {
         })
       }
 
-      const verified = await verifyLeadTurnstile({
+      const verified = await verifyTurnstile({
         token: body.turnstileToken,
         secret: env.LEAD_TURNSTILE_SECRET_KEY,
         remoteIp: clientAddress,
@@ -48,7 +65,7 @@ export function createLeadRoutes(env: IdpEnv, pool: Pool) {
       }
 
       const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID()
-      await sendLeadEmail(
+      await sendEmail(
         env,
         {
           name: body.name?.trim() || undefined,
@@ -58,6 +75,7 @@ export function createLeadRoutes(env: IdpEnv, pool: Pool) {
         },
         `lead/${requestId}`,
       )
+      if (body.analytics) await captureAcceptedLead(body.analytics)
       return status(202, { accepted: true })
     },
     {
@@ -66,9 +84,27 @@ export function createLeadRoutes(env: IdpEnv, pool: Pool) {
         barbershop: t.String({ minLength: 2, maxLength: 120 }),
         whatsapp: t.String({ minLength: 8, maxLength: 24, pattern: "^[0-9+() .-]+$" }),
         email: t.Optional(t.String({ format: "email", maxLength: 160 })),
-        website: t.Optional(t.String({ maxLength: 0 })),
+        website: t.Optional(t.String({ maxLength: 200 })),
         startedAt: t.Number({ minimum: 1 }),
         turnstileToken: t.String({ minLength: 1, maxLength: 2048 }),
+        analytics: t.Optional(
+          t.Object({
+            distinctId: t.String({ minLength: 1, maxLength: 128, pattern: "^[A-Za-z0-9_-]+$" }),
+            product: t.Union([
+              t.Literal("ecosystem"),
+              t.Literal("pro_barber"),
+              t.Literal("studio"),
+            ]),
+            sourcePage: t.Union([t.Literal("/"), t.Literal("/pro-barber"), t.Literal("/studio")]),
+            ctaLocation: t.Union([
+              t.Literal("final_cta"),
+              t.Literal("header"),
+              t.Literal("hero"),
+              t.Literal("product_section"),
+              t.Literal("unknown"),
+            ]),
+          }),
+        ),
       }),
     },
   )

@@ -23,6 +23,11 @@ const schema: EnvSchema = {
           fly_app: "crv-triad-api-dev",
           fly_config: "apps/api/fly.dev.toml",
         },
+        prd: {
+          github_environment: "prd",
+          fly_app: "crv-triad-api-prd",
+          fly_config: "apps/api/fly.prd.toml",
+        },
       },
       env: [
         {
@@ -42,6 +47,13 @@ const schema: EnvSchema = {
           runtime: "POSTHOG_UPSTREAM_URL",
           github: "variable",
           required: false,
+        },
+        {
+          source: "API__POSTHOG_PROJECT_KEY",
+          runtime: "POSTHOG_PROJECT_KEY",
+          github: "variable",
+          required: false,
+          required_targets: ["prd"],
         },
       ],
     },
@@ -116,6 +128,24 @@ describe("env-management", () => {
       expect(error).toBeInstanceOf(Error)
       expect((error as Error).message).not.toContain("secret@example")
     }
+  })
+
+  it("enforces target-specific production values without requiring them in development", () => {
+    const baseEnv = {
+      API__DATABASE_URL: "postgresql://user:secret@example.test/db",
+      API__CAMPAIGN_LINKS_ADMIN_TOKEN: "admin-secret",
+    }
+
+    expect(() => selectRuntimeEnv(schema, "api", "dev", baseEnv)).not.toThrow()
+    expect(() => selectRuntimeEnv(schema, "api", "prd", baseEnv)).toThrow(
+      "API__POSTHOG_PROJECT_KEY",
+    )
+    expect(() =>
+      selectRuntimeEnv(schema, "api", "prd", {
+        ...baseEnv,
+        API__POSTHOG_PROJECT_KEY: "phc_public-project-key",
+      }),
+    ).not.toThrow()
   })
 
   it("writes runtime names to GitHub env files without source names", () => {

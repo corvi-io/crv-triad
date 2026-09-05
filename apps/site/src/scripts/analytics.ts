@@ -10,7 +10,6 @@ type AnalyticsEvent =
   | "lead_form_started"
   | "lead_form_validation_failed"
   | "lead_submission_failed"
-  | "lead_submission_succeeded"
   | "scroll_depth_reached"
   | "section_viewed"
   | "solution_selected"
@@ -20,6 +19,7 @@ declare global {
     triadAnalytics?: {
       capture: (event: AnalyticsEvent, properties?: AnalyticsProperties) => void
       consent: (allowed: boolean) => void
+      distinctId: () => string | undefined
     }
   }
 }
@@ -62,7 +62,10 @@ const capture = (event: AnalyticsEvent, properties: AnalyticsProperties = {}) =>
 
 const capturePageview = () => {
   if (!initialized) return
-  posthog.capture("$pageview", { ...commonProperties(), $current_url: location.href })
+  posthog.capture("$pageview", {
+    ...commonProperties(),
+    $current_url: `${location.origin}${location.pathname}`,
+  })
 }
 
 const initialize = () => {
@@ -83,6 +86,7 @@ const initialize = () => {
       capture_pageview: false,
       capture_pageleave: true,
       disable_session_recording: false,
+      get_current_url: () => `${location.origin}${location.pathname}`,
       person_profiles: "identified_only",
       session_recording: {
         maskAllInputs: true,
@@ -98,14 +102,19 @@ const initialize = () => {
 
 const consent = (allowed: boolean) => {
   localStorage.setItem(consentKey, allowed ? "granted" : "denied")
-  if (allowed) initialize()
+  if (allowed && initialized) {
+    posthog.opt_in_capturing()
+    posthog.startSessionRecording()
+  } else if (allowed) initialize()
   else if (initialized) {
     posthog.opt_out_capturing()
     posthog.stopSessionRecording()
   }
 }
 
-window.triadAnalytics = { capture, consent }
+const distinctId = () => (initialized ? posthog.get_distinct_id() : undefined)
+
+window.triadAnalytics = { capture, consent, distinctId }
 
 if (localStorage.getItem(consentKey) === "granted") initialize()
 

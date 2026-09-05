@@ -83,7 +83,8 @@ describe("auth client", () => {
     })
     await expect(
       acceptInvitation({
-        password: "uma frase longa e exclusiva",
+        name: "Pessoa Convidada",
+        password: "Senha válida 1!",
         token: "synthetic-invitation-proof",
       }),
     ).resolves.toEqual({ status: true })
@@ -110,20 +111,20 @@ describe("auth client", () => {
 
   it("delegates the complete recovery and verification lifecycle to Better Auth", async () => {
     await resendVerificationEmail("test-user@example.invalid")
-    await resetPassword({ newPassword: "new-password-123", token: "opaque-test-token" })
-    await changePassword({ currentPassword: "old-password-123", newPassword: "new-password-123" })
+    await resetPassword({ newPassword: "New-password-123!", token: "opaque-test-token" })
+    await changePassword({ currentPassword: "old-password-123", newPassword: "New-password-123!" })
 
     expect(authMocks.sendVerificationEmail).toHaveBeenCalledWith({
       callbackURL: "http://localhost:3000/login?verified=true",
       email: "test-user@example.invalid",
     })
     expect(authMocks.resetPassword).toHaveBeenCalledWith({
-      newPassword: "new-password-123",
+      newPassword: "New-password-123!",
       token: "opaque-test-token",
     })
     expect(authMocks.changePassword).toHaveBeenCalledWith({
       currentPassword: "old-password-123",
-      newPassword: "new-password-123",
+      newPassword: "New-password-123!",
       revokeOtherSessions: true,
     })
   })
