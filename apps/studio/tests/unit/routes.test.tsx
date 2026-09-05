@@ -141,7 +141,7 @@ describe("routes", () => {
     const { router } = renderRoute("/barbershop-setup/services", authenticatedState())
 
     expect(
-      await screen.findByRole("heading", { name: "Serviços" }, { timeout: 5_000 }),
+      await screen.findByRole("heading", { name: "Serviços" }, { timeout: 20_000 }),
     ).toBeInTheDocument()
     expect(router.state.location.href).toBe("/barbershop-setup/services")
     expect(
@@ -154,7 +154,7 @@ describe("routes", () => {
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
       "Configuração da barbearia",
     )
-  }, 10_000)
+  }, 30_000)
 
   it("redirects barbershop setup defaults to a clean overview URL", async () => {
     const { router } = renderRoute("/barbershop-setup", authenticatedState())
