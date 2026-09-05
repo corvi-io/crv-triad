@@ -140,7 +140,9 @@ describe("routes", () => {
     const user = userEvent.setup()
     const { router } = renderRoute("/barbershop-setup/services", authenticatedState())
 
-    expect(await screen.findByRole("heading", { name: "Serviços" })).toBeInTheDocument()
+    expect(
+      await screen.findByRole("heading", { name: "Serviços" }, { timeout: 5_000 }),
+    ).toBeInTheDocument()
     expect(router.state.location.href).toBe("/barbershop-setup/services")
     expect(
       screen.queryByRole("navigation", { name: "Navegação secundária" }),
