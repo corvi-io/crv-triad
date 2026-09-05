@@ -17,8 +17,11 @@ const profileBody = t.Object({
   name: t.String({ maxLength: 160 }),
   phone: t.Optional(t.String({ maxLength: 40 })),
   preferenceNote: t.Optional(t.String({ maxLength: 1_000 })),
+  professionalPreferenceIds: t.Optional(t.Array(t.String({ maxLength: 128 }), { maxItems: 5 })),
+  servicePreferenceIds: t.Optional(t.Array(t.String({ maxLength: 128 }), { maxItems: 20 })),
   servicePreferences: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 20 })),
   tags: t.Optional(t.Array(t.String({ maxLength: 60 }), { maxItems: 20 })),
+  unitPreferenceIds: t.Optional(t.Array(t.String({ maxLength: 128 }), { maxItems: 5 })),
 })
 const versionBody = t.Object({ version: t.Integer({ minimum: 1 }) })
 const profileUpdateBody = t.Object({

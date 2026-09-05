@@ -137,22 +137,24 @@ describe("routes", () => {
   })
 
   it("renders barbershop setup as a private module inside the workspace shell", async () => {
-    const user = userEvent.setup()
-    renderRoute("/barbershop-setup?section=services", authenticatedState())
+    const { router } = renderRoute("/barbershop-setup/services", authenticatedState())
 
+    expect(router.state.location.href).toBe("/barbershop-setup/services")
     expect(
-      await screen.findByRole("heading", { name: "Configuração da barbearia" }),
+      await screen.findByRole("navigation", { name: "Navegação principal" }),
     ).toBeInTheDocument()
     expect(
       screen.queryByRole("navigation", { name: "Navegação secundária" }),
     ).not.toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Abrir menu de Maria Souza" }))
+  })
+
+  it("redirects barbershop setup defaults to a clean overview URL", async () => {
+    const { router } = renderRoute("/barbershop-setup", authenticatedState())
+
     expect(
-      await screen.findByRole("menuitem", { name: "Configuração da barbearia" }),
-    ).toHaveAttribute("href", expect.stringContaining("/barbershop-setup"))
-    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
-      "Configuração da barbearia",
-    )
+      await screen.findByRole("heading", { name: "Configuração da barbearia" }),
+    ).toBeInTheDocument()
+    expect(router.state.location.href).toBe("/barbershop-setup/overview")
   })
 
   it("rejects a cash date that rolls over to another calendar day", async () => {

@@ -26,8 +26,11 @@ describe("client profile", () => {
       normalizedPhone: "+5581999990000",
       phone: "+55 (81) 99999-0000",
       preferenceNote: "Prefere manhã",
+      professionalPreferenceIds: [],
+      servicePreferenceIds: [],
       servicePreferences: ["Corte"],
       tags: ["VIP"],
+      unitPreferenceIds: [],
     })
   })
 

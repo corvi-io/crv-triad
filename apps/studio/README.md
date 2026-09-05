@@ -149,7 +149,8 @@ Runtime env:
 
 - `VITE_APP_NAME`
 - `VITE_AUTH_BASE_URL`
-- `VITE_BARBERSHOP_SETUP_SOURCE` (`disabled` or `memory`; defaults to `disabled`)
+- `VITE_BARBERSHOP_SETUP_SOURCE` (`disabled`, `http`, or `memory`; defaults to `disabled`; use
+  `http` for production-backed catalogs)
 - `VITE_CLIENT_MANAGEMENT_SOURCE` (`disabled` or `memory`; defaults to `disabled`)
 - `VITE_DEPLOY_TARGET` (`local`, `dev`, `hml`, or `prd`; defaults to `local`)
 - `VITE_SCHEDULING_SOURCE` (`disabled` or `memory`; defaults to `disabled`)

@@ -3,6 +3,8 @@ import type { TenantRole } from "../../tenancy/domain/business-context.js"
 export const capabilities = [
   "clients.read",
   "clients.manage",
+  "catalogs.read",
+  "catalogs.manage",
   "members.read",
   "members.manage",
   "ownership.transfer",
@@ -17,11 +19,13 @@ const roleCapabilities: Readonly<Record<TenantRole, ReadonlySet<Capability>>> = 
   admin: new Set([
     "clients.read",
     "clients.manage",
+    "catalogs.read",
+    "catalogs.manage",
     "members.read",
     "members.manage",
     "access_requests.review",
   ]),
-  member: new Set(["clients.read", "clients.manage"]),
+  member: new Set(["clients.read", "clients.manage", "catalogs.read"]),
 }
 
 export type AccessDecisionInput = Readonly<{

@@ -13,6 +13,12 @@ export type TenantSummary = {
   createdAt: string
   memberCount: number
   clientCount: number
+  activeUnitCount: number
+  archivedUnitCount: number
+  activeProfessionalCount: number
+  archivedProfessionalCount: number
+  activeServiceCount: number
+  archivedServiceCount: number
   subscriptionState: "active" | "expired" | "suspended" | null
   planKey: string | null
   activeClientLimit: number | null

@@ -1,12 +1,14 @@
-import { and, asc, count, desc, ilike, inArray, type SQL } from "drizzle-orm"
+import { and, asc, count, desc, eq, ilike, inArray, type SQL } from "drizzle-orm"
 import { Elysia } from "elysia"
 import { z } from "zod"
 
 import type { IdpDatabase } from "../../database/client.js"
-import { invitation } from "../../database/schema.js"
+import { invitation, user } from "../../database/schema.js"
 import type { IdpRole, InvitationStatus } from "../../identity/access-policy.js"
-import type { IdpAuth } from "../../identity/auth.js"
+import { normalizeEmail } from "../../identity/access-policy.js"
+import type { IdpAuth, InvitationAcceptedObserver } from "../../identity/auth.js"
 import {
+  acceptInvitationForUser,
   createInvitation,
   digestInvitationToken,
   PendingInvitationAlreadyExistsError,
@@ -42,6 +44,7 @@ export function createInvitationRoutes(
   auth: IdpAuth,
   db: IdpDatabase,
   authEmailSender?: Pick<AuthEmailSender, "sendInvitation">,
+  onInvitationAccepted?: InvitationAcceptedObserver,
 ) {
   const resolveGlobalLimiter = createBoundedRateLimiter(
     RESOLVE_GLOBAL_RATE_LIMIT,
@@ -52,6 +55,28 @@ export function createInvitationRoutes(
   const resendLimiter = createBoundedRateLimiter(5, RATE_LIMIT_WINDOW_MS)
 
   return new Elysia({ name: "invitation-routes" })
+    .post("/invitations/accept-existing", async ({ request, status }) => {
+      const session = await auth.api.getSession({ headers: request.headers })
+      if (!session?.user) return status(401, { code: "unauthenticated" as const })
+      const body = await request.json().catch(() => null)
+      const token =
+        body && typeof body === "object" && "token" in body && typeof body.token === "string"
+          ? body.token
+          : ""
+      const resolution = await resolveInvitationToken(db, token)
+      if (
+        resolution.state !== "valid" ||
+        !resolution.invitation ||
+        normalizeEmail(resolution.invitation.email) !== normalizeEmail(session.user.email)
+      )
+        return status(400, { code: "invalid_invitation" as const })
+
+      const accepted = await acceptInvitationForUser(db, session.user.email, session.user.id)
+      if (!accepted || accepted.id !== resolution.invitation.id)
+        return status(409, { code: "invitation_changed" as const })
+      await onInvitationAccepted?.(accepted.id, session.user.id)
+      return { status: "accepted" as const }
+    })
     .post("/invitations/resolve", async ({ request, set, status }) => {
       set.headers["Cache-Control"] = "no-store"
       set.headers["Referrer-Policy"] = "no-referrer"
@@ -75,6 +100,15 @@ export function createInvitationRoutes(
         state: "valid" as const,
         role: resolution.invitation.role,
         expiresAt: resolution.invitation.expiresAt.toISOString(),
+        hasAccount: Boolean(
+          (
+            await db
+              .select({ id: user.id })
+              .from(user)
+              .where(eq(user.email, resolution.invitation.email))
+              .limit(1)
+          )[0],
+        ),
       }
     })
     .get("/invitations", async ({ request, status }) => {

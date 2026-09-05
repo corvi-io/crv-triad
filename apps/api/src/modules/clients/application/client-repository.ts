@@ -16,14 +16,29 @@ export type ClientRecord = Readonly<{
   name: string
   phone: string | null
   preferenceNote: string
+  professionalPreferences?: readonly CatalogPreference[]
   servicePreferences: readonly string[]
+  preferredServices?: readonly CatalogPreference[]
+  unitPreferences?: readonly CatalogPreference[]
   status: "active" | "archived"
   tags: readonly string[]
   updatedAt: Date
   version: number
 }>
 
-export type ClientDetail = ClientRecord & Readonly<{ notes: readonly ClientNoteRecord[] }>
+export type CatalogPreference = Readonly<{
+  id: string
+  name: string
+  status: "active" | "archived"
+}>
+
+export type ClientDetail = ClientRecord &
+  Readonly<{
+    notes: readonly ClientNoteRecord[]
+    professionalPreferences?: readonly CatalogPreference[]
+    preferredServices?: readonly CatalogPreference[]
+    unitPreferences?: readonly CatalogPreference[]
+  }>
 
 export type ClientPage = Readonly<{
   items: readonly ClientRecord[]

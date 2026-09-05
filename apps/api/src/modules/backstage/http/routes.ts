@@ -132,6 +132,12 @@ export function createBackstageRoutes(
               createdAt: backstageOrganization.createdAt,
               memberCount: sql<number>`(select count(*)::int from idp_members inventory_member where inventory_member.organization_id = ${backstageOrganizationId} and inventory_member.status = 'active')`,
               clientCount: sql<number>`(select count(*)::int from clients inventory_client where inventory_client.organization_id = ${backstageOrganizationId} and inventory_client.status = 'active')`,
+              activeUnitCount: sql<number>`(select count(*)::int from units inventory_unit where inventory_unit.organization_id = ${backstageOrganizationId} and inventory_unit.status = 'active')`,
+              archivedUnitCount: sql<number>`(select count(*)::int from units inventory_unit where inventory_unit.organization_id = ${backstageOrganizationId} and inventory_unit.status = 'archived')`,
+              activeProfessionalCount: sql<number>`(select count(*)::int from professionals inventory_professional where inventory_professional.organization_id = ${backstageOrganizationId} and inventory_professional.status = 'active')`,
+              archivedProfessionalCount: sql<number>`(select count(*)::int from professionals inventory_professional where inventory_professional.organization_id = ${backstageOrganizationId} and inventory_professional.status = 'archived')`,
+              activeServiceCount: sql<number>`(select count(*)::int from services inventory_service where inventory_service.organization_id = ${backstageOrganizationId} and inventory_service.status = 'active')`,
+              archivedServiceCount: sql<number>`(select count(*)::int from services inventory_service where inventory_service.organization_id = ${backstageOrganizationId} and inventory_service.status = 'archived')`,
               subscriptionState: sql<
                 string | null
               >`(select subscription.state from access_tenant_subscriptions subscription where subscription.organization_id = ${backstageOrganizationId} and subscription.is_current = true limit 1)`,
@@ -172,6 +178,12 @@ export function createBackstageRoutes(
           memberCount: sql<number>`(select count(*)::int from idp_members tenant_member where tenant_member.organization_id = ${backstageOrganizationId} and tenant_member.status = 'active')`,
           activeClientCount: sql<number>`(select count(*)::int from clients tenant_client where tenant_client.organization_id = ${backstageOrganizationId} and tenant_client.status = 'active')`,
           archivedClientCount: sql<number>`(select count(*)::int from clients tenant_client where tenant_client.organization_id = ${backstageOrganizationId} and tenant_client.status = 'archived')`,
+          activeUnitCount: sql<number>`(select count(*)::int from units tenant_unit where tenant_unit.organization_id = ${backstageOrganizationId} and tenant_unit.status = 'active')`,
+          archivedUnitCount: sql<number>`(select count(*)::int from units tenant_unit where tenant_unit.organization_id = ${backstageOrganizationId} and tenant_unit.status = 'archived')`,
+          activeProfessionalCount: sql<number>`(select count(*)::int from professionals tenant_professional where tenant_professional.organization_id = ${backstageOrganizationId} and tenant_professional.status = 'active')`,
+          archivedProfessionalCount: sql<number>`(select count(*)::int from professionals tenant_professional where tenant_professional.organization_id = ${backstageOrganizationId} and tenant_professional.status = 'archived')`,
+          activeServiceCount: sql<number>`(select count(*)::int from services tenant_service where tenant_service.organization_id = ${backstageOrganizationId} and tenant_service.status = 'active')`,
+          archivedServiceCount: sql<number>`(select count(*)::int from services tenant_service where tenant_service.organization_id = ${backstageOrganizationId} and tenant_service.status = 'archived')`,
           ownerName: sql<
             string | null
           >`(select tenant_user.name from idp_members owner_member join idp_users tenant_user on tenant_user.id = owner_member.user_id where owner_member.organization_id = ${backstageOrganizationId} and owner_member.role = 'owner' and owner_member.status = 'active' limit 1)`,

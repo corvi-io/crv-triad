@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "node:crypto"
 import { and, desc, eq, gt, isNotNull, sql } from "drizzle-orm"
 
 import type { IdpDatabase } from "../database/client.js"
-import { invitation, member, organizationInvitation } from "../database/schema.js"
+import { invitation, member, organizationInvitation, user } from "../database/schema.js"
 import { createId } from "../infra/ids.js"
 import { type IdpRole, normalizeEmail } from "./access-policy.js"
 
@@ -145,30 +145,14 @@ export async function resendInvitation(
 
     await lockPendingInvitationEmail(tx, current.email)
 
-    const [superseded] = await tx
+    const secret = createInvitationSecret()
+    const [rotated] = await tx
       .update(invitation)
-      .set({ status: "superseded", updatedAt: now })
+      .set({ expiresAt, tokenDigest: secret.digest, tokenIssuedAt: now, updatedAt: now })
       .where(and(eq(invitation.id, current.id), eq(invitation.status, "pending")))
       .returning()
 
-    if (!superseded) return null
-
-    const secret = createInvitationSecret()
-    const [created] = await tx
-      .insert(invitation)
-      .values({
-        id: createId(),
-        email: current.email,
-        role: current.role,
-        status: "pending",
-        invitedByUserId: current.invitedByUserId,
-        expiresAt,
-        tokenDigest: secret.digest,
-        tokenIssuedAt: now,
-      })
-      .returning()
-
-    return { invitation: created, token: secret.token }
+    return rotated ? { invitation: rotated, token: secret.token } : null
   })
 }
 
@@ -182,7 +166,11 @@ export async function acceptInvitationForUser(db: IdpDatabase, email: string, us
     .where(and(eq(invitation.id, pendingInvitation.id), eq(invitation.status, "pending")))
     .returning()
 
-  if (accepted) await acceptOrganizationInvitationsForUser(db, email, userId)
+  if (accepted) {
+    if (accepted.role === "admin")
+      await db.update(user).set({ role: "admin", updatedAt: new Date() }).where(eq(user.id, userId))
+    await acceptOrganizationInvitationsForUser(db, email, userId)
+  }
   return accepted
 }
 

@@ -12,9 +12,11 @@ import { createClientRoutes } from "../../modules/clients/http/routes.js"
 import type { IdpEnv } from "../../modules/idp/config/env.js"
 import type { IdpDatabase } from "../../modules/idp/database/client.js"
 import { createIdpRoutes } from "../../modules/idp/http/app.js"
-import type { IdpAuth } from "../../modules/idp/identity/auth.js"
+import type { IdpAuth, InvitationAcceptedObserver } from "../../modules/idp/identity/auth.js"
 import type { AuthEmailSender } from "../../modules/idp/identity/transactional-email.js"
 import { createLeadRoutes } from "../../modules/leads/http/routes.js"
+import { createCatalogService } from "../../modules/services/application/catalog-service.js"
+import { createCatalogRoutes } from "../../modules/services/http/catalog-routes.js"
 import { createContextDiscovery } from "../../modules/tenancy/application/context-discovery.js"
 import { createTenantContextResolver } from "../../modules/tenancy/application/create-tenant-context-resolver.js"
 import { createTenantContextSelector } from "../../modules/tenancy/application/select-tenant-context.js"
@@ -27,6 +29,7 @@ export type CreateRestAppInput = {
   authEmailSender?: AuthEmailSender
   db: IdpDatabase
   pool: Pool
+  onInvitationAccepted?: InvitationAcceptedObserver
 }
 
 export function createRestApp(input: CreateRestAppInput) {
@@ -38,6 +41,7 @@ export function createRestApp(input: CreateRestAppInput) {
     createTenantMembershipReader(input.db),
   )
   const authorizeTenantAction = createTenantActionAuthorizer(input.db)
+  const catalogService = createCatalogService(input.db)
 
   return new Elysia({ name: "crv-triad-api" })
     .use(createIdpRoutes(input))
@@ -51,6 +55,14 @@ export function createRestApp(input: CreateRestAppInput) {
     .use(createOwnershipRoutes(input.db, resolveTenantContext))
     .use(createBackstageRoutes(input.auth, input.db, input.authEmailSender))
     .use(createClientRoutes(clientService, resolveTenantContext, authorizeTenantAction))
+    .use(
+      createCatalogRoutes(
+        catalogService,
+        resolveTenantContext,
+        authorizeTenantAction,
+        input.authEmailSender,
+      ),
+    )
     .use(createLeadRoutes(input.env, input.pool, { captureAcceptedLead }))
     .use(createAnalyticsRoutes(input.env))
     .all("*", ({ status }) =>

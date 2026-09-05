@@ -7,7 +7,7 @@ import { and, count, eq } from "drizzle-orm"
 import type { IdpEnv } from "../config/env.js"
 import type { IdpDatabase } from "../database/client.js"
 import * as schema from "../database/schema.js"
-import { member, user } from "../database/schema.js"
+import { invitation, member, user } from "../database/schema.js"
 import { createId } from "../infra/ids.js"
 import { decideIdentityAccess, normalizeEmail } from "./access-policy.js"
 import {
@@ -51,6 +51,10 @@ export type AuthEmailDeliveryFailureEvent = Readonly<{
 }>
 
 export type AuthEmailDeliveryFailureObserver = (event: AuthEmailDeliveryFailureEvent) => void
+export type InvitationAcceptedObserver = (
+  invitationId: string | undefined,
+  userId: string,
+) => Promise<void>
 
 const STANDARD_COOKIE_PREFIX = "triad-auth"
 const PARTITIONED_COOKIE_PREFIX = "triad-auth-partitioned"
@@ -90,8 +94,17 @@ export function createAuth(
   db: IdpDatabase,
   authEmailSender: AuthEmailSender = createAuthEmailSender(env),
   observeAuthEmailDeliveryFailure: AuthEmailDeliveryFailureObserver = defaultAuthEmailDeliveryFailureObserver,
+  onInvitationAccepted?: InvitationAcceptedObserver,
 ) {
-  return betterAuth(createAuthOptions(env, db, authEmailSender, observeAuthEmailDeliveryFailure))
+  return betterAuth(
+    createAuthOptions(
+      env,
+      db,
+      authEmailSender,
+      observeAuthEmailDeliveryFailure,
+      onInvitationAccepted,
+    ),
+  )
 }
 
 export function createAuthOptions(
@@ -99,6 +112,7 @@ export function createAuthOptions(
   db: IdpDatabase,
   authEmailSender: AuthEmailSender,
   observeAuthEmailDeliveryFailure: AuthEmailDeliveryFailureObserver = defaultAuthEmailDeliveryFailureObserver,
+  onInvitationAccepted?: InvitationAcceptedObserver,
 ): BetterAuthOptions {
   const cookiePrefix = getCookiePrefix(env)
   const defaultCookieAttributes = getDefaultCookieAttributes(env)
@@ -203,6 +217,17 @@ export function createAuthOptions(
               createdSession.user.email,
               createdSession.user.id,
             )
+            const [accepted] = await db
+              .select({ id: invitation.id })
+              .from(invitation)
+              .where(
+                and(
+                  eq(invitation.acceptedByUserId, createdSession.user.id),
+                  eq(invitation.status, "accepted"),
+                ),
+              )
+              .limit(1)
+            if (accepted) await onInvitationAccepted?.(accepted.id, createdSession.user.id)
           }
           return context.json({ status: true })
         }
@@ -323,13 +348,20 @@ export function createAuthOptions(
               const proof = token ? await resolveInvitationProof(context as never, token) : null
 
               if (!proof) throwInvalidInvitationProof()
+              const name = typeof candidate.name === "string" ? candidate.name.trim() : ""
+              if (name.length < 2) {
+                throw new APIError("BAD_REQUEST", {
+                  code: "INVALID_IDENTITY_PROFILE",
+                  message: "Identity name is required.",
+                })
+              }
 
               return {
                 data: {
                   ...candidate,
                   email: proof.email,
                   emailVerified: true,
-                  name: "Usuário TRIAD",
+                  name,
                   role: proof.role,
                   status: "active",
                 },
@@ -378,7 +410,8 @@ export function createAuthOptions(
           },
           after: async (createdUser, context) => {
             if (context?.path === "/callback/google") {
-              await acceptInvitationForUser(db, createdUser.email, createdUser.id)
+              const accepted = await acceptInvitationForUser(db, createdUser.email, createdUser.id)
+              if (accepted) await onInvitationAccepted?.(accepted.id, createdUser.id)
             }
           },
         },

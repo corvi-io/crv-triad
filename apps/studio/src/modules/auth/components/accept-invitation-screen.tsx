@@ -3,28 +3,32 @@ import { Link, useNavigate } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
+import { z } from "zod"
 
 import { AuthFeedback } from "@/modules/auth/components/auth-feedback"
 import { AuthShell } from "@/modules/auth/components/auth-shell"
 import { PasswordGuidance } from "@/modules/auth/components/password-guidance"
 import { PasswordInput } from "@/modules/auth/components/password-input"
+import { passwordResetSchema } from "@/modules/auth/schemas/recovery-schema"
 import {
-  type PasswordResetFormValues,
-  passwordResetSchema,
-} from "@/modules/auth/schemas/recovery-schema"
-import {
+  acceptExistingInvitation,
   acceptInvitation,
   type InvitationResolution,
   resolveInvitation,
 } from "@/modules/auth/services/auth-client"
 import { Button, buttonVariants } from "@/modules/shared/components/ui/button"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/modules/shared/components/ui/field"
+import { Input } from "@/modules/shared/components/ui/input"
 
 type AcceptInvitationScreenProps = {
   token?: string
 }
 
 type ScreenState = InvitationResolution["state"] | "network_error" | "validating"
+const invitationAcceptanceSchema = passwordResetSchema.extend({
+  name: z.string().trim().min(2, "Informe seu nome com pelo menos 2 caracteres."),
+})
+type InvitationAcceptanceValues = z.infer<typeof invitationAcceptanceSchema>
 
 export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
   const [invitationToken] = useState(token)
@@ -41,9 +45,9 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
     register,
     setError,
     watch,
-  } = useForm<PasswordResetFormValues>({
-    defaultValues: { password: "", passwordConfirmation: "" },
-    resolver: zodResolver(passwordResetSchema),
+  } = useForm<InvitationAcceptanceValues>({
+    defaultValues: { name: "", password: "", passwordConfirmation: "" },
+    resolver: zodResolver(invitationAcceptanceSchema),
   })
   const password = watch("password")
   const passwordConfirmation = watch("passwordConfirmation")
@@ -74,12 +78,16 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
     }
   }, [invitationToken, screenState])
 
-  async function handleAccept(values: PasswordResetFormValues) {
+  async function handleAccept(values: InvitationAcceptanceValues) {
     if (!invitationToken || isSubmitting || screenState !== "valid") return
     setIsSubmitting(true)
     setSubmitError(null)
     try {
-      const result = await acceptInvitation({ password: values.password, token: invitationToken })
+      const result = await acceptInvitation({
+        name: values.name,
+        password: values.password,
+        token: invitationToken,
+      })
       if ("error" in result) {
         if (result.error === "password_policy") {
           setError(
@@ -97,6 +105,37 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
       await navigate({ replace: true, to: "/overview" })
     } catch {
       setSubmitError("Não foi possível criar sua senha agora. Tente novamente.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function handleExistingAccountAccept() {
+    if (!invitationToken || isSubmitting) return
+    setIsSubmitting(true)
+    setSubmitError(null)
+    try {
+      const result = await acceptExistingInvitation(invitationToken)
+      if ("error" in result) {
+        if (result.error === "unauthenticated") {
+          await navigate({ search: { invitationToken }, to: "/login" })
+          return
+        }
+        setSubmitError("Não foi possível aceitar o convite agora. Tente novamente.")
+        return
+      }
+      await navigate({
+        params: { section: "professionals" },
+        replace: true,
+        search: {
+          availabilityDate: new Date().toISOString().slice(0, 10),
+          availabilityView: "week",
+          scenario: "production",
+        },
+        to: "/barbershop-setup/$section",
+      })
+    } catch {
+      setSubmitError("Não foi possível aceitar o convite agora. Tente novamente.")
     } finally {
       setIsSubmitting(false)
     }
@@ -137,7 +176,20 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
         </div>
       ) : null}
 
-      {screenState === "valid" ? (
+      {screenState === "valid" && resolution?.hasAccount ? (
+        <div className="flex flex-col gap-5">
+          <AuthFeedback tone="info">
+            Este convite pertence a uma conta existente. Entre com sua conta para aceitar o vínculo
+            com a barbearia.
+          </AuthFeedback>
+          {submitError ? <AuthFeedback tone="error">{submitError}</AuthFeedback> : null}
+          <Button className="w-full" isLoading={isSubmitting} onClick={handleExistingAccountAccept}>
+            Entrar e aceitar convite
+          </Button>
+        </div>
+      ) : null}
+
+      {screenState === "valid" && !resolution?.hasAccount ? (
         <form className="space-y-5" noValidate onSubmit={handleSubmit(handleAccept)}>
           <AuthFeedback tone="info">
             Convite válido para o perfil de{" "}
@@ -145,6 +197,16 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
           </AuthFeedback>
           {submitError ? <AuthFeedback tone="error">{submitError}</AuthFeedback> : null}
           <FieldGroup>
+            <Field data-invalid={!!errors.name}>
+              <FieldLabel htmlFor="invitation-name">Seu nome</FieldLabel>
+              <Input
+                aria-invalid={!!errors.name}
+                autoComplete="name"
+                id="invitation-name"
+                {...register("name")}
+              />
+              <FieldError errors={[errors.name]} />
+            </Field>
             <Field data-invalid={!!errors.password}>
               <FieldLabel htmlFor="invitation-password">Nova senha</FieldLabel>
               <PasswordInput

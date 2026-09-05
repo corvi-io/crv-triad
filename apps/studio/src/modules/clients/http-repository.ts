@@ -1,6 +1,8 @@
 import { getApiUrl } from "@/modules/auth/services/auth-client"
 
 import {
+  type ClientCatalogKind,
+  type ClientCatalogOption,
   type ClientInput,
   type ClientListQuery,
   type ClientNote,
@@ -15,6 +17,13 @@ import {
 type ApiError = { code?: string; requestId?: string }
 
 export class ClientHttpRepository implements ClientRepository {
+  async listCatalogOptions(
+    kind: ClientCatalogKind,
+    selectedIds: readonly string[],
+  ): Promise<readonly ClientCatalogOption[]> {
+    const params = new URLSearchParams({ selectedIds: selectedIds.join(",") })
+    return request<readonly ClientCatalogOption[]>(`/api/${kind}/options?${params}`)
+  }
   async list(query: ClientListQuery): Promise<ClientPage> {
     const params = new URLSearchParams({
       contact: query.contact,
@@ -113,6 +122,8 @@ type ApiClient = Omit<ClientRecord, "appointments" | "email" | "phone"> & {
   email: string | null
   phone: string | null
   notes?: readonly ClientNote[]
+  professionalPreferences?: readonly { id: string; name: string; status: "active" | "archived" }[]
+  unitPreferences?: readonly { id: string; name: string; status: "active" | "archived" }[]
 }
 type ApiClientPage = Omit<ClientPage, "items"> & { items: readonly ApiClient[] }
 type ApiDuplicate = Omit<DuplicateWarning, "label">
@@ -124,6 +135,10 @@ function mapClient(record: ApiClient): ClientRecord {
     email: record.email ?? "",
     notes: record.notes ?? [],
     phone: record.phone ?? "",
+    professionalPreferenceIds: record.professionalPreferences?.map(({ id }) => id) ?? [],
+    preferredServices: record.preferredServices ?? [],
+    servicePreferenceIds: record.preferredServices?.map(({ id }) => id) ?? [],
+    unitPreferenceIds: record.unitPreferences?.map(({ id }) => id) ?? [],
   }
 }
 

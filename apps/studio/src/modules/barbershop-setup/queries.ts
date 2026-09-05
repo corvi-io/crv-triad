@@ -84,7 +84,7 @@ export function useSetupAvailability(query: AvailabilityQuery) {
 }
 
 function useEntityMutation<TVariables>(
-  mutationFn: (variables: TVariables) => Promise<SetupEntity>,
+  mutationFn: (variables: TVariables) => Promise<SetupEntity | undefined>,
 ) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -140,8 +140,17 @@ export function useSetProfessionalServiceOverride() {
 export function useUpdateSetupEntity() {
   const repository = useBarbershopSetupRepository()
   return useEntityMutation(
-    ({ id, input, kind }: { id: string; input: SetupEntityInput; kind: SetupEntityKind }) =>
-      repository.update(kind, id, input),
+    ({
+      id,
+      input,
+      kind,
+      version,
+    }: {
+      id: string
+      input: SetupEntityInput
+      kind: SetupEntityKind
+      version: number
+    }) => repository.update(kind, id, input, version),
   )
 }
 

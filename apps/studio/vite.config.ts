@@ -34,7 +34,9 @@ export default defineConfig(({ command, mode }) => {
   )
   const barbershopSetupSourceEntry = barbershopSetupSourceEnabled
     ? "./src/dev/barbershop-setup/entry.ts"
-    : "./src/modules/shared/config/barbershop-setup-source-disabled.ts"
+    : publicEnv.VITE_BARBERSHOP_SETUP_SOURCE === "http"
+      ? "./src/modules/barbershop-setup/http-entry.ts"
+      : "./src/modules/shared/config/barbershop-setup-source-disabled.ts"
   const clientManagementMemoryEnabled = isMemorySourceEnabled(
     publicEnv.VITE_CLIENT_MANAGEMENT_SOURCE,
     publicEnv.VITE_DEPLOY_TARGET,

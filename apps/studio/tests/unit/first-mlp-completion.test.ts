@@ -167,10 +167,11 @@ describe("first visual MLP completion contracts", () => {
     expect(professional?.kind).toBe("professional")
     if (professional?.kind !== "professional") return
     await repository.update("professional", professional.id, {
-      accountAccess: professional.accountAccess,
-      name: professional.name,
+      commissionBasisPoints: professional.commissionBasisPoints ?? 0,
+      invitationEmail: "",
       role: professional.role,
       serviceIds: [],
+      specialties: professional.specialties ?? [],
       unitIds: professional.unitIds,
     })
     await repository.setArchived("professional", "professional-alpha", true)

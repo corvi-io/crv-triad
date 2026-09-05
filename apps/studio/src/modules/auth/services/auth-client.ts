@@ -18,6 +18,7 @@ export async function signInWithEmail(input: { email: string; password: string }
 
 export type InvitationResolution = {
   expiresAt?: string
+  hasAccount?: boolean
   role?: "admin" | "member"
   state: "accepted" | "expired" | "invalid" | "revoked" | "superseded" | "valid"
 }
@@ -35,12 +36,12 @@ export async function resolveInvitation(token: string, signal?: AbortSignal) {
   return (await response.json()) as InvitationResolution
 }
 
-export async function acceptInvitation(input: { password: string; token: string }) {
+export async function acceptInvitation(input: { name: string; password: string; token: string }) {
   const response = await fetch(getIdpUrl("/api/auth/sign-up/email"), {
     body: JSON.stringify({
       email: "invitation-proof@invalid.example",
       invitationToken: input.token,
-      name: "Usuário TRIAD",
+      name: input.name,
       password: input.password,
       rememberMe: false,
     }),
@@ -59,6 +60,20 @@ export async function acceptInvitation(input: { password: string; token: string 
         : payload?.code === "INVALID_INVITATION_PROOF"
           ? ("invalid_invitation" as const)
           : ("unavailable" as const),
+  }
+}
+
+export async function acceptExistingInvitation(token: string) {
+  const response = await fetch(getIdpUrl("/invitations/accept-existing"), {
+    body: JSON.stringify({ token }),
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+    referrerPolicy: "no-referrer",
+  })
+  if (response.ok) return { status: true as const }
+  return {
+    error: response.status === 401 ? ("unauthenticated" as const) : ("unavailable" as const),
   }
 }
 

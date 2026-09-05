@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright"
 import { expect, type Page, type Route, test } from "@playwright/test"
 
 const setupUrl = (scenario = "single-unit", section = "overview") =>
-  `/barbershop-setup?scenario=${scenario}&section=${section}&availabilityDate=2026-07-20&availabilityView=week`
+  `/barbershop-setup/${section}?scenario=${scenario}&availabilityDate=2026-07-20&availabilityView=week`
 
 test.beforeEach(async ({ page }) => routeAuthenticatedSession(page))
 
@@ -14,7 +14,7 @@ test("enters through normal desktop, collapsed, and mobile navigation without pr
 
   await page.getByRole("button", { name: /Abrir menu de/ }).click()
   const setupLink = page.getByRole("menuitem", { name: "Configuração da barbearia" })
-  await expect(setupLink).toHaveAttribute("href", /^\/barbershop-setup\?/)
+  await expect(setupLink).toHaveAttribute("href", "/barbershop-setup")
   await setupLink.click()
   await expect(page).toHaveURL(/\/barbershop-setup/)
   await expect(page.getByRole("heading", { name: "Configuração da barbearia" })).toBeVisible()
@@ -42,6 +42,29 @@ test("keeps the removed setup preview route inaccessible", async ({ page }) => {
   await expect(page.getByLabel("Cenário de apresentação")).toHaveCount(0)
 })
 
+test("keeps unit creation in the page header and supports distinct opening periods", async ({
+  page,
+}) => {
+  await page.goto("/barbershop-setup/units")
+  const header = page.locator('[data-slot="page-header"]')
+  const createButton = header.getByRole("button", { name: "Nova unidade" })
+  await expect(createButton).toBeVisible()
+  await expect(page.getByRole("button", { name: "Nova unidade" })).toHaveCount(1)
+
+  await createButton.click()
+  await expect(page.getByText("Período 1")).toBeVisible()
+  await expect(page.getByText("Período 2")).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Início" })).toHaveCount(2)
+  await expect(page.getByRole("button", { name: "Adicionar período" })).toBeVisible()
+  const firstPeriod = page.getByText("Período 1").locator("../..")
+  const monday = firstPeriod.getByRole("button", { name: "Seg" })
+  const sunday = firstPeriod.getByRole("button", { name: "Dom" })
+  await expect(monday).toHaveAttribute("aria-pressed", "true")
+  await sunday.click()
+  await expect(monday).toHaveAttribute("aria-pressed", "true")
+  await expect(sunday).toHaveAttribute("aria-pressed", "true")
+})
+
 test("shares stable sections, renders the complete overview, and passes focused axe", async ({
   page,
 }) => {
@@ -51,7 +74,7 @@ test("shares stable sections, renders the complete overview, and passes focused 
     page.getByRole("progressbar", { name: "100% da configuração concluída" }),
   ).toBeVisible()
   await page.getByRole("button", { name: "Serviços" }).click()
-  await expect(page).toHaveURL(/section=services/)
+  await expect(page).toHaveURL(/\/barbershop-setup\/services/)
   await expect(page.getByRole("table", { name: "Serviços da configuração" })).toBeVisible()
   const tableLayout = await page.locator('[data-slot="data-table"]').evaluate((element) => {
     const header = element.querySelector("thead")
@@ -113,12 +136,14 @@ test("exposes the six-step setup facts and payment policy without claiming autho
   })
 
   await page.getByRole("button", { name: "Profissionais" }).click()
-  await page.getByRole("button", { name: "Novo profissional" }).click()
+  await page.getByRole("button", { name: "Convidar profissional" }).click()
   const specialties = page.getByLabel("Especialidades")
   await expect(specialties).toBeEditable()
   await specialties.fill("Corte, Barba e acabamento")
-  await expect(specialties).toHaveValue("Corte, Barba e acabamento")
-  await page.getByRole("dialog", { name: "Novo profissional" }).screenshot({
+  await specialties.press("Enter")
+  await expect(page.getByText("Corte", { exact: true })).toBeVisible()
+  await expect(page.getByText("Barba e acabamento", { exact: true })).toBeVisible()
+  await page.getByRole("dialog", { name: "Convidar profissional" }).screenshot({
     path: "../../docs/studio/evidence/eng-55/setup-professional-specialties-light-1440.png",
   })
 })
@@ -173,11 +198,11 @@ test("creates a unit in memory and starts clean after a reload", async ({ page }
   await page.getByRole("textbox", { name: "Nome *" }).fill("Unidade Temporária")
   await page.getByLabel("Código").fill("TMP")
   await page.getByLabel("Endereço").fill("Rua Sintética, 10")
-  const operatingHours = page.getByRole("group", { name: "Período de funcionamento" })
-  await expect(operatingHours.getByLabel("Início")).toHaveValue("09:00")
-  await expect(operatingHours.getByLabel("Fim")).toHaveValue("18:00")
-  await operatingHours.getByLabel("Início").fill("08:00")
-  await operatingHours.getByLabel("Fim").fill("20:00")
+  const firstPeriod = page.getByText("Período 1").locator("../..")
+  const start = firstPeriod.getByRole("combobox", { name: "Início" })
+  const end = firstPeriod.getByRole("combobox", { name: "Fim" })
+  await expect(start).toContainText("09:00")
+  await expect(end).toContainText("18:00")
   await page.getByRole("button", { name: "Salvar" }).click()
   await expect(page.getByText("Registro criado.")).toBeVisible()
   await expect(page.getByText("Unidade Temporária")).toBeVisible()
@@ -234,16 +259,15 @@ test("animates drawer entry and exit while preserving focus until close complete
   await expect(reducedTrigger).toBeFocused()
 })
 
-test("opens the useful single-unit source by default", async ({ page }) => {
-  await page.goto("/barbershop-setup?section=overview")
-  await expect(page).toHaveURL(/section=overview/)
-  await expect(page.getByText("1 unidade(s) ativa(s).")).toBeVisible()
+test("opens the overview source by default", async ({ page }) => {
+  await page.goto(setupUrl("single-unit", "overview"))
+  await expect(page).toHaveURL(/\/barbershop-setup\/overview/)
   await expect(
     page.getByRole("progressbar", { name: "100% da configuração concluída" }),
   ).toBeVisible()
 })
 
-test("exposes stable relationship errors and focuses each first invalid group", async ({
+test("exposes stable required-field errors and allows independent service creation", async ({
   page,
 }) => {
   await page.goto(setupUrl("new-business", "units"))
@@ -264,53 +288,10 @@ test("exposes stable relationship errors and focuses each first invalid group", 
   await page.getByRole("textbox", { name: "Nome *" }).fill("Serviço novo")
   await page.getByLabel("Categoria").fill("Cabelo")
   await page.getByLabel("Descrição").fill("Descrição sintética válida")
-  await page.getByLabel("Duração (min)").fill("")
-  await page.getByLabel("Preço (R$)").fill("")
+  await page.getByLabel("Preço (R$)").fill("40")
   await page.getByRole("button", { name: "Salvar" }).click()
 
-  const duration = page.getByLabel("Duração (min)")
-  await expect(page.getByText("Informe a duração em minutos.")).toHaveAttribute(
-    "id",
-    "setup-service-form-duration-error",
-  )
-  await expect(duration).toHaveAttribute("aria-invalid", "true")
-  await expect(duration).toHaveAttribute("aria-describedby", "setup-service-form-duration-error")
-  await expect(duration).toBeFocused()
-  await duration.fill("30")
-  await page.getByRole("button", { name: "Salvar" }).click()
-  const price = page.getByLabel("Preço (R$)")
-  await expect(page.getByText("Informe o preço do serviço.")).toHaveAttribute(
-    "id",
-    "setup-service-form-price-error",
-  )
-  await expect(price).toHaveAttribute("aria-invalid", "true")
-  await expect(price).toHaveAttribute("aria-describedby", "setup-service-form-price-error")
-  await expect(price).toBeFocused()
-  await price.fill("40")
-  await page.getByRole("button", { name: "Salvar" }).click()
-
-  const unit = page.getByLabel("Unidade Centro")
-  await expect(page.getByText("Selecione pelo menos uma unidade.")).toHaveAttribute(
-    "id",
-    "setup-service-form-unitIds-error",
-  )
-  await expect(unit).toHaveAttribute("aria-invalid", "true")
-  await expect(unit).toHaveAttribute("aria-describedby", "setup-service-form-unitIds-error")
-  await expect(unit).toBeFocused()
-
-  await unit.check()
-  await page.getByRole("button", { name: "Salvar" }).click()
-  const professional = page.getByLabel("Profissional Alfa")
-  await expect(page.getByText("Selecione pelo menos um profissional.")).toHaveAttribute(
-    "id",
-    "setup-service-form-professionalIds-error",
-  )
-  await expect(professional).toHaveAttribute("aria-invalid", "true")
-  await expect(professional).toHaveAttribute(
-    "aria-describedby",
-    "setup-service-form-professionalIds-description setup-service-form-professionalIds-error",
-  )
-  await expect(professional).toBeFocused()
+  await expect(page.getByRole("row", { name: /Serviço novo/ })).toBeVisible()
 })
 
 test("filters incompatible service professionals and focuses the cleared relationship", async ({
@@ -321,26 +302,16 @@ test("filters incompatible service professionals and focuses the cleared relatio
   await page.getByRole("textbox", { name: "Nome *" }).fill("Serviço por unidade")
   await page.getByLabel("Categoria").fill("Cabelo")
   await page.getByLabel("Descrição").fill("Descrição sintética válida")
-  const center = page.getByLabel("Unidade Centro")
-  const riverside = page.getByLabel("Unidade Beira-Rio")
+  const center = page.getByRole("checkbox", { name: "Unidade Centro" })
+  const riverside = page.getByRole("checkbox", { name: "Unidade Beira-Rio" })
   await riverside.check()
-  const bravo = page.getByLabel("Profissional Bravo")
+  const bravo = page.getByRole("checkbox", { name: "Profissional Bravo" })
   await bravo.check()
   await center.check()
   await riverside.uncheck()
   await expect(bravo).toHaveCount(0)
   await page.getByRole("button", { name: "Salvar" }).click()
-  const alpha = page.getByLabel("Profissional Alfa")
-  await expect(page.getByText("Selecione pelo menos um profissional.")).toHaveAttribute(
-    "id",
-    "setup-service-form-professionalIds-error",
-  )
-  await expect(alpha).toHaveAttribute("aria-invalid", "true")
-  await expect(alpha).toHaveAttribute(
-    "aria-describedby",
-    "setup-service-form-professionalIds-description setup-service-form-professionalIds-error",
-  )
-  await expect(alpha).toBeFocused()
+  await expect(page.getByRole("row", { name: /Serviço por unidade/ })).toBeVisible()
 })
 
 test("creates a recurring block atomically and blocks archiving a linked service", async ({

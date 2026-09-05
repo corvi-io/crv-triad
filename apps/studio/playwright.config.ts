@@ -11,7 +11,8 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "bun --filter studio dev -- --host 127.0.0.1 --port 3100",
+    command:
+      "VITE_BARBERSHOP_SETUP_SOURCE=memory VITE_CLIENT_MANAGEMENT_SOURCE=memory VITE_SCHEDULING_SOURCE=memory bun --filter studio dev -- --host 127.0.0.1 --port 3100",
     cwd: "../..",
     url: "http://127.0.0.1:3100",
     reuseExistingServer: false,
