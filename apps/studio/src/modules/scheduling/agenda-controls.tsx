@@ -77,6 +77,7 @@ const statusOptions: readonly ListFilterOption<AppointmentStatus>[] = [
 }))
 
 export function AgendaControls({
+  units,
   appointments,
   onClearFilters,
   onReset,
@@ -89,6 +90,7 @@ export function AgendaControls({
   searchText,
   services,
 }: {
+  units?: readonly { id: string; name: string }[]
   appointments: readonly Appointment[]
   onClearFilters: () => void
   onReset: () => void
@@ -134,11 +136,11 @@ export function AgendaControls({
     serviceIds.length > 0 ||
     statusIds.length > 0 ||
     search.period !== "today" ||
-    search.unit !== "centro"
+    (!units && search.unit !== "centro")
 
   return (
     <div className="grid min-w-0 gap-2">
-      <fieldset className="flex min-w-0 items-center gap-1.5 overflow-x-auto rounded-lg border bg-card p-2">
+      <fieldset className="flex min-w-0 flex-wrap items-center gap-1.5 rounded-lg border bg-card p-2">
         <legend className="sr-only">Pesquisa, filtros e visualização da agenda</legend>
         <ToggleGroup
           aria-label="Escopo temporal"
@@ -201,14 +203,19 @@ export function AgendaControls({
           <PeriodFilter search={search} onSearchChange={onSearchChange} />
         ) : null}
         <SingleSelectListFilter
+          showSelectedLabel={Boolean(units)}
           icon={MapPinIcon}
           id="unit-filter"
-          inactiveValue="centro"
+          inactiveValue={units ? "" : "centro"}
           label="Unidade"
-          options={[
-            { label: "Centro", value: "centro" },
-            { label: "Artesão", value: "artesao" },
-          ]}
+          options={
+            units
+              ? units.map((item) => ({ label: item.name, value: item.id }))
+              : [
+                  { label: "Centro", value: "centro" },
+                  { label: "Artesão", value: "artesao" },
+                ]
+          }
           value={search.unit}
           onValueChange={(unit) => onSearchChange({ unit })}
         />

@@ -21,7 +21,9 @@ export default defineConfig(({ command, mode }) => {
   )
   const schedulingPrototypeEntry = schedulingPrototypeEnabled
     ? "./src/dev/scheduling/entry.ts"
-    : "./src/modules/shared/config/scheduling-prototype-disabled.ts"
+    : publicEnv.VITE_SCHEDULING_SOURCE === "disabled"
+      ? "./src/modules/shared/config/scheduling-prototype-disabled.ts"
+      : "./src/modules/scheduling/http-entry.ts"
   const serviceDeskSourceEntry = schedulingPrototypeEnabled
     ? "./src/dev/service-desk/entry.ts"
     : "./src/modules/shared/config/service-desk-source-disabled.ts"

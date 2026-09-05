@@ -1,13 +1,11 @@
 import { CalendarDaysIcon, CircleAlertIcon, PlusIcon } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
-
 import { EmptyState } from "@/modules/shared/components/feedback/empty-state"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
 import { PageHeader } from "@/modules/shared/components/layout/page-header"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
-
 import {
   type AgendaColumnId,
   deriveAgendaResult,
@@ -27,12 +25,14 @@ import type {
   ScheduleDayQuery,
 } from "./contracts"
 import { ScheduleConflictError } from "./contracts"
+import { ProductionAppointmentList } from "./production-appointment-list"
 import {
   useRescheduleAppointment,
   useScenarioActions,
   useScheduleDay,
   useTransitionAppointment,
 } from "./queries"
+import { useSchedulingRepository } from "./repository-context"
 import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
 import { TransitionDialog } from "./transition-dialog"
 import { type WeeklyDropDestination, weeklyDropError } from "./weekly-agenda"
@@ -43,10 +43,13 @@ export type { ScheduleSearch } from "./agenda"
 export function SchedulePage({
   onSearchChange,
   search,
+  units,
 }: {
   onSearchChange: (next: Partial<ScheduleSearch>) => void
   search: ScheduleSearch
+  units?: readonly { id: string; name: string }[]
 }) {
+  const repository = useSchedulingRepository()
   const [searchText, setSearchText] = useState("")
   const debouncedSearchText = useDebouncedValue(searchText, 250)
   const bounds = visibleScheduleBounds(search)
@@ -61,7 +64,11 @@ export function SchedulePage({
     statusIds: parseIdList(search.status) as AppointmentStatus[],
     unitId: search.unit,
   }
-  const dayQuery = useScheduleDay(query)
+  const dayQuery = useScheduleDay(
+    repository.source === "http" && search.view === "list"
+      ? { ...query, endDate: query.startDate }
+      : query,
+  )
   const scenarios = useScenarioActions(query)
   const transitionMutation = useTransitionAppointment()
   const rescheduleMutation = useRescheduleAppointment()
@@ -70,24 +77,69 @@ export function SchedulePage({
     appointment: Appointment
     initialColumn?: AgendaColumnId
   } | null>(null)
-  const [drawer, setDrawer] = useState<{
+  const [drawer, updateDrawer] = useState<{
     appointment?: Appointment
     mode: DrawerMode
     slot?: { date?: string; professionalId: string; start: string }
   } | null>(null)
   const consumedAppointment = useRef<string | undefined>(undefined)
 
+  function setDrawer(next: typeof drawer) {
+    updateDrawer(next)
+    if (repository.source === "http") {
+      const intent = next ? `${next.appointment?.id ?? "new"}:${next.mode}` : ""
+      consumedAppointment.current = intent
+      onSearchChange({ appointment: next?.appointment?.id, mode: next?.mode })
+    }
+  }
   useEffect(() => {
-    if (!search.appointment || !dayQuery.data || consumedAppointment.current === search.appointment)
-      return
-    consumedAppointment.current = search.appointment
-    const appointment = dayQuery.data.appointments.find(({ id }) => id === search.appointment)
-    if (appointment) {
-      setDrawer({ appointment, mode: "view" })
+    if (!dayQuery.data) return
+    if (repository.source !== "http") {
+      if (!search.appointment || consumedAppointment.current === search.appointment) return
+      consumedAppointment.current = search.appointment
+      const appointment = dayQuery.data.appointments.find(({ id }) => id === search.appointment)
+      if (appointment) updateDrawer({ appointment, mode: "view" })
+      else setAnnouncement("O agendamento indicado não está disponível neste período.")
       return
     }
-    setAnnouncement("O agendamento indicado não está disponível neste período.")
-  }, [dayQuery.data, search.appointment])
+    const intent = search.appointment
+      ? `${search.appointment}:${search.mode ?? "view"}`
+      : search.mode === "create"
+        ? "new:create"
+        : ""
+    if (consumedAppointment.current === intent) return
+    consumedAppointment.current = intent
+    if (!intent) {
+      updateDrawer(null)
+      return
+    }
+    if (intent === "new:create") {
+      updateDrawer({ mode: "create" })
+      return
+    }
+    let canceled = false
+    const found = dayQuery.data.appointments.find(({ id }) => id === search.appointment)
+    const pending = found
+      ? Promise.resolve(found)
+      : repository.detail && search.appointment
+        ? repository.detail(search.appointment)
+        : Promise.reject(new Error("Unavailable"))
+    void pending
+      .then((appointment) => {
+        if (canceled) return
+        if (appointment.unitId !== search.unit) throw new Error("Unavailable")
+        updateDrawer({
+          appointment,
+          mode: search.mode === "create" ? "view" : (search.mode ?? "view"),
+        })
+      })
+      .catch(() => {
+        if (!canceled) setAnnouncement("O agendamento indicado não está disponível nesta unidade.")
+      })
+    return () => {
+      canceled = true
+    }
+  }, [dayQuery.data, search.appointment, search.mode, search.unit, repository])
 
   const result = useMemo(
     () =>
@@ -113,12 +165,16 @@ export function SchedulePage({
     if (!dayQuery.data) return undefined
     return {
       ...dayQuery.data,
-      appointments: result.appointments.filter(({ date }) => date === bounds.startDate),
+      appointments: result.appointments.filter(
+        ({ date, status }) =>
+          date === bounds.startDate && (!units || !["canceled", "no-show"].includes(status)),
+      ),
+      periods: dayQuery.data.periods.filter(({ date }) => date === bounds.startDate),
       date: bounds.startDate,
       occupancies: dayQuery.data.occupancies.filter(({ date }) => date === bounds.startDate),
       professionals: dayQuery.data.professionals,
     }
-  }, [bounds.startDate, dayQuery.data, result.appointments])
+  }, [bounds.startDate, dayQuery.data, result.appointments, units])
 
   async function selectScenario(id: string) {
     await scenarios.select(id)
@@ -128,7 +184,7 @@ export function SchedulePage({
 
   async function resetScenario() {
     await scenarios.reset()
-    toast.success("Cenário restaurado.")
+    toast.success("Agenda atualizada.")
   }
 
   function clearFilters() {
@@ -141,7 +197,7 @@ export function SchedulePage({
       professional: undefined,
       service: undefined,
       status: undefined,
-      unit: "centro",
+      unit: units ? search.unit : "centro",
     })
   }
 
@@ -152,14 +208,17 @@ export function SchedulePage({
     parseIdList(search.service).length > 0 ||
     parseIdList(search.status).length > 0 ||
     search.period !== "today" ||
-    search.unit !== "centro"
+    (!units && search.unit !== "centro")
 
   async function transitionAppointment(input: AppointmentTransitionInput) {
     if (transitionMutation.isPending) return
     const destination = appointmentStatusPresentation[input.status].label
     setAnnouncement(`Atualizando status para ${destination}.`)
     try {
-      await transitionMutation.mutateAsync(input)
+      await transitionMutation.mutateAsync({
+        ...input,
+        version: dayQuery.data?.appointments.find((item) => item.id === input.id)?.version,
+      })
       toast.success(`Status atualizado para “${destination}”.`)
       setAnnouncement(`Status atualizado para ${destination}.`)
       setTransitionRequest(null)
@@ -177,6 +236,10 @@ export function SchedulePage({
   }
 
   function requestTransition(appointment: Appointment, column?: AgendaColumnId) {
+    if (repository.source === "http") {
+      setDrawer({ appointment, mode: "view" })
+      return
+    }
     if (transitionMutation.isPending || isTerminalAppointmentStatus(appointment.status)) return
     if (
       !column ||
@@ -283,6 +346,7 @@ export function SchedulePage({
             title="Agenda"
           />
           <AgendaControls
+            units={units}
             appointments={dayQuery.data?.appointments ?? []}
             professionals={dayQuery.data?.professionalOptions ?? []}
             scenarios={scenarios.scenarios}
@@ -303,7 +367,15 @@ export function SchedulePage({
       ) : dayQuery.isError ? (
         <ScheduleError onRetry={() => dayQuery.refetch()} />
       ) : dayQuery.data && boardDay ? (
-        search.view === "board" && search.scope === "week" ? (
+        repository.source === "http" && search.view === "list" ? (
+          <ProductionAppointmentList
+            key={JSON.stringify(query)}
+            query={query}
+            pagination={search}
+            onPaginationChange={onSearchChange}
+            onAppointment={(appointment) => setDrawer({ appointment, mode: "view" })}
+          />
+        ) : search.view === "board" && search.scope === "week" ? (
           <WeeklyBoard
             appointments={result.appointments}
             range={{ ...dayQuery.data, date: bounds.startDate }}
@@ -311,7 +383,7 @@ export function SchedulePage({
             onCreate={(slot) => setDrawer({ mode: "create", slot })}
             onDropAppointment={rescheduleWeeklyAppointment}
           />
-        ) : result.total === 0 ? (
+        ) : result.total === 0 && repository.source !== "http" ? (
           <EmptyState
             action={
               hasActiveFilters ? (
@@ -366,11 +438,10 @@ export function SchedulePage({
           selectedDate={drawer.slot?.date ?? bounds.startDate}
           selectedUnit={search.unit}
           services={dayQuery.data.services}
-          onModeChange={(mode) => setDrawer((current) => (current ? { ...current, mode } : null))}
+          onModeChange={(mode) => setDrawer(drawer ? { ...drawer, mode } : null)}
           onOpenChange={(open) => {
             if (open) return
             setDrawer(null)
-            if (search.appointment) onSearchChange({ appointment: undefined })
           }}
         />
       ) : null}
@@ -422,7 +493,9 @@ function ScheduleError({ onRetry }: { onRetry: () => void }) {
       <div>
         <CircleAlertIcon aria-hidden="true" className="mx-auto size-8 text-destructive" />
         <h2 className="mt-3 font-semibold">Não foi possível carregar a agenda</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Troque o cenário ou tente novamente.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Verifique sua conexão e tente novamente.
+        </p>
         <Button className="mt-4" type="button" variant="outline" onClick={onRetry}>
           Tentar novamente
         </Button>

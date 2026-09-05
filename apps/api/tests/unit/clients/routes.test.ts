@@ -143,7 +143,6 @@ describe("client routes", () => {
             name: "Cliente B",
             phone: "81999999999",
             preferenceNote: "Objetivo",
-            servicePreferences: [],
             tags: [],
             version: 1,
           }),

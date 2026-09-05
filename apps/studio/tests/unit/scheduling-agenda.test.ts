@@ -103,7 +103,7 @@ describe("agenda derivation", () => {
           customStart: "2026-02-30",
           date: "2026-02-30",
           status: "invalid",
-          unit: "invalid",
+          unit: "<invalid>",
           view: "invalid",
         },
         "2026-07-21",

@@ -10,7 +10,7 @@ import {
   TagsIcon,
   UsersIcon,
 } from "lucide-react"
-import { useDeferredValue, useState } from "react"
+import { useDeferredValue, useRef, useState } from "react"
 import { toast } from "sonner"
 import {
   createDataTablePointAnchor,
@@ -53,6 +53,7 @@ export function ClientDirectoryPage({
   const [searchText, setSearchText] = useState("")
   const deferredSearch = useDeferredValue(searchText)
   const [creating, setCreating] = useState(false)
+  const clientTriggerRef = useRef<HTMLElement | null>(null)
   const [confirmingArchive, setConfirmingArchive] = useState<ClientRecord | null>(null)
   const [rowMenu, setRowMenu] = useState<{
     anchor: ReturnType<typeof createDataTablePointAnchor>
@@ -77,14 +78,10 @@ export function ClientDirectoryPage({
   }
 
   async function create(input: ClientInput) {
-    try {
-      const created = (await createClient.mutateAsync(input)) as ClientRecord
-      toast.success("Cliente criado.")
-      setCreating(false)
-      openClient(created)
-    } catch {
-      toast.error("Não foi possível criar o cliente. Tente novamente.")
-    }
+    const created = (await createClient.mutateAsync(input)) as ClientRecord
+    toast.success("Cliente criado.")
+    setCreating(false)
+    openClient(created)
   }
 
   async function toggleArchived(client: ClientRecord) {
@@ -111,7 +108,12 @@ export function ClientDirectoryPage({
   const selectedId = search.client && search.mode !== "edit" ? search.client : null
   const editingId = search.client && search.mode === "edit" ? search.client : null
 
-  function openClient(client: ClientRecord | string, mode: "edit" | "view" = "view") {
+  function openClient(
+    client: ClientRecord | string,
+    mode: "edit" | "view" = "view",
+    trigger?: HTMLElement,
+  ) {
+    if (trigger) clientTriggerRef.current = trigger
     onSearchChange({
       client: typeof client === "string" ? client : client.id,
       mode: mode === "edit" ? "edit" : undefined,
@@ -119,7 +121,12 @@ export function ClientDirectoryPage({
   }
 
   function closeClient() {
+    const triggerId = selectedId
     onSearchChange({ client: undefined, mode: undefined })
+    window.setTimeout(() => {
+      if (!triggerId) return
+      document.querySelector<HTMLElement>(`[data-client-trigger="${triggerId}"]`)?.focus()
+    }, 350)
   }
 
   return (
@@ -289,7 +296,7 @@ export function ClientDirectoryPage({
                 <ClientRow
                   client={client}
                   key={client.id}
-                  onOpen={() => openClient(client)}
+                  onOpen={(trigger) => openClient(client, "view", trigger)}
                   onContext={(x, y) =>
                     setRowMenu({ anchor: createDataTablePointAnchor(x, y), client })
                   }
@@ -330,13 +337,14 @@ export function ClientDirectoryPage({
         clientId={selectedId}
         scenarioId={search.scenario}
         onOpenChange={(open) => !open && closeClient()}
+        onOpenChangeComplete={(open) => !open && clientTriggerRef.current?.focus()}
         onEditClient={(id) => openClient(id, "edit")}
         onInspectClient={(id) => openClient(id)}
       />
       <ClientEditDrawer
         clientId={editingId}
         scenarioId={search.scenario}
-        onOpenChange={(open) => !open && closeClient()}
+        onOpenChange={(open) => !open && editingId && openClient(editingId)}
       />
       <ActionDrawer
         isOpen={creating}
@@ -423,7 +431,7 @@ function ClientRow({
 }: {
   client: ClientRecord
   onContext: (x: number, y: number) => void
-  onOpen: () => void
+  onOpen: (trigger: HTMLButtonElement) => void
 }) {
   return (
     <DataTableRow
@@ -444,9 +452,10 @@ function ClientRow({
     >
       <DataTableCell>
         <button
+          data-client-trigger={client.id}
           type="button"
           className="cursor-pointer rounded font-medium text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          onClick={onOpen}
+          onClick={(event) => onOpen(event.currentTarget)}
         >
           {client.name}
         </button>

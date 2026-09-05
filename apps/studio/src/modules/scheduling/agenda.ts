@@ -16,12 +16,7 @@ import type {
   SchedulingUnitId,
   Service,
 } from "./contracts"
-import {
-  agendaTemporalScopes,
-  agendaViews,
-  appointmentStatuses,
-  schedulingUnitIds,
-} from "./contracts"
+import { agendaTemporalScopes, agendaViews, appointmentStatuses } from "./contracts"
 
 export const agendaPeriodIds = [
   "today",
@@ -36,6 +31,10 @@ export type AgendaPeriodId = (typeof agendaPeriodIds)[number]
 
 export type ScheduleSearch = {
   appointment?: string
+  mode?: "view" | "create" | "edit" | "reschedule" | "cancel"
+  page?: number
+  pageSize?: number
+  sortDirection?: "asc" | "desc"
   client?: string
   customEnd?: string
   customStart?: string
@@ -228,6 +227,20 @@ export function validateScheduleSearch(
   const date = validDate(search.date) ?? fallbackDate
   return {
     appointment: validOpaqueId(search.appointment),
+    ...(["view", "create", "edit", "reschedule", "cancel"].includes(String(search.mode))
+      ? { mode: search.mode as ScheduleSearch["mode"] }
+      : {}),
+    ...(Number.isInteger(Number(search.page)) &&
+    Number(search.page) > 0 &&
+    Number(search.page) <= 10000
+      ? { page: Number(search.page) }
+      : {}),
+    ...([10, 20, 50].includes(Number(search.pageSize))
+      ? { pageSize: Number(search.pageSize) }
+      : {}),
+    ...(search.sortDirection === "asc" || search.sortDirection === "desc"
+      ? { sortDirection: search.sortDirection }
+      : {}),
     client: validIdList(search.client),
     customEnd: validDate(search.customEnd),
     customStart: validDate(search.customStart),
@@ -246,7 +259,7 @@ export function validateScheduleSearch(
     service: validIdList(search.service),
     status: validStatusList(search.status),
     unit:
-      typeof search.unit === "string" && schedulingUnitIds.includes(search.unit as SchedulingUnitId)
+      typeof search.unit === "string" && /^[a-zA-Z0-9_-]{1,100}$/.test(search.unit)
         ? (search.unit as SchedulingUnitId)
         : "centro",
     view:

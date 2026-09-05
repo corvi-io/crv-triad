@@ -116,7 +116,7 @@ describe("Dashboard search", () => {
         period: "custom",
         professionalId: "Nome com PII",
         scenario: "unknown",
-        unitId: "unknown",
+        unitId: "<unknown>",
       },
       date,
       ["normal"],

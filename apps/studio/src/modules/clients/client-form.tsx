@@ -2,12 +2,14 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useId, useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
+import { toast } from "sonner"
 import { MaskedInput } from "@/modules/shared/components/forms/masked-input"
 import { TagInput } from "@/modules/shared/components/forms/tag-input"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/modules/shared/components/ui/field"
 import { Input } from "@/modules/shared/components/ui/input"
 import { Textarea } from "@/modules/shared/components/ui/textarea"
+import { FormSubmissionError } from "@/modules/shared/forms/form-submission-error"
 import {
   type ClientFormValues,
   clientFormSchema,
@@ -41,6 +43,33 @@ export function ClientForm({
   const [email, phone] = useWatch({ control: form.control, name: ["email", "phone"] })
   const [duplicateWarnings, setDuplicateWarnings] = useState<string[]>([])
 
+  async function submit(values: ClientFormValues) {
+    try {
+      await onSubmit(clientFormValuesToInput(values))
+    } catch (error) {
+      if (error instanceof FormSubmissionError && error.code === "version_conflict") {
+        toast.error("Este cliente foi atualizado", {
+          action: { label: "Recarregar dados", onClick: () => window.location.reload() },
+          description: error.message,
+          duration: Number.POSITIVE_INFINITY,
+        })
+        return
+      }
+      if (error instanceof FormSubmissionError && error.field && error.field in form.getValues()) {
+        form.setError(
+          error.field as keyof ClientFormValues,
+          { message: error.message },
+          { shouldFocus: true },
+        )
+        toast.error("Revise o campo destacado.")
+        return
+      }
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível salvar. Tente novamente.",
+      )
+    }
+  }
+
   useEffect(() => form.reset(createClientFormDefaults(client)), [client, form])
   useEffect(() => {
     let active = true
@@ -66,7 +95,7 @@ export function ClientForm({
       id={formId}
       className="space-y-4"
       noValidate
-      onSubmit={form.handleSubmit(async (values) => onSubmit(clientFormValuesToInput(values)))}
+      onSubmit={form.handleSubmit(submit, () => toast.error("Revise os campos destacados."))}
     >
       <FormField
         error={form.formState.errors.name?.message}

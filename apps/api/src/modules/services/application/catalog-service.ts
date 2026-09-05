@@ -8,6 +8,7 @@ import {
   createInvitationSecret,
   findPendingInvitationByEmail,
   lockPendingInvitationEmail,
+  resendInvitation,
 } from "../../idp/identity/invitations.js"
 import {
   professional,
@@ -74,14 +75,65 @@ export class CatalogError extends Error {
   constructor(
     readonly code:
       | "already_member"
+      | "duplicate_code"
+      | "duplicate_name"
       | "invitation_pending"
       | "invalid_relation"
       | "invalid_request"
       | "not_found"
       | "version_conflict",
+    readonly details?: {
+      field:
+        | "address"
+        | "businessHours"
+        | "category"
+        | "code"
+        | "commissionBasisPoints"
+        | "description"
+        | "durationMinutes"
+        | "invitationEmail"
+        | "name"
+        | "price"
+        | "professionalIds"
+        | "role"
+        | "serviceIds"
+        | "specialties"
+        | "unitIds"
+    },
   ) {
     super(code)
   }
+}
+
+export function mapCatalogPersistenceError(error: unknown): CatalogError {
+  if (error instanceof z.ZodError) {
+    const field = error.issues[0]?.path[0]
+    return new CatalogError(
+      "invalid_request",
+      typeof field === "string"
+        ? { field: field as NonNullable<CatalogError["details"]>["field"] }
+        : undefined,
+    )
+  }
+  const databaseError = unwrapDatabaseError(error)
+  if (databaseError.code === "23505") {
+    if (databaseError.constraint === "services_organization_normalized_name_unique")
+      return new CatalogError("duplicate_name", { field: "name" })
+    if (databaseError.constraint === "units_organization_normalized_code_unique")
+      return new CatalogError("duplicate_code", { field: "code" })
+  }
+  return new CatalogError("invalid_request")
+}
+
+function unwrapDatabaseError(error: unknown): { code?: unknown; constraint?: unknown } {
+  let current = error
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (!current || typeof current !== "object") return {}
+    const candidate = current as { cause?: unknown; code?: unknown; constraint?: unknown }
+    if (candidate.code || candidate.constraint) return candidate
+    current = candidate.cause
+  }
+  return {}
 }
 type CatalogDatabase = Omit<IdpDatabase, "$client">
 
@@ -203,7 +255,15 @@ export function createCatalogService(db: IdpDatabase) {
                   inArray(service.id, values),
                 ),
               )
-    if (rows.length !== values.length) throw new CatalogError("invalid_relation")
+    if (rows.length !== values.length)
+      throw new CatalogError("invalid_relation", {
+        field:
+          tableKind === "unit"
+            ? "unitIds"
+            : tableKind === "professional"
+              ? "professionalIds"
+              : "serviceIds",
+      })
   }
 
   async function replaceProfessionalRelations(
@@ -261,7 +321,7 @@ export function createCatalogService(db: IdpDatabase) {
       if (
         new Set(sharedServices.map((row) => row.serviceId)).size !== unique(input.serviceIds).length
       )
-        throw new CatalogError("invalid_relation")
+        throw new CatalogError("invalid_relation", { field: "serviceIds" })
     }
     await tx
       .delete(professionalUnit)
@@ -349,7 +409,7 @@ export function createCatalogService(db: IdpDatabase) {
         new Set(shared.map((row) => row.professionalId)).size !==
         unique(input.professionalIds).length
       )
-        throw new CatalogError("invalid_relation")
+        throw new CatalogError("invalid_relation", { field: "professionalIds" })
     }
     await tx
       .delete(serviceUnit)
@@ -515,7 +575,7 @@ export function createCatalogService(db: IdpDatabase) {
           ),
         )
         .orderBy(asc(user.name), asc(professional.id))
-        .limit(rawQuery.all === "true" ? 10_000 : 50)
+        .limit(50)
       const selectedRows = selectedIds.length
         ? await db
             .select({ id: professional.id, name: user.name, status: professional.status })
@@ -555,7 +615,7 @@ export function createCatalogService(db: IdpDatabase) {
         ),
       )
       .orderBy(asc(table.name), asc(table.id))
-      .limit(rawQuery.all === "true" ? 10_000 : 50)
+      .limit(50)
     const selectedRows = selectedIds.length
       ? await db
           .select()
@@ -619,7 +679,7 @@ export function createCatalogService(db: IdpDatabase) {
       if (
         new Set(sharedServices.map((row) => row.serviceId)).size !== unique(input.serviceIds).length
       )
-        throw new CatalogError("invalid_relation")
+        throw new CatalogError("invalid_relation", { field: "serviceIds" })
     }
     const email = normalizeEmail(input.email)
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
@@ -738,6 +798,78 @@ export function createCatalogService(db: IdpDatabase) {
     })
   }
 
+  async function listPendingProfessionalInvitations(organizationId: string) {
+    const rows = await db
+      .select({ business: professionalInvitation, expiresAt: invitation.expiresAt })
+      .from(professionalInvitation)
+      .innerJoin(invitation, eq(invitation.id, professionalInvitation.identityInvitationId))
+      .where(
+        and(
+          eq(professionalInvitation.organizationId, organizationId),
+          eq(professionalInvitation.status, "pending"),
+          eq(invitation.status, "pending"),
+        ),
+      )
+      .orderBy(desc(professionalInvitation.createdAt), desc(professionalInvitation.id))
+      .limit(50)
+    return rows.map(({ business, expiresAt }) => ({
+      assignments: business.assignments,
+      email: business.email,
+      expiresAt: expiresAt.toISOString(),
+      id: business.id,
+      role: business.role,
+      specialties: business.specialties,
+      status: "pending" as const,
+    }))
+  }
+
+  async function resendProfessionalInvitation(organizationId: string, id: string) {
+    const [row] = await db
+      .select({ business: professionalInvitation })
+      .from(professionalInvitation)
+      .where(
+        and(
+          eq(professionalInvitation.id, id),
+          eq(professionalInvitation.organizationId, organizationId),
+          eq(professionalInvitation.status, "pending"),
+        ),
+      )
+      .limit(1)
+    if (!row) throw new CatalogError("not_found")
+    const issued = await resendInvitation(
+      db,
+      row.business.identityInvitationId,
+      new Date(Date.now() + 24 * 60 * 60 * 1_000),
+    )
+    if (!issued) throw new CatalogError("not_found")
+    return {
+      email: issued.invitation.email,
+      expiresAt: issued.invitation.expiresAt,
+      token: issued.token,
+    }
+  }
+
+  async function revokeProfessionalInvitation(organizationId: string, id: string) {
+    const [row] = await db
+      .select({ business: professionalInvitation })
+      .from(professionalInvitation)
+      .where(
+        and(
+          eq(professionalInvitation.id, id),
+          eq(professionalInvitation.organizationId, organizationId),
+          eq(professionalInvitation.status, "pending"),
+        ),
+      )
+      .limit(1)
+    if (!row) throw new CatalogError("not_found")
+    await revokeUndeliveredProfessionalInvitation(
+      organizationId,
+      row.business.identityInvitationId,
+      row.business.email,
+    )
+    return { id, status: "revoked" as const }
+  }
+
   async function create(organizationId: string, kind: CatalogKind, rawInput: unknown) {
     try {
       if (kind === "unit") {
@@ -778,7 +910,7 @@ export function createCatalogService(db: IdpDatabase) {
       return get(organizationId, kind, id)
     } catch (error) {
       if (error instanceof CatalogError) throw error
-      throw new CatalogError("invalid_request")
+      throw mapCatalogPersistenceError(error)
     }
   }
 
@@ -866,7 +998,7 @@ export function createCatalogService(db: IdpDatabase) {
       return get(organizationId, kind, id)
     } catch (error) {
       if (error instanceof CatalogError) throw error
-      throw new CatalogError("invalid_request")
+      throw mapCatalogPersistenceError(error)
     }
   }
 
@@ -904,9 +1036,12 @@ export function createCatalogService(db: IdpDatabase) {
     create,
     get,
     inviteProfessional,
+    listPendingProfessionalInvitations,
     list,
     options,
     revokeUndeliveredProfessionalInvitation,
+    resendProfessionalInvitation,
+    revokeProfessionalInvitation,
     setArchived,
     update,
   }

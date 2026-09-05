@@ -54,7 +54,6 @@ export type ClientRecord = {
   professionalPreferenceIds?: readonly string[]
   preferredServices?: readonly { id: string; name: string; status: ClientStatus }[]
   servicePreferenceIds?: readonly string[]
-  servicePreferences: readonly string[]
   status: ClientStatus
   tags: readonly string[]
   unitPreferenceIds?: readonly string[]
@@ -63,7 +62,7 @@ export type ClientRecord = {
 
 export type ClientInput = Pick<
   ClientRecord,
-  "email" | "name" | "phone" | "preferenceNote" | "servicePreferences" | "tags"
+  "email" | "name" | "phone" | "preferenceNote" | "tags"
 > & {
   professionalPreferenceIds?: readonly string[]
   servicePreferenceIds?: readonly string[]

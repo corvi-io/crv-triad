@@ -6,7 +6,7 @@ const publicEnvSchema = z.object({
   VITE_BARBERSHOP_SETUP_SOURCE: z.enum(["disabled", "http", "memory"]).default("disabled"),
   VITE_CLIENT_MANAGEMENT_SOURCE: z.enum(["disabled", "http", "memory"]).default("disabled"),
   VITE_DEPLOY_TARGET: z.enum(["local", "dev", "hml", "prd"]).default("local"),
-  VITE_SCHEDULING_SOURCE: z.enum(["disabled", "memory"]).default("disabled"),
+  VITE_SCHEDULING_SOURCE: z.enum(["disabled", "http", "memory"]).default("http"),
 })
 
 const parsedEnv = publicEnvSchema.parse(import.meta.env)

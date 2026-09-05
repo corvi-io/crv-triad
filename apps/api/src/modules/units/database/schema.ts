@@ -23,6 +23,7 @@ export const unit = pgTable(
     normalizedCode: text("normalized_code").notNull(),
     name: text("name").notNull(),
     address: text("address").notNull(),
+    timezone: text("timezone"),
     openingDays: text("opening_days").array().default(sql`'{}'::text[]`).notNull(),
     openingStart: text("opening_start").notNull(),
     openingEnd: text("opening_end").notNull(),

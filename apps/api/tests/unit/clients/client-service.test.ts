@@ -16,7 +16,6 @@ function createRepository(overrides: Partial<ClientRepository> = {}): ClientRepo
     notes: [],
     phone: null,
     preferenceNote: "",
-    servicePreferences: [],
     status: "active" as const,
     tags: [],
     updatedAt: new Date("2026-09-04T10:00:00Z"),

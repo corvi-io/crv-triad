@@ -160,3 +160,5 @@ management for local UX
 work. Remote `dev` builds require `VITE_DEPLOY_TARGET=dev` plus `memory` in the relevant source
 variable. The composition boundary ignores memory for `hml` and `prd`, and production checks reject
 synthetic markers.
+
+Production scheduling and availability now use the HTTP source by default. The Dashboard preserves its original panels and explicitly labels metrics whose source is not integrated. See [scheduling](../../docs/studio/scheduling.md).

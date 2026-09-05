@@ -10,6 +10,7 @@ import {
   isNull,
   ne,
   or,
+  type SQL,
   sql,
 } from "drizzle-orm"
 import type { IdpDatabase } from "../../idp/database/client.js"
@@ -39,20 +40,23 @@ const clientProjection = {
   name: client.name,
   phone: client.phone,
   preferenceNote: client.preferenceNote,
-  servicePreferences: client.servicePreferences,
   status: client.status,
   tags: client.tags,
   updatedAt: client.updatedAt,
   version: client.version,
 }
 
-export function createDrizzleClientRepository(db: IdpDatabase): ClientRepository {
+export function createDrizzleClientRepository(
+  db: IdpDatabase,
+  nextAppointment: SQL<string | null> = sql`null::text`,
+): ClientRepository {
+  const projection = { ...clientProjection, nextAppointmentAt: nextAppointment }
   async function get(input: {
     clientId: string
     organizationId: string
   }): Promise<ClientDetail | null> {
     const [record] = await db
-      .select(clientProjection)
+      .select(projection)
       .from(client)
       .where(and(eq(client.organizationId, input.organizationId), eq(client.id, input.clientId)))
       .limit(1)
@@ -167,7 +171,6 @@ export function createDrizzleClientRepository(db: IdpDatabase): ClientRepository
           ...storedProfile,
           id: newId,
           organizationId,
-          servicePreferences: [...profile.servicePreferences],
           tags: [...profile.tags],
         })
         await replacePreferences(tx, organizationId, newId, {
@@ -227,11 +230,17 @@ export function createDrizzleClientRepository(db: IdpDatabase): ClientRepository
 
     async list({ organizationId, query }) {
       const where = createListPredicate(organizationId, query)
-      const order = createListOrder(query)
+      const order =
+        query.sortBy === "nextAppointmentAt"
+          ? [
+              query.sortDirection === "asc" ? asc(nextAppointment) : desc(nextAppointment),
+              asc(client.id),
+            ]
+          : createListOrder(query)
       const offset = (query.page - 1) * query.pageSize
       const [items, [total]] = await Promise.all([
         db
-          .select(clientProjection)
+          .select(projection)
           .from(client)
           .where(where)
           .orderBy(...order)
@@ -319,7 +328,6 @@ export function createDrizzleClientRepository(db: IdpDatabase): ClientRepository
           .update(client)
           .set({
             ...storedProfile,
-            servicePreferences: [...input.profile.servicePreferences],
             tags: [...input.profile.tags],
             updatedAt: new Date(),
             version: sql`${client.version} + 1`,

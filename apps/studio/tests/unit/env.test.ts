@@ -13,6 +13,6 @@ describe("public env", () => {
       import.meta.env.VITE_CLIENT_MANAGEMENT_SOURCE ?? "disabled",
     )
     expect(env.deployTarget).toBe(import.meta.env.VITE_DEPLOY_TARGET ?? "local")
-    expect(env.schedulingSource).toBe(import.meta.env.VITE_SCHEDULING_SOURCE ?? "disabled")
+    expect(env.schedulingSource).toBe(import.meta.env.VITE_SCHEDULING_SOURCE ?? "http")
   })
 })
