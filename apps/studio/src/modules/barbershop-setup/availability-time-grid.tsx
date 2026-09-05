@@ -83,6 +83,8 @@ export function AvailabilityTimeGrid({
       ref={initialScroll}
       className="min-h-48 flex-1 overflow-auto rounded-lg border"
       aria-label="Grade de horários"
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: Read-only users need keyboard scrolling.
+      tabIndex={0}
       data-availability-scroll
     >
       <div

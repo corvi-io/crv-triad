@@ -44,3 +44,33 @@ request ID propagation, restoration at the excluded-date limit, elapsed professi
 unit-local client dates. The database regression also exposed and fixed a correlated-query column
 qualification issue that returned null despite future bookings. Verification: 338 API unit tests,
 22 PostgreSQL integration tests, and 33 focused Studio tests passed. API coverage remains above 80%.
+
+## Dev tenant-creation blocker — 2026-09-05
+
+- Reproduced through the real Backstage form with development Vite/API and PostgreSQL migrated
+  from the published chain: POST `/api/backstage/tenants` returned 500. PostgreSQL rejected the
+  audit insert because `access_audit.entity_type` did not exist. The transaction rolled back.
+- The ORM/snapshot already declared `entity_type` and `changed_fields`, but no additive SQL
+  migration introduced them. Migration `0021_access-audit-catalog-fields` now adds both, preserving
+  existing rows and accepting local databases that already contain those columns.
+- Retested the browser form: existing owner returned 201, active ownership and subscription;
+  a separate new owner returned 201 with a pending invitation. The synthetic email credential
+  intentionally could not deliver external mail; invitation delivery is not claimed as verified.
+- Logged the existing owner into Studio through the real login form and opened
+  `/barbershop-setup/units`: authorized empty catalog and working creation entrypoint, no 403/500.
+  Screenshot: `tenant-studio-units.png`. No request interception or fake browser responses.
+- Also exercised the operational bootstrap use case through Better Auth and then
+  `configureTenantAccess`; both succeeded against the same isolated database.
+- Real database regression: `backstage-provisioning.postgres.test.ts` asserts the HTTP 201,
+  owner membership, active subscription and persisted audit. PostgreSQL suite: 23 tests / 6 files.
+- Verified every column in the latest Drizzle snapshot exists in the migrated QA database.
+- The restartable scheduling QA runner now uses a separate named volume and loopback 55444;
+  it preserves the earlier prototype database at 55442 and ordinary user servers.
+- Studio final coverage: statements 85.04%, branches 80.23%, functions 83.73%, lines 86.48%.
+- No Linear issue reference exists in Initiative 22's PRD/task plan and no Linear connector is
+  available in this session. Evidence and workflow status are maintained in this PR and repository.
+- Restarted the committed QA runner on a fresh published-chain database: both Playwright live
+  journeys passed (8.8s), covering real availability, appointment creation/confirmation/cancellation,
+  member write denial, foreign-tenant hiding, mobile overflow and Axe accessibility.
+- This pass also fixed keyboard access to the read-only calendar scroll region (`tabIndex=0`),
+  and updated live-test selectors to the accepted compact calendar and keyboard-selectable controls.

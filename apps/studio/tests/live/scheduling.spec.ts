@@ -16,8 +16,9 @@ async function login(page: Page, persona = "qa22-a-owner") {
 async function select(page: Page, label: string, value: string) {
   await page.getByRole("dialog").getByLabel(label, { exact: true }).click()
   const option = page.getByRole("option", { name: value, exact: true })
-  await option.scrollIntoViewIfNeeded()
-  await option.click()
+  await expect(option).toBeAttached()
+  await option.press("Enter")
+  await expect(page.getByRole("listbox")).toHaveCount(0)
 }
 test("persists real availability and the appointment lifecycle through HTTP", async ({
   page,
@@ -84,7 +85,7 @@ test("denies rule changes to a member and hides foreign tenant IDs", async ({ pa
   await page.goto(
     `/barbershop-setup/availability?unitId=qa22-a-unit&professionalId=qa22-a-professional&availabilityDate=${date}`,
   )
-  await expect(page.getByText(/Você pode consultar a disponibilidade/)).toBeVisible()
+  await expect(page.getByRole("region", { name: "Grade de horários" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Adicionar bloco", exact: true })).toHaveCount(0)
   const statuses = await page.evaluate(async () => {
     const read = await fetch(

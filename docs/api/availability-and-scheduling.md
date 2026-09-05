@@ -100,7 +100,7 @@ receipts currently remain durable so retries cannot accidentally duplicate an ex
 
 ## Additive rollout and local verification
 
-Apply the existing Initiative 21 migration history and additive `0018`–`0020` migrations before enabling HTTP consumers.
+Apply the existing Initiative 21 migration history and additive `0018`–`0021` migrations before enabling HTTP consumers.
 `btree_gist` must be available to the migration role. Do not regenerate or rewrite the baseline to
 install scheduling. Roll back the application/source to its prior disabled scheduling behavior while
 retaining additive tables/columns and stored bookings; no destructive down migration is provided.
@@ -108,7 +108,7 @@ Previous catalog column reads/writes remain compatible. Re-enable HTTP after cor
 real journeys. Deployment/release publication remains a separate explicit action.
 
 From the workspace root, run `bun scripts/scheduling-local-qa.ts` with Docker available. It uses only
-loopback PostgreSQL 55442, API 8102 and Studio 3102, preserving normal ports 8000/3000. The fixture
+loopback PostgreSQL 55444, API 8102 and Studio 3102, preserving normal ports 8000/3000. The fixture
 accepts only the dedicated local QA database and writes synthetic credentials to ignored
 `apps/api/.artifacts/initiative22/credentials.json`. Existing QA bookings are retained on restart.
 Do not point the destructive integration suite at the browser QA database; use a separate disposable

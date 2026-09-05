@@ -48,3 +48,14 @@ describe("production dashboard", () => {
     expect(model.professionals[0].availableMinutes).toBe(480)
   })
 })
+
+it("does not invent available hours when the source omits availability", () => {
+  const model = productionDashboardModel(
+    { ...range, availability: undefined },
+    validateDashboardSearch({ unitId: location.id, date: booking.date }, booking.date),
+    [location],
+    Date.now(),
+  )
+  expect(model.capacity.availableMinutes).toBe(0)
+  expect(model.capacity.freeMinutes).toBe(0)
+})

@@ -148,6 +148,13 @@
       "when": 1788568182415,
       "tag": "0020_scheduling-plan-entitlements",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788644324025,
+      "tag": "0021_access-audit-catalog-fields",
+      "breakpoints": true
     }
   ]
 }

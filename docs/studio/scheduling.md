@@ -83,7 +83,7 @@ bun scripts/scheduling-local-qa.ts
 ```
 
 Open `http://localhost:3102`. The isolated API is `http://localhost:8102`, PostgreSQL is loopback
-55442, and synthetic credentials are in `apps/api/.artifacts/initiative22/credentials.json`.
+55444, and synthetic credentials are in `apps/api/.artifacts/initiative22/credentials.json`.
 Accounts include `qa22-a-owner@example.invalid`, `qa22-a-admin@example.invalid`,
 `qa22-a-member@example.invalid` and `qa22-b-owner@example.invalid`. The runner seeds relationships
 and access, preserves existing QA bookings, and does not read the normal app database URL. On a
