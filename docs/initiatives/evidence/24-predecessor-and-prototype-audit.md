@@ -98,6 +98,40 @@ QA database for destructive integration suites.
   money authority and must reject forged totals.
 - Dashboard and Service Desk projections must remain narrow so members cannot infer unit cash aggregates.
 
+## Repository Pattern Map
+
+The following existing patterns are the intended integration seams after the Initiative 23 merge. They are
+references, not permission to couple Revenue Operations to another module's private tables.
+
+- Extend the centralized capability union and role matrix in
+  `apps/api/src/modules/access/domain/access-decision.ts`; keep read/register available to members and
+  reserve adjustment, correction, configuration, and cash management for owners/admins exactly as the
+  approved contract specifies. Seed/default-entitlement paths and access tests must change together.
+- Follow the `10 | 20 | 50` Zod query validation used by Clients, while enforcing the finance-specific
+  maximum 31-day range before executing list or export-shaped reads.
+- Keep idempotency inside the same PostgreSQL transaction as the business result, following Scheduling's
+  command-record pattern. Revenue fingerprints must exclude reasons and other private payloads, use a
+  server secret, and reconcile committed results after unknown transport outcomes.
+- Establish a single documented advisory-lock namespace and order for policy, unit/day, checkout, and
+  receipt resources. Existing Scheduling and Clients locks prove the repository convention, but their
+  hash keys are not reusable finance locks.
+- Compose the module through the REST entrypoint with explicit dependencies. The Service Desk boundary is
+  consumed only through its sealed completed-handoff read port; Revenue Operations owns its tables,
+  transactions, HTTP contracts, and safe error mapping.
+- Reuse Studio's shared `ActionDrawer`, `MaskedInput`, `DatePicker`, `DataTablePagination`, confirmation,
+  focus-restoration, skeleton, and toast primitives. Server state stays in TanStack Query; unsent financial
+  fields remain component/form state and never enter route search, local storage, or telemetry.
+- Extend the current production-boundary scan so normal Studio composition cannot import the prototype
+  memory repository, scenario controls, fake declines, commission projections, or browser-authoritative
+  settlement logic.
+
+### First post-merge inspection
+
+Before TASK-001 can close, compare the sealed Initiative 23 diff against this map and record: its public
+handoff port import, version field, stable item ordering, historical lookup behavior, error vocabulary,
+fixture builder, migration sequence, and any changes to access or shared Studio primitives. Any mismatch is
+resolved at the module boundary or escalated to Brasa; it is not repaired by querying Service Desk tables.
+
 ## Initiative 22 Baseline Verification
 
 Executed from the Initiative 24 worktree before synchronizing Initiative 23:
