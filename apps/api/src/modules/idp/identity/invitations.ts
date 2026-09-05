@@ -185,6 +185,7 @@ export async function acceptInvitationForUser(
     if (!current) return null
 
     let accepted = current
+    let transitionedToAccepted = false
     if (current.status === "accepted") {
       if (current.acceptedByUserId !== userId) return null
     } else {
@@ -203,9 +204,10 @@ export async function acceptInvitationForUser(
         .returning()
       if (!updated) return null
       accepted = updated
+      transitionedToAccepted = true
     }
 
-    if (accepted.role === "admin")
+    if (transitionedToAccepted && accepted.role === "admin")
       await tx.update(user).set({ role: "admin", updatedAt: new Date() }).where(eq(user.id, userId))
     await acceptOrganizationInvitationsInTransaction(tx, normalizedEmail, userId)
     return accepted

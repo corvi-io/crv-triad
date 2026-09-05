@@ -246,6 +246,26 @@ describe("invitation transaction on PostgreSQL", () => {
     ])
   })
 
+  it("does not restore a revoked global admin role during invitation replay", async () => {
+    const email = "revoked-admin@example.invalid"
+    const seeded = await seedOrganizationInvitation(email, "member")
+    await db.update(invitation).set({ role: "admin" }).where(eq(invitation.id, seeded.created.id))
+
+    await acceptInvitationForUser(db as never, email, seeded.invitedUserId, seeded.created.id)
+    await db.update(user).set({ role: "member" }).where(eq(user.id, seeded.invitedUserId))
+    const replay = await acceptInvitationForUser(
+      db as never,
+      email,
+      seeded.invitedUserId,
+      seeded.created.id,
+    )
+
+    expect(replay?.id).toBe(seeded.created.id)
+    expect(
+      await db.select({ role: user.role }).from(user).where(eq(user.id, seeded.invitedUserId)),
+    ).toEqual([{ role: "member" }])
+  })
+
   it("rejects an email mismatch without consuming either invitation", async () => {
     const seeded = await seedOrganizationInvitation("recipient@example.invalid", "owner")
 
