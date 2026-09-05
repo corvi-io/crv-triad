@@ -283,7 +283,7 @@ describe.sequential("persistent scheduling", () => {
     if (!current) throw new Error("Expected an occupying booking")
     await db
       .update(service)
-      .set({ priceCents: 9900, durationMinutes: 60 })
+      .set({ priceCents: 9900, durationMinutes: 60, status: "archived" })
       .where(eq(service.id, base.serviceId))
     const edited = await scheduling.update(
       actor,
@@ -294,6 +294,23 @@ describe.sequential("persistent scheduling", () => {
     )
     expect(edited.priceCents).toBe(5000)
     expect(edited.durationMinutes).toBe(30)
+    await expect(
+      scheduling.update(
+        actor,
+        current.id,
+        { ...base, start: "15:00" },
+        edited.version,
+        crypto.randomUUID(),
+      ),
+    ).rejects.toMatchObject({ code: "invalid_relation", field: "serviceId" })
+    const matching = await scheduling.page(actor.organizationId, {
+      unitId: base.unitId,
+      startDate: base.date,
+      endDate: base.date,
+      search: current.professionalName,
+    })
+    expect(matching.items.some((item) => item.id === current.id)).toBe(true)
+
     await expect(
       availability.save(actor.organizationId, null, {
         id: seriesId,
@@ -310,7 +327,7 @@ describe.sequential("persistent scheduling", () => {
     expect(rule.version).toBe(2)
     await db
       .update(service)
-      .set({ priceCents: 5000, durationMinutes: 30 })
+      .set({ priceCents: 5000, durationMinutes: 30, status: "active" })
       .where(eq(service.id, base.serviceId))
   })
   it("enforces the PostgreSQL exclusion even when application locking is bypassed", async () => {

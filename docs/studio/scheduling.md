@@ -118,3 +118,7 @@ a complete comparison source is queried.
 Availability supports edge auto-scroll during pointer selection and focuses the saved recurrence
 period after creation. Appointment client, service and professional selection uses the existing
 searchable combobox with canonical IDs; arbitrary text does not constitute a selected record.
+
+List-period filter options are hydrated across the complete selected period, using sequential
+requests of no more than seven days and a maximum period of 366 days. Appointment rows remain
+server-paginated. Changing filters or search resets the controlled page to one.

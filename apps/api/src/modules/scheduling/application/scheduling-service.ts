@@ -96,6 +96,10 @@ function predicates(organizationId: string, query: Query, filtered = true) {
       ? or(
           ilike(appointment.customerName, `%${query.search.trim().replace(/[\\%_]/g, "\\$&")}%`),
           ilike(appointment.serviceName, `%${query.search.trim().replace(/[\\%_]/g, "\\$&")}%`),
+          ilike(
+            appointment.professionalName,
+            `%${query.search.trim().replace(/[\\%_]/g, "\\$&")}%`,
+          ),
         )
       : undefined,
   )
@@ -249,6 +253,14 @@ export function createSchedulingService(db: IdpDatabase, fingerprintSecret: stri
       )
       .for("share")
     if (!customer) throw new SchedulingError("invalid_relation", "clientId")
+    const metadataOnly =
+      current &&
+      current.serviceId === input.serviceId &&
+      current.professionalId === input.professionalId &&
+      current.unitId === input.unitId &&
+      current.clientId === input.clientId &&
+      current.date === input.date &&
+      current.start === input.start
     const [offering] = await tx
       .select({
         id: service.id,
@@ -275,7 +287,7 @@ export function createSchedulingService(db: IdpDatabase, fingerprintSecret: stri
         and(
           eq(service.organizationId, actor.organizationId),
           eq(service.id, input.serviceId),
-          eq(service.status, "active"),
+          metadataOnly ? undefined : eq(service.status, "active"),
           eq(serviceUnit.unitId, input.unitId),
           eq(professionalService.professionalId, input.professionalId),
         ),

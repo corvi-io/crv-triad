@@ -74,3 +74,24 @@ qualification issue that returned null despite future bookings. Verification: 33
   member write denial, foreign-tenant hiding, mobile overflow and Axe accessibility.
 - This pass also fixed keyboard access to the read-only calendar scroll region (`tabIndex=0`),
   and updated live-test selectors to the accepted compact calendar and keyboard-selectable controls.
+
+## Second review triage
+
+Four additional findings were valid and fixed as one batch:
+
+- Metadata-only appointment edits retain an archived service's snapshot; changing the slot or
+  canonical relations still requires an active service. PostgreSQL verifies both paths.
+- Appointment search matches the persisted professional name as well as client and service names.
+- List-period filter data covers the entire selected interval through bounded sequential range
+  queries (at most seven days each, at most 366 days overall), with appointment-ID deduplication.
+  A client appearing only on the second day remains selectable.
+- Filter and text-search changes reset URL-controlled pagination to page one; pagination commands
+  themselves retain their requested page.
+
+The two allowed automated review cycles are complete. These remaining corrections are verified
+locally and by CI; no redundant third automated review is requested.
+
+Final second-round validation: 705 Studio tests passed; Studio coverage is 84.83% statements,
+80.02% branches, 83.42% functions and 86.34% lines. API coverage remains above all 80% gates.
+API/Studio typechecks passed, 23 PostgreSQL tests passed, and both live browser journeys passed
+again (9.6s). The temporary QA API/Studio servers were stopped afterwards.
