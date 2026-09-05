@@ -36,3 +36,11 @@ The final PR checks and Codex review are the staging merge gates. No production 
 - Studio: 700 tests; coverage 84.92% statements, 80.07% branches, 83.60% functions, 86.43% lines.
 - Studio build and production-source boundary passed; focused Dashboard tests passed after deduplication.
 - No unresolved local blocking findings. Bundle size warning is retained; no measured concurrency capacity is claimed.
+
+## Codex review cycle 1
+
+All six findings were valid and fixed in one batch: legacy preferences, audit failure response,
+request ID propagation, restoration at the excluded-date limit, elapsed professional slots, and
+unit-local client dates. The database regression also exposed and fixed a correlated-query column
+qualification issue that returned null despite future bookings. Verification: 338 API unit tests,
+22 PostgreSQL integration tests, and 33 focused Studio tests passed. API coverage remains above 80%.

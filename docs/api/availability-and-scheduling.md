@@ -115,3 +115,15 @@ Do not point the destructive integration suite at the browser QA database; use a
 `initiative22_suite_test` database and `TEST_DATABASE_URL`.
 
 Evidence and exact commands: [Initiative 22 execution plan](../initiatives/tasks/22-production-availability-and-scheduling.md).
+
+## Review hardening
+
+Client next-appointment projections return persisted local date/time without a UTC offset so
+client cards retain the unit's calendar date across browser timezones. Professional upcoming lists
+exclude already-started appointments before applying their limit. Legacy client preference text
+remains readable until explicitly migrated to canonical services.
+
+Catalog audit persistence is best effort after the catalog transaction: a failed audit emits the
+metadata-only `catalog_audit_failed` event and does not change a committed mutation into a failed
+HTTP response. Response and audit events share the resolved request ID. This does not provide an
+atomic audit guarantee; a transactional outbox is a future durability improvement.

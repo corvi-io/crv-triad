@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia"
 
 import type { TenantActionAuthorizer } from "../../access/application/authorize-tenant-action.js"
 import type { AccessDenialReason } from "../../access/domain/access-decision.js"
+import { resolveRequestId } from "../../idp/http/middleware/request-context.js"
 import type { AuthEmailSender } from "../../idp/identity/transactional-email.js"
 import type { TenantContextResolver } from "../../tenancy/application/create-tenant-context-resolver.js"
 import type { CatalogAuditWriter } from "../application/catalog-audit.js"
@@ -58,6 +59,22 @@ function createRoutesForKind(
     return decision.context
   }
 
+  const requestIds = new WeakMap<Request, string>()
+  async function recordAudit(input: Parameters<CatalogAuditWriter>[0]) {
+    try {
+      await writeAudit?.(input)
+    } catch {
+      // The catalog transaction has its own outcome; never report a committed write as failed.
+      console.error(
+        JSON.stringify({
+          event: "catalog_audit_failed",
+          entityType: kind,
+          action: input.action,
+          requestId: input.requestId,
+        }),
+      )
+    }
+  }
   async function audited<T>(
     context: { actorUserId: string; organizationId: string },
     request: Request,
@@ -66,10 +83,10 @@ function createRoutesForKind(
     entityId: string | undefined,
     operation: () => Promise<T>,
   ) {
-    const requestId = request.headers.get("x-request-id") ?? "unavailable"
+    const requestId = requestIds.get(request) ?? "unavailable"
     try {
       const result = await operation()
-      await writeAudit?.({
+      await recordAudit({
         action,
         actorUserId: context.actorUserId,
         changedFields,
@@ -81,7 +98,7 @@ function createRoutesForKind(
       })
       return result
     } catch (error) {
-      await writeAudit?.({
+      await recordAudit({
         action,
         actorUserId: context.actorUserId,
         changedFields,
@@ -96,8 +113,16 @@ function createRoutesForKind(
   }
 
   return new Elysia({ name: `catalog-${path}-routes`, prefix: `/api/${path}` })
+    .onRequest(({ request, set }) => {
+      const requestId =
+        typeof set.headers["x-request-id"] === "string"
+          ? set.headers["x-request-id"]
+          : resolveRequestId(request.headers, () => crypto.randomUUID())
+      requestIds.set(request, requestId)
+      set.headers["x-request-id"] = requestId
+    })
     .onError(({ code, error, request, set }) => {
-      const requestId = request.headers.get("x-request-id") ?? "unavailable"
+      const requestId = requestIds.get(request) ?? "unavailable"
       if (error instanceof CatalogAccessError) {
         set.status = error.reason === "unauthenticated" ? 401 : 403
         return { code: error.reason, requestId }

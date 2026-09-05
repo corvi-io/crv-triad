@@ -9,6 +9,7 @@ import {
   availabilityCommand,
   availabilitySeries,
 } from "../../src/modules/availability/database/schema.js"
+import { createDrizzleClientRepository } from "../../src/modules/clients/database/client-repository.js"
 import { client } from "../../src/modules/clients/database/schema.js"
 import { member, organization, user } from "../../src/modules/idp/database/schema.js"
 import { professional, professionalUnit } from "../../src/modules/professionals/database/schema.js"
@@ -16,6 +17,7 @@ import {
   createSchedulingService,
   guardAvailabilityAppointments,
 } from "../../src/modules/scheduling/application/scheduling-service.js"
+import { nextClientAppointment } from "../../src/modules/scheduling/database/client-projection.js"
 import {
   appointment,
   appointmentEvent,
@@ -449,5 +451,69 @@ describe.sequential("persistent scheduling", () => {
     expect(
       (await scheduling.clientHistory(actor.organizationId, base.clientId)).lastVisitAt,
     ).toBeNull()
+  })
+  it("restores an excluded occurrence at the capacity limit", async () => {
+    const [current] = await db
+      .select()
+      .from(availabilitySeries)
+      .where(eq(availabilitySeries.id, seriesId))
+    const excludedDates = Array.from({ length: 1000 }, (_, index) =>
+      new Date(Date.UTC(2030, 0, index + 1)).toISOString().slice(0, 10),
+    )
+    await db
+      .update(availabilitySeries)
+      .set({ excludedDates })
+      .where(eq(availabilitySeries.id, seriesId))
+    try {
+      await availability.save(actor.organizationId, null, {
+        id: seriesId,
+        version: current.version,
+        scope: "occurrence",
+        date: excludedDates[0],
+        restore: true,
+      })
+      const [updated] = await db
+        .select()
+        .from(availabilitySeries)
+        .where(eq(availabilitySeries.id, seriesId))
+      expect(updated.excludedDates).toHaveLength(999)
+      expect(updated.excludedDates).not.toContain(excludedDates[0])
+    } finally {
+      await db
+        .update(availabilitySeries)
+        .set({ excludedDates: current.excludedDates })
+        .where(eq(availabilitySeries.id, seriesId))
+    }
+  })
+  it("does not return already started appointments as upcoming", async () => {
+    vi.setSystemTime(new Date("2026-09-07T15:00:00Z"))
+    try {
+      const next = await scheduling.professionalSchedule(
+        actor.organizationId,
+        base.professionalId,
+        base.date,
+      )
+      expect(next.every((item) => item.startsAt >= new Date())).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+  it("projects local appointment time and preserves legacy client preferences", async () => {
+    await db
+      .update(client)
+      .set({ servicePreferences: ["Legacy preference"] })
+      .where(eq(client.id, base.clientId))
+    const repository = createDrizzleClientRepository(db as never, nextClientAppointment)
+    const projected = await repository.get({
+      organizationId: actor.organizationId,
+      clientId: base.clientId,
+    })
+    expect(projected).toMatchObject({ servicePreferences: ["Legacy preference"] })
+    const expected = await pool.query(
+      "select date::text, start from scheduling_appointments where organization_id=$1 and client_id=$2 and starts_at >= now() and status in ('scheduled','confirmed','arrived') order by starts_at,id limit 1",
+      [actor.organizationId, base.clientId],
+    )
+    expect(expected.rows).toHaveLength(1)
+    expect(projected?.nextAppointmentAt).toBe(`${expected.rows[0].date}T${expected.rows[0].start}`)
   })
 })

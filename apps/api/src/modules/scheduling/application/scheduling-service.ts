@@ -788,6 +788,7 @@ export function createSchedulingService(db: IdpDatabase, fingerprintSecret: stri
           eq(appointment.organizationId, organizationId),
           eq(appointment.professionalId, professionalId),
           gte(appointment.date, date),
+          gte(appointment.startsAt, new Date()),
           lte(appointment.date, addDate(date, 30)),
           notInArray(appointment.status, ["canceled", "no-show"]),
         ),

@@ -231,7 +231,7 @@ export function createAvailabilityService(
             (existing.restore && !current.excludedDates.includes(date))
           )
             throw new SchedulingError("not_found")
-          if (current.excludedDates.length >= 1000)
+          if (!existing.restore && current.excludedDates.length >= 1000)
             throw new SchedulingError("series_capacity_exceeded")
           await tx
             .update(availabilitySeries)
