@@ -502,6 +502,29 @@ describe("catalog service", () => {
       }),
     ).rejects.toMatchObject({ code: "already_member" })
 
+    const disabledMembershipDb = createDatabase()
+    disabledMembershipDb.queue(
+      undefined,
+      [],
+      [{ id: "user-a", status: "active" }],
+      [],
+      [{ id: "member-a", status: "disabled" }],
+    )
+    await expect(
+      createCatalogService(disabledMembershipDb.db as never).inviteProfessional(
+        "tenant-a",
+        "owner-a",
+        {
+          commissionBasisPoints: 0,
+          email: "former-member@example.com",
+          role: "Barbeiro",
+          serviceIds: [],
+          specialties: [],
+          unitIds: [],
+        },
+      ),
+    ).rejects.toMatchObject({ code: "invalid_request" })
+
     const incompatibleDb = createDatabase()
     incompatibleDb.queue([{ id: "service-a" }], [])
     await expect(
