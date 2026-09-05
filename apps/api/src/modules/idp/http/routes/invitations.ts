@@ -14,6 +14,7 @@ import {
   PendingInvitationAlreadyExistsError,
   resendInvitation,
   resolveInvitationToken,
+  resolveInvitationTokenRecord,
   revokeInvitation,
 } from "../../identity/invitations.js"
 import type { AuthEmailSender } from "../../identity/transactional-email.js"
@@ -63,18 +64,23 @@ export function createInvitationRoutes(
         body && typeof body === "object" && "token" in body && typeof body.token === "string"
           ? body.token
           : ""
-      const resolution = await resolveInvitationToken(db, token)
-      if (
-        resolution.state !== "valid" ||
-        !resolution.invitation ||
-        normalizeEmail(resolution.invitation.email) !== normalizeEmail(session.user.email)
-      )
-        return status(400, { code: "invalid_invitation" as const })
+      const resolution = await resolveInvitationTokenRecord(db, token)
+      if (!resolution.invitation || !["accepted", "valid"].includes(resolution.state))
+        return status(409, { code: "INVITATION_CHANGED" as const })
+      if (normalizeEmail(resolution.invitation.email) !== normalizeEmail(session.user.email))
+        return status(400, { code: "INVITATION_ACCOUNT_MISMATCH" as const })
 
-      const accepted = await acceptInvitationForUser(db, session.user.email, session.user.id)
-      if (!accepted || accepted.id !== resolution.invitation.id)
-        return status(409, { code: "invitation_changed" as const })
-      await onInvitationAccepted?.(accepted.id, session.user.id)
+      const accepted = await acceptInvitationForUser(
+        db,
+        session.user.email,
+        session.user.id,
+        resolution.invitation.id,
+      ).catch(() => null)
+      if (!accepted) return status(503, { code: "INVITATION_COMPLETION_FAILED" as const })
+      const observed = await onInvitationAccepted?.(accepted.id, session.user.id)
+        .then(() => true)
+        .catch(() => false)
+      if (observed === false) return status(503, { code: "INVITATION_COMPLETION_FAILED" as const })
       return { status: "accepted" as const }
     })
     .post("/invitations/resolve", async ({ request, set, status }) => {

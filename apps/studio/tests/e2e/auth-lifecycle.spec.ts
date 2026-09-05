@@ -135,6 +135,7 @@ test("accepts one invitation, creates a session, and rejects its replay", async 
   await page.goto("/accept-invitation?token=opaque-test-proof")
   await expect(page).toHaveURL(/\/accept-invitation$/)
   await expect(page.getByText(/Convite válido para o perfil de membro/)).toBeVisible()
+  await page.getByLabel("Seu nome").fill("Pessoa Convidada")
   await page.getByLabel("Nova senha", { exact: true }).fill("Senha válida 1!")
   await page.getByLabel("Confirmar nova senha").fill("Senha válida 1!")
   await page.getByRole("button", { name: "Criar senha" }).dblclick()
@@ -151,6 +152,57 @@ test("accepts one invitation, creates a session, and rejects its replay", async 
   await page.goto("/accept-invitation?token=opaque-test-proof")
   await expect(page.getByRole("alert")).toContainText("já foi usado")
   await expect(page.getByLabel("Nova senha", { exact: true })).toHaveCount(0)
+})
+
+test("preserves an existing-account invitation through Google sign-in and maps mismatch safely", async ({
+  page,
+}) => {
+  let googlePayload: Record<string, unknown> | undefined
+  await page.route("**/invitations/resolve", async (route) => {
+    if (await fulfillPreflight(route)) return
+    await fulfillJson(route, {
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      hasAccount: true,
+      role: "member",
+      state: "valid",
+    })
+  })
+  await page.route("**/invitations/accept-existing", async (route) => {
+    if (await fulfillPreflight(route)) return
+    if (!googlePayload) {
+      await fulfillJson(route, { code: "unauthenticated" }, 401)
+      return
+    }
+    await fulfillJson(route, { code: "INVITATION_ACCOUNT_MISMATCH" }, 400)
+  })
+  await page.route("**/api/auth/**", async (route) => {
+    if (await fulfillPreflight(route)) return
+    const pathname = new URL(route.request().url()).pathname
+    if (pathname.endsWith("/get-session")) {
+      await fulfillJson(route, null)
+      return
+    }
+    if (pathname.endsWith("/sign-in/social")) {
+      googlePayload = route.request().postDataJSON() as Record<string, unknown>
+      await fulfillJson(route, { code: "PROVIDER_UNAVAILABLE" }, 400)
+      return
+    }
+    await fulfillJson(route, null)
+  })
+
+  await page.goto("/accept-invitation?token=opaque-existing-proof")
+  await page.getByRole("button", { name: "Entrar e aceitar convite" }).click()
+  await expect(page).toHaveURL(/\/login\?invitationToken=/)
+  await page.getByRole("button", { name: "Continuar com Google" }).click()
+
+  await expect.poll(() => googlePayload).toBeDefined()
+  expect(googlePayload).toMatchObject({
+    callbackURL: `${studioOrigin}/accept-invitation?token=opaque-existing-proof`,
+    errorCallbackURL: `${studioOrigin}/login?error=provider&invitationToken=opaque-existing-proof`,
+    provider: "google",
+  })
+  await expect(page.getByRole("alert")).toContainText("Não foi possível continuar com o Google")
+  expect(await page.textContent("body")).not.toContain("opaque-existing-proof")
 })
 
 test("keeps a Google-only user from removing the last access method", async ({ page }) => {
@@ -256,12 +308,12 @@ async function fulfillPreflight(route: Route) {
   return true
 }
 
-async function fulfillJson(route: Route, body: unknown) {
+async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
     body: JSON.stringify(body),
     contentType: "application/json",
     headers: corsHeaders(),
-    status: 200,
+    status,
   })
 }
 
