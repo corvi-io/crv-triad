@@ -510,7 +510,7 @@ export function createCatalogService(db: IdpDatabase) {
         .where(
           and(
             eq(professional.organizationId, organizationId),
-            eq(professional.status, "active"),
+            rawQuery.all === "true" ? undefined : eq(professional.status, "active"),
             search ? ilike(user.name, search) : undefined,
           ),
         )
@@ -550,7 +550,7 @@ export function createCatalogService(db: IdpDatabase) {
       .where(
         and(
           eq(table.organizationId, organizationId),
-          eq(table.status, "active"),
+          rawQuery.all === "true" ? undefined : eq(table.status, "active"),
           search ? ilike(table.name, search) : undefined,
         ),
       )
@@ -650,17 +650,12 @@ export function createCatalogService(db: IdpDatabase) {
           .limit(1)
         if (existingProfessional) throw new CatalogError("already_member")
         const [existingMembership] = await tx
-          .select({ id: member.id })
+          .select({ id: member.id, status: member.status })
           .from(member)
-          .where(
-            and(
-              eq(member.organizationId, organizationId),
-              eq(member.userId, existingUser.id),
-              eq(member.status, "active"),
-            ),
-          )
+          .where(and(eq(member.organizationId, organizationId), eq(member.userId, existingUser.id)))
           .limit(1)
-        hasActiveMembership = Boolean(existingMembership)
+        if (existingMembership?.status === "disabled") throw new CatalogError("invalid_request")
+        hasActiveMembership = existingMembership?.status === "active"
       }
 
       const identityInvitationId = createId()

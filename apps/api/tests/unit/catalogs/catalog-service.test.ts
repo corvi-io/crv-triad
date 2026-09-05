@@ -418,7 +418,7 @@ describe("catalog service", () => {
       [],
       [{ id: "user-a", status: "active" }],
       [],
-      [{ id: "member-a" }],
+      [{ id: "member-a", status: "active" }],
       undefined,
       undefined,
     )

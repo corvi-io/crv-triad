@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "node:crypto"
 import { and, desc, eq, gt, isNotNull, sql } from "drizzle-orm"
 
 import type { IdpDatabase } from "../database/client.js"
-import { invitation, member, organizationInvitation } from "../database/schema.js"
+import { invitation, member, organizationInvitation, user } from "../database/schema.js"
 import { createId } from "../infra/ids.js"
 import { type IdpRole, normalizeEmail } from "./access-policy.js"
 
@@ -166,7 +166,11 @@ export async function acceptInvitationForUser(db: IdpDatabase, email: string, us
     .where(and(eq(invitation.id, pendingInvitation.id), eq(invitation.status, "pending")))
     .returning()
 
-  if (accepted) await acceptOrganizationInvitationsForUser(db, email, userId)
+  if (accepted) {
+    if (accepted.role === "admin")
+      await db.update(user).set({ role: "admin", updatedAt: new Date() }).where(eq(user.id, userId))
+    await acceptOrganizationInvitationsForUser(db, email, userId)
+  }
   return accepted
 }
 

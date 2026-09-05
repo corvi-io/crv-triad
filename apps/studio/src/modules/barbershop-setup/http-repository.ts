@@ -18,6 +18,9 @@ import type {
   SetupEntityPage,
   SetupListQuery,
   SetupOverview,
+  SetupProfessional,
+  SetupService,
+  SetupUnit,
   UpdateAvailabilityBatchInput,
   UpdatePaymentMethodsInput,
 } from "./contracts"
@@ -78,36 +81,30 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
 
   async getOverview(): Promise<SetupOverview> {
     const [units, professionals, services] = await Promise.all([
-      this.firstPage("unit"),
-      this.firstPage("professional"),
-      this.firstPage("service"),
+      this.options<SetupUnit>("unit"),
+      this.options<SetupProfessional>("professional"),
+      this.options<SetupService>("service"),
     ])
     const items = [
       {
-        complete: units.totalCount > 0,
-        description: units.totalCount
-          ? `${units.totalCount} unidade(s) ativa(s).`
+        complete: units.length > 0,
+        description: units.length
+          ? `${units.length} unidade(s) ativa(s).`
           : "Adicione a primeira unidade.",
         section: "units" as const,
         title: "Cadastrar a operação",
       },
       {
         complete:
-          professionals.items.length > 0 &&
-          professionals.items.every(
-            (item) => item.kind === "professional" && item.unitIds.length > 0,
-          ),
+          professionals.length > 0 && professionals.every((item) => item.unitIds.length > 0),
         description: "Profissionais precisam de ao menos uma unidade ativa.",
         section: "professionals" as const,
         title: "Conectar profissionais",
       },
       {
         complete:
-          services.items.length > 0 &&
-          services.items.every(
-            (item) =>
-              item.kind === "service" && item.unitIds.length > 0 && item.professionalIds.length > 0,
-          ),
+          services.length > 0 &&
+          services.every((item) => item.unitIds.length > 0 && item.professionalIds.length > 0),
         description: "Serviços precisam de unidade e profissional compatíveis.",
         section: "services" as const,
         title: "Definir serviços",
@@ -128,32 +125,21 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
 
   async getAvailability(_query: AvailabilityQuery): Promise<AvailabilityResult> {
     const [units, professionals, services] = await Promise.all([
-      this.options("unit"),
-      this.options("professional"),
-      this.options("service"),
+      this.options<SetupUnit>("unit"),
+      this.options<SetupProfessional>("professional"),
+      this.options<SetupService>("service"),
     ])
     return {
       conflicts: [],
-      professionals: professionals.filter((item) => item.kind === "professional"),
+      professionals: professionals.map((item) => ({ ...item, kind: "professional" as const })),
       records: [],
-      services: services.filter((item) => item.kind === "service"),
-      units: units.filter((item) => item.kind === "unit"),
+      services: services.map((item) => ({ ...item, kind: "service" as const })),
+      units: units.map((item) => ({ ...item, kind: "unit" as const })),
     }
   }
 
-  private firstPage(kind: SetupEntityKind) {
-    return this.list({
-      kind,
-      page: 1,
-      pageSize: 50,
-      scenarioId: "production",
-      search: "",
-      sort: { direction: "asc", field: "name" },
-      status: "active",
-    })
-  }
-  private options(kind: SetupEntityKind) {
-    return request<SetupEntity[]>(`/api/${plural(kind)}/options?all=true`)
+  private options<T extends SetupEntity>(kind: SetupEntityKind) {
+    return request<T[]>(`/api/${plural(kind)}/options?all=true`)
   }
   private unsupported(): never {
     throw new SetupValidationError("Este recurso ainda não está disponível em produção.")
