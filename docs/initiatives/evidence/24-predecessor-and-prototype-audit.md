@@ -98,6 +98,19 @@ QA database for destructive integration suites.
   money authority and must reject forged totals.
 - Dashboard and Service Desk projections must remain narrow so members cannot infer unit cash aggregates.
 
+## Initiative 22 Baseline Verification
+
+Executed from the Initiative 24 worktree before synchronizing Initiative 23:
+
+- `rtk bun --filter api check`: passed; 37 test files and 338 tests.
+- `rtk bun --filter studio check`: passed; 72 test files and 705 tests, production build completed,
+  and the production-boundary scan verified 93 files (1,726,500 bytes).
+- Known non-failing baseline diagnostics: Biome reports one redundant-fragment information item in
+  `service-desk-page.tsx`, and Vite reports the existing chunk-size warning for the 715.71 kB main chunk.
+
+These results are a regression baseline only. They do not provide Initiative 23 acceptance or any
+Initiative 24 runtime, PostgreSQL, coverage, browser, concurrency, or money evidence.
+
 ## Continuation
 
 After Brasa reports acceptance and merge SHA: verify the SHA is reachable from `origin/staging`, synchronize
