@@ -23,6 +23,7 @@ describe("catalog routes", () => {
     const inviteProfessional = vi.fn(async () => ({
       email: "professional@example.com",
       expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      identityInvitationId: "invitation-a",
       mode: "invited" as const,
       token: "opaque-token",
     }))
@@ -61,6 +62,43 @@ describe("catalog routes", () => {
         role: "member",
         token: "opaque-token",
       }),
+    )
+  })
+
+  it("revokes an invitation when its email cannot be delivered so it can be retried", async () => {
+    const revokeUndeliveredProfessionalInvitation = vi.fn(async () => undefined)
+    const app = createCatalogRoutes(
+      {
+        inviteProfessional: vi.fn(async () => ({
+          email: "professional@example.com",
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+          identityInvitationId: "invitation-a",
+          mode: "invited" as const,
+          token: "opaque-token",
+        })),
+        revokeUndeliveredProfessionalInvitation,
+      } as never,
+      resolve as never,
+      authorize as never,
+      { sendInvitation: vi.fn(async () => "failed" as const) },
+    )
+
+    const response = await app.handle(
+      request("/api/professionals/invite", {
+        body: JSON.stringify({ email: "professional@example.com" }),
+        method: "POST",
+      }),
+    )
+
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({
+      code: "invitation_delivery_failed",
+      requestId: "request-a",
+    })
+    expect(revokeUndeliveredProfessionalInvitation).toHaveBeenCalledWith(
+      "tenant-a",
+      "invitation-a",
+      "professional@example.com",
     )
   })
 

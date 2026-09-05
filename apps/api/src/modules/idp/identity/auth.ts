@@ -451,8 +451,6 @@ export function createAuthOptions(
             if (!sessionUser.emailVerified) {
               throw new APIError("FORBIDDEN", { message: "User email is not verified." })
             }
-            const accepted = await acceptInvitationForUser(db, sessionUser.email, sessionUser.id)
-            await onInvitationAccepted?.(accepted?.id, sessionUser.id)
           },
         },
       },

@@ -78,6 +78,20 @@ describe("client management contracts", () => {
     expect(clientFormValuesToInput(valid).email).toBe("cliente@example.invalid")
   })
 
+  it("preserves legacy service preferences while editing a client", () => {
+    const values = createClientFormDefaults({
+      email: "cliente@example.invalid",
+      name: "Cliente Sintético",
+      phone: "",
+      preferenceNote: "",
+      servicePreferences: ["Preferência histórica"],
+      tags: [],
+    })
+    expect(clientFormValuesToInput(clientFormSchema.parse(values)).servicePreferences).toEqual([
+      "Preferência histórica",
+    ])
+  })
+
   it("accepts a real localized tag as URL-backed filter state", () => {
     expect(validateClientSearch({ tag: "Manhã VIP" }, resolveClientScenario).tag).toBe("Manhã VIP")
   })

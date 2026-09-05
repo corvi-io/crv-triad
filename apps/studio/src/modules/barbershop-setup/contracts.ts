@@ -280,7 +280,7 @@ export interface BarbershopSetupRepository {
   copyAvailabilityToWeekdays(
     input: CopyAvailabilityToWeekdaysInput,
   ): Promise<readonly SetupAvailability[]>
-  create(kind: SetupEntityKind, input: SetupEntityInput): Promise<SetupEntity>
+  create(kind: SetupEntityKind, input: SetupEntityInput): Promise<SetupEntity | undefined>
   getActivePaymentMethodIds(): Promise<readonly BasePaymentMethodId[]>
   getAvailability(query: AvailabilityQuery): Promise<AvailabilityResult>
   getCompletion(scenarioId: SetupScenarioId): Promise<SetupCompletion>

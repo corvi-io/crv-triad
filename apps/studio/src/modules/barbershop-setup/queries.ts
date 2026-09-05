@@ -84,7 +84,7 @@ export function useSetupAvailability(query: AvailabilityQuery) {
 }
 
 function useEntityMutation<TVariables>(
-  mutationFn: (variables: TVariables) => Promise<SetupEntity>,
+  mutationFn: (variables: TVariables) => Promise<SetupEntity | undefined>,
 ) {
   const queryClient = useQueryClient()
   return useMutation({

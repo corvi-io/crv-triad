@@ -1,5 +1,7 @@
 import { MemoryScenarioEngine } from "@/dev/mock-engine"
 import type {
+  ClientCatalogKind,
+  ClientCatalogOption,
   ClientInput,
   ClientListQuery,
   ClientPage,
@@ -19,6 +21,14 @@ export class ClientMemoryRepository implements ClientRepository {
 
   failNextOperation() {
     this.#engine.failNext()
+  }
+
+  async listCatalogOptions(
+    kind: ClientCatalogKind,
+    selectedIds: readonly string[],
+  ): Promise<readonly ClientCatalogOption[]> {
+    const labels = { professionals: "Profissional", services: "Serviço", units: "Unidade" }
+    return selectedIds.map((id) => ({ id, name: `${labels[kind]} ${id}`, status: "active" }))
   }
 
   async list(query: ClientListQuery): Promise<ClientPage> {

@@ -1,4 +1,17 @@
-import { and, asc, count, desc, eq, ilike, isNotNull, isNull, ne, or, sql } from "drizzle-orm"
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm"
 import type { IdpDatabase } from "../../idp/database/client.js"
 import { user } from "../../idp/database/schema.js"
 import { professional } from "../../professionals/database/schema.js"
@@ -376,6 +389,38 @@ async function replacePreferences(
     unitPreferenceIds: readonly string[]
   },
 ) {
+  const [currentProfessionals, currentServices, currentUnits] = await Promise.all([
+    db
+      .select({ id: clientProfessionalPreference.professionalId })
+      .from(clientProfessionalPreference)
+      .where(
+        and(
+          eq(clientProfessionalPreference.organizationId, organizationId),
+          eq(clientProfessionalPreference.clientId, clientId),
+        ),
+      ),
+    db
+      .select({ id: clientServicePreference.serviceId })
+      .from(clientServicePreference)
+      .where(
+        and(
+          eq(clientServicePreference.organizationId, organizationId),
+          eq(clientServicePreference.clientId, clientId),
+        ),
+      ),
+    db
+      .select({ id: clientUnitPreference.unitId })
+      .from(clientUnitPreference)
+      .where(
+        and(
+          eq(clientUnitPreference.organizationId, organizationId),
+          eq(clientUnitPreference.clientId, clientId),
+        ),
+      ),
+  ])
+  const currentProfessionalIds = currentProfessionals.map(({ id }) => id)
+  const currentServiceIds = currentServices.map(({ id }) => id)
+  const currentUnitIds = currentUnits.map(({ id }) => id)
   const [professionals, services, units] = await Promise.all([
     input.professionalPreferenceIds.length
       ? db
@@ -384,7 +429,12 @@ async function replacePreferences(
           .where(
             and(
               eq(professional.organizationId, organizationId),
-              eq(professional.status, "active"),
+              or(
+                eq(professional.status, "active"),
+                currentProfessionalIds.length
+                  ? inArray(professional.id, currentProfessionalIds)
+                  : eq(professional.status, "active"),
+              ),
               or(...input.professionalPreferenceIds.map((id) => eq(professional.id, id))),
             ),
           )
@@ -396,7 +446,12 @@ async function replacePreferences(
           .where(
             and(
               eq(service.organizationId, organizationId),
-              eq(service.status, "active"),
+              or(
+                eq(service.status, "active"),
+                currentServiceIds.length
+                  ? inArray(service.id, currentServiceIds)
+                  : eq(service.status, "active"),
+              ),
               or(...input.servicePreferenceIds.map((id) => eq(service.id, id))),
             ),
           )
@@ -408,7 +463,12 @@ async function replacePreferences(
           .where(
             and(
               eq(unit.organizationId, organizationId),
-              eq(unit.status, "active"),
+              or(
+                eq(unit.status, "active"),
+                currentUnitIds.length
+                  ? inArray(unit.id, currentUnitIds)
+                  : eq(unit.status, "active"),
+              ),
               or(...input.unitPreferenceIds.map((id) => eq(unit.id, id))),
             ),
           )

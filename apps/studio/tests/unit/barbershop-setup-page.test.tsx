@@ -201,7 +201,12 @@ describe("barbershop setup module", () => {
       unitIds: ["unit-center"],
     })
     expect(parsedOnce.commissionBasisPoints).toBe(5_000)
-    expect(professionalFormSchema.parse(parsedOnce).commissionBasisPoints).toBe(5_000)
+    expect(
+      professionalFormSchema.safeParse({
+        ...parsedOnce,
+        commissionBasisPoints: 101,
+      }).success,
+    ).toBe(false)
   })
 
   it("uses bounded 15-minute duration options and Brazilian money input for services", async () => {

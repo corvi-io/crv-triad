@@ -54,6 +54,10 @@ function createRoutesForKind(
         set.status = error.reason === "unauthenticated" ? 401 : 403
         return { code: error.reason, requestId }
       }
+      if (error instanceof InvitationDeliveryError) {
+        set.status = 503
+        return { code: "invitation_delivery_failed", requestId }
+      }
       if (error instanceof CatalogError) {
         set.status =
           error.code === "not_found" ? 404 : error.code === "version_conflict" ? 409 : 400
@@ -91,6 +95,14 @@ function createRoutesForKind(
             role: "member",
             token: issued.token,
           })) ?? "skipped"
+        if (emailDelivery !== "sent") {
+          await service.revokeUndeliveredProfessionalInvitation(
+            context.organizationId,
+            issued.identityInvitationId,
+            issued.email,
+          )
+          throw new InvitationDeliveryError()
+        }
         return status(201, { emailDelivery, status: "pending" as const })
       },
       { body: t.Record(t.String(), t.Any()) },
@@ -141,6 +153,8 @@ function createRoutesForKind(
       { body: versionBody },
     )
 }
+
+class InvitationDeliveryError extends Error {}
 
 class CatalogAccessError extends Error {
   constructor(readonly reason: AccessDenialReason) {

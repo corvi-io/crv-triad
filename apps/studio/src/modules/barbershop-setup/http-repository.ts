@@ -42,10 +42,18 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
   async create(kind: SetupEntityKind, input: SetupEntityInput) {
     if (kind === "professional") {
       const professional = input as ProfessionalInput
-      return request<SetupEntity>("/api/professionals/invite", {
-        body: { ...professional, email: professional.invitationEmail },
-        method: "POST",
-      })
+      const result = await request<{ emailDelivery: "failed" | "sent" | "skipped" }>(
+        "/api/professionals/invite",
+        {
+          body: { ...professional, email: professional.invitationEmail },
+          method: "POST",
+        },
+      )
+      if (result.emailDelivery === "failed")
+        throw new SetupValidationError(
+          "Não foi possível entregar o convite. Tente novamente em alguns instantes.",
+        )
+      return undefined
     }
     return request<SetupEntity>(`/api/${plural(kind)}/`, { body: input, method: "POST" })
   }
@@ -121,16 +129,16 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
 
   async getAvailability(_query: AvailabilityQuery): Promise<AvailabilityResult> {
     const [units, professionals, services] = await Promise.all([
-      this.firstPage("unit"),
-      this.firstPage("professional"),
-      this.firstPage("service"),
+      this.options("unit"),
+      this.options("professional"),
+      this.options("service"),
     ])
     return {
       conflicts: [],
-      professionals: professionals.items.filter((item) => item.kind === "professional"),
+      professionals: professionals.filter((item) => item.kind === "professional"),
       records: [],
-      services: services.items.filter((item) => item.kind === "service"),
-      units: units.items.filter((item) => item.kind === "unit"),
+      services: services.filter((item) => item.kind === "service"),
+      units: units.filter((item) => item.kind === "unit"),
     }
   }
 
@@ -144,6 +152,9 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
       sort: { direction: "asc", field: "name" },
       status: "active",
     })
+  }
+  private options(kind: SetupEntityKind) {
+    return request<SetupEntity[]>(`/api/${plural(kind)}/options`)
   }
   private unsupported(): never {
     throw new SetupValidationError("Este recurso ainda não está disponível em produção.")
@@ -234,6 +245,10 @@ async function request<T>(path: string, options: { body?: unknown; method?: stri
   })
   if (response.ok) return response.json() as Promise<T>
   const error = (await response.json().catch(() => ({}))) as ApiError
+  if (response.status === 503 && error.code === "invitation_delivery_failed")
+    throw new SetupValidationError(
+      "Não foi possível entregar o convite. Tente novamente em alguns instantes.",
+    )
   if (response.status === 400)
     throw new SetupValidationError(
       error.code === "invalid_relation"

@@ -110,7 +110,7 @@ export const professionalFormSchema = z.object({
   invitationEmail: z.string().email("Informe um e-mail válido.").or(z.literal("")),
   commissionBasisPoints: z.preprocess((value) => {
     const numericValue = Number(value)
-    return Math.round(numericValue <= 100 ? numericValue * 100 : numericValue)
+    return Math.round(numericValue * 100)
   }, z.number().int().min(0).max(10_000)),
   specialties: z.array(
     z.string().trim().min(2, "Informe especialidades com pelo menos 2 caracteres."),
@@ -142,6 +142,7 @@ export const setupEntityFormSchema = z.discriminatedUnion("kind", [
 ])
 
 export type SetupEntityFormValues = z.input<typeof setupEntityFormSchema>
+type SetupEntityFormOutput = z.output<typeof setupEntityFormSchema>
 
 type EntityDrawerState =
   | { kind: "create"; entityKind: SetupEntityKind }
@@ -248,7 +249,7 @@ function EntityForm({
   units: readonly SetupUnit[]
 }) {
   const formId = `setup-${entityKind}-form`
-  const form = useForm<SetupEntityFormValues>({
+  const form = useForm<SetupEntityFormValues, unknown, SetupEntityFormOutput>({
     resolver: zodResolver(setupEntityFormSchema),
     defaultValues: getDefaultValues(entityKind, entity),
   })
@@ -278,8 +279,7 @@ function EntityForm({
     })
   }
 
-  async function submit(values: SetupEntityFormValues) {
-    const parsed = setupEntityFormSchema.parse(values)
+  async function submit(parsed: SetupEntityFormOutput) {
     if (parsed.kind === "unit") {
       const { kind: _kind, ...input } = parsed
       const firstPeriod = input.businessHours.periods[0]
@@ -692,7 +692,7 @@ function ProfessionalFields({ formId, form, isCreate }: FormFieldsProps & { isCr
                 placeholder="40,00"
                 value={String(field.value ?? "")}
                 onBlur={field.onBlur}
-                onValueChange={(value) => field.onChange(value ? Number(value) : 0)}
+                onValueChange={(value) => field.onChange(value ? Number(value) : "")}
                 aria-invalid={Boolean(fieldMessage(form.formState.errors, "commissionBasisPoints"))}
               />
               <span
@@ -858,7 +858,7 @@ function RelationField({
   onValuesChange,
   options,
 }: {
-  control: ReturnType<typeof useForm<SetupEntityFormValues>>["control"]
+  control: SetupEntityForm["control"]
   description?: string
   formId: string
   label: string
@@ -1074,7 +1074,10 @@ function getDefaultValues(kind: SetupEntityKind, entity?: SetupEntity): SetupEnt
   }
 }
 
-type FormFieldsProps = { formId: string; form: ReturnType<typeof useForm<SetupEntityFormValues>> }
+type SetupEntityForm = ReturnType<
+  typeof useForm<SetupEntityFormValues, unknown, SetupEntityFormOutput>
+>
+type FormFieldsProps = { formId: string; form: SetupEntityForm }
 function fieldMessage(errors: FormFieldsProps["form"]["formState"]["errors"], name: string) {
   const error = errors[name as keyof typeof errors]
   return typeof error?.message === "string" ? error.message : undefined

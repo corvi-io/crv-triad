@@ -628,7 +628,50 @@ export function createCatalogService(db: IdpDatabase) {
         specialties: unique(input.specialties),
       })
 
-      return { email, expiresAt, mode: "invited" as const, token: secret.token }
+      return {
+        email,
+        expiresAt,
+        identityInvitationId,
+        mode: "invited" as const,
+        token: secret.token,
+      }
+    })
+  }
+
+  async function revokeUndeliveredProfessionalInvitation(
+    organizationId: string,
+    identityInvitationId: string,
+    email: string,
+  ) {
+    await db.transaction(async (transaction) => {
+      const tx = transaction as unknown as IdpDatabase
+      const now = new Date()
+      await Promise.all([
+        tx
+          .update(invitation)
+          .set({ status: "revoked", updatedAt: now })
+          .where(and(eq(invitation.id, identityInvitationId), eq(invitation.status, "pending"))),
+        tx
+          .update(professionalInvitation)
+          .set({ status: "revoked", updatedAt: now })
+          .where(
+            and(
+              eq(professionalInvitation.organizationId, organizationId),
+              eq(professionalInvitation.identityInvitationId, identityInvitationId),
+              eq(professionalInvitation.status, "pending"),
+            ),
+          ),
+        tx
+          .update(organizationInvitation)
+          .set({ status: "canceled" })
+          .where(
+            and(
+              eq(organizationInvitation.organizationId, organizationId),
+              eq(organizationInvitation.email, email),
+              eq(organizationInvitation.status, "pending"),
+            ),
+          ),
+      ])
     })
   }
 
@@ -794,7 +837,16 @@ export function createCatalogService(db: IdpDatabase) {
     return get(organizationId, kind, id)
   }
 
-  return { create, get, inviteProfessional, list, options, setArchived, update }
+  return {
+    create,
+    get,
+    inviteProfessional,
+    list,
+    options,
+    revokeUndeliveredProfessionalInvitation,
+    setArchived,
+    update,
+  }
 }
 
 type CatalogRow = {

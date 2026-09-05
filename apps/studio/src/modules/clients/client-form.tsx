@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useQuery } from "@tanstack/react-query"
 import { useEffect, useId, useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
-import { getApiUrl } from "@/modules/auth/services/auth-client"
 import { MaskedInput } from "@/modules/shared/components/forms/masked-input"
 import { TagInput } from "@/modules/shared/components/forms/tag-input"
 import { Button } from "@/modules/shared/components/ui/button"
@@ -14,7 +14,7 @@ import {
   clientFormValuesToInput,
   createClientFormDefaults,
 } from "./client-schema"
-import type { ClientInput } from "./contracts"
+import type { ClientCatalogKind, ClientInput } from "./contracts"
 import { useClientRepository } from "./repository-context"
 
 export function ClientForm({
@@ -167,6 +167,7 @@ export function ClientForm({
             limit={5}
             value={field.value}
             onChange={field.onChange}
+            repository={repository}
           />
         )}
       />
@@ -181,6 +182,7 @@ export function ClientForm({
             limit={5}
             value={field.value}
             onChange={field.onChange}
+            repository={repository}
           />
         )}
       />
@@ -195,6 +197,7 @@ export function ClientForm({
             limit={20}
             value={field.value}
             onChange={field.onChange}
+            repository={repository}
           />
         )}
       />
@@ -225,7 +228,6 @@ export function ClientForm({
   )
 }
 
-type CatalogOption = { id: string; name: string; status: "active" | "archived" }
 function CatalogPreferenceField({
   id,
   kind,
@@ -233,35 +235,23 @@ function CatalogPreferenceField({
   limit,
   value,
   onChange,
+  repository,
 }: {
   id: string
-  kind: "professionals" | "services" | "units"
+  kind: ClientCatalogKind
   label: string
   limit: number
   value: readonly string[]
   onChange: (value: string[]) => void
+  repository: ReturnType<typeof useClientRepository>
 }) {
-  const [options, setOptions] = useState<readonly CatalogOption[]>([])
-  const [failed, setFailed] = useState(false)
-  useEffect(() => {
-    const controller = new AbortController()
-    const query = new URLSearchParams({ selectedIds: value.join(",") })
-    fetch(getApiUrl(`/api/${kind}/options?${query}`), {
-      credentials: "include",
-      signal: controller.signal,
-    })
-      .then((response) =>
-        response.ok ? (response.json() as Promise<CatalogOption[]>) : Promise.reject(),
-      )
-      .then((items) => {
-        setOptions(items)
-        setFailed(false)
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setFailed(true)
-      })
-    return () => controller.abort()
-  }, [kind, value])
+  const selectedIds = [...value].sort()
+  const optionsQuery = useQuery({
+    queryKey: ["clients", "catalog-options", kind, selectedIds],
+    queryFn: () => repository.listCatalogOptions(kind, selectedIds),
+  })
+  const options = optionsQuery.data ?? []
+  const failed = optionsQuery.isError
   return (
     <FormField id={id} label={label}>
       <fieldset id={id} className="grid gap-2 rounded-md border p-3">

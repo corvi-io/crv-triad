@@ -91,6 +91,8 @@ export type ClientPage = {
 }
 
 export type NoteInput = { body: string }
+export type ClientCatalogKind = "professionals" | "services" | "units"
+export type ClientCatalogOption = { id: string; name: string; status: ClientStatus }
 
 export class ClientOperationInvalidatedError extends Error {
   constructor() {
@@ -115,6 +117,10 @@ export interface ClientRepository {
   ): Promise<readonly DuplicateWarning[]>
   get(id: string, scenarioId: ClientScenarioId): Promise<ClientRecord>
   list(query: ClientListQuery): Promise<ClientPage>
+  listCatalogOptions(
+    kind: ClientCatalogKind,
+    selectedIds: readonly string[],
+  ): Promise<readonly ClientCatalogOption[]>
   listTags(scenarioId: ClientScenarioId): Promise<readonly string[]>
   removeNote(clientId: string, noteId: string, version: number): Promise<ClientRecord>
   setArchived(id: string, archived: boolean, version: number): Promise<ClientRecord>
