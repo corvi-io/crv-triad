@@ -127,6 +127,34 @@
       "when": 1788568179415,
       "tag": "0017_sync-professional-tenant-roles",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788568180415,
+      "tag": "0018_amusing_deathbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788568181415,
+      "tag": "0019_lethal_luckman",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788568182415,
+      "tag": "0020_scheduling-plan-entitlements",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788644324025,
+      "tag": "0021_access-audit-catalog-fields",
+      "breakpoints": true
     }
   ]
 }

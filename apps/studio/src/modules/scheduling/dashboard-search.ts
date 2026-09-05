@@ -14,7 +14,7 @@ import type {
   DashboardPeriod,
 } from "@/modules/shared/components/workspace-overview/model"
 
-import { type SchedulingUnitId, schedulingUnitIds } from "./contracts"
+import type { SchedulingUnitId } from "./contracts"
 
 export const dashboardPeriods = [
   "today",
@@ -72,8 +72,7 @@ export function validateDashboardSearch(
     professionalId: validateDashboardProfessionalId(search.professionalId, allowedProfessionalIds),
     scenario,
     unitId:
-      typeof search.unitId === "string" &&
-      schedulingUnitIds.includes(search.unitId as SchedulingUnitId)
+      typeof search.unitId === "string" && /^[a-zA-Z0-9_-]{1,100}$/.test(search.unitId)
         ? (search.unitId as SchedulingUnitId)
         : "centro",
   }

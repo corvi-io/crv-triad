@@ -1,4 +1,5 @@
 import { getApiUrl } from "@/modules/auth/services/auth-client"
+import { FormSubmissionError } from "@/modules/shared/forms/form-submission-error"
 import type {
   AvailabilityQuery,
   AvailabilityResult,
@@ -6,6 +7,7 @@ import type {
   BarbershopSetupRepository,
   CopyAvailabilityToWeekdaysInput,
   PaymentMethodSetting,
+  PendingProfessionalInvitation,
   ProfessionalInput,
   ProfessionalOperationalSummary,
   ProfessionalServiceOverride,
@@ -26,7 +28,7 @@ import type {
 } from "./contracts"
 import { SetupValidationError } from "./contracts"
 
-type ApiError = { code?: string; requestId?: string }
+type ApiError = { code?: string; details?: { field?: string }; requestId?: string }
 
 export class BarbershopSetupHttpRepository implements BarbershopSetupRepository {
   readonly catalogSource = "http" as const
@@ -40,6 +42,22 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
       status: query.status,
     })
     return request<SetupEntityPage>(`/api/${plural(query.kind)}/?${params}`)
+  }
+
+  async listPendingProfessionalInvitations() {
+    return request<readonly PendingProfessionalInvitation[]>("/api/professionals/invitations")
+  }
+
+  async resendProfessionalInvitation(id: string) {
+    await request(`/api/professionals/invitations/${encodeURIComponent(id)}/resend`, {
+      method: "POST",
+    })
+  }
+
+  async revokeProfessionalInvitation(id: string) {
+    await request(`/api/professionals/invitations/${encodeURIComponent(id)}/revoke`, {
+      method: "POST",
+    })
   }
 
   async create(kind: SetupEntityKind, input: SetupEntityInput) {
@@ -80,10 +98,11 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
   }
 
   async getOverview(): Promise<SetupOverview> {
-    const [units, professionals, services] = await Promise.all([
+    const [units, professionals, services, availability] = await Promise.all([
       this.options<SetupUnit>("unit"),
       this.options<SetupProfessional>("professional"),
       this.options<SetupService>("service"),
+      request<{ activeSeries: number }>("/api/availability/summary"),
     ])
     const items = [
       {
@@ -110,8 +129,11 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
         title: "Definir serviços",
       },
       {
-        complete: false,
-        description: "Disponibilidade ainda não possui persistência de produção.",
+        complete: availability.activeSeries > 0,
+        description:
+          availability.activeSeries > 0
+            ? `${availability.activeSeries} série(s) de disponibilidade ativa(s).`
+            : "Confirme o fuso da unidade e configure os horários dos profissionais.",
         section: "availability" as const,
         title: "Configurar disponibilidade",
       },
@@ -139,7 +161,7 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
   }
 
   private options<T extends SetupEntity>(kind: SetupEntityKind) {
-    return request<T[]>(`/api/${plural(kind)}/options?all=true`)
+    return request<T[]>(`/api/${plural(kind)}/options`)
   }
   private unsupported(): never {
     throw new SetupValidationError("Este recurso ainda não está disponível em produção.")
@@ -234,7 +256,27 @@ async function request<T>(path: string, options: { body?: unknown; method?: stri
     throw new SetupValidationError(
       "Não foi possível entregar o convite. Tente novamente em alguns instantes.",
     )
-  if (response.status === 400)
+  if (response.status === 400) {
+    if (error.code === "duplicate_name")
+      throw new FormSubmissionError(
+        "duplicate_name",
+        "Já existe um registro com este nome.",
+        error.details?.field ?? "name",
+      )
+    if (error.code === "duplicate_code")
+      throw new FormSubmissionError(
+        "duplicate_code",
+        "Já existe uma unidade com este código.",
+        error.details?.field ?? "code",
+      )
+    if (error.details?.field)
+      throw new FormSubmissionError(
+        "invalid_request",
+        error.code === "invalid_relation"
+          ? "Revise esta seleção. Use somente opções ativas e compatíveis."
+          : "Revise o valor informado.",
+        error.details.field,
+      )
     throw new SetupValidationError(
       error.code === "invalid_relation"
         ? "Revise os vínculos: use somente registros ativos e compatíveis."
@@ -244,8 +286,12 @@ async function request<T>(path: string, options: { body?: unknown; method?: stri
             ? "Já existe um convite pendente para este e-mail."
             : "Revise os dados informados.",
     )
-  if (response.status === 409)
-    throw new SetupValidationError("Os dados mudaram. Recarregue e tente novamente.")
+  }
+  if (response.status === 409 && error.code === "version_conflict")
+    throw new FormSubmissionError(
+      "version_conflict",
+      "Outra alteração foi salva depois que você abriu esta tela. Revise a versão mais recente antes de tentar novamente.",
+    )
   if (response.status === 401 || response.status === 403)
     throw new Error("Você não tem acesso a esta ação.")
   throw new Error(

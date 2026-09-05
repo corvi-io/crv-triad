@@ -89,3 +89,8 @@ export function useWorkspaceContext() {
   if (!value) throw new Error("useWorkspaceContext must be used inside WorkspaceContextProvider.")
   return value
 }
+
+// Cache consumers may also run in isolated component tests without a workspace shell.
+export function useWorkspaceTenantId() {
+  return useContext(WorkspaceContext)?.activeTenant?.id ?? null
+}

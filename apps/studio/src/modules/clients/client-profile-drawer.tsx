@@ -1,6 +1,7 @@
 import { ArchiveIcon, Edit3Icon, RotateCcwIcon, Trash2Icon } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
+import { ClientAppointmentHistory } from "@/modules/scheduling/client-appointment-history"
 import { StatusBadge } from "@/modules/shared/components/feedback/status-badge"
 import { ActionDrawer } from "@/modules/shared/components/overlays/action-drawer"
 import { ConfirmationDialog } from "@/modules/shared/components/overlays/confirmation-dialog"
@@ -20,6 +21,7 @@ import { Textarea } from "@/modules/shared/components/ui/textarea"
 import { applyInputMask } from "@/modules/shared/lib/input-masks"
 import { noteSchema } from "./client-schema"
 import type { ClientNote, ClientRecord, ClientScenarioId } from "./contracts"
+import { ClientHttpRepository } from "./http-repository"
 import {
   useAddClientNote,
   useClient,
@@ -40,12 +42,14 @@ export function ClientProfileDrawer({
   onEditClient,
   onInspectClient,
   onOpenChange,
+  onOpenChangeComplete,
   scenarioId,
 }: {
   clientId: string | null
   onEditClient: (id: string) => void
   onInspectClient: (id: string) => void
   onOpenChange: (open: boolean) => void
+  onOpenChangeComplete?: (open: boolean) => void
   scenarioId: ClientScenarioId
 }) {
   const query = useClient(clientId, scenarioId)
@@ -74,6 +78,7 @@ export function ClientProfileDrawer({
       <ActionDrawer
         isOpen={Boolean(clientId)}
         onOpenChange={onOpenChange}
+        onOpenChangeComplete={onOpenChangeComplete}
         context="Clientes"
         title={client?.name ?? "Perfil do cliente"}
         description="Perfil do cliente"
@@ -243,7 +248,7 @@ function ClientSummary({
                     status === "archived" ? `${name} (arquivado)` : name,
                   )
                   .join(", ") ||
-                client.servicePreferences.join(", ") ||
+                client.servicePreferences?.join(", ") ||
                 "-"
               }
             />
@@ -264,6 +269,15 @@ function ClientSummary({
 }
 
 function Appointments({ client }: { client: ClientRecord }) {
+  const repository = useClientRepository()
+  return repository instanceof ClientHttpRepository ? (
+    <ClientAppointmentHistory clientId={client.id} />
+  ) : (
+    <MemoryAppointments client={client} />
+  )
+}
+
+function MemoryAppointments({ client }: { client: ClientRecord }) {
   const [limit, setLimit] = useState(6)
   const visible = client.appointments.slice(0, limit)
   return (

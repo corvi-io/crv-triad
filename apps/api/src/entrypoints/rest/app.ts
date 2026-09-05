@@ -5,6 +5,7 @@ import { createOwnershipRoutes } from "../../modules/access/http/ownership-route
 import { createAccessRoutes } from "../../modules/access/http/routes.js"
 import { createAnalyticsRoutes } from "../../modules/analytics/http/routes.js"
 import { createPostHogLeadCapture } from "../../modules/analytics/lead-capture.js"
+import { createAvailabilityService } from "../../modules/availability/application/availability-service.js"
 import { createBackstageRoutes } from "../../modules/backstage/http/routes.js"
 import { createClientService } from "../../modules/clients/application/client-service.js"
 import { createDrizzleClientRepository } from "../../modules/clients/database/client-repository.js"
@@ -12,9 +13,17 @@ import { createClientRoutes } from "../../modules/clients/http/routes.js"
 import type { IdpEnv } from "../../modules/idp/config/env.js"
 import type { IdpDatabase } from "../../modules/idp/database/client.js"
 import { createIdpRoutes } from "../../modules/idp/http/app.js"
+import { requestContextMiddleware } from "../../modules/idp/http/middleware/request-context.js"
 import type { IdpAuth, InvitationAcceptedObserver } from "../../modules/idp/identity/auth.js"
 import type { AuthEmailSender } from "../../modules/idp/identity/transactional-email.js"
 import { createLeadRoutes } from "../../modules/leads/http/routes.js"
+import {
+  createSchedulingService,
+  guardAvailabilityAppointments,
+} from "../../modules/scheduling/application/scheduling-service.js"
+import { nextClientAppointment } from "../../modules/scheduling/database/client-projection.js"
+import { createSchedulingRoutes } from "../../modules/scheduling/http/routes.js"
+import { createCatalogAuditWriter } from "../../modules/services/application/catalog-audit.js"
 import { createCatalogService } from "../../modules/services/application/catalog-service.js"
 import { createCatalogRoutes } from "../../modules/services/http/catalog-routes.js"
 import { createContextDiscovery } from "../../modules/tenancy/application/context-discovery.js"
@@ -34,7 +43,9 @@ export type CreateRestAppInput = {
 
 export function createRestApp(input: CreateRestAppInput) {
   const captureAcceptedLead = createPostHogLeadCapture(input.env)
-  const clientService = createClientService(createDrizzleClientRepository(input.db))
+  const clientService = createClientService(
+    createDrizzleClientRepository(input.db, nextClientAppointment),
+  )
   const resolveTenantContext = createTenantContextResolver(
     input.auth,
     input.db,
@@ -44,6 +55,7 @@ export function createRestApp(input: CreateRestAppInput) {
   const catalogService = createCatalogService(input.db)
 
   return new Elysia({ name: "crv-triad-api" })
+    .use(requestContextMiddleware)
     .use(createIdpRoutes(input))
     .use(
       createContextRoutes(
@@ -61,6 +73,20 @@ export function createRestApp(input: CreateRestAppInput) {
         resolveTenantContext,
         authorizeTenantAction,
         input.authEmailSender,
+        createCatalogAuditWriter(input.db),
+      ),
+    )
+    .use(
+      createSchedulingRoutes(
+        createSchedulingService(input.db, input.env.BETTER_AUTH_SECRET),
+        createAvailabilityService(
+          input.db,
+          guardAvailabilityAppointments,
+          input.env.BETTER_AUTH_SECRET,
+        ),
+        resolveTenantContext,
+        authorizeTenantAction,
+        (event) => console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV })),
       ),
     )
     .use(createLeadRoutes(input.env, input.pool, { captureAcceptedLead }))

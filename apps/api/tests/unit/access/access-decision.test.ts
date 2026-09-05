@@ -47,11 +47,15 @@ describe("access decision", () => {
 
   it("keeps ownership and review capabilities out of the member role", () => {
     expect(capabilitiesForRole("member")).toEqual([
+      "availability.read",
+      "scheduling.read",
+      "scheduling.manage",
       "clients.read",
       "clients.manage",
       "catalogs.read",
     ])
     expect(capabilitiesForRole("member")).not.toContain("catalogs.manage")
+    expect(capabilitiesForRole("member")).not.toContain("availability.manage")
     expect(capabilitiesForRole("admin")).not.toContain("ownership.transfer")
     expect(capabilitiesForRole("owner")).toContain("ownership.transfer")
   })

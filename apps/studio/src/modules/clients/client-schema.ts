@@ -15,7 +15,6 @@ export const clientFormSchema = z
     preferenceNote: z.string().trim().max(240, "Use no máximo 240 caracteres."),
     professionalPreferenceIds: z.array(z.string()).max(5),
     servicePreferenceIds: z.array(z.string()).max(20),
-    servicePreferences: z.array(z.string()),
     tagsText: z.string().max(120, "Use no máximo 120 caracteres nas tags."),
     unitPreferenceIds: z.array(z.string()).max(5),
   })
@@ -34,7 +33,6 @@ export function createClientFormDefaults(client?: ClientInput): ClientFormValues
     preferenceNote: client?.preferenceNote ?? "",
     professionalPreferenceIds: [...(client?.professionalPreferenceIds ?? [])],
     servicePreferenceIds: [...(client?.servicePreferenceIds ?? [])],
-    servicePreferences: [...(client?.servicePreferences ?? [])],
     tagsText: client?.tags.join(", ") ?? "",
     unitPreferenceIds: [...(client?.unitPreferenceIds ?? [])],
   }
@@ -48,7 +46,6 @@ export function clientFormValuesToInput(values: ClientFormValues): ClientInput {
     preferenceNote: values.preferenceNote.trim(),
     professionalPreferenceIds: values.professionalPreferenceIds,
     servicePreferenceIds: values.servicePreferenceIds,
-    servicePreferences: values.servicePreferences,
     tags: splitLabels(values.tagsText),
     unitPreferenceIds: values.unitPreferenceIds,
   }

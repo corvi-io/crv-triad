@@ -146,6 +146,8 @@ export const accessAudit = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "restrict" }),
     action: text("action").notNull(),
+    entityType: text("entity_type"),
+    changedFields: text("changed_fields").array().default(sql`'{}'::text[]`).notNull(),
     reason: text("reason"),
     targetId: text("target_id"),
     outcome: text("outcome", { enum: ["allowed", "denied", "failed"] }).notNull(),

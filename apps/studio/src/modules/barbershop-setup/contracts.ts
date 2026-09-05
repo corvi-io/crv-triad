@@ -222,6 +222,15 @@ export type ProfessionalInput = {
   specialties: readonly string[]
   unitIds: readonly string[]
 }
+export type PendingProfessionalInvitation = {
+  assignments: { serviceIds: readonly string[]; unitIds: readonly string[] }
+  email: string
+  expiresAt: string
+  id: string
+  role: string
+  specialties: readonly string[]
+  status: "pending"
+}
 export type ServiceInput = Omit<SetupService, "id" | "kind" | "status">
 export type SetupEntityInput = ProfessionalInput | ServiceInput | UnitInput
 
@@ -291,6 +300,9 @@ export interface BarbershopSetupRepository {
   ): Promise<ProfessionalOperationalSummary>
   getProfessionalCommissionBasisPoints(professionalId: string): Promise<number>
   list(query: SetupListQuery): Promise<SetupEntityPage>
+  listPendingProfessionalInvitations?(): Promise<readonly PendingProfessionalInvitation[]>
+  resendProfessionalInvitation?(id: string): Promise<void>
+  revokeProfessionalInvitation?(id: string): Promise<void>
   resolveProfessionalService(
     serviceId: string,
     professionalId: string,

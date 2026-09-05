@@ -17,8 +17,15 @@ vi.mock("@/modules/auth/services/auth-client", async (importOriginal) => {
   return { ...actual, signOut: () => signOut() }
 })
 
-function renderRoute(path: string, authState: AuthState) {
+function renderRoute(path: string, authState: AuthState, deniedReason?: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  if (deniedReason)
+    queryClient.setQueryData(["access-summary"], {
+      organizationId: "test-tenant",
+      role: "member",
+      subscriptionState: "active",
+      capabilities: [{ capability: "clients.read", allowed: false, reason: deniedReason }],
+    })
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -196,5 +203,49 @@ describe("routes", () => {
       to: "/clients",
     })
     expect(router.state.location.href).toBe("/clients?client=client_01&mode=edit")
+  })
+  it.each([
+    ["capability_forbidden", "Sua função atual não permite consultar clientes."],
+    ["subscription_inactive", "A assinatura da barbearia está suspensa ou expirada."],
+    ["module_not_included", "O plano atual não inclui a gestão de clientes."],
+    ["unknown", "Este recurso não está liberado para o acesso atual."],
+  ])("explains the %s client boundary and requests access once", async (reason, message) => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ id: "request-id", status: "pending" }), { status: 200 }),
+      )
+    vi.stubGlobal("fetch", fetcher)
+    renderRoute("/clients", authenticatedState(), reason)
+    expect(await screen.findByText(message)).toBeVisible()
+    await userEvent.click(screen.getByRole("button", { name: "Solicitar acesso" }))
+    expect(await screen.findByText("Solicitação enviada ao responsável.")).toBeVisible()
+    expect(screen.getByRole("button", { name: "Solicitar acesso" })).toBeDisabled()
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.stringContaining("/api/access/requests"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ capabilityKey: "clients.read" }),
+      }),
+    )
+  })
+  it("allows retrying an access request without granting local client permissions", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response("", { status: 500 }))
+        .mockResolvedValue(
+          new Response(JSON.stringify({ id: "request-id", status: "pending" }), { status: 200 }),
+        ),
+    )
+    renderRoute("/clients", authenticatedState(), "capability_forbidden")
+    await userEvent.click(await screen.findByRole("button", { name: "Solicitar acesso" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível enviar a solicitação.",
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Solicitar acesso" }))
+    expect(await screen.findByText("Solicitação enviada ao responsável.")).toBeVisible()
+    expect(screen.queryByRole("table", { name: "Diretório de clientes" })).not.toBeInTheDocument()
   })
 })

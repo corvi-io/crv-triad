@@ -9,7 +9,9 @@ import {
 } from "lucide-react"
 import { type ReactNode, useEffect, useState } from "react"
 import { Controller, useFieldArray, useForm } from "react-hook-form"
+import { toast } from "sonner"
 import { z } from "zod"
+import { ProfessionalSchedule } from "@/modules/scheduling/professional-schedule"
 import {
   FormField,
   FormSection,
@@ -32,6 +34,7 @@ import {
 } from "@/modules/shared/components/ui/select"
 import { Textarea } from "@/modules/shared/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/modules/shared/components/ui/toggle-group"
+import { FormSubmissionError } from "@/modules/shared/forms/form-submission-error"
 import type {
   ProfessionalInput,
   ServiceInput,
@@ -44,6 +47,7 @@ import type {
   UnitInput,
   Weekday,
 } from "./contracts"
+import { useBarbershopSetupRepository } from "./repository-context"
 
 const baseSchema = {
   name: z.string().trim().min(2, "Informe um nome com pelo menos 2 caracteres."),
@@ -115,7 +119,7 @@ export const professionalFormSchema = z.object({
   specialties: z.array(
     z.string().trim().min(2, "Informe especialidades com pelo menos 2 caracteres."),
   ),
-  unitIds: z.array(z.string()),
+  unitIds: z.array(z.string()).min(1, "Selecione pelo menos uma unidade."),
   serviceIds: z.array(z.string()),
 })
 
@@ -131,8 +135,8 @@ export const serviceFormSchema = z.object({
     .max(300, "Use duração máxima de 5 horas.")
     .multipleOf(15, "Use intervalos de 15 minutos."),
   price: z.number({ error: "Informe o preço do serviço." }).min(0, "Informe um preço válido."),
-  unitIds: z.array(z.string()),
-  professionalIds: z.array(z.string()),
+  unitIds: z.array(z.string()).min(1, "Selecione pelo menos uma unidade."),
+  professionalIds: z.array(z.string()).min(1, "Selecione pelo menos um profissional."),
 })
 
 export const setupEntityFormSchema = z.discriminatedUnion("kind", [
@@ -248,6 +252,7 @@ function EntityForm({
   services: readonly SetupService[]
   units: readonly SetupUnit[]
 }) {
+  const setupRepository = useBarbershopSetupRepository()
   const formId = `setup-${entityKind}-form`
   const form = useForm<SetupEntityFormValues, unknown, SetupEntityFormOutput>({
     resolver: zodResolver(setupEntityFormSchema),
@@ -280,30 +285,53 @@ function EntityForm({
   }
 
   async function submit(parsed: SetupEntityFormOutput) {
-    if (parsed.kind === "unit") {
-      const { kind: _kind, ...input } = parsed
-      const firstPeriod = input.businessHours.periods[0]
-      await onSave("unit", {
-        ...input,
-        businessHours: { ...firstPeriod, periods: input.businessHours.periods },
-      } satisfies UnitInput)
-    } else if (parsed.kind === "professional") {
-      if (!entity && !parsed.invitationEmail) {
-        form.setError(
-          "invitationEmail",
-          { message: "Informe o e-mail do convite." },
-          { shouldFocus: true },
-        )
-        return
+    try {
+      if (parsed.kind === "unit") {
+        const { kind: _kind, ...input } = parsed
+        const firstPeriod = input.businessHours.periods[0]
+        await onSave("unit", {
+          ...input,
+          businessHours: { ...firstPeriod, periods: input.businessHours.periods },
+        } satisfies UnitInput)
+      } else if (parsed.kind === "professional") {
+        if (!entity && !parsed.invitationEmail) {
+          form.setError(
+            "invitationEmail",
+            { message: "Informe o e-mail do convite." },
+            { shouldFocus: true },
+          )
+          return
+        }
+        const { kind: _kind, ...input } = parsed
+        await onSave("professional", input satisfies ProfessionalInput)
+      } else {
+        const { kind: _kind, price, ...rest } = parsed
+        await onSave("service", {
+          ...rest,
+          priceCents: Math.round(price * 100),
+        } satisfies ServiceInput)
       }
-      const { kind: _kind, ...input } = parsed
-      await onSave("professional", input satisfies ProfessionalInput)
-    } else {
-      const { kind: _kind, price, ...rest } = parsed
-      await onSave("service", {
-        ...rest,
-        priceCents: Math.round(price * 100),
-      } satisfies ServiceInput)
+    } catch (error) {
+      if (error instanceof FormSubmissionError) {
+        if (error.field && error.field in form.getValues()) {
+          form.setError(error.field as never, { message: error.message }, { shouldFocus: true })
+          toast.error("Revise o campo destacado.")
+          return
+        }
+        if (error.code === "version_conflict") {
+          toast.error(`Este ${entityLabels[entityKind].singular} foi atualizado`, {
+            action: { label: "Recarregar dados", onClick: () => window.location.reload() },
+            description: error.message,
+            duration: Number.POSITIVE_INFINITY,
+          })
+          return
+        }
+      }
+      toast.error(
+        error instanceof Error && error.name !== "SimulatedMockFailure"
+          ? error.message
+          : "Não foi possível concluir a ação. Tente novamente.",
+      )
     }
   }
 
@@ -333,7 +361,7 @@ function EntityForm({
         id={formId}
         noValidate
         className="flex flex-col gap-4"
-        onSubmit={form.handleSubmit(submit)}
+        onSubmit={form.handleSubmit(submit, () => toast.error("Revise os campos destacados."))}
       >
         <FormSection title="Identificação">
           {entityKind !== "professional" ? (
@@ -406,6 +434,9 @@ function EntityForm({
               options={eligibleProfessionals}
             />
           </FormSection>
+        ) : null}
+        {entity?.kind === "professional" && setupRepository.catalogSource === "http" ? (
+          <ProfessionalSchedule professionalId={entity.id} />
         ) : null}
       </form>
     </ActionDrawer>
@@ -959,6 +990,7 @@ function EntityDetails({
   services: readonly SetupService[]
   units: readonly SetupUnit[]
 }) {
+  const setupRepository = useBarbershopSetupRepository()
   const rows: Array<[string, ReactNode]> =
     entity.kind === "unit"
       ? [
@@ -1004,6 +1036,11 @@ function EntityDetails({
           </Detail>
         ))}
       </dl>
+      {entity.kind === "professional" && setupRepository.catalogSource === "http" ? (
+        <div className="mt-6">
+          <ProfessionalSchedule professionalId={entity.id} />
+        </div>
+      ) : null}
     </ActionDrawer>
   )
 }

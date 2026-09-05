@@ -68,19 +68,23 @@ test("keeps the authenticated clients API active but excludes memory fixtures in
   await expect(page.getByText("Cliente Sintético 01")).toHaveCount(0)
 })
 
-test("keeps the Dashboard route but fails closed without scheduling memory in production", async ({
+test("keeps the Dashboard on HTTP and fails closed when its API is unavailable", async ({
   page,
 }) => {
   await page.unroute("**/api/auth/**")
   await routeAuthenticatedSession(page)
+  await page.route("**/api/scheduling/units", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({ code: "internal_error" }),
+      contentType: "application/json",
+      headers: corsHeaders(),
+      status: 500,
+    })
+  })
   await page.goto("/overview?scenario=normal")
 
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
-  await expect(
-    page.getByText(
-      "O Dashboard operacional está desativado neste ambiente porque a fonte de agendamentos não está disponível.",
-    ),
-  ).toBeVisible()
+  await expect(page.getByText("Não foi possível carregar os agendamentos.")).toBeVisible()
   await expect(page.getByRole("button", { name: "Novo agendamento" })).toHaveCount(0)
   await expect(page.getByText("Carlos Lima")).toHaveCount(0)
 })

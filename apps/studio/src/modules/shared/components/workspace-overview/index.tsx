@@ -248,7 +248,11 @@ function DashboardReady({
 
       <div className="grid min-w-0 gap-2 lg:grid-cols-2" data-dashboard-row="cancellations-clients">
         <CancellationsCard cancellations={model.cancellations} />
-        <ClientsCard clients={model.clients} onNavigateClients={onNavigateClients} />
+        <ClientsCard
+          integrated={model.integration !== "scheduling"}
+          clients={model.clients}
+          onNavigateClients={onNavigateClients}
+        />
       </div>
     </>
   )
@@ -285,6 +289,7 @@ function MetricSurface({ metric, onOpen }: { metric: DashboardMetric; onOpen: ()
             size="icon-sm"
             type="button"
             variant="ghost"
+            disabled={metric.value === "—"}
             onClick={onOpen}
           >
             <ArrowRightIcon />
@@ -293,21 +298,23 @@ function MetricSurface({ metric, onOpen }: { metric: DashboardMetric; onOpen: ()
       </CardHeader>
       <CardContent className="px-2.5">
         <p className="text-xl font-semibold tracking-tight tabular-nums">{metric.value}</p>
-        <p
-          className={cn(
-            "mt-1 flex items-center gap-1 text-[0.6875rem] leading-4",
-            metric.comparison.direction === "up"
-              ? "text-feedback-success-foreground"
-              : metric.comparison.direction === "down"
-                ? "text-feedback-destructive-foreground"
-                : "text-muted-foreground",
-          )}
-        >
-          <ComparisonIcon aria-hidden="true" className="size-3" />
-          <span className="font-medium tabular-nums">{metric.comparison.amount}</span>
-          {metric.comparison.percentage ? <span>({metric.comparison.percentage})</span> : null}
-          <span className="text-muted-foreground">vs. {metric.comparison.periodLabel}</span>
-        </p>
+        {metric.comparison.periodLabel ? (
+          <p
+            className={cn(
+              "mt-1 flex items-center gap-1 text-[0.6875rem] leading-4",
+              metric.comparison.direction === "up"
+                ? "text-feedback-success-foreground"
+                : metric.comparison.direction === "down"
+                  ? "text-feedback-destructive-foreground"
+                  : "text-muted-foreground",
+            )}
+          >
+            <ComparisonIcon aria-hidden="true" className="size-3" />
+            <span className="font-medium tabular-nums">{metric.comparison.amount}</span>
+            {metric.comparison.percentage ? <span>({metric.comparison.percentage})</span> : null}
+            <span className="text-muted-foreground">vs. {metric.comparison.periodLabel}</span>
+          </p>
+        ) : null}
         <p className="mt-0.5 truncate text-[0.6875rem] leading-4 text-muted-foreground">
           {metric.description}
         </p>
@@ -438,7 +445,13 @@ function AttentionCard({
   return (
     <DashboardCard
       action={
-        <Button type="button" size="sm" variant="ghost" onClick={onNavigateNotifications}>
+        <Button
+          disabled={state === "unavailable"}
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={onNavigateNotifications}
+        >
           Ver todos
         </Button>
       }
@@ -538,13 +551,19 @@ function FlowCard({
             key={item.id}
             type="button"
             className="min-h-16 cursor-pointer rounded-lg border p-2 text-center outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            disabled={item.unavailable}
             onClick={() => onNavigateAgenda(item.status ? { status: item.status } : undefined)}
           >
             <FlowIcon status={item.id} statusClassName={item.statusClassName} />
             <span className="mt-1 block truncate text-[0.6875rem] text-muted-foreground">
               {item.label}
             </span>
-            <span className="block text-lg font-semibold leading-5 tabular-nums">{item.count}</span>
+            <span className="block text-lg font-semibold leading-5 tabular-nums">
+              {item.unavailable ? "—" : item.count}
+            </span>
+            {item.unavailable ? (
+              <span className="text-[0.6875rem] text-muted-foreground">Ainda não integrado</span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -736,10 +755,12 @@ function CancellationsCard({
 }
 
 function ClientsCard({
+  integrated = true,
   clients,
   onNavigateClients,
 }: {
   clients: WorkspaceOverviewModel["clients"]
+  integrated?: boolean
   onNavigateClients?: () => void
 }) {
   return (
@@ -756,11 +777,14 @@ function ClientsCard({
       title="Clientes do período"
     >
       <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-        <TextStat label="Clientes concluídos únicos" value={String(clients.completedUniqueCount)} />
+        <TextStat
+          label="Clientes concluídos únicos"
+          value={integrated ? String(clients.completedUniqueCount) : "Ainda não integrado"}
+        />
         <UnavailableStat label="Clientes novos" />
         <TextStat
           label="Mais de um atendimento no período"
-          value={String(clients.repeatedInPeriodCount)}
+          value={integrated ? String(clients.repeatedInPeriodCount) : "Ainda não integrado"}
         />
       </dl>
       <p className="mt-2 text-xs leading-4 text-muted-foreground">

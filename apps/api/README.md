@@ -27,3 +27,5 @@ Runtime env:
 - `POSTHOG_PROJECT_KEY` is the public project key used for consent-correlated, server-confirmed
   lead analytics. An empty value disables server-side capture outside production; the deployment
   manifest requires the corresponding source value for the `prd` target.
+
+Availability and scheduling are production modules. Apply additive migrations 0018–0021 after the existing migration history. See [contracts and rollout](../../docs/api/availability-and-scheduling.md).

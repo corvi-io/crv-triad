@@ -78,20 +78,6 @@ describe("client management contracts", () => {
     expect(clientFormValuesToInput(valid).email).toBe("cliente@example.invalid")
   })
 
-  it("preserves legacy service preferences while editing a client", () => {
-    const values = createClientFormDefaults({
-      email: "cliente@example.invalid",
-      name: "Cliente Sintético",
-      phone: "",
-      preferenceNote: "",
-      servicePreferences: ["Preferência histórica"],
-      tags: [],
-    })
-    expect(clientFormValuesToInput(clientFormSchema.parse(values)).servicePreferences).toEqual([
-      "Preferência histórica",
-    ])
-  })
-
   it("accepts a real localized tag as URL-backed filter state", () => {
     expect(validateClientSearch({ tag: "Manhã VIP" }, resolveClientScenario).tag).toBe("Manhã VIP")
   })
@@ -178,7 +164,7 @@ describe("client memory repository", () => {
       name: "Cliente Sintético Novo",
       phone: "",
       preferenceNote: "",
-      servicePreferences: ["Corte clássico"],
+      servicePreferenceIds: ["service-corte"],
       tags: ["novo"],
     }
     const created = await repository.create(input)
@@ -227,7 +213,6 @@ describe("client memory repository", () => {
       name: "Cliente Sintético Reload",
       phone: "",
       preferenceNote: "",
-      servicePreferences: [],
       tags: [],
     }
     expect((await first.create(input)).id).toBe("client-0001")

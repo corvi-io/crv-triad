@@ -3,7 +3,7 @@ import { ptBR } from "date-fns/locale"
 import { CalendarPlusIcon, GripVerticalIcon } from "lucide-react"
 import { StatusBadge } from "@/modules/shared/components/feedback/status-badge"
 import { Button } from "@/modules/shared/components/ui/button"
-import { toneForStatus } from "./agenda-board"
+import { toMinutes, toneForStatus } from "./agenda-board"
 import type { Appointment, ScheduleRange } from "./contracts"
 import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
 import { deriveWeeklyLayouts, sevenDayDates, type WeeklyDropDestination } from "./weekly-agenda"
@@ -60,6 +60,33 @@ export function WeeklyBoard({
                 const hourPeriods = range.periods.filter(
                   (period) => period.date === date && Number(period.start.slice(0, 2)) === hour,
                 )
+                const slotEnd = toMinutes(start) + 15
+                const eligible = range.professionals.filter(
+                  (person) =>
+                    !range.availability ||
+                    (range.availability.some(
+                      (rule) =>
+                        rule.professionalId === person.id &&
+                        rule.date === date &&
+                        rule.kind === "available" &&
+                        rule.start <= start &&
+                        toMinutes(rule.end) >= slotEnd,
+                    ) &&
+                      !range.periods.some(
+                        (period) =>
+                          period.professionalId === person.id &&
+                          period.date === date &&
+                          toMinutes(period.start) < slotEnd &&
+                          period.end > start,
+                      ) &&
+                      !range.occupancies.some(
+                        (occupied) =>
+                          occupied.professionalId === person.id &&
+                          occupied.date === date &&
+                          toMinutes(occupied.start) < slotEnd &&
+                          toMinutes(occupied.start) + occupied.durationMinutes > toMinutes(start),
+                      )),
+                )
                 return (
                   <fieldset
                     className="min-h-28 border-b p-1.5"
@@ -78,17 +105,17 @@ export function WeeklyBoard({
                     }}
                   >
                     <legend className="sr-only">{`${formatDate(date)} às ${start}`}</legend>
-                    {hourPeriods.length === 0 ? (
+                    {eligible.length > 0 && (range.availability || hourPeriods.length === 0) ? (
                       <Button
                         aria-label={`Criar agendamento em ${formatDate(date)} às ${start}`}
-                        className="mb-1 h-7 w-full justify-start px-1.5 text-xs"
+                        className="mb-1 min-h-10 w-full justify-start px-1.5 text-xs"
                         size="sm"
                         type="button"
                         variant="ghost"
                         onClick={() =>
                           onCreate({
                             date,
-                            professionalId: range.professionals[0]?.id ?? "",
+                            professionalId: eligible.length === 1 ? eligible[0].id : "",
                             start,
                           })
                         }
@@ -96,6 +123,9 @@ export function WeeklyBoard({
                         <CalendarPlusIcon data-icon="inline-start" />
                         {start} · livre
                       </Button>
+                    ) : null}
+                    {range.availability && eligible.length === 0 ? (
+                      <p className="p-2 text-xs text-muted-foreground">{start} · indisponível</p>
                     ) : null}
                     {hourPeriods.map((period) => (
                       <div

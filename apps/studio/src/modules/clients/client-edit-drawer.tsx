@@ -25,13 +25,9 @@ export function ClientEditDrawer({
 
   async function save(input: ClientInput) {
     if (!client) return
-    try {
-      await updateClient.mutateAsync({ id: client.id, input, version: client.version ?? 1 })
-      toast.success("Cliente atualizado.")
-      onOpenChange(false)
-    } catch {
-      toast.error("Não foi possível atualizar. Tente novamente.")
-    }
+    await updateClient.mutateAsync({ id: client.id, input, version: client.version ?? 1 })
+    toast.success("Cliente atualizado.")
+    onOpenChange(false)
   }
 
   return (

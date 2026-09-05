@@ -58,9 +58,14 @@ export function PageHeader({
     : actions
 
   return (
-    <header className="flex min-w-0 items-end justify-between gap-3" data-slot="page-header">
-      <div className="min-w-0 flex-1" data-slot="page-header-content">
-        <h1 className="text-xl font-semibold tracking-normal text-foreground">{title}</h1>
+    <header
+      className="flex min-w-0 flex-wrap items-end justify-between gap-3"
+      data-slot="page-header"
+    >
+      <div className="min-w-0 flex-1 basis-48" data-slot="page-header-content">
+        <h1 className="break-words text-xl font-semibold tracking-normal text-foreground">
+          {title}
+        </h1>
         {description ? (
           <p className="mt-1 max-w-3xl truncate text-sm leading-5 text-muted-foreground">
             {description}

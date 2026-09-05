@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useState } from "react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { resolveBarbershopSetupScenario } from "@/dev/barbershop-setup/entry"
 import { BarbershopSetupMemoryRepository } from "@/dev/barbershop-setup/memory-repository"
 import { projectAvailability } from "@/modules/barbershop-setup/availability-dates"
@@ -576,6 +576,54 @@ describe("barbershop setup module", () => {
     expect(result.error?.issues.map(({ message }) => message)).toContain(
       "O término deve ser posterior ao início.",
     )
+  })
+  it("navigates the preserved availability calendar through month, day and current date", async () => {
+    renderSetup("single-unit", "availability")
+    await userEvent.click(await screen.findByRole("button", { name: "Mês" }))
+    expect(screen.getByRole("button", { name: "Mês" })).toHaveAttribute("aria-pressed", "true")
+    await userEvent.click(screen.getByRole("button", { name: "Próximo período" }))
+    await userEvent.click(screen.getByRole("button", { name: "Período anterior" }))
+    await userEvent.click(screen.getByRole("button", { name: "Dia" }))
+    expect(screen.getByRole("button", { name: "Dia" })).toHaveAttribute("aria-pressed", "true")
+    await userEvent.click(screen.getByRole("button", { name: "Hoje" }))
+    expect(screen.getByRole("button", { name: "Hoje" })).toBeVisible()
+  })
+  it("retries unavailable catalog lists and opens row details through keyboard and menu", async () => {
+    const repository = new BarbershopSetupMemoryRepository()
+    vi.spyOn(repository, "list").mockRejectedValueOnce(new Error("Offline"))
+    renderSetup("single-unit", "units", repository)
+    await userEvent.click(await screen.findByRole("button", { name: "Tentar novamente" }))
+    const button = await screen.findByRole("button", { name: "Unidade Centro" })
+    const row = button.closest("tr")
+    if (!row) throw new Error("Missing unit row")
+    button.focus()
+    await userEvent.keyboard("{Enter}")
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByText("Unidade Centro")).toBeVisible()
+    await userEvent.click(within(dialog).getAllByRole("button", { name: "Fechar" })[0])
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    fireEvent.contextMenu(row, { clientX: 10, clientY: 20 })
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Editar" }))
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Editar unidade")
+    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Unidade revisão" } })
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }))
+    expect(await screen.findByRole("button", { name: "Unidade revisão" })).toBeVisible()
+  })
+  it("retains a linked catalog after a rejected archive", async () => {
+    const repository = new BarbershopSetupMemoryRepository()
+    const archive = vi.spyOn(repository, "setArchived")
+    renderSetup("single-unit", "units", repository)
+    const button = await screen.findByRole("button", { name: "Unidade Centro" })
+    const row = button.closest("tr")
+    if (!row) throw new Error("Missing unit row")
+    fireEvent.keyDown(row, { key: "F10", shiftKey: true })
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Arquivar" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(archive).not.toHaveBeenCalled()
+    await userEvent.click(within(dialog).getByRole("button", { name: "Arquivar" }))
+    await waitFor(() => expect(archive).toHaveBeenCalledOnce())
+    expect(button).toBeVisible()
+    expect(within(row).getByText("Ativo")).toBeVisible()
   })
 })
 

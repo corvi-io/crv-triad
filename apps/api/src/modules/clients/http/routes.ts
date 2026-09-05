@@ -19,7 +19,6 @@ const profileBody = t.Object({
   preferenceNote: t.Optional(t.String({ maxLength: 1_000 })),
   professionalPreferenceIds: t.Optional(t.Array(t.String({ maxLength: 128 }), { maxItems: 5 })),
   servicePreferenceIds: t.Optional(t.Array(t.String({ maxLength: 128 }), { maxItems: 20 })),
-  servicePreferences: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 20 })),
   tags: t.Optional(t.Array(t.String({ maxLength: 60 }), { maxItems: 20 })),
   unitPreferenceIds: t.Optional(t.Array(t.String({ maxLength: 128 }), { maxItems: 5 })),
 })
@@ -225,15 +224,20 @@ class ClientAccessError extends Error {
   }
 }
 
-function presentDetail<T extends { createdAt: Date; updatedAt: Date; notes: readonly unknown[] }>(
-  record: T,
-) {
+function presentDetail<
+  T extends {
+    createdAt: Date
+    updatedAt: Date
+    notes: readonly unknown[]
+    nextAppointmentAt?: string | null
+  },
+>(record: T) {
   return {
     ...record,
     appointments: [],
     createdAt: record.createdAt.toISOString(),
     lastVisitAt: null,
-    nextAppointmentAt: null,
+    nextAppointmentAt: record.nextAppointmentAt ?? null,
     notes: record.notes.map((note) => {
       const value = note as { createdAt: Date; updatedAt: Date }
       return {
@@ -248,7 +252,7 @@ function presentDetail<T extends { createdAt: Date; updatedAt: Date; notes: read
 
 function presentPage<
   T extends {
-    items: readonly { createdAt: Date; updatedAt: Date }[]
+    items: readonly { createdAt: Date; updatedAt: Date; nextAppointmentAt?: string | null }[]
     page: number
     pageSize: number
     totalCount: number
@@ -261,7 +265,7 @@ function presentPage<
       ...record,
       createdAt: record.createdAt.toISOString(),
       lastVisitAt: null,
-      nextAppointmentAt: null,
+      nextAppointmentAt: record.nextAppointmentAt ?? null,
       updatedAt: record.updatedAt.toISOString(),
     })),
   }

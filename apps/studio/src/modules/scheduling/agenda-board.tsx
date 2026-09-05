@@ -442,6 +442,26 @@ function ScheduleCell({
     )
   }
 
+  if (
+    day.availability &&
+    !day.availability.some(
+      (item) =>
+        item.date === day.date &&
+        item.professionalId === professional.id &&
+        item.kind === "available" &&
+        item.start <= slot &&
+        item.end > slot,
+    )
+  )
+    return (
+      <td
+        className="agenda-grid-line border-r border-b bg-muted/40 p-1 text-xs text-muted-foreground"
+        aria-label={`${professional.name}, ${slot}, indisponível`}
+      >
+        Indisponível
+      </td>
+    )
+
   return (
     <DroppableSlotButton
       professional={professional}
@@ -488,7 +508,7 @@ function AppointmentCard({
   const presentation = appointmentStatusPresentation[appointment.status]
   const end = fromMinutes(toMinutes(appointment.start) + appointment.durationMinutes)
   const layout = appointmentCardLayout(rowSpan)
-  const serviceName = service?.name ?? "Serviço sintético"
+  const serviceName = appointment.serviceName ?? service?.name ?? "Serviço indisponível"
 
   return (
     <div
@@ -608,7 +628,7 @@ function AppointmentDragPreview({
         {appointment.start} · {professionalName ?? "Barbeiro"}
       </p>
       <p className="truncate text-xs text-muted-foreground">
-        {service?.name ?? "Serviço sintético"}
+        {appointment.serviceName ?? service?.name ?? "Serviço indisponível"}
       </p>
     </div>
   )

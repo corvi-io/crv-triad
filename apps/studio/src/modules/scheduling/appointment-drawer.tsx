@@ -31,7 +31,9 @@ import type {
   Service,
 } from "./contracts"
 import { ScheduleConflictError } from "./contracts"
+import { ProductionAppointmentDrawer } from "./production-appointment-drawer"
 import { useCancelAppointment, useCreateAppointment, useUpdateAppointment } from "./queries"
+import { useSchedulingRepository } from "./repository-context"
 import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
 
 export type DrawerMode = "cancel" | "create" | "edit" | "reschedule" | "view"
@@ -61,12 +63,12 @@ export const appointmentFormSchema = z.object({
       /^([01]\d|2[0-3]):(?:00|15|30|45)$/,
       "Use horários de 15 em 15 minutos (00, 15, 30 ou 45).",
     ),
-  unitId: z.enum(["centro", "artesao"]),
+  unitId: z.string().min(1),
 })
 
 type AppointmentFormValues = z.infer<typeof appointmentFormSchema>
 
-export function AppointmentDrawer({
+function LegacyAppointmentDrawer({
   appointment,
   initialSlot,
   isOpen,
@@ -506,5 +508,14 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
       <span className="text-muted-foreground">{label}</span>
       <Input id={id} aria-readonly readOnly value={value} />
     </label>
+  )
+}
+
+export function AppointmentDrawer(props: React.ComponentProps<typeof LegacyAppointmentDrawer>) {
+  const repository = useSchedulingRepository()
+  return repository.source === "http" ? (
+    <ProductionAppointmentDrawer {...props} />
+  ) : (
+    <LegacyAppointmentDrawer {...props} />
   )
 }
