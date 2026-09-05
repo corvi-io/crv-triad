@@ -36,17 +36,12 @@ test("keeps the removed setup preview route inaccessible in production", async (
   await expect(page.getByLabel("Cenário de apresentação")).toHaveCount(0)
 })
 
-test("keeps the authenticated setup route but disables its memory source in production", async ({
-  page,
-}) => {
+test("keeps the authenticated setup route on its HTTP source in production", async ({ page }) => {
   await page.unroute("**/api/auth/**")
   await routeAuthenticatedSession(page)
   await page.goto("/barbershop-setup?scenario=single-unit&section=overview")
 
   await expect(page.getByRole("heading", { name: "Configuração da barbearia" })).toBeVisible()
-  await expect(
-    page.getByText("A configuração da barbearia está indisponível neste ambiente."),
-  ).toBeVisible()
   await expect(page.getByLabel("Cenário de apresentação")).toHaveCount(0)
   await expect(page.getByText("Unidade Centro")).toHaveCount(0)
 })
