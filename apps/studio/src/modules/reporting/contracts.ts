@@ -33,24 +33,21 @@ export type GeneratedReport = {
   activeAttempt: number
   completedAt?: string | null
   createdAt: string
-  delivery?: {
-    status: "failed" | "not_requested" | "pending" | "sent" | "skipped"
-  }
+  emailDeliveryStatus: "failed" | "not_applicable" | "pending" | "sending" | "sent"
   format: "csv" | "pdf"
   id: string
-  idempotencyKey?: string
-  reportDefinitionId?: ReportDefinitionId
+  reportType: ReportDefinitionId
   safeFailureCode?: string | null
   status: "expired" | "failed" | "queued" | "ready" | "running"
 }
 
 export type ReportDefinitionId =
-  | "financial-summary"
-  | "revenue-by-period"
-  | "appointments-by-professional"
-  | "top-services"
-  | "commissions-by-professional"
-  | "cancellations-and-no-shows"
+  | "sales_revenue"
+  | "professional_performance"
+  | "commissions"
+  | "new_returning_customers"
+  | "cancellations_no_shows"
+  | "cash_payments"
 
 export type ReportFilterId = "dateRange" | "unit" | "professional" | "service" | "paymentMethod"
 
@@ -70,12 +67,10 @@ export type ReportCatalog = {
 }
 
 export type CreateReportExportInput = {
-  deliverByEmail: boolean
   filters: ReportFilters
   format: "csv" | "pdf"
   idempotencyKey: string
-  reportDefinitionId: ReportDefinitionId
-  reportDefinitionVersion: number
+  reportType: ReportDefinitionId
 }
 
 export type ReportFacet = {
@@ -174,6 +169,7 @@ export type ReportingRepository = {
   listExports?(): Promise<readonly GeneratedReport[]>
   getReport(query: ReportingQuery): Promise<ReportingResult>
   retryExport?(id: string): Promise<GeneratedReport | null>
+  retryExportDelivery?(id: string): Promise<GeneratedReport | null>
   reset(): Promise<void>
   retry(): void
   today(): string

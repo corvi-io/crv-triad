@@ -23,7 +23,7 @@ describe("generated reports", () => {
       listExports: async () => [],
       createExport: async () => reports[2],
     })
-    fireEvent.click((await screen.findAllByRole("button", { name: "Configurar relatório" }))[2])
+    fireEvent.click((await screen.findAllByRole("button", { name: "Configurar relatório" }))[1])
     expect(screen.getByText("O link seguro será enviado para ma••••@exemplo.com.")).toBeVisible()
     expect(screen.getByLabelText("Profissional")).toBeVisible()
     expect(screen.getByLabelText("Serviço")).toBeVisible()
@@ -75,9 +75,8 @@ describe("generated reports", () => {
     await waitFor(() =>
       expect(createExport).toHaveBeenCalledWith(
         expect.objectContaining({
-          deliverByEmail: true,
           format: "pdf",
-          reportDefinitionId: "financial-summary",
+          reportType: "sales_revenue",
         }),
       ),
     )
@@ -85,6 +84,58 @@ describe("generated reports", () => {
     fireEvent.click(retries[0])
     await waitFor(() => expect(retryExport).toHaveBeenCalledWith("failed"))
   })
+
+  it("retries only actionable email delivery while keeping the artifact downloadable", async () => {
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden")
+    const retryExportDelivery = vi.fn(async () => ({
+      ...reports[2],
+      emailDeliveryStatus: "pending" as const,
+    }))
+    renderReports({
+      ...baseRepository,
+      listExports: async () => [reports[2]],
+      retryExportDelivery,
+      downloadExport: async () => "https://private.invalid/object",
+    })
+    expect(await screen.findByRole("button", { name: "Baixar" })).toBeEnabled()
+    fireEvent.click(screen.getByRole("button", { name: "Reenviar e-mail" }))
+    await waitFor(() => expect(retryExportDelivery).toHaveBeenCalledWith("ready"))
+  })
+
+  it("does not poll terminal legacy delivery marked not applicable", async () => {
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible")
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(true)
+    const listExports = vi.fn(async () => [
+      { ...reports[2], emailDeliveryStatus: "not_applicable" as const },
+    ])
+    renderReports({ ...baseRepository, listExports })
+
+    expect(await screen.findByText(/E-mail não aplicável/)).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 3_200))
+    expect(listExports).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole("button", { name: "Reenviar e-mail" })).not.toBeInTheDocument()
+  }, 10_000)
+
+  it("polls delivery only after generation is ready", async () => {
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible")
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(true)
+    const listExports = vi.fn(async () => [
+      { ...reports[0], emailDeliveryStatus: "pending" as const },
+    ])
+    const view = renderReports({ ...baseRepository, listExports })
+    expect(await screen.findByText(/Geração: Falhou/)).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 3_200))
+    expect(listExports).toHaveBeenCalledTimes(1)
+
+    view.unmount()
+    const readyList = vi.fn(async () => [
+      { ...reports[2], emailDeliveryStatus: "pending" as const },
+    ])
+    renderReports({ ...baseRepository, listExports: readyList })
+    expect(await screen.findByText(/E-mail pendente/)).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 3_200))
+    expect(readyList.mock.calls.length).toBeGreaterThanOrEqual(2)
+  }, 15_000)
 
   it("shows an empty history and recovers a failed list query", async () => {
     let failing = true
@@ -215,14 +266,18 @@ const reports: GeneratedReport[] = [
     id: "failed",
     activeAttempt: 1,
     createdAt: "2026-09-06T10:00:00Z",
+    emailDeliveryStatus: "not_applicable",
     format: "pdf",
+    reportType: "sales_revenue",
     status: "failed",
   },
   {
     id: "expired",
     activeAttempt: 2,
     createdAt: "2026-09-05T10:00:00Z",
+    emailDeliveryStatus: "not_applicable",
     format: "csv",
+    reportType: "sales_revenue",
     status: "expired",
   },
   {
@@ -231,19 +286,25 @@ const reports: GeneratedReport[] = [
     createdAt: "2026-09-04T10:00:00Z",
     format: "pdf",
     status: "ready",
+    emailDeliveryStatus: "failed",
+    reportType: "sales_revenue",
   },
   {
     id: "queued",
     activeAttempt: 1,
     createdAt: "2026-09-03T10:00:00Z",
+    emailDeliveryStatus: "pending",
     format: "csv",
+    reportType: "sales_revenue",
     status: "queued",
   },
   {
     id: "running",
     activeAttempt: 1,
     createdAt: "2026-09-03T11:00:00Z",
+    emailDeliveryStatus: "pending",
     format: "csv",
+    reportType: "sales_revenue",
     status: "running",
   },
 ]

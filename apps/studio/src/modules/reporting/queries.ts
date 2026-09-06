@@ -29,7 +29,13 @@ export function useGeneratedReports() {
     refetchInterval: (query) =>
       document.visibilityState === "visible" &&
       navigator.onLine &&
-      query.state.data?.some(({ status }) => status === "queued" || status === "running")
+      query.state.data?.some(
+        ({ status, emailDeliveryStatus }) =>
+          status === "queued" ||
+          status === "running" ||
+          (status === "ready" &&
+            (emailDeliveryStatus === "pending" || emailDeliveryStatus === "sending")),
+      )
         ? 3_000
         : false,
     refetchOnReconnect: true,
@@ -52,9 +58,16 @@ export function useReportExportActions() {
       repository.retryExport?.(id) ?? Promise.reject(new Error("A repetição está indisponível.")),
     onSuccess: invalidate,
   })
+  const retryDelivery = useMutation({
+    mutationFn: (id: string) =>
+      repository.retryExportDelivery?.(id) ??
+      Promise.reject(new Error("O reenvio do e-mail está indisponível.")),
+    onSuccess: invalidate,
+  })
   return {
     create,
     retry,
+    retryDelivery,
     download: (id: string) =>
       repository.downloadExport?.(id) ?? Promise.reject(new Error("O download está indisponível.")),
   }

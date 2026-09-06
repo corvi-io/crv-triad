@@ -48,15 +48,14 @@ describe("production reporting HTTP adapter", () => {
     vi.stubGlobal("fetch", fetch)
     const repository = new ReportingHttpRepository()
     await repository.createExport({
-      deliverByEmail: true,
       format: "pdf",
       filters: { from: "2026-09-01", to: "2026-09-06" },
       idempotencyKey: "018e90d8-31f8-7a65-9d01-7dd1876d4400",
-      reportDefinitionId: "financial-summary",
-      reportDefinitionVersion: 1,
+      reportType: "sales_revenue",
     })
     await expect(repository.listExports()).resolves.toEqual([report])
     await expect(repository.retryExport(report.id)).resolves.toEqual(report)
+    await expect(repository.retryExportDelivery(report.id)).resolves.toEqual(report)
     await expect(repository.downloadExport(report.id)).resolves.toBe(
       "https://private.invalid/object",
     )
@@ -65,8 +64,9 @@ describe("production reporting HTTP adapter", () => {
       format: "pdf",
       timezone: expect.any(String),
       idempotencyKey: "018e90d8-31f8-7a65-9d01-7dd1876d4400",
-      reportDefinitionId: "financial-summary",
+      reportType: "sales_revenue",
     })
+    expect(fetch.mock.calls.some(([url]) => String(url).endsWith("/delivery/retry"))).toBe(true)
   })
 
   it("loads the typed catalog and verified masked requester contract", async () => {

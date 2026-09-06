@@ -29,6 +29,7 @@ export class ReportingMemoryRepository implements ReportingRepository {
   private failedNext = false
   private generation = 0
   private generatedReports: GeneratedReport[] = []
+  private readonly generatedByIdempotency = new Map<string, GeneratedReport>()
 
   constructor(
     scheduling: SchedulingRepository,
@@ -57,21 +58,19 @@ export class ReportingMemoryRepository implements ReportingRepository {
   }
 
   async createExport(input: CreateReportExportInput) {
-    const duplicate = this.generatedReports.find(
-      (report) => report.idempotencyKey === input.idempotencyKey,
-    )
+    const duplicate = this.generatedByIdempotency.get(input.idempotencyKey)
     if (duplicate) return duplicate
     const report: GeneratedReport = {
       activeAttempt: 1,
       createdAt: new Date().toISOString(),
-      delivery: { status: "pending" },
+      emailDeliveryStatus: "pending",
       format: input.format,
       id: crypto.randomUUID(),
-      idempotencyKey: input.idempotencyKey,
-      reportDefinitionId: input.reportDefinitionId,
+      reportType: input.reportType,
       status: "queued",
     }
     this.generatedReports = [report, ...this.generatedReports]
+    this.generatedByIdempotency.set(input.idempotencyKey, report)
     return report
   }
 
@@ -105,6 +104,7 @@ export class ReportingMemoryRepository implements ReportingRepository {
     this.facts = undefined
     this.failedNext = false
     this.generatedReports = []
+    this.generatedByIdempotency.clear()
     await Promise.all([this.revenue.reset(), this.scheduling.reset()])
   }
 
