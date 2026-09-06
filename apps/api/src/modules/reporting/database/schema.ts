@@ -51,11 +51,13 @@ export const reportRequest = pgTable(
     providerRunReference: text("provider_run_reference"),
     safeFailureCode: text("safe_failure_code"),
     emailDeliveryStatus: text("email_delivery_status", {
-      enum: ["pending", "sending", "sent", "failed"],
+      enum: ["pending", "sending", "sent", "failed", "not_applicable"],
     })
       .default("pending")
       .notNull(),
     emailDeliveryFailureCode: text("email_delivery_failure_code"),
+    emailDeliveryAttempt: integer("email_delivery_attempt").default(0).notNull(),
+    emailDeliveryClaimedAt: timestamp("email_delivery_claimed_at", { withTimezone: true }),
     emailDeliveredAt: timestamp("email_delivered_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     startedAt: timestamp("started_at", { withTimezone: true }),
@@ -67,7 +69,7 @@ export const reportRequest = pgTable(
     uniqueIndex("report_requests_tenant_key_unique").on(table.organizationId, table.idempotencyKey),
     check(
       "report_requests_version_check",
-      sql`${table.version} > 0 and ${table.activeAttempt} > 0 and ${table.configVersion} > 0`,
+      sql`${table.version} > 0 and ${table.activeAttempt} > 0 and ${table.configVersion} > 0 and ${table.emailDeliveryAttempt} >= 0`,
     ),
     index("report_requests_history_idx").on(table.organizationId, table.createdAt, table.id),
     index("report_requests_status_idx").on(table.status, table.updatedAt, table.id),

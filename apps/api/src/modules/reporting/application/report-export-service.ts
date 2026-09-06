@@ -163,7 +163,8 @@ export function createReportExportService(
   }
   async function retry(actor: TenantContext, id: string) {
     const current = await statusRow(actor, id)
-    if (!current || !["failed", "expired"].includes(current.status)) return current
+    if (!current || !["failed", "expired"].includes(current.status))
+      return current ? publicReportRequest(current) : null
     const attempt = current.activeAttempt + 1
     const won = await db.transaction(async (tx) => {
       const updated = await tx
@@ -208,6 +209,7 @@ export function createReportExportService(
       .set({
         emailDeliveryStatus: "pending",
         emailDeliveryFailureCode: null,
+        emailDeliveryAttempt: sql`${reportRequest.emailDeliveryAttempt} + 1`,
         version: sql`${reportRequest.version} + 1`,
         updatedAt: new Date(),
       })
@@ -220,14 +222,33 @@ export function createReportExportService(
           eq(reportRequest.version, current.version),
         ),
       )
-      .returning({ version: reportRequest.version })
+      .returning({ attempt: reportRequest.emailDeliveryAttempt, version: reportRequest.version })
     if (!won) return status(actor, id)
-    if (!dispatcher.dispatchDelivery) throw new Error("report_delivery_unavailable")
-    const key = createHash("sha256").update(`email:${id}:${won.version}`).digest("hex")
-    await dispatcher.dispatchDelivery(
-      { schemaVersion: 1, organizationId: actor.organizationId, reportRequestId: id },
-      key,
-    )
+    const key = createHash("sha256").update(`email:${id}:${won.attempt}`).digest("hex")
+    try {
+      if (!dispatcher.dispatchDelivery) throw new Error("report_delivery_unavailable")
+      await dispatcher.dispatchDelivery(
+        { schemaVersion: 1, organizationId: actor.organizationId, reportRequestId: id },
+        key,
+      )
+    } catch (error) {
+      await db
+        .update(reportRequest)
+        .set({
+          emailDeliveryStatus: "failed",
+          emailDeliveryFailureCode: "dispatch_failed",
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(reportRequest.organizationId, actor.organizationId),
+            eq(reportRequest.id, id),
+            eq(reportRequest.emailDeliveryStatus, "pending"),
+            eq(reportRequest.emailDeliveryAttempt, won.attempt),
+          ),
+        )
+      throw error
+    }
     observe({ event: "report_email_retry_requested", reportRequestId: id })
     return status(actor, id)
   }
@@ -289,8 +310,17 @@ function canonicalJson(value: unknown): string {
 }
 
 function publicReportRequest(row: typeof reportRequest.$inferSelect) {
-  const { requesterEmail: _email, requesterEmailVerifiedAt: _verifiedAt, ...safe } = row
-  return safe
+  return {
+    id: row.id,
+    format: row.format,
+    reportType: row.reportType,
+    status: row.status,
+    emailDeliveryStatus: row.emailDeliveryStatus,
+    activeAttempt: row.activeAttempt,
+    createdAt: row.createdAt,
+    completedAt: row.completedAt,
+    safeFailureCode: row.safeFailureCode,
+  }
 }
 
 function maskEmail(email: string): string {

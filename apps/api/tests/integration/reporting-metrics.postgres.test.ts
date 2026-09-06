@@ -104,19 +104,20 @@ beforeAll(async () => {
       (id, organization_id, receipt_id, checkout_line_id, sequence, snapshot, gross_cents, net_cents)
       values
       ('metrics-line-old', 'metrics-org', 'metrics-receipt-old', 'cl-old', 1, '{"professionalId":"metrics-pro-1","professionalName":"Ana","serviceId":"metrics-service-1","serviceName":"Corte","itemId":"i-old","handoffPriceCents":700,"startedAt":"2026-08-20T10:00:00Z","finishedAt":"2026-08-20T10:30:00Z"}', 700, 700),
-      ('metrics-line-1', 'metrics-org', 'metrics-receipt-1', 'cl-1', 1, '{"professionalId":"metrics-pro-1","professionalName":"Ana","serviceId":"metrics-service-1","serviceName":"Corte","itemId":"i-1","handoffPriceCents":1000,"startedAt":"2026-09-10T10:00:00Z","finishedAt":"2026-09-10T10:30:00Z"}', 1000, 1000),
+      ('metrics-line-1', 'metrics-org', 'metrics-receipt-1', 'cl-1', 1, '{"professionalId":"metrics-pro-1","professionalName":"Ana","serviceId":"metrics-service-1","serviceName":"Corte","itemId":"i-1","handoffPriceCents":1000,"startedAt":"2026-09-10T10:00:00Z","finishedAt":"2026-09-10T10:30:00Z"}', 1000, 999),
       ('metrics-line-2', 'metrics-org', 'metrics-receipt-2', 'cl-2', 1, '{"professionalId":"metrics-pro-2","professionalName":"Bia","serviceId":"metrics-service-2","serviceName":"Barba","itemId":"i-2","handoffPriceCents":2000,"startedAt":"2026-09-11T10:00:00Z","finishedAt":"2026-09-11T10:20:00Z"}', 2000, 2000),
       ('metrics-line-r', 'metrics-org', 'metrics-receipt-r', 'cl-r', 1, '{"professionalId":"metrics-pro-1","professionalName":"Ana","serviceId":"metrics-service-1","serviceName":"Corte","itemId":"i-r","handoffPriceCents":500,"startedAt":"2026-09-12T10:00:00Z","finishedAt":"2026-09-12T10:30:00Z"}', 500, 500);
     insert into revenue_receipt_tenders (id, organization_id, receipt_id, method, applied_cents, received_cents)
       values
       ('metrics-tender-old', 'metrics-org', 'metrics-receipt-old', 'pix', 700, null),
-      ('metrics-tender-1', 'metrics-org', 'metrics-receipt-1', 'pix', 1000, null),
+      ('metrics-tender-1-pix', 'metrics-org', 'metrics-receipt-1', 'pix', 333, null),
+      ('metrics-tender-1-cash', 'metrics-org', 'metrics-receipt-1', 'cash', 667, 667),
       ('metrics-tender-2', 'metrics-org', 'metrics-receipt-2', 'cash', 2000, 2000),
       ('metrics-tender-r', 'metrics-org', 'metrics-receipt-r', 'cash', 500, 500);
     insert into commission_facts
       (id, organization_id, receipt_id, receipt_line_id, kind, professional_id, professional_name, service_id, service_name, rule, net_base_cents, commission_cents, barbershop_share_cents, local_date, occurred_at)
       values
-      ('metrics-fact-1', 'metrics-org', 'metrics-receipt-1', 'metrics-line-1', 'earned', 'metrics-pro-1', 'Ana', 'metrics-service-1', 'Corte', '{"kind":"percentage","basisPoints":2000,"source":"default","policyVersion":1}', 1000, 200, 800, '2026-09-10', '2026-09-10T10:30:00Z'),
+      ('metrics-fact-1', 'metrics-org', 'metrics-receipt-1', 'metrics-line-1', 'earned', 'metrics-pro-1', 'Ana', 'metrics-service-1', 'Corte', '{"kind":"percentage","basisPoints":2000,"source":"default","policyVersion":1}', 999, 200, 799, '2026-09-10', '2026-09-10T10:30:00Z'),
       ('metrics-fact-2', 'metrics-org', 'metrics-receipt-2', 'metrics-line-2', 'earned', 'metrics-pro-2', 'Bia', 'metrics-service-2', 'Barba', '{"kind":"percentage","basisPoints":2500,"source":"default","policyVersion":1}', 2000, 500, 1500, '2026-09-11', '2026-09-11T10:20:00Z'),
       ('metrics-fact-r', 'metrics-org', 'metrics-receipt-r', 'metrics-line-r', 'earned', 'metrics-pro-1', 'Ana', 'metrics-service-1', 'Corte', '{"kind":"percentage","basisPoints":2000,"source":"default","policyVersion":1}', 500, 100, 400, '2026-09-12', '2026-09-12T10:30:00Z');
     insert into commission_facts
@@ -130,39 +131,82 @@ beforeAll(async () => {
       values
       ('metrics-appt-c', 'metrics-org', 'metrics-unit-1', 'metrics-pro-1', 'metrics-service-1', 'metrics-client-returning', 'Recorrente', 'Ana', 'Corte', 'Centro', 'America/Recife', '2026-09-15', '10:00', '10:30', '2026-09-15T13:00:00Z', '2026-09-15T13:30:00Z', 30, 1000, 'canceled'),
       ('metrics-appt-n', 'metrics-org', 'metrics-unit-2', 'metrics-pro-2', 'metrics-service-2', 'metrics-client-new', 'Novo', 'Bia', 'Barba', 'Norte', 'America/Recife', '2026-09-16', '11:00', '11:20', '2026-09-16T14:00:00Z', '2026-09-16T14:20:00Z', 20, 2000, 'no-show');
+    insert into idp_organizations (id, name, slug) values ('metrics-other', 'Other', 'metrics-other');
+    insert into idp_users (id, name, email, email_verified) values
+      ('metrics-other-owner', 'Other owner', 'other-owner@example.invalid', true),
+      ('metrics-other-pro-user', 'Other pro', 'other-pro@example.invalid', true);
+    insert into units (id, organization_id, code, normalized_code, name, address, timezone, opening_start, opening_end)
+      values ('metrics-other-unit', 'metrics-other', 'MO', 'mo', 'Other', 'Other', 'America/Recife', '08:00', '18:00');
+    insert into services (id, organization_id, name, normalized_name, category, description, duration_minutes, price_cents)
+      values ('metrics-other-service', 'metrics-other', 'Other', 'other', 'Other', 'Other', 30, 9999);
+    insert into professionals (id, organization_id, role, global_user_id)
+      values ('metrics-other-pro', 'metrics-other', 'Other', 'metrics-other-pro-user');
+    insert into clients (id, organization_id, name, normalized_phone)
+      values ('metrics-other-client', 'metrics-other', 'Other client', '5581999999999');
+    insert into service_desk_visits
+      (id, organization_id, unit_id, client_id, source, status, customer_display_name, unit_name, timezone, requested_service_id, requested_professional_id, arrived_at)
+      values ('metrics-other-visit', 'metrics-other', 'metrics-other-unit', 'metrics-other-client', 'walk-in', 'completed', 'Other client', 'Other', 'America/Recife', 'metrics-other-service', 'metrics-other-pro', '2026-09-10T10:00:00Z');
+    insert into service_desk_completed_handoffs (id, organization_id, visit_id, payload)
+      values ('metrics-other-handoff', 'metrics-other', 'metrics-other-visit', '{"schemaVersion":1,"tenantId":"metrics-other","unitId":"metrics-other-unit","unitName":"Other","timezone":"America/Recife","visitId":"metrics-other-visit","clientId":"metrics-other-client","appointmentId":null,"customerDisplayName":"Other client","finishedAt":"2026-09-10T10:30:00Z","visitVersion":1,"items":[]}');
+    insert into revenue_checkouts
+      (id, organization_id, unit_id, visit_id, client_id, customer_display_name, unit_name, timezone, handoff_version, finished_at, status)
+      values ('metrics-other-checkout', 'metrics-other', 'metrics-other-unit', 'metrics-other-visit', 'metrics-other-client', 'Other client', 'Other', 'America/Recife', 1, '2026-09-10T10:30:00Z', 'registered');
+    insert into revenue_cash_days
+      (id, organization_id, unit_id, local_date, timezone, opening_cash_cents, opened_by, opened_by_name)
+      values ('metrics-other-day', 'metrics-other', 'metrics-other-unit', '2026-09-10', 'America/Recife', 0, 'metrics-other-owner', 'Other owner');
+    insert into revenue_receipts
+      (id, organization_id, checkout_id, cash_day_id, local_date, timezone, status, subtotal_cents, discount_cents, surcharge_cents, total_cents, checkout_version, policy_version, actor_user_id, actor_display_name)
+      values ('metrics-other-receipt', 'metrics-other', 'metrics-other-checkout', 'metrics-other-day', '2026-09-10', 'America/Recife', 'active', 9999, 0, 0, 9999, 1, 1, 'metrics-other-owner', 'Other owner');
+    insert into revenue_receipt_lines
+      (id, organization_id, receipt_id, checkout_line_id, sequence, snapshot, gross_cents, net_cents)
+      values ('metrics-other-line', 'metrics-other', 'metrics-other-receipt', 'metrics-other-cl', 1, '{"professionalId":"metrics-other-pro","professionalName":"Other pro","serviceId":"metrics-other-service","serviceName":"Other","itemId":"other","handoffPriceCents":9999,"startedAt":"2026-09-10T10:00:00Z","finishedAt":"2026-09-10T10:30:00Z"}', 9999, 9999);
+    insert into revenue_receipt_tenders (id, organization_id, receipt_id, method, applied_cents)
+      values ('metrics-other-tender', 'metrics-other', 'metrics-other-receipt', 'pix', 9999);
   `)
 })
 
 afterAll(async () => {
   await pool.query(`
-    delete from scheduling_appointments where organization_id = 'metrics-org';
-    delete from commission_facts where organization_id = 'metrics-org';
-    delete from revenue_receipt_reversals where organization_id = 'metrics-org';
-    delete from revenue_receipt_tenders where organization_id = 'metrics-org';
-    delete from revenue_receipt_lines where organization_id = 'metrics-org';
-    delete from revenue_receipts where organization_id = 'metrics-org';
-    delete from revenue_cash_days where organization_id = 'metrics-org';
-    delete from revenue_checkouts where organization_id = 'metrics-org';
-    delete from service_desk_completed_handoffs where organization_id = 'metrics-org';
-    delete from service_desk_visits where organization_id = 'metrics-org';
-    delete from clients where organization_id = 'metrics-org';
-    delete from professionals where organization_id = 'metrics-org';
-    delete from services where organization_id = 'metrics-org';
-    delete from units where organization_id = 'metrics-org';
+    delete from scheduling_appointments where organization_id in ('metrics-org', 'metrics-other');
+    delete from commission_facts where organization_id in ('metrics-org', 'metrics-other');
+    delete from revenue_receipt_reversals where organization_id in ('metrics-org', 'metrics-other');
+    delete from revenue_receipt_tenders where organization_id in ('metrics-org', 'metrics-other');
+    delete from revenue_receipt_lines where organization_id in ('metrics-org', 'metrics-other');
+    delete from revenue_receipts where organization_id in ('metrics-org', 'metrics-other');
+    delete from revenue_cash_days where organization_id in ('metrics-org', 'metrics-other');
+    delete from revenue_checkouts where organization_id in ('metrics-org', 'metrics-other');
+    delete from service_desk_completed_handoffs where organization_id in ('metrics-org', 'metrics-other');
+    delete from service_desk_visits where organization_id in ('metrics-org', 'metrics-other');
+    delete from clients where organization_id in ('metrics-org', 'metrics-other');
+    delete from professionals where organization_id in ('metrics-org', 'metrics-other');
+    delete from services where organization_id in ('metrics-org', 'metrics-other');
+    delete from units where organization_id in ('metrics-org', 'metrics-other');
     delete from idp_members where organization_id = 'metrics-org';
     delete from idp_users where id like 'metrics-%';
-    delete from idp_organizations where id = 'metrics-org';
+    delete from idp_organizations where id in ('metrics-org', 'metrics-other');
   `)
   await pool.end()
 })
 
 describe.sequential("truthful report metrics", () => {
+  it("keeps a second tenant's facts out of every aggregate", async () => {
+    const summary = await reporting.summary(actor, range)
+    expect(summary.summary.netRevenueCents).toBe(2999)
+    const rows = await reporting.report(
+      actor,
+      "professional_performance",
+      range,
+      config("professional_performance"),
+    )
+    expect(JSON.stringify(rows)).not.toContain("Other")
+    expect(JSON.stringify(rows)).not.toContain("9999")
+  })
+
   it("applies every summary filter without leaking reversed revenue into active totals", async () => {
     for (const filter of [
       { unitId: "metrics-unit-2" },
       { professionalId: "metrics-pro-2" },
       { serviceId: "metrics-service-2" },
-      { paymentMethod: "cash" as const },
     ]) {
       const result = await reporting.summary(actor, { ...range, ...filter })
       expect(result.summary).toMatchObject({
@@ -172,6 +216,13 @@ describe.sequential("truthful report metrics", () => {
         grossCents: 2000,
       })
     }
+    const cash = await reporting.summary(actor, { ...range, paymentMethod: "cash" })
+    expect(cash.summary).toMatchObject({
+      receiptCount: 2,
+      netRevenueCents: 2666,
+      performedItems: 2,
+      grossCents: 2667,
+    })
   })
 
   it("derives a distinct truthful result for all six report types", async () => {
@@ -189,17 +240,51 @@ describe.sequential("truthful report metrics", () => {
         ),
       ),
     )
-    expect(results[0]).toMatchObject({ "Vendas registradas": "3", "Vendas revertidas": "1" })
-    expect(results[1]).toMatchObject({ "Ana — serviços": "1", "Bia — serviços": "1" })
+    expect(results[0]).toMatchObject({
+      "Serviços concluídos": "2",
+      "Vendas pagas": "2",
+      "Receita bruta (centavos)": "3000",
+      "Receita líquida (centavos)": "2499",
+      "Estornos (centavos)": "500",
+      "Período anterior — receita líquida (centavos)": "700",
+      "Variação contra período anterior (centavos)": "1799",
+    })
+    expect(results[1]).toMatchObject({
+      "Ana — serviços concluídos": "1",
+      "Ana — ticket médio (centavos)": "999",
+      "Ana — cancelamentos": "1",
+      "Bia — serviços concluídos": "1",
+      "Bia — ausências": "1",
+    })
     expect(results[2]).toMatchObject({
       "Ana — comissão (centavos)": "200",
+      "Ana — receita de serviços (centavos)": "999",
+      "Ana — barbearia (centavos)": "799",
+      "Ana — fatos": "2",
+      "Ana — estornos": "1",
       "Bia — comissão (centavos)": "500",
     })
-    expect(results[3]).toEqual({ "Clientes novos": "1", "Clientes recorrentes": "1" })
-    expect(results[4]).toEqual({ Cancelamentos: "1", Ausências: "1" })
+    expect(results[3]).toMatchObject({
+      "Clientes únicos identificados": "2",
+      "Clientes novos": "1",
+      "Clientes recorrentes": "1",
+      "Clientes sem identidade estável": "0",
+      "Novos (basis points)": "5000",
+      "Recorrentes (basis points)": "5000",
+    })
+    expect(results[4]).toMatchObject({
+      Cancelamentos: "1",
+      Ausências: "1",
+      "Agendamentos no denominador": "2",
+      "Taxa de cancelamento (basis points)": "5000",
+      "Taxa de ausência (basis points)": "5000",
+      "Valor afetado (centavos)": "3000",
+    })
     expect(results[5]).toMatchObject({
-      "Pix — líquido (centavos)": "1000",
-      "Dinheiro — líquido (centavos)": "1500",
+      "Pix — líquido (centavos)": "333",
+      "Dinheiro — recebido bruto (centavos)": "2667",
+      "Dinheiro — estornado (centavos)": "500",
+      "Dinheiro — líquido (centavos)": "2167",
     })
     expect(new Set(results.map((result) => JSON.stringify(result))).size).toBe(6)
   })
@@ -215,13 +300,7 @@ describe.sequential("truthful report metrics", () => {
       const result = values(
         await reporting.report(actor, "sales_revenue", { ...range, ...filter }, salesConfig),
       )
-      const metric =
-        "paymentMethod" in filter
-          ? result["Valor via Dinheiro (centavos)"]
-          : "professionalId" in filter || "serviceId" in filter
-            ? result["Receita dos itens filtrados (centavos)"]
-            : result["Faturamento líquido (centavos)"]
-      expect(metric).toBe(filter.paymentMethod ? "1500" : "2000")
+      expect(result["Receita líquida (centavos)"]).toBe("paymentMethod" in filter ? "2166" : "2000")
     }
     for (const filter of [
       { unitId: "metrics-unit-2" },
@@ -237,7 +316,11 @@ describe.sequential("truthful report metrics", () => {
             config("professional_performance"),
           ),
         ),
-      ).toEqual({ "Bia — serviços": "1", "Bia — receita (centavos)": "2000" })
+      ).toMatchObject({
+        "Bia — serviços concluídos": "1",
+        "Bia — receita (centavos)": "2000",
+        "Bia — ticket médio (centavos)": "2000",
+      })
     for (const filter of [{ unitId: "metrics-unit-2" }, { professionalId: "metrics-pro-2" }])
       expect(
         values(
@@ -263,7 +346,7 @@ describe.sequential("truthful report metrics", () => {
             config("new_returning_customers"),
           ),
         ),
-      ).toEqual({ "Clientes novos": "1", "Clientes recorrentes": "0" })
+      ).toMatchObject({ "Clientes novos": "1", "Clientes recorrentes": "0" })
     for (const filter of [
       { unitId: "metrics-unit-2" },
       { professionalId: "metrics-pro-2" },
@@ -278,7 +361,7 @@ describe.sequential("truthful report metrics", () => {
             config("cancellations_no_shows"),
           ),
         ),
-      ).toEqual({ Cancelamentos: "0", Ausências: "1" })
+      ).toMatchObject({ Cancelamentos: "0", Ausências: "1", "Agendamentos no denominador": "1" })
     expect(
       values(
         await reporting.report(
@@ -288,7 +371,7 @@ describe.sequential("truthful report metrics", () => {
           config("cash_payments"),
         ),
       ),
-    ).toMatchObject({ "Pix — líquido (centavos)": "1000" })
+    ).toMatchObject({ "Pix — líquido (centavos)": "333" })
     expect(
       values(
         await reporting.report(
@@ -298,6 +381,46 @@ describe.sequential("truthful report metrics", () => {
           config("cash_payments"),
         ),
       ),
-    ).toEqual({ "Dinheiro — lançamentos": "1", "Dinheiro — líquido (centavos)": "-500" })
+    ).toMatchObject({
+      "Dinheiro — recibos": "1",
+      "Dinheiro — recebido bruto (centavos)": "667",
+      "Dinheiro — estornado (centavos)": "500",
+      "Dinheiro — líquido (centavos)": "167",
+    })
+  })
+
+  it("allocates split tenders deterministically before combining professional, service, and method", async () => {
+    const filters = {
+      ...range,
+      professionalId: "metrics-pro-1",
+      serviceId: "metrics-service-1",
+      paymentMethod: "cash" as const,
+    }
+    const summary = await reporting.summary(actor, filters)
+    expect(summary.summary).toMatchObject({
+      receiptCount: 1,
+      performedItems: 1,
+      grossCents: 667,
+      netRevenueCents: 666,
+    })
+    const report = values(
+      await reporting.report(actor, "sales_revenue", filters, config("sales_revenue")),
+    )
+    expect(report).toMatchObject({
+      "Receita bruta (centavos)": "667",
+      "Estornos (centavos)": "500",
+      "Receita líquida (centavos)": "166",
+    })
+    const mismatchedLine = await reporting.summary(actor, {
+      ...range,
+      professionalId: "metrics-pro-1",
+      serviceId: "metrics-service-2",
+    })
+    expect(mismatchedLine.summary).toMatchObject({
+      receiptCount: 0,
+      performedItems: 0,
+      grossCents: 0,
+      netRevenueCents: 0,
+    })
   })
 })

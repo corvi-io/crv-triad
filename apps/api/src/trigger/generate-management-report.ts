@@ -59,7 +59,9 @@ export const deliverManagementReportEmail = schemaTask({
   }),
   queue: managementReportQueue,
   maxDuration: 60,
-  retry: { maxAttempts: 3, factor: 2, minTimeoutInMs: 1000, maxTimeoutInMs: 10_000 },
+  // Align retries with the worker's five-minute `sending` lease. A provider acknowledgement
+  // followed by a database outage must be reclaimed instead of completing with pending state.
+  retry: { maxAttempts: 3, factor: 1, minTimeoutInMs: 300_000, maxTimeoutInMs: 300_000 },
   run: async (payload) => {
     const env = loadEnv()
     const { db, pool } = createDatabase(env)
