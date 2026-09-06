@@ -96,6 +96,7 @@ const deliveryLabels = {
   sending: "Enviando e-mail",
   sent: "E-mail enviado",
   failed: "Falha no e-mail",
+  not_applicable: "E-mail não aplicável",
 } as const
 
 export function GeneratedReports({ filters }: { filters: ReportFilters }) {
@@ -234,7 +235,7 @@ export function GeneratedReports({ filters }: { filters: ReportFilters }) {
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Geração: {lifecycleLabels[report.status]} ·{" "}
-                    {deliveryLabels[report.emailDeliveryStatus ?? "pending"]} · tentativa{" "}
+                    {deliveryLabels[report.emailDeliveryStatus ?? "not_applicable"]} · tentativa{" "}
                     {report.activeAttempt}
                   </p>
                 </div>

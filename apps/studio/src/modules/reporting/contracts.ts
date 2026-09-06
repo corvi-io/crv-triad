@@ -33,11 +33,10 @@ export type GeneratedReport = {
   activeAttempt: number
   completedAt?: string | null
   createdAt: string
-  emailDeliveryStatus?: "failed" | "pending" | "sending" | "sent"
+  emailDeliveryStatus: "failed" | "not_applicable" | "pending" | "sending" | "sent"
   format: "csv" | "pdf"
   id: string
-  idempotencyKey?: string
-  reportType?: ReportDefinitionId
+  reportType: ReportDefinitionId
   safeFailureCode?: string | null
   status: "expired" | "failed" | "queued" | "ready" | "running"
 }

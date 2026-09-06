@@ -33,8 +33,8 @@ export function useGeneratedReports() {
         ({ status, emailDeliveryStatus }) =>
           status === "queued" ||
           status === "running" ||
-          emailDeliveryStatus === "pending" ||
-          emailDeliveryStatus === "sending",
+          (status === "ready" &&
+            (emailDeliveryStatus === "pending" || emailDeliveryStatus === "sending")),
       )
         ? 3_000
         : false,
