@@ -183,56 +183,70 @@ export function createReportingService(db: IdpDatabase) {
     const result = await db.execute<{
       professional_id: string
       professional_name: string
-      services: string
+      completed_appointments: string
+      cancelled: string
+      no_shows: string
       sales: string
       revenue: string
     }>(sql`
-      select line.snapshot->>'professionalId' professional_id,
-        line.snapshot->>'professionalName' professional_name,
-        count(*)::text services, count(distinct receipt.id)::text sales,
-        coalesce(sum(line.net_cents), 0)::text revenue
-      from revenue_receipt_lines line
-      join revenue_receipts receipt
-        on receipt.organization_id = line.organization_id and receipt.id = line.receipt_id
-      join revenue_checkouts checkout
-        on checkout.organization_id = receipt.organization_id and checkout.id = receipt.checkout_id
-      where ${receiptPredicate(organizationId, filters)} and receipt.status = 'active'
-        ${linePredicate(filters, "line")}
-      group by line.snapshot->>'professionalId', line.snapshot->>'professionalName'
-      order by ${ranking === "appointments" ? sql`count(*)` : sql`sum(line.net_cents)`} desc,
-        line.snapshot->>'professionalId'
+      with revenue as (
+        select line.snapshot->>'professionalId' professional_id,
+          max(line.snapshot->>'professionalName') professional_name,
+          count(distinct receipt.id) sales,
+          coalesce(sum(line.net_cents), 0) revenue
+        from revenue_receipt_lines line
+        join revenue_receipts receipt
+          on receipt.organization_id = line.organization_id and receipt.id = line.receipt_id
+        join revenue_checkouts checkout
+          on checkout.organization_id = receipt.organization_id and checkout.id = receipt.checkout_id
+        where ${receiptPredicate(organizationId, filters)} and receipt.status = 'active'
+          ${linePredicate(filters, "line")}
+        group by line.snapshot->>'professionalId'
+      ), scheduled as (
+        select professional_id, max(professional_name) professional_name,
+          count(*) filter (where status = 'completed') completed_appointments,
+          count(*) filter (where status = 'canceled') cancelled,
+          count(*) filter (where status = 'no-show') no_shows
+        from scheduling_appointments
+        where organization_id = ${organizationId} and date between ${filters.from} and ${filters.to}
+          ${filters.unitId ? sql`and unit_id = ${filters.unitId}` : sql``}
+          ${filters.professionalId ? sql`and professional_id = ${filters.professionalId}` : sql``}
+          ${filters.serviceId ? sql`and service_id = ${filters.serviceId}` : sql``}
+        group by professional_id
+      ), universe as (
+        select professional_id, professional_name from revenue
+        union
+        select professional_id, professional_name from scheduled
+      )
+      select universe.professional_id, max(universe.professional_name) professional_name,
+        coalesce(max(scheduled.completed_appointments), 0)::text completed_appointments,
+        coalesce(max(scheduled.cancelled), 0)::text cancelled,
+        coalesce(max(scheduled.no_shows), 0)::text no_shows,
+        coalesce(max(revenue.sales), 0)::text sales,
+        coalesce(max(revenue.revenue), 0)::text revenue
+      from universe
+      left join revenue using (professional_id)
+      left join scheduled using (professional_id)
+      group by universe.professional_id
+      order by ${ranking === "appointments" ? sql`coalesce(max(scheduled.completed_appointments), 0)` : sql`coalesce(max(revenue.revenue), 0)`} desc,
+        universe.professional_id
       limit 500
     `)
-    const scheduled = await db.execute<{
-      professional_id: string
-      professional_name: string
-      cancelled: string
-      no_shows: string
-    }>(sql`
-      select professional_id, professional_name,
-        count(*) filter (where status = 'canceled')::text cancelled,
-        count(*) filter (where status = 'no-show')::text no_shows
-      from scheduling_appointments
-      where organization_id = ${organizationId} and date between ${filters.from} and ${filters.to}
-        ${filters.unitId ? sql`and unit_id = ${filters.unitId}` : sql``}
-        ${filters.professionalId ? sql`and professional_id = ${filters.professionalId}` : sql``}
-        ${filters.serviceId ? sql`and service_id = ${filters.serviceId}` : sql``}
-      group by professional_id, professional_name limit 500
-    `)
-    const scheduleByProfessional = new Map(scheduled.rows.map((row) => [row.professional_id, row]))
     return result.rows.flatMap((row): ReportRows => {
-      const schedule = scheduleByProfessional.get(row.professional_id)
       const revenue = Number(row.revenue)
       const sales = Number(row.sales)
       return [
-        [`${row.professional_name} — serviços concluídos`, String(Number(row.services))],
+        [
+          `${row.professional_name} — agendamentos concluídos`,
+          String(Number(row.completed_appointments)),
+        ],
         [`${row.professional_name} — receita (centavos)`, String(revenue)],
         [
           `${row.professional_name} — ticket médio (centavos)`,
           String(sales ? Math.round(revenue / sales) : 0),
         ],
-        [`${row.professional_name} — cancelamentos`, String(Number(schedule?.cancelled ?? 0))],
-        [`${row.professional_name} — ausências`, String(Number(schedule?.no_shows ?? 0))],
+        [`${row.professional_name} — cancelamentos`, String(Number(row.cancelled))],
+        [`${row.professional_name} — ausências`, String(Number(row.no_shows))],
       ]
     }) as ReportRows
   }
@@ -305,7 +319,8 @@ export function createReportingService(db: IdpDatabase) {
         from revenue_receipts receipt
         join revenue_checkouts checkout
           on checkout.organization_id = receipt.organization_id and checkout.id = receipt.checkout_id
-        where receipt.organization_id = ${organizationId} and checkout.client_id is not null
+        where receipt.organization_id = ${organizationId} and receipt.status = 'active'
+          and checkout.client_id is not null
         group by checkout.client_id
       )
       select count(*) filter (where first_date >= ${filters.from})::text new_count,

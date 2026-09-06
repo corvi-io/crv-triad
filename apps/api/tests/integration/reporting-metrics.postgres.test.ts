@@ -52,7 +52,8 @@ beforeAll(async () => {
     insert into idp_users (id, name, email, email_verified) values
       ('metrics-owner', 'Owner', 'metrics-owner@example.invalid', true),
       ('metrics-pro-user-1', 'Ana', 'ana@example.invalid', true),
-      ('metrics-pro-user-2', 'Bia', 'bia@example.invalid', true);
+      ('metrics-pro-user-2', 'Bia', 'bia@example.invalid', true),
+      ('metrics-pro-user-3', 'Cara', 'cara@example.invalid', true);
     insert into idp_members (id, organization_id, user_id, role)
       values ('metrics-member', 'metrics-org', 'metrics-owner', 'owner');
     insert into units (id, organization_id, code, normalized_code, name, address, timezone, opening_start, opening_end)
@@ -66,7 +67,8 @@ beforeAll(async () => {
     insert into professionals (id, organization_id, role, global_user_id)
       values
       ('metrics-pro-1', 'metrics-org', 'Barbeira', 'metrics-pro-user-1'),
-      ('metrics-pro-2', 'metrics-org', 'Barbeira', 'metrics-pro-user-2');
+      ('metrics-pro-2', 'metrics-org', 'Barbeira', 'metrics-pro-user-2'),
+      ('metrics-pro-3', 'metrics-org', 'Barbeira', 'metrics-pro-user-3');
     insert into clients (id, organization_id, name, normalized_phone)
       values
       ('metrics-client-returning', 'metrics-org', 'Cliente Recorrente', '5581999990001'),
@@ -75,6 +77,7 @@ beforeAll(async () => {
       (id, organization_id, unit_id, client_id, source, status, customer_display_name, unit_name, timezone, requested_service_id, requested_professional_id, arrived_at)
       values
       ('metrics-visit-old', 'metrics-org', 'metrics-unit-1', 'metrics-client-returning', 'walk-in', 'completed', 'Recorrente', 'Centro', 'America/Recife', 'metrics-service-1', 'metrics-pro-1', '2026-08-20T10:00:00Z'),
+      ('metrics-visit-new-reversed-old', 'metrics-org', 'metrics-unit-2', 'metrics-client-new', 'walk-in', 'completed', 'Novo', 'Norte', 'America/Recife', 'metrics-service-2', 'metrics-pro-2', '2026-08-25T10:00:00Z'),
       ('metrics-visit-1', 'metrics-org', 'metrics-unit-1', 'metrics-client-returning', 'walk-in', 'completed', 'Recorrente', 'Centro', 'America/Recife', 'metrics-service-1', 'metrics-pro-1', '2026-09-10T10:00:00Z'),
       ('metrics-visit-2', 'metrics-org', 'metrics-unit-2', 'metrics-client-new', 'walk-in', 'completed', 'Novo', 'Norte', 'America/Recife', 'metrics-service-2', 'metrics-pro-2', '2026-09-11T10:00:00Z'),
       ('metrics-visit-reversed', 'metrics-org', 'metrics-unit-1', 'metrics-client-returning', 'walk-in', 'completed', 'Recorrente', 'Centro', 'America/Recife', 'metrics-service-1', 'metrics-pro-1', '2026-09-12T10:00:00Z');
@@ -97,6 +100,7 @@ beforeAll(async () => {
       (id, organization_id, checkout_id, cash_day_id, local_date, timezone, status, subtotal_cents, discount_cents, surcharge_cents, total_cents, checkout_version, policy_version, actor_user_id, actor_display_name)
       values
       ('metrics-receipt-old', 'metrics-org', 'checkout-metrics-visit-old', 'metrics-day-old', '2026-08-20', 'America/Recife', 'active', 700, 0, 0, 700, 1, 1, 'metrics-owner', 'Owner'),
+      ('metrics-receipt-new-reversed-old', 'metrics-org', 'checkout-metrics-visit-new-reversed-old', 'metrics-day-old', '2026-08-25', 'America/Recife', 'reversed', 400, 0, 0, 400, 1, 1, 'metrics-owner', 'Owner'),
       ('metrics-receipt-1', 'metrics-org', 'checkout-metrics-visit-1', 'metrics-day-1', '2026-09-10', 'America/Recife', 'active', 1000, 0, 0, 1000, 1, 1, 'metrics-owner', 'Owner'),
       ('metrics-receipt-2', 'metrics-org', 'checkout-metrics-visit-2', 'metrics-day-2', '2026-09-11', 'America/Recife', 'active', 2000, 0, 0, 2000, 1, 1, 'metrics-owner', 'Owner'),
       ('metrics-receipt-r', 'metrics-org', 'checkout-metrics-visit-reversed', 'metrics-day-r', '2026-09-12', 'America/Recife', 'reversed', 500, 0, 0, 500, 1, 1, 'metrics-owner', 'Owner');
@@ -104,12 +108,14 @@ beforeAll(async () => {
       (id, organization_id, receipt_id, checkout_line_id, sequence, snapshot, gross_cents, net_cents)
       values
       ('metrics-line-old', 'metrics-org', 'metrics-receipt-old', 'cl-old', 1, '{"professionalId":"metrics-pro-1","professionalName":"Ana","serviceId":"metrics-service-1","serviceName":"Corte","itemId":"i-old","handoffPriceCents":700,"startedAt":"2026-08-20T10:00:00Z","finishedAt":"2026-08-20T10:30:00Z"}', 700, 700),
+      ('metrics-line-new-reversed-old', 'metrics-org', 'metrics-receipt-new-reversed-old', 'cl-new-reversed-old', 1, '{"professionalId":"metrics-pro-2","professionalName":"Bia","serviceId":"metrics-service-2","serviceName":"Barba","itemId":"i-new-reversed-old","handoffPriceCents":400,"startedAt":"2026-08-25T10:00:00Z","finishedAt":"2026-08-25T10:20:00Z"}', 400, 400),
       ('metrics-line-1', 'metrics-org', 'metrics-receipt-1', 'cl-1', 1, '{"professionalId":"metrics-pro-1","professionalName":"Ana","serviceId":"metrics-service-1","serviceName":"Corte","itemId":"i-1","handoffPriceCents":1000,"startedAt":"2026-09-10T10:00:00Z","finishedAt":"2026-09-10T10:30:00Z"}', 1000, 999),
       ('metrics-line-2', 'metrics-org', 'metrics-receipt-2', 'cl-2', 1, '{"professionalId":"metrics-pro-2","professionalName":"Bia","serviceId":"metrics-service-2","serviceName":"Barba","itemId":"i-2","handoffPriceCents":2000,"startedAt":"2026-09-11T10:00:00Z","finishedAt":"2026-09-11T10:20:00Z"}', 2000, 2000),
       ('metrics-line-r', 'metrics-org', 'metrics-receipt-r', 'cl-r', 1, '{"professionalId":"metrics-pro-1","professionalName":"Ana","serviceId":"metrics-service-1","serviceName":"Corte","itemId":"i-r","handoffPriceCents":500,"startedAt":"2026-09-12T10:00:00Z","finishedAt":"2026-09-12T10:30:00Z"}', 500, 500);
     insert into revenue_receipt_tenders (id, organization_id, receipt_id, method, applied_cents, received_cents)
       values
       ('metrics-tender-old', 'metrics-org', 'metrics-receipt-old', 'pix', 700, null),
+      ('metrics-tender-new-reversed-old', 'metrics-org', 'metrics-receipt-new-reversed-old', 'pix', 400, null),
       ('metrics-tender-1-pix', 'metrics-org', 'metrics-receipt-1', 'pix', 333, null),
       ('metrics-tender-1-cash', 'metrics-org', 'metrics-receipt-1', 'cash', 667, 667),
       ('metrics-tender-2', 'metrics-org', 'metrics-receipt-2', 'cash', 2000, 2000),
@@ -129,8 +135,11 @@ beforeAll(async () => {
     insert into scheduling_appointments
       (id, organization_id, unit_id, professional_id, service_id, client_id, customer_name, professional_name, service_name, unit_name, timezone, date, start, "end", starts_at, ends_at, duration_minutes, price_cents, status)
       values
+      ('metrics-appt-completed-1', 'metrics-org', 'metrics-unit-1', 'metrics-pro-1', 'metrics-service-1', 'metrics-client-returning', 'Recorrente', 'Ana', 'Corte', 'Centro', 'America/Recife', '2026-09-10', '09:00', '09:30', '2026-09-10T12:00:00Z', '2026-09-10T12:30:00Z', 30, 1000, 'completed'),
+      ('metrics-appt-completed-2', 'metrics-org', 'metrics-unit-2', 'metrics-pro-2', 'metrics-service-2', 'metrics-client-new', 'Novo', 'Bia', 'Barba', 'Norte', 'America/Recife', '2026-09-11', '09:00', '09:20', '2026-09-11T12:00:00Z', '2026-09-11T12:20:00Z', 20, 2000, 'completed'),
       ('metrics-appt-c', 'metrics-org', 'metrics-unit-1', 'metrics-pro-1', 'metrics-service-1', 'metrics-client-returning', 'Recorrente', 'Ana', 'Corte', 'Centro', 'America/Recife', '2026-09-15', '10:00', '10:30', '2026-09-15T13:00:00Z', '2026-09-15T13:30:00Z', 30, 1000, 'canceled'),
-      ('metrics-appt-n', 'metrics-org', 'metrics-unit-2', 'metrics-pro-2', 'metrics-service-2', 'metrics-client-new', 'Novo', 'Bia', 'Barba', 'Norte', 'America/Recife', '2026-09-16', '11:00', '11:20', '2026-09-16T14:00:00Z', '2026-09-16T14:20:00Z', 20, 2000, 'no-show');
+      ('metrics-appt-n', 'metrics-org', 'metrics-unit-2', 'metrics-pro-2', 'metrics-service-2', 'metrics-client-new', 'Novo', 'Bia', 'Barba', 'Norte', 'America/Recife', '2026-09-16', '11:00', '11:20', '2026-09-16T14:00:00Z', '2026-09-16T14:20:00Z', 20, 2000, 'no-show'),
+      ('metrics-appt-cara', 'metrics-org', 'metrics-unit-1', 'metrics-pro-3', 'metrics-service-1', 'metrics-client-returning', 'Recorrente', 'Cara', 'Corte', 'Centro', 'America/Recife', '2026-09-17', '12:00', '12:30', '2026-09-17T15:00:00Z', '2026-09-17T15:30:00Z', 30, 1000, 'canceled');
     insert into idp_organizations (id, name, slug) values ('metrics-other', 'Other', 'metrics-other');
     insert into idp_users (id, name, email, email_verified) values
       ('metrics-other-owner', 'Other owner', 'other-owner@example.invalid', true),
@@ -162,6 +171,12 @@ beforeAll(async () => {
       values ('metrics-other-line', 'metrics-other', 'metrics-other-receipt', 'metrics-other-cl', 1, '{"professionalId":"metrics-other-pro","professionalName":"Other pro","serviceId":"metrics-other-service","serviceName":"Other","itemId":"other","handoffPriceCents":9999,"startedAt":"2026-09-10T10:00:00Z","finishedAt":"2026-09-10T10:30:00Z"}', 9999, 9999);
     insert into revenue_receipt_tenders (id, organization_id, receipt_id, method, applied_cents)
       values ('metrics-other-tender', 'metrics-other', 'metrics-other-receipt', 'pix', 9999);
+    insert into commission_facts
+      (id, organization_id, receipt_id, receipt_line_id, kind, professional_id, professional_name, service_id, service_name, rule, net_base_cents, commission_cents, barbershop_share_cents, local_date, occurred_at)
+      values ('metrics-other-fact', 'metrics-other', 'metrics-other-receipt', 'metrics-other-line', 'earned', 'metrics-other-pro', 'Other pro', 'metrics-other-service', 'Other', '{"kind":"percentage","basisPoints":2222,"source":"default","policyVersion":1}', 9999, 7777, 2222, '2026-09-10', '2026-09-10T10:30:00Z');
+    insert into scheduling_appointments
+      (id, organization_id, unit_id, professional_id, service_id, client_id, customer_name, professional_name, service_name, unit_name, timezone, date, start, "end", starts_at, ends_at, duration_minutes, price_cents, status)
+      values ('metrics-other-appt', 'metrics-other', 'metrics-other-unit', 'metrics-other-pro', 'metrics-other-service', 'metrics-other-client', 'Other client', 'Other pro', 'Other', 'Other', 'America/Recife', '2026-09-10', '10:00', '10:30', '2026-09-10T13:00:00Z', '2026-09-10T13:30:00Z', 30, 8888, 'canceled');
   `)
 })
 
@@ -189,17 +204,30 @@ afterAll(async () => {
 })
 
 describe.sequential("truthful report metrics", () => {
-  it("keeps a second tenant's facts out of every aggregate", async () => {
+  it("keeps a second tenant's sentinel facts out of summary and all six reports", async () => {
     const summary = await reporting.summary(actor, range)
     expect(summary.summary.netRevenueCents).toBe(2999)
-    const rows = await reporting.report(
-      actor,
-      "professional_performance",
-      range,
-      config("professional_performance"),
+    const reports = await Promise.all(
+      (
+        [
+          "sales_revenue",
+          "professional_performance",
+          "commissions",
+          "new_returning_customers",
+          "cancellations_no_shows",
+          "cash_payments",
+        ] as const
+      ).map((type) => reporting.report(actor, type, range, config(type))),
     )
-    expect(JSON.stringify(rows)).not.toContain("Other")
-    expect(JSON.stringify(rows)).not.toContain("9999")
+    const serialized = JSON.stringify(reports)
+    for (const sentinel of ["Other", "9999", "7777", "8888"])
+      expect(serialized).not.toContain(sentinel)
+    expect(values(reports[0])["Receita líquida (centavos)"]).toBe("2499")
+    expect(values(reports[1])["Cara — cancelamentos"]).toBe("1")
+    expect(values(reports[2])["Bia — comissão (centavos)"]).toBe("500")
+    expect(values(reports[3])["Clientes únicos identificados"]).toBe("2")
+    expect(values(reports[4])["Agendamentos no denominador"]).toBe("5")
+    expect(values(reports[5])["Dinheiro — líquido (centavos)"]).toBe("2167")
   })
 
   it("applies every summary filter without leaking reversed revenue into active totals", async () => {
@@ -246,15 +274,18 @@ describe.sequential("truthful report metrics", () => {
       "Receita bruta (centavos)": "3000",
       "Receita líquida (centavos)": "2499",
       "Estornos (centavos)": "500",
-      "Período anterior — receita líquida (centavos)": "700",
-      "Variação contra período anterior (centavos)": "1799",
+      "Período anterior — receita líquida (centavos)": "300",
+      "Variação contra período anterior (centavos)": "2199",
     })
     expect(results[1]).toMatchObject({
-      "Ana — serviços concluídos": "1",
+      "Ana — agendamentos concluídos": "1",
       "Ana — ticket médio (centavos)": "999",
       "Ana — cancelamentos": "1",
-      "Bia — serviços concluídos": "1",
+      "Bia — agendamentos concluídos": "1",
       "Bia — ausências": "1",
+      "Cara — agendamentos concluídos": "0",
+      "Cara — receita (centavos)": "0",
+      "Cara — cancelamentos": "1",
     })
     expect(results[2]).toMatchObject({
       "Ana — comissão (centavos)": "200",
@@ -273,12 +304,12 @@ describe.sequential("truthful report metrics", () => {
       "Recorrentes (basis points)": "5000",
     })
     expect(results[4]).toMatchObject({
-      Cancelamentos: "1",
+      Cancelamentos: "2",
       Ausências: "1",
-      "Agendamentos no denominador": "2",
-      "Taxa de cancelamento (basis points)": "5000",
-      "Taxa de ausência (basis points)": "5000",
-      "Valor afetado (centavos)": "3000",
+      "Agendamentos no denominador": "5",
+      "Taxa de cancelamento (basis points)": "4000",
+      "Taxa de ausência (basis points)": "2000",
+      "Valor afetado (centavos)": "4000",
     })
     expect(results[5]).toMatchObject({
       "Pix — líquido (centavos)": "333",
@@ -287,6 +318,23 @@ describe.sequential("truthful report metrics", () => {
       "Dinheiro — líquido (centavos)": "2167",
     })
     expect(new Set(results.map((result) => JSON.stringify(result))).size).toBe(6)
+  })
+
+  it("classifies a client as new when their only earlier receipt was reversed", async () => {
+    const customers = values(
+      await reporting.report(
+        actor,
+        "new_returning_customers",
+        { ...range, professionalId: "metrics-pro-2" },
+        config("new_returning_customers"),
+      ),
+    )
+    expect(customers).toMatchObject({
+      "Clientes únicos identificados": "1",
+      "Clientes novos": "1",
+      "Clientes recorrentes": "0",
+      "Novos (basis points)": "10000",
+    })
   })
 
   it("applies every supported filter at its authoritative fact boundary", async () => {
@@ -317,7 +365,7 @@ describe.sequential("truthful report metrics", () => {
           ),
         ),
       ).toMatchObject({
-        "Bia — serviços concluídos": "1",
+        "Bia — agendamentos concluídos": "1",
         "Bia — receita (centavos)": "2000",
         "Bia — ticket médio (centavos)": "2000",
       })
@@ -361,7 +409,7 @@ describe.sequential("truthful report metrics", () => {
             config("cancellations_no_shows"),
           ),
         ),
-      ).toMatchObject({ Cancelamentos: "0", Ausências: "1", "Agendamentos no denominador": "1" })
+      ).toMatchObject({ Cancelamentos: "0", Ausências: "1", "Agendamentos no denominador": "2" })
     expect(
       values(
         await reporting.report(
