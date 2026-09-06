@@ -37,9 +37,12 @@ declares them. Reversed receipts never contribute to active sales, client, or pr
   the reversed receipt line amount when `includeReversals` is enabled. Average ticket is active net
   revenue divided by paid sales, rounded to the nearest cent. Comparison uses the immediately
   preceding interval with the same inclusive number of days.
-- Professional performance groups active receipt-line snapshots by professional. It reports
-  completed services, distinct-sales average ticket, net revenue, and separately counts canceled
-  and no-show scheduling facts for that professional in the same filter interval.
+- Professional performance builds its professional universe from both scheduling facts and active
+  receipt-line snapshots, so a professional with only cancellations or no-shows remains visible.
+  Completed appointments are scheduling rows whose status is `completed`; they are intentionally
+  distinct from completed service/receipt lines. Service revenue comes from active receipt lines,
+  average ticket divides that revenue by distinct active receipts, and cancellation/no-show counts
+  come from scheduling facts in the same filter interval.
 - Commission reports sum immutable commission facts. Service revenue is the signed net commission
   base; commission and barbershop share are signed totals. Earned and reversal fact counts are
   reported explicitly.
@@ -72,7 +75,8 @@ Generation retry accepts only `failed` or `expired`. Delivery retry accepts only
 compete on an optimistic update so only one delivery attempt is dispatched. Dispatch failure is
 compensated back to `failed`; a lost response after successful delivery cannot overwrite `sent`.
 Provider success followed by database acknowledgement loss leaves a recoverable `sending` lease;
-after five minutes a worker may reclaim it using the same report-request provider idempotency key.
+an immediate retry fails retriably instead of acknowledging the task, and after five minutes a
+worker may reclaim the lease using the same report-request provider idempotency key.
 
 Status, history, request, and retry responses use this allowlist only: `id`, `format`, `reportType`,
 `status`, `emailDeliveryStatus`, `activeAttempt`, `createdAt`, `completedAt`, and `safeFailureCode`.

@@ -593,18 +593,29 @@ describe.sequential("report export lifecycle", () => {
       }),
     ).rejects.toThrow("database_ack_lost")
     expect((await service.status(actor, requested?.id ?? ""))?.emailDeliveryStatus).toBe("sending")
-    await db
-      .update(reportRequest)
-      .set({ emailDeliveryClaimedAt: new Date(Date.now() - 10 * 60 * 1000) })
-      .where(eq(reportRequest.id, requested?.id ?? ""))
-    await createReportWorker(
+    const recoveryWorker = createReportWorker(
       db as never,
       createReportingService(db as never),
       storage,
       emailSender,
-    ).deliver({ organizationId: actor.organizationId, reportRequestId: requested?.id ?? "" })
+    )
+    await expect(
+      recoveryWorker.deliver({
+        organizationId: actor.organizationId,
+        reportRequestId: requested?.id ?? "",
+      }),
+    ).rejects.toThrow("report_email_delivery_claim_active")
+    expect(calls).toHaveLength(1)
+    await db
+      .update(reportRequest)
+      .set({ emailDeliveryClaimedAt: new Date(Date.now() - 10 * 60 * 1000) })
+      .where(eq(reportRequest.id, requested?.id ?? ""))
+    await recoveryWorker.deliver({
+      organizationId: actor.organizationId,
+      reportRequestId: requested?.id ?? "",
+    })
     expect((await service.status(actor, requested?.id ?? ""))?.emailDeliveryStatus).toBe("sent")
-    expect(calls).toHaveLength(2)
+    expect(calls).toEqual([requested?.id, requested?.id])
     expect(acknowledgements.size).toBe(1)
   })
 

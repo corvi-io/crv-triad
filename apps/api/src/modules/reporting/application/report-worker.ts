@@ -19,7 +19,7 @@ export function createReportWorker(
   observe: (event: Record<string, unknown>) => void = () => undefined,
 ) {
   async function deliverReadyEmail(request: typeof reportRequest.$inferSelect) {
-    if (request.emailDeliveryStatus === "not_applicable") return
+    if (request.emailDeliveryStatus === "not_applicable") return "terminal" as const
     if (!request.requesterEmail) {
       await db
         .update(reportRequest)
@@ -36,9 +36,9 @@ export function createReportWorker(
             sql`${reportRequest.emailDeliveryStatus} <> 'sent'`,
           ),
         )
-      return
+      return "terminal" as const
     }
-    if (!emailSender) return
+    if (!emailSender) return "terminal" as const
     const staleClaim = new Date(Date.now() - DELIVERY_CLAIM_TIMEOUT_MS)
     const claimed = await db
       .update(reportRequest)
@@ -57,7 +57,7 @@ export function createReportWorker(
         ),
       )
       .returning({ id: reportRequest.id })
-    if (claimed.length !== 1) return
+    if (claimed.length !== 1) return "claim_active" as const
     const authenticatedReportUrl = new URL("/reports", studioUrl)
     authenticatedReportUrl.searchParams.set("reportId", request.id)
     try {
@@ -109,6 +109,7 @@ export function createReportWorker(
         ),
       )
     observe({ event: "report_email_delivered", reportRequestId: request.id })
+    return "delivered" as const
   }
 
   async function run(payload: { organizationId: string; reportRequestId: string }) {
@@ -124,7 +125,8 @@ export function createReportWorker(
       .limit(1)
     if (!request) return { outcome: "missing" as const }
     if (request.status === "ready") {
-      await deliverReadyEmail(request)
+      const delivery = await deliverReadyEmail(request)
+      if (delivery === "claim_active") throw new Error("report_email_delivery_claim_active")
       return { outcome: "ready" as const }
     }
     if (!["queued", "running"].includes(request.status)) return { outcome: "ignored" as const }
@@ -306,7 +308,8 @@ export function createReportWorker(
     if (request?.status !== "ready") return { outcome: "ignored" as const }
     if (["sent", "not_applicable"].includes(request.emailDeliveryStatus))
       return { outcome: "sent" as const }
-    await deliverReadyEmail(request)
+    const delivery = await deliverReadyEmail(request)
+    if (delivery === "claim_active") throw new Error("report_email_delivery_claim_active")
     return { outcome: "sent" as const }
   }
 
