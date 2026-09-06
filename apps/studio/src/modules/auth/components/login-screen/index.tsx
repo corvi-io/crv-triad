@@ -79,7 +79,7 @@ export function LoginScreen({ error, invitationToken, verified }: LoginScreenPro
     setIsSubmitting(true)
     setLocalError(null)
     try {
-      const result = await signInWithGoogle()
+      const result = await signInWithGoogle(invitationToken)
       if (result?.error) {
         setLocalError("Não foi possível continuar com o Google. Tente novamente.")
       }

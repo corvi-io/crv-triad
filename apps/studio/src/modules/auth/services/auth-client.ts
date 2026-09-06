@@ -72,8 +72,18 @@ export async function acceptExistingInvitation(token: string) {
     referrerPolicy: "no-referrer",
   })
   if (response.ok) return { status: true as const }
+  const payload = (await response.json().catch(() => null)) as { code?: unknown } | null
   return {
-    error: response.status === 401 ? ("unauthenticated" as const) : ("unavailable" as const),
+    error:
+      response.status === 401
+        ? ("unauthenticated" as const)
+        : payload?.code === "INVITATION_ACCOUNT_MISMATCH"
+          ? ("account_mismatch" as const)
+          : payload?.code === "INVITATION_CHANGED"
+            ? ("invitation_changed" as const)
+            : payload?.code === "INVITATION_COMPLETION_FAILED"
+              ? ("completion_failed" as const)
+              : ("unavailable" as const),
   }
 }
 
@@ -95,10 +105,16 @@ export async function resendVerificationEmail(email: string) {
   })
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(invitationToken?: string) {
+  const callbackURL = invitationToken
+    ? getBrowserUrl(`/accept-invitation?token=${encodeURIComponent(invitationToken)}`)
+    : getBrowserUrl("/overview")
+  const errorCallbackURL = invitationToken
+    ? getBrowserUrl(`/login?error=provider&invitationToken=${encodeURIComponent(invitationToken)}`)
+    : getBrowserUrl("/login?error=provider")
   return authClient.signIn.social({
-    callbackURL: getBrowserUrl("/overview"),
-    errorCallbackURL: getBrowserUrl("/login?error=provider"),
+    callbackURL,
+    errorCallbackURL,
     provider: "google",
   })
 }
