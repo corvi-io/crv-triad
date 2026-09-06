@@ -30,6 +30,10 @@ export function createProfileImageRoutes(
       })
     })
     .put("/profile/image", async ({ request, status }) => {
+      const declaredLength = Number(request.headers.get("content-length"))
+      if (Number.isFinite(declaredLength) && declaredLength > PROFILE_IMAGE_MAX_BYTES + 65_536) {
+        return status(413, { error: { code: "payload_too_large" } })
+      }
       const session = await auth.api.getSession({ headers: request.headers })
       if (!session?.user.id) return status(401, { error: { code: "unauthorized" } })
       const [account] = await db.select().from(user).where(eq(user.id, session.user.id)).limit(1)
@@ -88,12 +92,13 @@ export function createProfileImageRoutes(
     })
 }
 
-function matchesDeclaredImageType(body: Uint8Array, contentType: string) {
+export function matchesDeclaredImageType(body: Uint8Array, contentType: string) {
   if (contentType === "image/jpeg") return body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff
   if (contentType === "image/png")
-    return body
-      .slice(0, 8)
-      .every((byte, index) => byte === [137, 80, 78, 71, 13, 10, 26, 10][index])
+    return (
+      body.length >= 8 &&
+      body.slice(0, 8).every((byte, index) => byte === [137, 80, 78, 71, 13, 10, 26, 10][index])
+    )
   if (contentType === "image/webp")
     return (
       new TextDecoder().decode(body.slice(0, 4)) === "RIFF" &&

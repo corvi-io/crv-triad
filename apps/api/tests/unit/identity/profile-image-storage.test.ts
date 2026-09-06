@@ -5,6 +5,7 @@ import { S3Client } from "@aws-sdk/client-s3"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { IdpEnv } from "../../../src/modules/idp/config/env.js"
+import { matchesDeclaredImageType } from "../../../src/modules/idp/http/routes/profile-image.js"
 import {
   createProfileImageKey,
   createProfileImageStorage,
@@ -68,5 +69,14 @@ describe("local profile image storage", () => {
 
     expect(storage.publicUrl("image.webp")).toBe("https://images.example.test/image.webp")
     expect(send).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe("profile image signatures", () => {
+  it("rejects truncated PNG signatures", () => {
+    expect(matchesDeclaredImageType(new Uint8Array([137]), "image/png")).toBe(false)
+    expect(
+      matchesDeclaredImageType(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), "image/png"),
+    ).toBe(true)
   })
 })

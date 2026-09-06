@@ -74,6 +74,7 @@ jobs:
         if: ${{ inputs.app == 'api' }}
         uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # master at 2026-08-11
       - name: Deploy gate
+        id: deploy-gate
         run: bash .github/scripts/run-deploy-gate.sh "${{ inputs.target }}" "${{ inputs.app }}"
       - name: Record delivery result
         id: result
@@ -81,11 +82,12 @@ jobs:
         env:
           APP: ${{ inputs.app }}
         run: |
-          echo "deployed=true" >> "$GITHUB_OUTPUT"
-          if [[ "$APP" == "site" ]]; then
+          deployed="${{ steps.deploy-gate.outputs.deployed }}"
+          echo "deployed=${deployed:-false}" >> "$GITHUB_OUTPUT"
+          if [[ "$deployed" == "true" && "$APP" == "site" ]]; then
             echo "public-url=$SITE__PUBLIC_SITE_URL" >> "$GITHUB_OUTPUT"
-          elif [[ "$APP" == "studio" ]]; then
+          elif [[ "$deployed" == "true" && "$APP" == "studio" ]]; then
             echo "public-url=$INFRA__STUDIO_URL" >> "$GITHUB_OUTPUT"
-          elif [[ "$APP" == "backstage" ]]; then
+          elif [[ "$deployed" == "true" && "$APP" == "backstage" ]]; then
             echo "public-url=$INFRA__BACKSTAGE_URL" >> "$GITHUB_OUTPUT"
           fi

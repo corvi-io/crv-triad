@@ -79,6 +79,16 @@ describe("API deployment contract", () => {
     expect(workflow).not.toContain("app: backstage, deploy: false")
   })
 
+  it("does not report skipped development deploys as successful deployments", () => {
+    const workflow = readFileSync(".github/workflows/reusable-app-delivery.yml", "utf8")
+    const deployGate = readFileSync(".github/scripts/run-deploy-gate.sh", "utf8")
+
+    expect(workflow).toContain("steps.deploy-gate.outputs.deployed")
+    expect(workflow).not.toContain('echo "deployed=true" >> "$GITHUB_OUTPUT"')
+    expect(deployGate).toContain("record_deployment false")
+    expect(deployGate).toContain("record_deployment true")
+  })
+
   it("publishes the Backstage preview in development deployment comments", () => {
     const script = readFileSync(".github/scripts/comment-pr-api-deploy.py", "utf8")
 
