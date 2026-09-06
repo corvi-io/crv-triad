@@ -198,6 +198,39 @@ export function createReportExportService(
     observe({ event: "report_export_retried", reportRequestId: id, attempt })
     return status(actor, id)
   }
+  async function retryDelivery(actor: TenantContext, id: string) {
+    const current = await statusRow(actor, id)
+    if (current?.status !== "ready" || current.emailDeliveryStatus === "sent")
+      return current ? publicReportRequest(current) : null
+    if (current.emailDeliveryStatus !== "failed") return publicReportRequest(current)
+    const [won] = await db
+      .update(reportRequest)
+      .set({
+        emailDeliveryStatus: "pending",
+        emailDeliveryFailureCode: null,
+        version: sql`${reportRequest.version} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(reportRequest.organizationId, actor.organizationId),
+          eq(reportRequest.id, id),
+          eq(reportRequest.status, "ready"),
+          eq(reportRequest.emailDeliveryStatus, "failed"),
+          eq(reportRequest.version, current.version),
+        ),
+      )
+      .returning({ version: reportRequest.version })
+    if (!won) return status(actor, id)
+    if (!dispatcher.dispatchDelivery) throw new Error("report_delivery_unavailable")
+    const key = createHash("sha256").update(`email:${id}:${won.version}`).digest("hex")
+    await dispatcher.dispatchDelivery(
+      { schemaVersion: 1, organizationId: actor.organizationId, reportRequestId: id },
+      key,
+    )
+    observe({ event: "report_email_retry_requested", reportRequestId: id })
+    return status(actor, id)
+  }
   async function download(actor: TenantContext, id: string) {
     const current = await statusRow(actor, id)
     if (current?.status !== "ready") return null
@@ -210,7 +243,16 @@ export function createReportExportService(
   async function readLocalArtifact(key: string) {
     return storage.read?.(key) ?? null
   }
-  return { request, status, history, catalog, retry, download, readLocalArtifact }
+  return {
+    request,
+    status,
+    history,
+    catalog,
+    retry,
+    retryDelivery,
+    download,
+    readLocalArtifact,
+  }
 }
 export type ReportExportService = ReturnType<typeof createReportExportService>
 

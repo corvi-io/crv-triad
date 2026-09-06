@@ -112,6 +112,25 @@ export const createReportRequestSchema = z
     config: z.record(z.string(), z.unknown()).optional(),
   })
   .strict()
+  .superRefine((input, context) => {
+    const reportType = input.reportType ?? "sales_revenue"
+    const supported = new Set(
+      reportCatalogItem(reportType).supportedFilters.filter((filter) => filter !== "dateRange"),
+    )
+    for (const [field, catalogFilter] of [
+      ["unitId", "unit"],
+      ["professionalId", "professional"],
+      ["serviceId", "service"],
+      ["paymentMethod", "paymentMethod"],
+    ] as const) {
+      if (input.filters[field] !== undefined && !supported.has(catalogFilter))
+        context.addIssue({
+          code: "custom",
+          message: "unsupported_report_filter",
+          path: ["filters", field],
+        })
+    }
+  })
   .transform((input) => {
     const reportType = input.reportType ?? "sales_revenue"
     const configSnapshot = reportConfigSnapshotSchema.parse({

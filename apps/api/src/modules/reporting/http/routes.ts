@@ -69,6 +69,15 @@ export function createReportingRoutes(
       if (!exportEnabled) throw new ExportUnavailableError()
       return exports.retry(await actor(request.headers, "reports.export"), params.id)
     })
+    .post("/generated/:id/delivery/retry", async ({ request, params, set }) => {
+      if (!exportEnabled) throw new ExportUnavailableError()
+      const result = await exports.retryDelivery(
+        await actor(request.headers, "reports.export"),
+        params.id,
+      )
+      if (!result) set.status = 404
+      return result ?? { code: "not_found" }
+    })
     .get("/generated/:id/download", async ({ request, params, set }) => {
       const url = await exports.download(await actor(request.headers, "reports.export"), params.id)
       if (!url) {

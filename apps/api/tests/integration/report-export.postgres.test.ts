@@ -201,20 +201,10 @@ describe.sequential("report export lifecycle", () => {
       releaseSummary = resolve
     })
     const delayedReporting = {
-      async summary() {
+      async report() {
         markSummaryStarted?.()
         await summaryReleased
-        return {
-          summary: {
-            receiptCount: 0,
-            performedItems: 0,
-            netRevenueCents: 0,
-            grossCents: 0,
-            commissionCents: 0,
-            barbershopShareCents: 0,
-            reversalCount: 0,
-          },
-        }
+        return []
       },
     }
     const worker = createReportWorker(db as never, delayedReporting as never, storage)
@@ -344,6 +334,59 @@ describe.sequential("report export lifecycle", () => {
       worker.run({ organizationId: actor.organizationId, reportRequestId: requested?.id ?? "" }),
     ).resolves.toMatchObject({ outcome: "ready" })
     expect((await service.status(actor, requested?.id ?? ""))?.emailDeliveryStatus).toBe("sent")
+  })
+
+  it("manually retries a failed delivery without regenerating or duplicating sent email", async () => {
+    const storage = createFakeArtifactStorage()
+    let deliveryDispatches = 0
+    const dispatcher = {
+      async dispatch() {
+        return { runReference: "generation-run" }
+      },
+      async dispatchDelivery() {
+        deliveryDispatches += 1
+        return { runReference: `delivery-run-${deliveryDispatches}` }
+      },
+    }
+    const service = createReportExportService(db as never, dispatcher, storage)
+    const requested = await service.request(actor, {
+      ...baseInput,
+      idempotencyKey: crypto.randomUUID(),
+    })
+    await createReportWorker(db as never, createReportingService(db as never), storage).run({
+      organizationId: actor.organizationId,
+      reportRequestId: requested?.id ?? "",
+    })
+    await db
+      .update(reportRequest)
+      .set({ emailDeliveryStatus: "failed", emailDeliveryFailureCode: "delivery_failed" })
+      .where(eq(reportRequest.id, requested?.id ?? ""))
+    const before = await service.status(actor, requested?.id ?? "")
+    await Promise.all([
+      service.retryDelivery(actor, requested?.id ?? ""),
+      service.retryDelivery(actor, requested?.id ?? ""),
+    ])
+    const pending = await service.status(actor, requested?.id ?? "")
+    expect(deliveryDispatches).toBe(1)
+    expect(pending).toMatchObject({
+      status: "ready",
+      emailDeliveryStatus: "pending",
+      activeAttempt: before?.activeAttempt,
+    })
+    expect(
+      (
+        await db
+          .select({ value: count() })
+          .from(reportArtifact)
+          .where(eq(reportArtifact.reportRequestId, requested?.id ?? ""))
+      )[0]?.value,
+    ).toBe(1)
+    await db
+      .update(reportRequest)
+      .set({ emailDeliveryStatus: "sent", emailDeliveredAt: new Date() })
+      .where(eq(reportRequest.id, requested?.id ?? ""))
+    await service.retryDelivery(actor, requested?.id ?? "")
+    expect(deliveryDispatches).toBe(1)
   })
 
   it("deletes expired artifacts and changes ready requests to expired", async () => {

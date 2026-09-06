@@ -49,3 +49,36 @@ export const generateManagementReport = schemaTask({
     }
   },
 })
+
+export const deliverManagementReportEmail = schemaTask({
+  id: "deliver-management-report-email-v1",
+  schema: z.object({
+    schemaVersion: z.literal(1),
+    organizationId: z.string().uuid(),
+    reportRequestId: z.string().uuid(),
+  }),
+  queue: managementReportQueue,
+  maxDuration: 60,
+  retry: { maxAttempts: 3, factor: 2, minTimeoutInMs: 1000, maxTimeoutInMs: 10_000 },
+  run: async (payload) => {
+    const env = loadEnv()
+    const { db, pool } = createDatabase(env)
+    const storage = createR2ArtifactStorage({
+      endpoint: env.R2_REPORT_ENDPOINT,
+      accessKeyId: env.R2_REPORT_ACCESS_KEY_ID,
+      secretAccessKey: env.R2_REPORT_SECRET_ACCESS_KEY,
+      bucket: env.R2_REPORT_BUCKET,
+    })
+    try {
+      return await createReportWorker(
+        db,
+        createReportingService(db),
+        storage,
+        createReportEmailSender(env),
+        env.IDP_STUDIO_URL,
+      ).deliver(payload)
+    } finally {
+      await pool.end()
+    }
+  },
+})

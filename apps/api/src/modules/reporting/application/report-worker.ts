@@ -136,11 +136,12 @@ export function createReportWorker(
     })
     try {
       const filters = request.filters
-      const aggregate = await reporting.summary(
+      const rows = await reporting.report(
         { organizationId: payload.organizationId, actorUserId: request.requesterUserId } as never,
+        request.reportType,
         filters,
+        request.configSnapshot ?? legacyConfig(request.reportType, filters),
       )
-      const rows = rowsFor(request.reportType, aggregate.summary)
       const document = {
         title: reportCatalogItem(request.reportType).title,
         period: `${filters.from} a ${filters.to} (${filters.timezone})`,
@@ -260,6 +261,23 @@ export function createReportWorker(
     }
   }
 
+  async function deliver(payload: { organizationId: string; reportRequestId: string }) {
+    const [request] = await db
+      .select()
+      .from(reportRequest)
+      .where(
+        and(
+          eq(reportRequest.organizationId, payload.organizationId),
+          eq(reportRequest.id, payload.reportRequestId),
+        ),
+      )
+      .limit(1)
+    if (request?.status !== "ready") return { outcome: "ignored" as const }
+    if (request.emailDeliveryStatus === "sent") return { outcome: "sent" as const }
+    await deliverReadyEmail(request)
+    return { outcome: "sent" as const }
+  }
+
   async function expire(now = new Date()) {
     const artifacts = await db
       .select()
@@ -291,44 +309,20 @@ export function createReportWorker(
     }
     return artifacts.length
   }
-  return { run, expire }
+  return { run, deliver, expire }
 }
 
-type Summary = Awaited<ReturnType<ReportingService["summary"]>>["summary"]
-
-function rowsFor(type: ReportType, summary: Summary): Array<[string, string]> {
-  const common: Record<ReportType, Array<[string, string]>> = {
-    sales_revenue: [
-      ["Vendas concluídas", String(summary.receiptCount)],
-      ["Itens realizados", String(summary.performedItems)],
-      ["Faturamento líquido (centavos)", String(summary.netRevenueCents)],
-      ["Estornos", String(summary.reversalCount)],
-    ],
-    professional_performance: [
-      ["Atendimentos concluídos", String(summary.receiptCount)],
-      ["Serviços realizados", String(summary.performedItems)],
-      ["Receita líquida (centavos)", String(summary.netRevenueCents)],
-    ],
-    commissions: [
-      ["Comissões (centavos)", String(summary.commissionCents)],
-      ["Parte da barbearia (centavos)", String(summary.barbershopShareCents)],
-      ["Itens realizados", String(summary.performedItems)],
-    ],
-    new_returning_customers: [
-      ["Atendimentos concluídos", String(summary.receiptCount)],
-      ["Cobertura", "Parcial — segmentação de clientes ainda indisponível"],
-    ],
-    cancellations_no_shows: [
-      ["Cancelamentos", "Indisponível na fonte histórica atual"],
-      ["Ausências", "Indisponível na fonte histórica atual"],
-    ],
-    cash_payments: [
-      ["Receita líquida (centavos)", String(summary.netRevenueCents)],
-      ["Estornos", String(summary.reversalCount)],
-      ["Cobertura por forma de pagamento", "Parcial"],
-    ],
+function legacyConfig(type: ReportType, filters: typeof reportRequest.$inferSelect.filters) {
+  const { timezone, ...reportFilters } = filters
+  const defaults: Record<ReportType, Record<string, unknown>> = {
+    sales_revenue: { includeReversals: true },
+    professional_performance: { ranking: "revenue" },
+    commissions: { includeReversals: true },
+    new_returning_customers: { customerDefinition: "first_completed_receipt_in_tenant" },
+    cancellations_no_shows: { includeCancelled: true, includeNoShows: true },
+    cash_payments: { includeReversals: true },
   }
-  return common[type]
+  return { reportType: type, filters: reportFilters, timezone, ...defaults[type] } as never
 }
 
 export type ReportWorker = ReturnType<typeof createReportWorker>

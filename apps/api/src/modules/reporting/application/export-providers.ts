@@ -3,6 +3,10 @@ import { createHash } from "node:crypto"
 export type ExportPayload = { schemaVersion: 1; organizationId: string; reportRequestId: string }
 export type ReportDispatcher = {
   dispatch(payload: ExportPayload, idempotencyKey: string): Promise<{ runReference: string }>
+  dispatchDelivery?(
+    payload: ExportPayload,
+    idempotencyKey: string,
+  ): Promise<{ runReference: string }>
 }
 export type ArtifactStorage = {
   put(
@@ -37,6 +41,11 @@ export function createFakeReportDispatcher(): ReportDispatcher {
   return {
     async dispatch(_payload, key) {
       const runReference = runs.get(key) ?? `fake_${crypto.randomUUID()}`
+      runs.set(key, runReference)
+      return { runReference }
+    },
+    async dispatchDelivery(_payload, key) {
+      const runReference = runs.get(key) ?? `fake_email_${crypto.randomUUID()}`
       runs.set(key, runReference)
       return { runReference }
     },
