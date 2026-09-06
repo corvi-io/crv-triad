@@ -61,7 +61,16 @@ export type ItemCommissionSnapshot = {
   rule: CommissionRule
 }
 
-export type CheckoutStatus = "open" | "paid"
+export type CheckoutStatus = "open" | "paid" | "registered"
+
+export type ReceiptSummary = {
+  id: string
+  localDate: string
+  registeredAt: string
+  replacesReceiptId?: string
+  status: "active" | "reversed"
+  totalCents: MoneyCents
+}
 
 export type Checkout = {
   adjustmentAuthorized: boolean
@@ -78,6 +87,8 @@ export type Checkout = {
   totalCents: MoneyCents
   unitId: SchedulingUnitId
   unitName: string
+  version?: number
+  receipts?: readonly ReceiptSummary[]
 }
 
 export type PaidSale = {
@@ -129,6 +140,16 @@ export type OpenDaySummary = {
   surchargeCents: MoneyCents
   unitId: SchedulingUnitId
   unitName: string
+  id?: string
+  version?: number
+  openingCashCents?: MoneyCents
+  supplyCents?: MoneyCents
+  withdrawalCents?: MoneyCents
+  receiptReversalCents?: MoneyCents
+  reversedReceiptCents?: MoneyCents
+  pendingCheckoutCount?: number
+  noChargeCount?: number
+  reversalCount?: number
 }
 
 export type CashCount = {
@@ -150,7 +171,6 @@ export type CloseDayInput = {
   date: string
   operationId: string
   reason?: string
-  responsiblePersonName: string
   scenarioId?: string
   unitId: SchedulingUnitId
 }
@@ -197,6 +217,13 @@ export type CompletePaymentInput = {
   sessionId: string
 }
 
+export type CancelReceiptInput = {
+  checkoutId: string
+  operationId: string
+  reason: string
+  receiptId: string
+}
+
 export type PrototypeCheckoutPolicy = {
   getActivePaymentMethodIds(): Promise<readonly TenderMethod[]>
   getCommissionRateBasisPoints(
@@ -220,6 +247,28 @@ export type RevenueOperationsRepository = {
   reset(): Promise<void>
   updateAdjustments(input: CheckoutAdjustmentInput): Promise<Checkout>
   updateLinePrice(input: CheckoutLinePriceInput): Promise<Checkout>
+  cancelReceipt?(input: CancelReceiptInput): Promise<Checkout>
+  openCheckout?(sessionId: string, operationId: string): Promise<Checkout>
+  openCashDay?(
+    unitId: string,
+    openingCashCents: number,
+    operationId: string,
+  ): Promise<OpenDaySummary>
+  addCashMovement?(input: {
+    cashDayId: string
+    kind: "supply" | "withdrawal"
+    amountCents: number
+    reason: string
+    operationId: string
+  }): Promise<OpenDaySummary>
+  reverseCashMovement?(input: {
+    cashDayId: string
+    movementId: string
+    operationId: string
+    reason: string
+  }): Promise<OpenDaySummary>
+  reopenDay?(cashDayId: string, operationId: string, reason: string): Promise<OpenDaySummary>
+  units?(): Promise<readonly { id: string; name: string; timezone: string | null }[]>
 }
 
 export class RevenueOperationsError extends Error {
@@ -233,6 +282,11 @@ export class RevenueOperationsError extends Error {
     | "not-found"
     | "not-ready"
     | "stale"
+    | "cash-day-required"
+    | "cash-day-closed"
+    | "forbidden"
+    | "network-error"
+    | "idempotency-conflict"
 
   constructor(
     message: string,
@@ -245,7 +299,12 @@ export class RevenueOperationsError extends Error {
       | "invalid-tender"
       | "not-found"
       | "not-ready"
-      | "stale",
+      | "stale"
+      | "cash-day-required"
+      | "cash-day-closed"
+      | "forbidden"
+      | "network-error"
+      | "idempotency-conflict",
   ) {
     super(message)
     this.code = code

@@ -25,6 +25,28 @@ change the approved PRD or authorize financial runtime mutations against a provi
 - Required synchronization: fetch and integrate the merged `origin/staging` commit before generating a
   finance migration or editing the Service Desk/revenue integration.
 
+### Accepted Initiative 23 handoff
+
+- Accepted and merged on 2026-09-05 through PR #68. `origin/staging` merge SHA:
+  `1842099b94d9b11790f82a58128909e17ba11043`; accepted head `ef35972d7288e0a04a6422d9cd493e92634ce770`
+  is its ancestor. Initiative 24 synchronized that staging SHA before runtime implementation.
+- Public source is `ServiceDeskService.completedHandoffs()` and the immutable
+  `CompletedServiceHandoff` version 1 stored in `service_desk_completed_handoffs`, unique by
+  `(organization_id, visit_id)`.
+- The sealed payload contains tenant/unit identity and timezone snapshot, visit/client/appointment identity,
+  customer display snapshot, completion instant/version, and ordered completed items with service,
+  professional, exact price-cent, start, and finish snapshots. Guest handoffs keep `clientId: null`.
+- Completion or interruption with performed items writes one handoff transactionally. Canceled or
+  no-performed-item visits do not. Linked-client `lastVisitAt` advances monotonically only for performed
+  service; Revenue Operations must never change it or any visit/appointment lifecycle field.
+- Migrations accepted: `0022_magenta_sinister_six.sql`, `0023_tiresome_hardball.sql`, and
+  `0024_release_completed_appointments.sql`. Accepted fixtures/tests:
+  `apps/api/tests/fixtures/service-desk-local-qa.ts`, `scheduling-local-qa.ts`, and
+  `apps/api/tests/integration/service-desk.postgres.test.ts`.
+- Acceptance evidence: API 340/340 and 81.27% branches; PostgreSQL focused 18/18 (clean suite 26/26);
+  Studio 729/729 and 80.04% branches; Service Desk E2E 17/17; production 11/11; production boundary
+  exit 0; CI run 34003393749 passed all eight checks; all review threads were resolved.
+
 ### Required Initiative 23 handoff evidence
 
 - Immutable completed-visit identifier and handoff version.

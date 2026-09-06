@@ -18,12 +18,12 @@ describe("checkout page", () => {
     expect(screen.getByText("Pix")).toBeVisible()
     expect(screen.getAllByText("R$ 35,00").length).toBeGreaterThan(0)
 
-    fireEvent.click(screen.getByRole("button", { name: "Concluir pagamento" }))
-    const dialog = screen.getByRole("dialog", { name: "Concluir pagamento?" })
+    fireEvent.click(screen.getByRole("button", { name: "Registrar pagamento" }))
+    const dialog = screen.getByRole("dialog", { name: "Registrar pagamento?" })
     fireEvent.click(dialog.querySelector("button:last-of-type") as HTMLButtonElement)
 
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Pagamento concluído."))
-    expect(await screen.findByText("Concluído · Pago")).toBeVisible()
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Pagamento registrado."))
+    expect(await screen.findAllByText("Pagamento registrado")).not.toHaveLength(0)
     expect(screen.getByText(/não é um comprovante fiscal/i)).toBeVisible()
     expect(screen.queryByRole("button", { name: "Atualizar ajustes" })).not.toBeInTheDocument()
   })
@@ -51,7 +51,7 @@ describe("checkout page", () => {
     })
     renderCheckout(repository, "session-walk-in-checkout-pix")
     await screen.findByRole("heading", { name: "Serviços realizados" })
-    fireEvent.click(screen.getByRole("button", { name: "Concluir pagamento" }))
+    fireEvent.click(screen.getByRole("button", { name: "Registrar pagamento" }))
     const confirm = screen
       .getByRole("dialog")
       .querySelector("button:last-of-type") as HTMLButtonElement

@@ -310,7 +310,7 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
       cashCount,
       closedAt: this.#clock.now().toISOString(),
       id: `closing-${input.unitId}-${input.date}`,
-      responsiblePersonName: input.responsiblePersonName,
+      responsiblePersonName: "Operador da sessão local",
       summary,
     })
     this.#closings.set(key, structuredClone(snapshot))

@@ -61,6 +61,7 @@ apps:
       - { source: STUDIO__VITE_SCHEDULING_SOURCE, runtime: VITE_SCHEDULING_SOURCE, github: variable, required: false }
       - { source: STUDIO__VITE_BARBERSHOP_SETUP_SOURCE, runtime: VITE_BARBERSHOP_SETUP_SOURCE, github: variable, required: false }
       - { source: STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE, runtime: VITE_CLIENT_MANAGEMENT_SOURCE, github: variable, required: false }
+      - { source: STUDIO__VITE_REVENUE_OPERATIONS_SOURCE, runtime: VITE_REVENUE_OPERATIONS_SOURCE, github: variable, required: false }
   backstage:
     owner: apps/backstage
     runtime: cloudflare-pages-static

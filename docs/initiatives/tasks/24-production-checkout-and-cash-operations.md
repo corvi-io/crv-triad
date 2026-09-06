@@ -58,8 +58,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-001 — Verify predecessor, handoff and cash policy contract
 
-- [ ] Deliver and verify TASK-001.
-- Status: Pending
+- [x] Deliver and verify TASK-001.
+- Status: Complete
 - Covers: REQ-001, REQ-002, REQ-007, REQ-011, REQ-012, REQ-013, REQ-020, REQ-021, REQ-037, AC-001, AC-002,
   AC-004, AC-007, AC-008, AC-011, AC-018
 - Depends on: Explicit PRD approval and predecessor acceptance; no implementation task dependency.

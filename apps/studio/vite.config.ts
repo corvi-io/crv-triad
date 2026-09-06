@@ -34,9 +34,16 @@ export default defineConfig(({ command, mode }) => {
       : serviceDeskSource === "disabled" || serviceDeskSource === "memory"
         ? "./src/modules/shared/config/service-desk-source-disabled.ts"
         : "./src/modules/service-desk/http-entry.ts"
-  const revenueOperationsSourceEntry = schedulingPrototypeEnabled
-    ? "./src/dev/revenue-operations/entry.ts"
-    : "./src/modules/shared/config/revenue-operations-source-disabled.ts"
+  const revenueOperationsMemoryEnabled = isMemorySourceEnabled(
+    publicEnv.VITE_REVENUE_OPERATIONS_SOURCE,
+    publicEnv.VITE_DEPLOY_TARGET,
+  )
+  const revenueOperationsSourceEntry =
+    revenueOperationsMemoryEnabled && schedulingPrototypeEnabled
+      ? "./src/dev/revenue-operations/entry.ts"
+      : publicEnv.VITE_REVENUE_OPERATIONS_SOURCE === "disabled" || revenueOperationsMemoryEnabled
+        ? "./src/modules/shared/config/revenue-operations-source-disabled.ts"
+        : "./src/modules/revenue-operations/http-entry.ts"
   const barbershopSetupSourceEnabled = isMemorySourceEnabled(
     publicEnv.VITE_BARBERSHOP_SETUP_SOURCE,
     publicEnv.VITE_DEPLOY_TARGET,

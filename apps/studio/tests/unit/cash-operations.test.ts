@@ -109,7 +109,6 @@ describe("cash memory repository", () => {
       countedCashCents: summary.expectedCashCents,
       date,
       operationId: "close-1",
-      responsiblePersonName: "Marina Souza",
       scenarioId: query.scenarioId,
       unitId: query.unitId,
     }
@@ -128,7 +127,6 @@ describe("cash memory repository", () => {
       countedCashCents: summary.expectedCashCents,
       date,
       operationId: "close-concurrent-1",
-      responsiblePersonName: "Marina Souza",
       scenarioId: query.scenarioId,
       unitId: query.unitId,
     }
@@ -153,7 +151,6 @@ describe("cash memory repository", () => {
       countedCashCents: summary.expectedCashCents,
       date,
       operationId: "close-failure",
-      responsiblePersonName: "Marina Souza",
       scenarioId: failureQuery.scenarioId,
       unitId: query.unitId,
     }
