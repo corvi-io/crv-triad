@@ -129,12 +129,14 @@ export function projectCashCount(
 
 export function createClosingSnapshot({
   cashCount,
+  cashDayId,
   closedAt,
   id,
   responsiblePersonName,
   summary,
 }: {
   cashCount: CashCount
+  cashDayId: string
   closedAt: string
   id: string
   responsiblePersonName: string
@@ -150,6 +152,7 @@ export function createClosingSnapshot({
   return structuredClone({
     ...summary,
     ...cashCount,
+    cashDayId,
     closedAt,
     id,
     responsiblePersonName: normalizedName,

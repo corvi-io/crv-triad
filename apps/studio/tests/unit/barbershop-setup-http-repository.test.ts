@@ -13,15 +13,21 @@ describe("barbershop setup HTTP repository", () => {
       async (url: unknown) =>
         new Response(
           JSON.stringify(
-            String(url).includes("/availability/summary")
-              ? { activeSeries: 0 }
-              : {
-                  items: [],
-                  page: 1,
-                  pageSize: 50,
-                  totalCount: 0,
-                  totalPages: 0,
-                },
+            String(url).includes("/revenue-operations/payment-methods")
+              ? ["pix", "cash", "debit", "credit"].map((method) => ({
+                  enabled: true,
+                  method,
+                  version: 1,
+                }))
+              : String(url).includes("/availability/summary")
+                ? { activeSeries: 0 }
+                : {
+                    items: [],
+                    page: 1,
+                    pageSize: 50,
+                    totalCount: 0,
+                    totalPages: 0,
+                  },
           ),
           { headers: { "content-type": "application/json" }, status: 200 },
         ),
@@ -40,7 +46,8 @@ describe("barbershop setup HTTP repository", () => {
     ])
     expect(completion.readiness.completedCount).toBe(0)
     expect(completion.readiness.totalCount).toBe(4)
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(completion.paymentMethods.filter(({ active }) => active)).toHaveLength(5)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
   })
 
   it("explains when the invited email already belongs to the barbershop", async () => {

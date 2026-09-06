@@ -1239,6 +1239,19 @@ export function createServiceDeskService(
       .orderBy(asc(serviceDeskHandoff.createdAt), asc(serviceDeskHandoff.id))
       .limit(Math.min(limit, 50))
   }
+  async function completedHandoff(organizationId: string, visitId: string) {
+    const [handoff] = await db
+      .select({ payload: serviceDeskHandoff.payload })
+      .from(serviceDeskHandoff)
+      .where(
+        and(
+          eq(serviceDeskHandoff.organizationId, organizationId),
+          eq(serviceDeskHandoff.visitId, visitId),
+        ),
+      )
+      .limit(1)
+    return handoff ?? null
+  }
   return {
     admitWalkIn,
     admitScheduled,
@@ -1256,6 +1269,7 @@ export function createServiceDeskService(
     queue,
     arrivals,
     history,
+    completedHandoff,
     completedHandoffs,
   }
 }

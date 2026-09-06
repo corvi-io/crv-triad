@@ -18,6 +18,11 @@ import type { IdpAuth, InvitationAcceptedObserver } from "../../modules/idp/iden
 import type { AuthEmailSender } from "../../modules/idp/identity/transactional-email.js"
 import { createLeadRoutes } from "../../modules/leads/http/routes.js"
 import {
+  createRevenueOperationsService,
+  hasOpenRevenueCashDay,
+} from "../../modules/revenue-operations/application/revenue-operations-service.js"
+import { createRevenueOperationsRoutes } from "../../modules/revenue-operations/http/routes.js"
+import {
   createSchedulingService,
   guardAvailabilityAppointments,
 } from "../../modules/scheduling/application/scheduling-service.js"
@@ -56,6 +61,13 @@ export function createRestApp(input: CreateRestAppInput) {
   const authorizeTenantAction = createTenantActionAuthorizer(input.db)
   const catalogService = createCatalogService(input.db)
   const schedulingService = createSchedulingService(input.db, input.env.BETTER_AUTH_SECRET)
+  const serviceDeskService = createServiceDeskService(
+    input.db,
+    schedulingService,
+    input.env.BETTER_AUTH_SECRET,
+  )
+  const observeBusinessRequest = (event: object) =>
+    console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
 
   return new Elysia({ name: "crv-triad-api" })
     .use(requestContextMiddleware)
@@ -86,18 +98,27 @@ export function createRestApp(input: CreateRestAppInput) {
           input.db,
           guardAvailabilityAppointments,
           input.env.BETTER_AUTH_SECRET,
+          hasOpenRevenueCashDay,
         ),
         resolveTenantContext,
         authorizeTenantAction,
-        (event) => console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV })),
+        observeBusinessRequest,
       ),
     )
     .use(
       createServiceDeskRoutes(
-        createServiceDeskService(input.db, schedulingService, input.env.BETTER_AUTH_SECRET),
+        serviceDeskService,
         resolveTenantContext,
         authorizeTenantAction,
-        (event) => console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV })),
+        observeBusinessRequest,
+      ),
+    )
+    .use(
+      createRevenueOperationsRoutes(
+        createRevenueOperationsService(input.db, serviceDeskService, input.env.BETTER_AUTH_SECRET),
+        resolveTenantContext,
+        authorizeTenantAction,
+        observeBusinessRequest,
       ),
     )
     .use(createLeadRoutes(input.env, input.pool, { captureAcceptedLead }))

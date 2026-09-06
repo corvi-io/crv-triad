@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { schedulingQueryKeys } from "@/modules/scheduling/queries"
-import { serviceDeskQueryKeys } from "@/modules/service-desk/queries"
 import type {
+  CancelReceiptInput,
   CheckoutAdjustmentInput,
   CheckoutLinePriceInput,
   CloseDayInput,
@@ -53,14 +52,81 @@ export const revenueOperationsQueryKeys = {
 export function useOpenDaySummary(query: OperationalDayQuery) {
   const repository = useRevenueOperationsRepository()
   return useQuery({
+    enabled: Boolean(query.unitId),
     queryFn: () => repository.getOpenDaySummary(query),
     queryKey: revenueOperationsQueryKeys.cash(query),
+    refetchInterval: () =>
+      typeof document === "undefined" || document.visibilityState === "visible" ? 15_000 : false,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
   })
+}
+
+export function useRevenueUnits() {
+  const repository = useRevenueOperationsRepository()
+  return useQuery({
+    queryFn: () => repository.units?.() ?? Promise.resolve([]),
+    queryKey: [...revenueOperationsQueryKeys.all, "units"],
+    staleTime: 60_000,
+  })
+}
+
+function useCashMutation<TInput>(
+  query: OperationalDayQuery,
+  mutationFn: (input: TInput) => Promise<unknown>,
+) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        exact: true,
+        queryKey: revenueOperationsQueryKeys.cash(query),
+      })
+    },
+  })
+}
+
+export function useOpenCashDay(query: OperationalDayQuery) {
+  const repository = useRevenueOperationsRepository()
+  return useCashMutation(query, (input: { openingCashCents: number; operationId: string }) => {
+    if (!repository.openCashDay) throw new Error("Cash opening is unavailable.")
+    return repository.openCashDay(query.unitId, input.openingCashCents, input.operationId)
+  })
+}
+
+export function useCashMovement(query: OperationalDayQuery) {
+  const repository = useRevenueOperationsRepository()
+  return useCashMutation(
+    query,
+    (input: {
+      cashDayId: string
+      kind: "supply" | "withdrawal"
+      amountCents: number
+      reason: string
+      operationId: string
+    }) => {
+      if (!repository.addCashMovement) throw new Error("Cash movements are unavailable.")
+      return repository.addCashMovement(input)
+    },
+  )
+}
+
+export function useReopenCashDay(query: OperationalDayQuery) {
+  const repository = useRevenueOperationsRepository()
+  return useCashMutation(
+    query,
+    (input: { cashDayId: string; operationId: string; reason: string }) => {
+      if (!repository.reopenDay) throw new Error("Cash reopening is unavailable.")
+      return repository.reopenDay(input.cashDayId, input.operationId, input.reason)
+    },
+  )
 }
 
 export function useDailyClosings(query: ClosingHistoryQuery) {
   const repository = useRevenueOperationsRepository()
   return useQuery({
+    enabled: Boolean(query.unitId),
     queryFn: () => repository.listDailyClosings(query),
     queryKey: revenueOperationsQueryKeys.closings(query),
   })
@@ -129,7 +195,6 @@ export function useRevenueDashboardProjection() {
 function useCheckoutMutation<TInput>(
   sessionId: string,
   mutationFn: (input: TInput) => Promise<unknown>,
-  complete = false,
 ) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -137,25 +202,17 @@ function useCheckoutMutation<TInput>(
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({
-          exact: true,
-          queryKey: revenueOperationsQueryKeys.checkout(sessionId),
+          predicate: ({ queryKey }) =>
+            queryKey[0] === "revenue-operations" && queryKey[1] === "checkout",
         }),
         queryClient.invalidateQueries({
           exact: true,
           queryKey: revenueOperationsQueryKeys.commissions(sessionId),
         }),
-        complete
-          ? queryClient.invalidateQueries({ queryKey: serviceDeskQueryKeys.all })
-          : Promise.resolve(),
-        complete
-          ? queryClient.invalidateQueries({ queryKey: schedulingQueryKeys.all })
-          : Promise.resolve(),
-        complete
-          ? queryClient.invalidateQueries({
-              exact: true,
-              queryKey: revenueOperationsQueryKeys.dashboard,
-            })
-          : Promise.resolve(),
+        queryClient.invalidateQueries({
+          exact: true,
+          queryKey: revenueOperationsQueryKeys.dashboard,
+        }),
       ])
     },
   })
@@ -184,9 +241,15 @@ export function useReplaceTenders(sessionId: string) {
 
 export function useCompletePayment(sessionId: string) {
   const repository = useRevenueOperationsRepository()
-  return useCheckoutMutation(
-    sessionId,
-    (input: CompletePaymentInput) => repository.completePayment(input),
-    true,
+  return useCheckoutMutation(sessionId, (input: CompletePaymentInput) =>
+    repository.completePayment(input),
   )
+}
+
+export function useCancelReceipt(sessionId: string) {
+  const repository = useRevenueOperationsRepository()
+  return useCheckoutMutation(sessionId, (input: CancelReceiptInput) => {
+    if (!repository.cancelReceipt) throw new Error("Receipt correction is unavailable.")
+    return repository.cancelReceipt(input)
+  })
 }

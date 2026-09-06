@@ -14,7 +14,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: `VITE_DEPLOY_TARGET=local VITE_BARBERSHOP_SETUP_SOURCE=memory VITE_CLIENT_MANAGEMENT_SOURCE=memory VITE_SCHEDULING_SOURCE=memory VITE_SERVICE_DESK_SOURCE=memory bun --filter studio dev -- --host 127.0.0.1 --port ${port}`,
+    command: `VITE_DEPLOY_TARGET=local VITE_BARBERSHOP_SETUP_SOURCE=memory VITE_CLIENT_MANAGEMENT_SOURCE=memory VITE_SCHEDULING_SOURCE=memory VITE_SERVICE_DESK_SOURCE=memory VITE_REVENUE_OPERATIONS_SOURCE=memory bun --filter studio dev -- --host 127.0.0.1 --port ${port}`,
     cwd: "../..",
     url: baseURL,
     reuseExistingServer: false,

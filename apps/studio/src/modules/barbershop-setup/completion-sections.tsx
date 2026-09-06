@@ -41,6 +41,7 @@ import {
   useUpdateBarbershopProfile,
   useUpdatePaymentMethods,
 } from "./queries"
+import { useBarbershopSetupRepository } from "./repository-context"
 
 export function BusinessProfileSection({ scenarioId }: { scenarioId: SetupScenarioId }) {
   const completion = useSetupCompletion(scenarioId)
@@ -238,30 +239,41 @@ function BusinessProfileForm({
 }
 
 export function PaymentsSection({ scenarioId }: { scenarioId: SetupScenarioId }) {
+  const repository = useBarbershopSetupRepository()
+  const production = repository.catalogSource === "http"
   const completion = useSetupCompletion(scenarioId)
   const relations = useSetupAvailability({ scenarioId })
-  if (completion.isPending || relations.isPending) return <CompletionLoading />
-  if (completion.isError || relations.isError)
+  if (completion.isPending || (!production && relations.isPending)) return <CompletionLoading />
+  if (completion.isError || (!production && relations.isError))
     return (
       <CompletionError onRetry={() => Promise.all([completion.refetch(), relations.refetch()])} />
     )
   return (
     <div className="grid gap-4 pb-4 lg:grid-cols-2">
       <PaymentSettingsForm
+        className={production ? "lg:col-span-2" : undefined}
         key={`${scenarioId}-payments`}
         initial={completion.data.paymentMethods}
       />
-      <ServiceOverrideForm
-        key={`${scenarioId}-overrides`}
-        overrides={completion.data.serviceOverrides}
-        professionals={relations.data.professionals}
-        services={relations.data.services}
-      />
+      {!production && relations.data ? (
+        <ServiceOverrideForm
+          key={`${scenarioId}-overrides`}
+          overrides={completion.data.serviceOverrides}
+          professionals={relations.data.professionals}
+          services={relations.data.services}
+        />
+      ) : null}
     </div>
   )
 }
 
-function PaymentSettingsForm({ initial }: { initial: readonly PaymentMethodSetting[] }) {
+function PaymentSettingsForm({
+  className,
+  initial,
+}: {
+  className?: string
+  initial: readonly PaymentMethodSetting[]
+}) {
   const mutation = useUpdatePaymentMethods()
   const [settings, setSettings] = useState(initial)
   const [error, setError] = useState("")
@@ -275,7 +287,7 @@ function PaymentSettingsForm({ initial }: { initial: readonly PaymentMethodSetti
     }
   }
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle>
           <h3>Formas de pagamento</h3>

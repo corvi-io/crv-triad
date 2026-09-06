@@ -55,10 +55,16 @@ export type AvailabilityOccupancyGuard = (
   professionalId: string,
   series: readonly Series[],
 ) => Promise<void>
+export type AvailabilityTimezoneGuard = (
+  db: TransactionDatabase,
+  organizationId: string,
+  unitId: string,
+) => Promise<boolean>
 export function createAvailabilityService(
   db: IdpDatabase,
   guardOccupancy: AvailabilityOccupancyGuard,
   fingerprintSecret = "",
+  hasOpenFinancialDay: AvailabilityTimezoneGuard = async () => false,
 ) {
   type Command = { actorUserId: string; key: string }
   async function execute<T extends { id: string; version: number }>(
@@ -322,6 +328,9 @@ export function createAvailabilityService(
       { unitId, timezone, version },
       command,
       async (tx) => {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtextextended(${`revenue:unit-timezone:${organizationId}:${unitId}`}, 24))`,
+        )
         const [location] = await tx
           .select()
           .from(unit)
@@ -340,6 +349,11 @@ export function createAvailabilityService(
           )
           .limit(1)
         if (rule && location.timezone !== timezone)
+          throw new SchedulingError("timezone_in_use", "timezone")
+        if (
+          location.timezone !== timezone &&
+          (await hasOpenFinancialDay(tx, organizationId, unitId))
+        )
           throw new SchedulingError("timezone_in_use", "timezone")
         const [updated] = await tx
           .update(unit)

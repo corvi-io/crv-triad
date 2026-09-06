@@ -21,19 +21,19 @@ test("completes exact Pix and restores the selected scenario on reload", async (
   await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText("Atendimentos")
   expect(page.url()).not.toMatch(/Pessoa|total|tender|reason|payment/i)
 
-  await page.getByRole("button", { name: "Concluir pagamento" }).click()
-  const dialog = page.getByRole("dialog", { name: "Concluir pagamento?" })
+  await page.getByRole("button", { name: "Registrar pagamento" }).click()
+  const dialog = page.getByRole("dialog", { name: "Registrar pagamento?" })
   await expect(dialog.locator(":focus")).toHaveCount(1)
-  await dialog.getByRole("button", { name: "Concluir pagamento" }).click()
-  await expect(page.getByText("Pagamento concluído.")).toBeVisible()
-  await expect(page.getByText("Concluído · Pago")).toBeVisible()
+  await dialog.getByRole("button", { name: "Registrar pagamento" }).click()
+  await expect(page.getByText("Pagamento registrado.")).toBeVisible()
+  await expect(page.getByText("Pagamento registrado").first()).toBeVisible()
   await expect(page.getByText(/não é um comprovante fiscal/i)).toBeVisible()
   await expect(page.getByRole("button", { name: "Atualizar ajustes" })).toHaveCount(0)
   await page.screenshot({ fullPage: true, path: testInfo.outputPath("checkout-paid-light.png") })
 
   await page.reload()
   await expect(page.getByRole("heading", { name: "Serviços realizados" })).toBeVisible()
-  await expect(page.getByText("Pronto para pagamento")).toBeVisible()
+  await expect(page.getByText("Pronto para registrar")).toBeVisible()
 })
 
 test("renders cash change and exact mixed tenders", async ({ page }) => {
@@ -51,20 +51,20 @@ test("recovers from a bounded failure without partial payment", async ({ page })
   await page.goto(
     "/service-desk/session-walk-in-checkout-next-failure/checkout?scenario=checkout-next-failure",
   )
-  await page.getByRole("button", { name: "Concluir pagamento" }).click()
+  await page.getByRole("button", { name: "Registrar pagamento" }).click()
   await page
-    .getByRole("dialog", { name: "Concluir pagamento?" })
-    .getByRole("button", { name: "Concluir pagamento" })
+    .getByRole("dialog", { name: "Registrar pagamento?" })
+    .getByRole("button", { name: "Registrar pagamento" })
     .click()
   await expect(page.getByText(/Nenhuma alteração foi aplicada/i)).toBeVisible()
-  await expect(page.getByText("Pronto para pagamento")).toBeVisible()
+  await expect(page.getByText("Pronto para registrar")).toBeVisible()
   await expect(summaryRow(page, "Restante")).toContainText("R$ 0,00")
 
   await page
-    .getByRole("dialog", { name: "Concluir pagamento?" })
-    .getByRole("button", { name: "Concluir pagamento" })
+    .getByRole("dialog", { name: "Registrar pagamento?" })
+    .getByRole("button", { name: "Registrar pagamento" })
     .click()
-  await expect(page.getByText("Concluído · Pago")).toBeVisible()
+  await expect(page.getByText("Pagamento registrado").first()).toBeVisible()
 })
 
 test("passes axe and captures dark, 320px zoom-equivalent, keyboard, and forced-color evidence", async ({
@@ -114,6 +114,29 @@ test("passes axe and captures dark, 320px zoom-equivalent, keyboard, and forced-
 })
 
 async function routeAuthenticatedSession(page: Page) {
+  await page.route("**/api/access/summary", async (route) => {
+    if (await fulfillPreflight(route)) return
+    await fulfillJson(route, {
+      capabilities: [
+        { allowed: true, capability: "revenue.read_checkout", reason: null },
+        { allowed: true, capability: "revenue.register", reason: null },
+        { allowed: true, capability: "revenue.adjust", reason: null },
+        { allowed: true, capability: "revenue.correct", reason: null },
+      ],
+      organizationId: "test-tenant",
+      role: "owner",
+      subscriptionState: "active",
+    })
+  })
+  await page.route("**/api/contexts", async (route) => {
+    if (await fulfillPreflight(route)) return
+    await fulfillJson(route, {
+      activeOrganizationId: "test-tenant",
+      platform: null,
+      status: "available",
+      tenants: [{ id: "test-tenant", name: "Barbearia de teste", role: "owner" }],
+    })
+  })
   await page.route("**/api/auth/**", async (route) => {
     if (await fulfillPreflight(route)) return
     await fulfillJson(route, {
@@ -160,10 +183,11 @@ async function fulfillJson(route: Route, body: unknown) {
 }
 
 function corsHeaders() {
+  const studioOrigin = `http://127.0.0.1:${process.env.STUDIO_E2E_PORT ?? "3100"}`
   return {
     "access-control-allow-credentials": "true",
     "access-control-allow-headers": "content-type",
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-origin": "http://127.0.0.1:3100",
+    "access-control-allow-origin": studioOrigin,
   }
 }

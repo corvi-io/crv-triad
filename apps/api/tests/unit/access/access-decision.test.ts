@@ -52,12 +52,18 @@ describe("access decision", () => {
       "scheduling.manage",
       "service_desk.read",
       "service_desk.manage",
+      "revenue.read_checkout",
+      "revenue.register",
       "clients.read",
       "clients.manage",
       "catalogs.read",
     ])
     expect(capabilitiesForRole("member")).not.toContain("catalogs.manage")
     expect(capabilitiesForRole("member")).not.toContain("availability.manage")
+    expect(capabilitiesForRole("member")).not.toContain("revenue.adjust")
+    expect(capabilitiesForRole("member")).not.toContain("revenue.correct")
+    expect(capabilitiesForRole("member")).not.toContain("cash.read")
+    expect(capabilitiesForRole("admin")).toContain("cash.manage")
     expect(capabilitiesForRole("admin")).not.toContain("ownership.transfer")
     expect(capabilitiesForRole("owner")).toContain("ownership.transfer")
   })
