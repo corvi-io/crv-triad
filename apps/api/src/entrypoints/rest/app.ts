@@ -145,6 +145,16 @@ export function createRestApp(input: CreateRestAppInput) {
             queueMicrotask(() => void reportWorker.run(payload).catch(() => undefined))
             return run
           },
+          async dispatchDelivery(
+            payload: Parameters<
+              NonNullable<ReturnType<typeof createFakeReportDispatcher>["dispatchDelivery"]>
+            >[0],
+            idempotencyKey: string,
+          ) {
+            const run = await fakeReportDispatcher.dispatchDelivery?.(payload, idempotencyKey)
+            queueMicrotask(() => void reportWorker.deliver(payload).catch(() => undefined))
+            return run ?? { runReference: "fake_email_unavailable" }
+          },
         }
 
   return new Elysia({ name: "crv-triad-api" })

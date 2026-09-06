@@ -42,4 +42,35 @@ describe("report catalog contracts", () => {
       }),
     ).toThrow()
   })
+
+  it("enforces each catalog filter matrix and the inclusive 366-day bound", () => {
+    const base = {
+      format: "csv",
+      timezone: "America/Recife",
+      idempotencyKey: crypto.randomUUID(),
+    }
+    expect(() =>
+      createReportRequestSchema.parse({
+        ...base,
+        reportType: "cash_payments",
+        filters: {
+          from: "2026-01-01",
+          to: "2027-01-01",
+          professionalId: "professional-1",
+        },
+      }),
+    ).toThrow("unsupported_report_filter")
+    expect(() =>
+      createReportRequestSchema.parse({
+        ...base,
+        filters: { from: "2026-01-01", to: "2027-01-01" },
+      }),
+    ).not.toThrow()
+    expect(() =>
+      createReportRequestSchema.parse({
+        ...base,
+        filters: { from: "2026-01-01", to: "2027-01-02" },
+      }),
+    ).toThrow("range_too_large")
+  })
 })
