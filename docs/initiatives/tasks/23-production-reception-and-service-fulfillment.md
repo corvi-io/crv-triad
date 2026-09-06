@@ -457,13 +457,13 @@ a concurrency, money or browser-comparison claim.
 
 ## Definition of Done
 
-- [ ] The implemented PRD version was explicitly approved.
-- [ ] All applicable gates in `.agents/skills/triad-initiative-workflow/references/planning-gates.md` pass.
-- [ ] Every in-scope AC and consistency row has reviewable evidence.
-- [ ] Relevant tests, check/build and four-dimensional coverage gates pass.
-- [ ] Real PostgreSQL concurrency/migration/rollback and live browser acceptance are verified.
-- [ ] Authorization, privacy, accessibility, responsive/failure states and related baseline regressions are
+- [x] The implemented PRD version was explicitly approved.
+- [x] All applicable gates in `.agents/skills/triad-initiative-workflow/references/planning-gates.md` pass.
+- [x] Every in-scope AC and consistency row has reviewable evidence.
+- [x] Relevant tests, check/build and four-dimensional coverage gates pass.
+- [x] Real PostgreSQL concurrency/migration/rollback and live browser acceptance are verified.
+- [x] Authorization, privacy, accessibility, responsive/failure states and related baseline regressions are
   covered.
-- [ ] Durable docs/source/operational contracts and the Continuation Checkpoint are accurate.
-- [ ] Deviations, skipped manual checks, residual risks and follow-up owners are recorded; unresolved
+- [x] Durable docs/source/operational contracts and the Continuation Checkpoint are accurate.
+- [x] Deviations, skipped manual checks, residual risks and follow-up owners are recorded; unresolved
   required gates prevent Done.
