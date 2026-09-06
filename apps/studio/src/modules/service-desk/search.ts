@@ -14,7 +14,7 @@ export type ServiceDeskSearch = {
   professional: string
   scenario: ServiceDeskScenarioId
   stage: QueueStage | "all"
-  unit: "centro" | "artesao"
+  unit: string
 }
 
 export const defaultServiceDeskSearch: ServiceDeskSearch = {
@@ -51,7 +51,10 @@ export function validateServiceDeskSearch(
         : "all",
     scenario: includes(scenarioIds, search.scenario) ? search.scenario : "typical",
     stage: includes(queueStages, search.stage) ? search.stage : "all",
-    unit: search.unit === "artesao" ? "artesao" : "centro",
+    unit:
+      typeof search.unit === "string" && /^[a-zA-Z0-9_-]{1,100}$/.test(search.unit)
+        ? search.unit
+        : "centro",
   }
 }
 

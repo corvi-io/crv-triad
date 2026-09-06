@@ -15,7 +15,10 @@ export function useAccessSummary() {
     queryFn: async (): Promise<AccessSummary> => {
       if (import.meta.env.MODE === "test") {
         return {
-          capabilities: [{ allowed: true, capability: "clients.read", reason: null }],
+          capabilities: [
+            { allowed: true, capability: "clients.read", reason: null },
+            { allowed: true, capability: "service_desk.correct", reason: null },
+          ],
           organizationId: "test-tenant",
           role: "owner",
           subscriptionState: "active",

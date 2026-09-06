@@ -7,6 +7,7 @@ const publicEnvSchema = z.object({
   VITE_CLIENT_MANAGEMENT_SOURCE: z.enum(["disabled", "http", "memory"]).default("disabled"),
   VITE_DEPLOY_TARGET: z.enum(["local", "dev", "hml", "prd"]).default("local"),
   VITE_SCHEDULING_SOURCE: z.enum(["disabled", "http", "memory"]).default("http"),
+  VITE_SERVICE_DESK_SOURCE: z.enum(["disabled", "http", "memory"]).default("http"),
 })
 
 const parsedEnv = publicEnvSchema.parse(import.meta.env)
@@ -21,6 +22,7 @@ export const env = {
   isDevServer: isDevelopmentBuild,
   isTest: import.meta.env.MODE === "test",
   schedulingSource: parsedEnv.VITE_SCHEDULING_SOURCE,
+  serviceDeskSource: parsedEnv.VITE_SERVICE_DESK_SOURCE,
 } as const
 
 export type PublicEnv = typeof env
