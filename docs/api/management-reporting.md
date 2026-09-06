@@ -26,6 +26,59 @@ PDF/CSV exports. The backend report catalog extends that lifecycle with six type
 - Lifecycle logs contain event name, opaque request ID, attempt/failure code, and environment only;
   they omit filters, amounts, contacts, artifact URLs, credentials, and private headers.
 
+## Metric Definitions
+
+All report queries are tenant-scoped and accept an inclusive local-date interval of at most 366
+days. Unit, professional, service, and payment-method filters are applied only where the catalog
+declares them. Reversed receipts never contribute to active sales, client, or professional totals.
+
+- Sales and revenue reports count distinct active receipts as paid sales and their filtered receipt
+  lines as completed services. Gross and net revenue sum line snapshots. Explicit reversals subtract
+  the reversed receipt line amount when `includeReversals` is enabled. Average ticket is active net
+  revenue divided by paid sales, rounded to the nearest cent. Comparison uses the immediately
+  preceding interval with the same inclusive number of days.
+- Professional performance groups active receipt-line snapshots by professional. It reports
+  completed services, distinct-sales average ticket, net revenue, and separately counts canceled
+  and no-show scheduling facts for that professional in the same filter interval.
+- Commission reports sum immutable commission facts. Service revenue is the signed net commission
+  base; commission and barbershop share are signed totals. Earned and reversal fact counts are
+  reported explicitly.
+- New/returning customers use distinct stable client IDs on active receipts. A client is new when
+  its first active receipt in the tenant falls inside the interval and returning when it predates the
+  interval. The mix denominator is unique identified customers; unidentified active receipts are
+  reported separately and excluded from percentage basis points.
+- Cancellation/no-show reports use every matching appointment in the interval as the denominator.
+  Each rate is `round(outcome count * 10000 / matching appointments)`; zero appointments produces
+  zero basis points. Affected value sums price snapshots for canceled and no-show appointments.
+- Cash/payment reports group receipt tenders by method. They expose active receipt count, active
+  received amount, reversed receipt count, reversed amount, and signed net (`active - reversed`).
+
+When a sales/summary query combines professional or service with a payment method, each matching
+line amount is allocated across all receipt tenders proportionally. Integer cents use largest
+remainder allocation: floor every proportional share, then distribute residual cents by descending
+remainder with the stable tie order Pix, cash, debit, credit. This keeps combined filters exact and
+deterministic without assigning the full receipt to every line or tender.
+
+## Public Lifecycle Contract
+
+Generation status is `queued | running | ready | failed | expired`; delivery status is
+`pending | sending | sent | failed | not_applicable`. Clients poll generation only for `queued` or
+`running`, and poll delivery only for a ready report in `pending` or `sending`. Legacy requests with
+no requester email are migrated, and also defensively converged by the worker, to terminal
+`not_applicable`.
+
+Generation retry accepts only `failed` or `expired`. Delivery retry accepts only
+`ready + failed`, reuses the existing private artifact, and never regenerates it. Concurrent callers
+compete on an optimistic update so only one delivery attempt is dispatched. Dispatch failure is
+compensated back to `failed`; a lost response after successful delivery cannot overwrite `sent`.
+Provider success followed by database acknowledgement loss leaves a recoverable `sending` lease;
+after five minutes a worker may reclaim it using the same report-request provider idempotency key.
+
+Status, history, request, and retry responses use this allowlist only: `id`, `format`, `reportType`,
+`status`, `emailDeliveryStatus`, `activeAttempt`, `createdAt`, `completedAt`, and `safeFailureCode`.
+Requester identity/email, idempotency keys, provider references, raw filters/configuration, storage
+keys, and delivery failure internals are never returned.
+
 ## Local Validation and Provider Readiness
 
 The default provider is `trigger`; development, staging, and production therefore use the real

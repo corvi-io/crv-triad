@@ -8,6 +8,7 @@ import { renderReportCsv, renderReportPdf } from "./report-renderer.js"
 import type { ReportingService } from "./reporting-service.js"
 
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000
+const DELIVERY_CLAIM_TIMEOUT_MS = 5 * 60 * 1000
 
 export function createReportWorker(
   db: IdpDatabase,
@@ -18,12 +19,33 @@ export function createReportWorker(
   observe: (event: Record<string, unknown>) => void = () => undefined,
 ) {
   async function deliverReadyEmail(request: typeof reportRequest.$inferSelect) {
-    if (!emailSender || !request.requesterEmail) return
+    if (request.emailDeliveryStatus === "not_applicable") return
+    if (!request.requesterEmail) {
+      await db
+        .update(reportRequest)
+        .set({
+          emailDeliveryStatus: "not_applicable",
+          emailDeliveryFailureCode: null,
+          emailDeliveryClaimedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(reportRequest.organizationId, request.organizationId),
+            eq(reportRequest.id, request.id),
+            sql`${reportRequest.emailDeliveryStatus} <> 'sent'`,
+          ),
+        )
+      return
+    }
+    if (!emailSender) return
+    const staleClaim = new Date(Date.now() - DELIVERY_CLAIM_TIMEOUT_MS)
     const claimed = await db
       .update(reportRequest)
       .set({
         emailDeliveryStatus: "sending",
         emailDeliveryFailureCode: null,
+        emailDeliveryClaimedAt: new Date(),
         updatedAt: new Date(),
       })
       .where(
@@ -31,37 +53,27 @@ export function createReportWorker(
           eq(reportRequest.organizationId, request.organizationId),
           eq(reportRequest.id, request.id),
           eq(reportRequest.status, "ready"),
-          sql`${reportRequest.emailDeliveryStatus} in ('pending', 'failed')`,
+          sql`(${reportRequest.emailDeliveryStatus} in ('pending', 'failed') or (${reportRequest.emailDeliveryStatus} = 'sending' and ${reportRequest.emailDeliveryClaimedAt} < ${staleClaim}))`,
         ),
       )
       .returning({ id: reportRequest.id })
     if (claimed.length !== 1) return
+    const authenticatedReportUrl = new URL("/reports", studioUrl)
+    authenticatedReportUrl.searchParams.set("reportId", request.id)
     try {
-      const authenticatedReportUrl = new URL("/reports", studioUrl)
-      authenticatedReportUrl.searchParams.set("reportId", request.id)
       await emailSender.send({
         recipient: request.requesterEmail,
         reportRequestId: request.id,
         reportTitle: reportCatalogItem(request.reportType).title,
         authenticatedReportUrl: authenticatedReportUrl.toString(),
       })
-      await db
-        .update(reportRequest)
-        .set({ emailDeliveryStatus: "sent", emailDeliveredAt: new Date(), updatedAt: new Date() })
-        .where(
-          and(
-            eq(reportRequest.organizationId, request.organizationId),
-            eq(reportRequest.id, request.id),
-            eq(reportRequest.emailDeliveryStatus, "sending"),
-          ),
-        )
-      observe({ event: "report_email_delivered", reportRequestId: request.id })
     } catch {
       await db
         .update(reportRequest)
         .set({
           emailDeliveryStatus: "failed",
           emailDeliveryFailureCode: "delivery_failed",
+          emailDeliveryClaimedAt: null,
           updatedAt: new Date(),
         })
         .where(
@@ -78,6 +90,25 @@ export function createReportWorker(
       })
       throw new Error("report_email_delivery_failed")
     }
+    // Keep `sending` as a recoverable lease if the provider acknowledged the email but
+    // the database acknowledgement is lost. A later worker run reuses the provider's
+    // report-request idempotency key after the claim timeout.
+    await db
+      .update(reportRequest)
+      .set({
+        emailDeliveryStatus: "sent",
+        emailDeliveredAt: new Date(),
+        emailDeliveryClaimedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(reportRequest.organizationId, request.organizationId),
+          eq(reportRequest.id, request.id),
+          eq(reportRequest.emailDeliveryStatus, "sending"),
+        ),
+      )
+    observe({ event: "report_email_delivered", reportRequestId: request.id })
   }
 
   async function run(payload: { organizationId: string; reportRequestId: string }) {
@@ -273,7 +304,8 @@ export function createReportWorker(
       )
       .limit(1)
     if (request?.status !== "ready") return { outcome: "ignored" as const }
-    if (request.emailDeliveryStatus === "sent") return { outcome: "sent" as const }
+    if (["sent", "not_applicable"].includes(request.emailDeliveryStatus))
+      return { outcome: "sent" as const }
     await deliverReadyEmail(request)
     return { outcome: "sent" as const }
   }

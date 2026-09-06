@@ -36,6 +36,13 @@ const actor = {
   membershipId: "report-member",
   role: "owner" as const,
 }
+const otherActor = {
+  organizationId: "report-b",
+  organizationName: "Report B",
+  actorUserId: "report-b-owner",
+  membershipId: "report-b-member",
+  role: "owner" as const,
+}
 const baseInput = {
   format: "csv" as const,
   filters: { from: "2026-09-01", to: "2026-09-06" },
@@ -59,14 +66,30 @@ beforeAll(async () => {
     userId: actor.actorUserId,
     role: "owner",
   })
+  await db.insert(organization).values({ id: "report-b", name: "Report B", slug: "report-b" })
+  await db.insert(user).values({
+    id: "report-b-owner",
+    name: "Other owner",
+    email: "other-report@example.invalid",
+    emailVerified: true,
+  })
+  await db.insert(member).values({
+    id: "report-b-member",
+    organizationId: "report-b",
+    userId: "report-b-owner",
+    role: "owner",
+  })
 })
 
 afterAll(async () => {
   await db.delete(reportArtifact).where(eq(reportArtifact.organizationId, actor.organizationId))
   await db.delete(reportAttempt).where(eq(reportAttempt.organizationId, actor.organizationId))
   await db.delete(reportRequest).where(eq(reportRequest.organizationId, actor.organizationId))
+  await db.delete(member).where(eq(member.organizationId, otherActor.organizationId))
   await db.delete(member).where(eq(member.organizationId, actor.organizationId))
+  await db.delete(user).where(eq(user.id, otherActor.actorUserId))
   await db.delete(user).where(eq(user.id, actor.actorUserId))
+  await db.delete(organization).where(eq(organization.id, otherActor.organizationId))
   await db.delete(organization).where(eq(organization.id, actor.organizationId))
   await pool.end()
 })
@@ -91,7 +114,11 @@ describe.sequential("report export lifecycle", () => {
       "connection_lost",
     )
     const recovered = await service.request(actor, { ...baseInput, idempotencyKey })
-    expect(recovered?.providerRunReference).toMatch(/^fake_/)
+    const [persisted] = await db
+      .select({ providerRunReference: reportRequest.providerRunReference })
+      .from(reportRequest)
+      .where(eq(reportRequest.id, recovered?.id ?? ""))
+    expect(persisted?.providerRunReference).toMatch(/^fake_/)
     expect(
       (
         await db
@@ -125,7 +152,11 @@ describe.sequential("report export lifecycle", () => {
       service.request(actor, input),
     ])
     expect(first?.id).toBe(second?.id)
-    expect(first?.configSnapshot).toMatchObject({
+    const [snapshot] = await db
+      .select({ configSnapshot: reportRequest.configSnapshot })
+      .from(reportRequest)
+      .where(eq(reportRequest.id, first?.id ?? ""))
+    expect(snapshot?.configSnapshot).toMatchObject({
       reportType: "commissions",
       includeReversals: false,
     })
@@ -142,6 +173,46 @@ describe.sequential("report export lifecycle", () => {
         idempotencyKey,
       }),
     ).rejects.toThrow("idempotency_conflict")
+  })
+
+  it("returns the exact public DTO allowlist on status, history, and retry no-ops", async () => {
+    const service = createReportExportService(
+      db as never,
+      createFakeReportDispatcher(),
+      createFakeArtifactStorage(),
+    )
+    const requested = await service.request(actor, {
+      ...baseInput,
+      idempotencyKey: crypto.randomUUID(),
+    })
+    await db
+      .update(reportRequest)
+      .set({ status: "ready", emailDeliveryStatus: "sent" })
+      .where(eq(reportRequest.id, requested?.id ?? ""))
+    const responses = [
+      await service.status(actor, requested?.id ?? ""),
+      (await service.history(actor)).find((item) => item.id === requested?.id),
+      await service.retry(actor, requested?.id ?? ""),
+      await service.retryDelivery(actor, requested?.id ?? ""),
+    ]
+    const allowed = [
+      "activeAttempt",
+      "completedAt",
+      "createdAt",
+      "emailDeliveryStatus",
+      "format",
+      "id",
+      "reportType",
+      "safeFailureCode",
+      "status",
+    ]
+    for (const response of responses) {
+      expect(Object.keys(response ?? {}).sort()).toEqual(allowed)
+      expect(response).not.toHaveProperty("requesterEmail")
+      expect(response).not.toHaveProperty("requesterUserId")
+      expect(response).not.toHaveProperty("idempotencyKey")
+      expect(response).not.toHaveProperty("providerRunReference")
+    }
   })
 
   it("requires the requester's active verified identity email", async () => {
@@ -387,6 +458,190 @@ describe.sequential("report export lifecycle", () => {
       .where(eq(reportRequest.id, requested?.id ?? ""))
     await service.retryDelivery(actor, requested?.id ?? "")
     expect(deliveryDispatches).toBe(1)
+  })
+
+  it("compensates delivery dispatch failure and converges after a lost dispatch response", async () => {
+    const storage = createFakeArtifactStorage()
+    const failingDispatcher = {
+      async dispatch() {
+        return { runReference: "generation-run" }
+      },
+      async dispatchDelivery() {
+        throw new Error("dispatch_unavailable")
+      },
+    }
+    const failingService = createReportExportService(db as never, failingDispatcher, storage)
+    const requested = await failingService.request(actor, {
+      ...baseInput,
+      idempotencyKey: crypto.randomUUID(),
+    })
+    await createReportWorker(db as never, createReportingService(db as never), storage).run({
+      organizationId: actor.organizationId,
+      reportRequestId: requested?.id ?? "",
+    })
+    await db
+      .update(reportRequest)
+      .set({ emailDeliveryStatus: "failed" })
+      .where(eq(reportRequest.id, requested?.id ?? ""))
+    await expect(failingService.retryDelivery(actor, requested?.id ?? "")).rejects.toThrow(
+      "dispatch_unavailable",
+    )
+    expect(await failingService.status(actor, requested?.id ?? "")).toMatchObject({
+      status: "ready",
+      emailDeliveryStatus: "failed",
+    })
+
+    const acknowledgements = new Set<string>()
+    const emailSender = {
+      async send(input: { reportRequestId: string }) {
+        acknowledgements.add(input.reportRequestId)
+        return { deliveryReference: `ack-${input.reportRequestId}` }
+      },
+    }
+    const deliveryWorker = createReportWorker(
+      db as never,
+      createReportingService(db as never),
+      storage,
+      emailSender,
+    )
+    const lostResponseDispatcher = {
+      async dispatch() {
+        return { runReference: "generation-run" }
+      },
+      async dispatchDelivery(payload: { organizationId: string; reportRequestId: string }) {
+        await deliveryWorker.deliver(payload)
+        throw new Error("response_lost")
+      },
+    }
+    const recoveringService = createReportExportService(
+      db as never,
+      lostResponseDispatcher,
+      storage,
+    )
+    await expect(recoveringService.retryDelivery(actor, requested?.id ?? "")).rejects.toThrow(
+      "response_lost",
+    )
+    expect(await recoveringService.status(actor, requested?.id ?? "")).toMatchObject({
+      status: "ready",
+      emailDeliveryStatus: "sent",
+    })
+    expect(acknowledgements.size).toBe(1)
+  })
+
+  it("recovers a stale sending lease after provider success and database acknowledgement loss", async () => {
+    const storage = createFakeArtifactStorage()
+    const service = createReportExportService(db as never, createFakeReportDispatcher(), storage)
+    const requested = await service.request(actor, {
+      ...baseInput,
+      idempotencyKey: crypto.randomUUID(),
+    })
+    await createReportWorker(db as never, createReportingService(db as never), storage).run({
+      organizationId: actor.organizationId,
+      reportRequestId: requested?.id ?? "",
+    })
+    const calls: string[] = []
+    const acknowledgements = new Set<string>()
+    const emailSender = {
+      async send(input: { reportRequestId: string }) {
+        calls.push(input.reportRequestId)
+        acknowledgements.add(input.reportRequestId)
+        return { deliveryReference: `ack-${input.reportRequestId}` }
+      },
+    }
+    let rejectSentAcknowledgement = true
+    const faultDb = new Proxy(db, {
+      get(target, property, receiver) {
+        if (property !== "update") return Reflect.get(target, property, receiver)
+        return (table: unknown) => {
+          const updateBuilder = target.update(table as never)
+          return new Proxy(updateBuilder, {
+            get(builder, builderProperty, builderReceiver) {
+              if (builderProperty !== "set")
+                return Reflect.get(builder, builderProperty, builderReceiver)
+              return (values: Record<string, unknown>) => {
+                const setBuilder = updateBuilder.set(values as never)
+                if (values.emailDeliveryStatus !== "sent") return setBuilder
+                return new Proxy(setBuilder, {
+                  get(setTarget, setProperty, setReceiver) {
+                    if (setProperty !== "where")
+                      return Reflect.get(setTarget, setProperty, setReceiver)
+                    return (...args: unknown[]) => {
+                      if (rejectSentAcknowledgement) {
+                        rejectSentAcknowledgement = false
+                        throw new Error("database_ack_lost")
+                      }
+                      return (setTarget.where as (...whereArgs: unknown[]) => unknown)(...args)
+                    }
+                  },
+                })
+              }
+            },
+          })
+        }
+      },
+    })
+    const faultyWorker = createReportWorker(
+      faultDb as never,
+      createReportingService(db as never),
+      storage,
+      emailSender,
+    )
+    await expect(
+      faultyWorker.deliver({
+        organizationId: actor.organizationId,
+        reportRequestId: requested?.id ?? "",
+      }),
+    ).rejects.toThrow("database_ack_lost")
+    expect((await service.status(actor, requested?.id ?? ""))?.emailDeliveryStatus).toBe("sending")
+    await db
+      .update(reportRequest)
+      .set({ emailDeliveryClaimedAt: new Date(Date.now() - 10 * 60 * 1000) })
+      .where(eq(reportRequest.id, requested?.id ?? ""))
+    await createReportWorker(
+      db as never,
+      createReportingService(db as never),
+      storage,
+      emailSender,
+    ).deliver({ organizationId: actor.organizationId, reportRequestId: requested?.id ?? "" })
+    expect((await service.status(actor, requested?.id ?? ""))?.emailDeliveryStatus).toBe("sent")
+    expect(calls).toHaveLength(2)
+    expect(acknowledgements.size).toBe(1)
+  })
+
+  it("terminates legacy null-email delivery and denies cross-tenant status and retry actions", async () => {
+    const storage = createFakeArtifactStorage()
+    let dispatches = 0
+    const dispatcher = {
+      async dispatch() {
+        return { runReference: "generation-run" }
+      },
+      async dispatchDelivery() {
+        dispatches += 1
+        return { runReference: "delivery-run" }
+      },
+    }
+    const service = createReportExportService(db as never, dispatcher, storage)
+    const requested = await service.request(actor, {
+      ...baseInput,
+      idempotencyKey: crypto.randomUUID(),
+    })
+    await db
+      .update(reportRequest)
+      .set({ status: "ready", requesterEmail: null, emailDeliveryStatus: "pending" })
+      .where(eq(reportRequest.id, requested?.id ?? ""))
+    const worker = createReportWorker(db as never, createReportingService(db as never), storage)
+    await worker.deliver({
+      organizationId: actor.organizationId,
+      reportRequestId: requested?.id ?? "",
+    })
+    expect(await service.status(actor, requested?.id ?? "")).toMatchObject({
+      status: "ready",
+      emailDeliveryStatus: "not_applicable",
+    })
+    expect(await service.status(otherActor, requested?.id ?? "")).toBeNull()
+    expect(await service.retry(otherActor, requested?.id ?? "")).toBeNull()
+    expect(await service.retryDelivery(otherActor, requested?.id ?? "")).toBeNull()
+    expect(dispatches).toBe(0)
   })
 
   it("deletes expired artifacts and changes ready requests to expired", async () => {
