@@ -71,6 +71,20 @@
       "when": 1788700000000,
       "tag": "0026_restore-client-service-preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1788703060840,
+      "tag": "0027_romantic_magma",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1788703411934,
+      "tag": "0028_swift_sunset_bain",
+      "breakpoints": true
     }
   ]
 }

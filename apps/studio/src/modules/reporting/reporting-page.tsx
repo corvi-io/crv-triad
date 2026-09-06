@@ -22,6 +22,7 @@ import {
 import { type ChartConfig, ChartContainer } from "@/modules/shared/components/ui/chart"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import type { RankedMoneyItem, ReportingQuery, ReportingResult } from "./contracts"
+import { GeneratedReports } from "./generated-reports"
 import { useReportingResult } from "./queries"
 import { useReportingRepository } from "./repository-context"
 
@@ -71,11 +72,14 @@ export function ReportingPageContent({
   const result = report.data
   if (result.summary.paidSaleCount === 0 && result.cancellations.denominator === 0) {
     return (
-      <EmptyState
-        description="Altere o período ou os filtros para consultar outro recorte. Nenhum valor foi inventado para este estado."
-        icon={BarChart3Icon}
-        title="Nenhum dado encontrado"
-      />
+      <div className="grid gap-4 pb-6">
+        <EmptyState
+          description="Altere o período ou os filtros para consultar outro recorte. Nenhum valor foi inventado para este estado."
+          icon={BarChart3Icon}
+          title="Nenhum dado encontrado"
+        />
+        <GeneratedReports filters={result.appliedFilters} />
+      </div>
     )
   }
 
@@ -103,6 +107,7 @@ export function ReportingPageContent({
           valueKind="revenue"
         />
       </div>
+      <GeneratedReports filters={result.appliedFilters} />
       <div className="grid min-w-0 gap-4 xl:grid-cols-2">
         <AverageTicketReport result={result} />
         <RankingReport

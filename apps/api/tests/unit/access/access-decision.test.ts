@@ -57,6 +57,7 @@ describe("access decision", () => {
       "clients.read",
       "clients.manage",
       "catalogs.read",
+      "business_profile.read",
     ])
     expect(capabilitiesForRole("member")).not.toContain("catalogs.manage")
     expect(capabilitiesForRole("member")).not.toContain("availability.manage")

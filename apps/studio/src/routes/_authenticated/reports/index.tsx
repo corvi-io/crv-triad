@@ -21,6 +21,7 @@ const emptyFacets: ReportingFacets = {
   paymentMethods: [],
   professionals: [],
   services: [],
+  units: [],
 }
 
 export const Route = createFileRoute("/_authenticated/reports/")({

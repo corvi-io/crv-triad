@@ -156,6 +156,7 @@ function deriveFacets(facts: readonly ReportingFactSnapshot[]): ReportingFacets 
       facts.map(({ professionalId: id, professionalName: label }) => ({ id, label })),
     ),
     services: uniqueFacets(facts.map(({ serviceId: id, serviceName: label }) => ({ id, label }))),
+    units: [],
   }
 }
 

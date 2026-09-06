@@ -54,7 +54,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-001 — Freeze predecessor, provider and UX contracts
 
-- Status: Pending
+- Status: Complete — evidence: [contract and provider readiness](../evidence/25-production-business-profile-commissions-and-management-reporting/contracts-and-provider-readiness.md)
 - Covers: REQ-015–REQ-018, REQ-027–REQ-030, AC-012
 - Depends on: Initiative 23/24 review completion for final contract names; PRD approval
 - Can parallelize with: None
@@ -75,7 +75,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-018 — Capture and enforce the frontend parity baseline
 
-- Status: Pending
+- Status: Complete — parity inventory and production-boundary tests preserve the accepted Studio surfaces.
 - Covers: REQ-031–REQ-032, AC-013
 - Depends on: TASK-001; must complete before TASK-004, TASK-007, TASK-009 and TASK-013 modify the UI
 - Can parallelize with: TASK-002
@@ -95,7 +95,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-002 — Add additive schemas, migrations and access capabilities
 
-- Status: Pending
+- Status: Complete — additive migrations and 45 disposable-PostgreSQL integration tests passed from an empty database.
 - Covers: REQ-001–REQ-002, REQ-005–REQ-006, REQ-014, REQ-022–REQ-023, REQ-030,
   AC-001, AC-003, AC-007, AC-012
 - Depends on: TASK-001
@@ -113,7 +113,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-003 — Implement business profile and logo application/API contracts
 
-- Status: Pending
+- Status: Complete — application, HTTP, capability, optimistic-version, local and R2 logo contracts are covered.
 - Covers: REQ-001–REQ-004, REQ-021, REQ-023, REQ-025–REQ-026, AC-001–AC-002, AC-011
 - Depends on: TASK-002
 - Can parallelize with: TASK-005
@@ -131,7 +131,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-004 — Productionize Studio business data experience
 
-- Status: Pending
+- Status: Complete — the production Studio profile/logo surface passed owner/member browser revalidation.
 - Covers: REQ-001–REQ-004, REQ-021, REQ-027–REQ-028, AC-001–AC-002, AC-010
 - Depends on: TASK-003, TASK-018
 - Can parallelize with: TASK-006
@@ -149,7 +149,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-005 — Implement complete commission policy domain and APIs
 
-- Status: Pending
+- Status: Complete — future-only default/override policies and bounded detail contracts are covered.
 - Covers: REQ-005–REQ-006, REQ-009, REQ-021–REQ-023, AC-003
 - Depends on: TASK-002
 - Can parallelize with: TASK-003
@@ -166,7 +166,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-006 — Seal commission and reversal facts at receipt registration
 
-- Status: Pending
+- Status: Complete — checkout/reversal integration seals and reconciles immutable commission facts.
 - Covers: REQ-007–REQ-008, REQ-022–REQ-025, REQ-030, AC-004, AC-006, AC-012
 - Depends on: TASK-005 and final Initiative 24 receipt contract
 - Can parallelize with: TASK-004
@@ -182,7 +182,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-007 — Productionize commission configuration and inspection UI
 
-- Status: Pending
+- Status: Complete — persisted policy labels, values, error paths and monthly detail passed unit/browser QA.
 - Covers: REQ-005–REQ-009, REQ-021, REQ-027–REQ-028, AC-003–AC-004, AC-010
 - Depends on: TASK-005, TASK-006, TASK-018
 - Can parallelize with: TASK-008 after TASK-006
@@ -198,7 +198,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-008 — Implement production reporting aggregates and facets
 
-- Status: Pending
+- Status: Complete — bounded summary/filter contracts and reconciliation coverage passed API gates.
 - Covers: REQ-009–REQ-013, REQ-022–REQ-026, AC-005–AC-006, AC-011
 - Depends on: TASK-006 and final Initiative 23/24 schemas
 - Can parallelize with: TASK-007, TASK-010
@@ -215,7 +215,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-009 — Connect and refine the production reports experience
 
-- Status: Pending
+- Status: Complete — production HTTP source, empty/recovery states and production boundary passed Studio gates.
 - Covers: REQ-010–REQ-013, REQ-020–REQ-021, REQ-027–REQ-028, AC-005–AC-006, AC-010
 - Depends on: TASK-008, TASK-018
 - Can parallelize with: TASK-011
@@ -232,7 +232,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-010 — Implement report request state machine and Trigger.dev dispatch
 
-- Status: Pending
+- Status: Complete — idempotent dispatch, CAS retry, lost-response and replay recovery passed behavior tests.
 - Covers: REQ-014–REQ-016, REQ-020, REQ-023, REQ-025–REQ-026, AC-007, AC-011
 - Depends on: TASK-002, TASK-001 provider contract
 - Can parallelize with: TASK-008
@@ -252,7 +252,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-011 — Generate accessible PDF and safe streamed CSV artifacts
 
-- Status: Pending
+- Status: Complete — deterministic PDF/CSV renderers, formula defense and worker lifecycle passed tests.
 - Covers: REQ-011, REQ-016–REQ-019, REQ-022, REQ-024–REQ-028, AC-006–AC-008, AC-010
 - Depends on: TASK-008, TASK-010
 - Can parallelize with: TASK-009
@@ -268,7 +268,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-012 — Add private R2 artifact storage, retention and provider readiness
 
-- Status: Pending
+- Status: Complete locally — R2 adapter/readiness/rollback contracts are implemented; external hml revalidation remains below.
 - Covers: REQ-003–REQ-004, REQ-016–REQ-018, REQ-025–REQ-026, REQ-029–REQ-030,
   AC-002, AC-007–AC-009, AC-011–AC-012
 - Depends on: TASK-003, TASK-010, TASK-011
@@ -289,7 +289,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-013 — Add generated-report history, progress, retry and download UI
 
-- Status: Pending
+- Status: Complete — history, visibility/offline polling, retry and authenticated download passed tests and browser QA.
 - Covers: REQ-014, REQ-018, REQ-020–REQ-021, REQ-027–REQ-028, AC-007–AC-010
 - Depends on: TASK-010, TASK-012, TASK-018
 - Can parallelize with: TASK-014
@@ -306,7 +306,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-014 — Instrument privacy-safe audit, logs, traces, metrics and alerts
 
-- Status: Pending
+- Status: Complete — privacy-safe lifecycle events correlate API, worker, artifact and terminal state without business payloads.
 - Covers: REQ-006, REQ-013, REQ-015–REQ-018, REQ-025–REQ-026, AC-011
 - Depends on: TASK-003, TASK-006, TASK-008, TASK-010, TASK-012
 - Can parallelize with: TASK-013
@@ -321,7 +321,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-015 — Run comprehensive automated and corrective product QA
 
-- Status: Pending
+- Status: Complete — see the immutable Initiative 25 product QA report under `reports/features/initiative-25/`.
 - Covers: REQ-001–REQ-030, AC-001–AC-012
 - Depends on: TASK-004, TASK-007, TASK-009, TASK-013, TASK-014
 - Can parallelize with: None
@@ -337,7 +337,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-016 — Complete rollout, rollback and operational readiness
 
-- Status: Pending
+- Status: Complete locally — feature gate, fake outage/retry/expiry and rollback contracts passed; hml provider revalidation is external.
 - Covers: REQ-025–REQ-026, REQ-029–REQ-030, AC-011–AC-012
 - Depends on: TASK-012, TASK-014, TASK-015; user-provisioned Trigger.dev/R2 resources for `hml`
 - Can parallelize with: TASK-017 documentation drafting only
@@ -353,7 +353,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-017 — Update durable documentation and close traceability
 
-- Status: Pending
+- Status: Complete — API/Studio operational docs, QA evidence and traceability statuses are current.
 - Covers: REQ-019, REQ-029–REQ-030, AC-008, AC-012
 - Depends on: TASK-015; may draft during TASK-016 but closes after its evidence
 - Can parallelize with: TASK-016 until finalization
@@ -377,9 +377,9 @@ Record evidence as tasks are completed:
 
 ## Risks And Follow-Ups
 
-- [ ] Provider projects, buckets and credentials do not yet exist; TASK-016 cannot complete its `hml`
+- [ ] Provider projects, buckets and credentials do not yet exist; external `hml`
   provider evidence until the user provisions them.
-- [ ] Initiative 23/24 review changes may require a material PRD revision and reapproval before TASK-006.
+- [x] Initiative 23/24 contracts were revalidated against the effective base before receipt integration.
 - [ ] Numeric provider quotas, task concurrency and alert thresholds must be based on provisioned limits
   and observed pilot behavior.
 - [ ] XLSX, scheduled/email delivery, payouts/statements, public profile and booking remain separate

@@ -85,6 +85,18 @@ const envSchema = z
     PROFILE_IMAGE_R2_SECRET_ACCESS_KEY: z.string().default(""),
     PROFILE_IMAGE_R2_BUCKET: z.string().default(""),
     PROFILE_IMAGE_PUBLIC_BASE_URL: z.literal("").or(configuredHttpsUrl).default(""),
+    BUSINESS_MEDIA_LOCAL_DIRECTORY: z.string().min(1).default(".data/business-logos"),
+    REPORT_EXPORT_ENABLED: z
+      .string()
+      .default("false")
+      .transform((value) => value === "true"),
+    REPORT_EXPORT_PROVIDER: z.enum(["fake", "trigger"]).default("fake"),
+    TRIGGER_PROJECT_REF: z.string().default(""),
+    TRIGGER_SECRET_KEY: z.string().default(""),
+    R2_REPORT_ENDPOINT: z.literal("").or(configuredHttpsUrl).default(""),
+    R2_REPORT_ACCESS_KEY_ID: z.string().default(""),
+    R2_REPORT_SECRET_ACCESS_KEY: z.string().default(""),
+    R2_REPORT_BUCKET: z.string().default(""),
     LEAD_EMAIL_FROM: z.email().default("leads@example.com"),
     LEAD_EMAIL_TO: z
       .string()
@@ -117,6 +129,22 @@ const envSchema = z
     POSTHOG_PROJECT_KEY: z.string().trim().default(""),
   })
   .superRefine((value, context) => {
+    if (
+      value.REPORT_EXPORT_ENABLED &&
+      ["development", "staging", "production"].includes(value.APP_ENV) &&
+      (value.REPORT_EXPORT_PROVIDER !== "trigger" ||
+        !value.TRIGGER_PROJECT_REF ||
+        !value.TRIGGER_SECRET_KEY ||
+        !value.R2_REPORT_ENDPOINT ||
+        !value.R2_REPORT_ACCESS_KEY_ID ||
+        !value.R2_REPORT_SECRET_ACCESS_KEY ||
+        !value.R2_REPORT_BUCKET)
+    )
+      context.addIssue({
+        code: "custom",
+        message: "Enabled report export requires complete Trigger.dev and R2 configuration.",
+        path: ["REPORT_EXPORT_ENABLED"],
+      })
     if (
       ["development", "staging", "production"].includes(value.APP_ENV) &&
       value.PROFILE_IMAGE_STORAGE_DRIVER !== "r2"

@@ -246,14 +246,7 @@ function SetupSectionContent({
     case "overview":
       return <OverviewSection scenarioId={search.scenario} onSectionChange={onSectionChange} />
     case "business":
-      return usesHttpCatalogs ? (
-        <UnavailableSetupSection
-          title="Dados da barbearia"
-          description="A edição dos dados gerais ainda não possui persistência de produção. Unidades, profissionais e serviços continuam disponíveis nas respectivas abas."
-        />
-      ) : (
-        <BusinessProfileSection scenarioId={search.scenario} />
-      )
+      return <BusinessProfileSection scenarioId={search.scenario} />
     case "units":
       return (
         <EntitySection
@@ -300,26 +293,6 @@ function SetupSectionContent({
         />
       )
   }
-}
-
-function UnavailableSetupSection({ description, title }: { description: string; title: string }) {
-  return (
-    <section
-      aria-labelledby="unavailable-setup-section-title"
-      className="rounded-lg border border-dashed bg-card p-6"
-    >
-      <div className="flex max-w-2xl items-start gap-3">
-        <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
-        <div className="grid gap-1">
-          <h2 id="unavailable-setup-section-title" className="font-heading text-lg font-medium">
-            {title}
-          </h2>
-          <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
-          <StatusBadge tone="info">Disponível em uma próxima etapa</StatusBadge>
-        </div>
-      </div>
-    </section>
-  )
 }
 
 function OverviewSection({

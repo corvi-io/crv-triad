@@ -1,5 +1,7 @@
 import { createHmac } from "node:crypto"
-import { and, asc, count, desc, eq, gt, sql } from "drizzle-orm"
+import { and, asc, count, desc, eq, gt, inArray, sql } from "drizzle-orm"
+import { commissionFact, commissionPolicy } from "../../commissions/database/schema.js"
+import { type CommissionRule, calculateCommission } from "../../commissions/domain/commission.js"
 import type { IdpDatabase } from "../../idp/database/client.js"
 import { user } from "../../idp/database/schema.js"
 import type { ServiceDeskService } from "../../service-desk/application/service-desk-service.js"
@@ -1208,17 +1210,81 @@ export function createRevenueOperationsService(
             checkout.surchargeCents,
           ).lines.map((item) => [item.id, item.netCents]),
         )
-        await tx.insert(revenueReceiptLine).values(
-          checkout.lines.map((line) => ({
-            id: createId(),
-            organizationId: actor.organizationId,
-            receiptId,
-            checkoutLineId: line.id,
-            sequence: line.sequence,
-            snapshot: line.snapshot,
-            grossCents: line.priceCents,
-            netCents: allocations.get(line.id) ?? 0,
-          })),
+        const receiptLines = checkout.lines.map((line) => ({
+          id: createId(),
+          organizationId: actor.organizationId,
+          receiptId,
+          checkoutLineId: line.id,
+          sequence: line.sequence,
+          snapshot: line.snapshot,
+          grossCents: line.priceCents,
+          netCents: allocations.get(line.id) ?? 0,
+        }))
+        await tx.insert(revenueReceiptLine).values(receiptLines)
+        const professionalIds = [
+          ...new Set(checkout.lines.map((line) => line.snapshot.professionalId)),
+        ]
+        const policies = professionalIds.length
+          ? await tx
+              .select()
+              .from(commissionPolicy)
+              .where(
+                and(
+                  eq(commissionPolicy.organizationId, actor.organizationId),
+                  inArray(commissionPolicy.professionalId, professionalIds),
+                ),
+              )
+          : []
+        await tx.insert(commissionFact).values(
+          receiptLines.map((line) => {
+            const snapshot = line.snapshot
+            const override = policies.find(
+              (policy) =>
+                policy.professionalId === snapshot.professionalId &&
+                policy.serviceId === snapshot.serviceId,
+            )
+            const fallback = policies.find(
+              (policy) =>
+                policy.professionalId === snapshot.professionalId && policy.serviceId === null,
+            )
+            const policy = override ?? fallback
+            const rule: CommissionRule = !policy
+              ? { kind: "none", source: "none" }
+              : policy.kind === "percentage"
+                ? {
+                    kind: "percentage",
+                    basisPoints: policy.basisPoints ?? 0,
+                    source: override ? "override" : "default",
+                    policyVersion: policy.version,
+                  }
+                : policy.kind === "fixed"
+                  ? {
+                      kind: "fixed",
+                      fixedCents: policy.fixedCents ?? 0,
+                      source: "override",
+                      policyVersion: policy.version,
+                    }
+                  : {
+                      kind: "none",
+                      source: override ? "override" : "default",
+                      policyVersion: policy.version,
+                    }
+            return {
+              id: createId(),
+              organizationId: actor.organizationId,
+              receiptId,
+              receiptLineId: line.id,
+              kind: "earned" as const,
+              professionalId: snapshot.professionalId,
+              professionalName: snapshot.professionalName,
+              serviceId: snapshot.serviceId,
+              serviceName: snapshot.serviceName,
+              rule,
+              ...calculateCommission(line.netCents, rule),
+              localDate: date,
+              occurredAt: clock(),
+            }
+          }),
         )
         if (checkout.tenders.length)
           await tx.insert(revenueReceiptTender).values(
@@ -1386,6 +1452,37 @@ export function createRevenueOperationsService(
           actorUserId: actor.actorUserId,
           actorDisplayName: name,
         })
+        const facts = await tx
+          .select()
+          .from(commissionFact)
+          .where(
+            and(
+              eq(commissionFact.organizationId, actor.organizationId),
+              eq(commissionFact.receiptId, receipt.id),
+              eq(commissionFact.kind, "earned"),
+            ),
+          )
+        if (facts.length)
+          await tx.insert(commissionFact).values(
+            facts.map((fact) => ({
+              id: createId(),
+              organizationId: actor.organizationId,
+              receiptId: receipt.id,
+              receiptLineId: fact.receiptLineId,
+              originalFactId: fact.id,
+              kind: "reversal" as const,
+              professionalId: fact.professionalId,
+              professionalName: fact.professionalName,
+              serviceId: fact.serviceId,
+              serviceName: fact.serviceName,
+              rule: fact.rule,
+              netBaseCents: -fact.netBaseCents,
+              commissionCents: -fact.commissionCents,
+              barbershopShareCents: -fact.barbershopShareCents,
+              localDate: date,
+              occurredAt: clock(),
+            })),
+          )
         const cashApplied =
           receipt.tenders.find((tender) => tender.method === "cash")?.appliedCents ?? 0
         if (cashApplied)

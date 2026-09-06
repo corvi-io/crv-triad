@@ -7,9 +7,17 @@ import { createAnalyticsRoutes } from "../../modules/analytics/http/routes.js"
 import { createPostHogLeadCapture } from "../../modules/analytics/lead-capture.js"
 import { createAvailabilityService } from "../../modules/availability/application/availability-service.js"
 import { createBackstageRoutes } from "../../modules/backstage/http/routes.js"
+import { createBusinessProfileService } from "../../modules/business-profile/application/business-profile-service.js"
+import { createBusinessProfileRoutes } from "../../modules/business-profile/http/routes.js"
+import {
+  createLocalBusinessLogoStorage,
+  createR2BusinessLogoStorage,
+} from "../../modules/business-profile/infra/logo-storage.js"
 import { createClientService } from "../../modules/clients/application/client-service.js"
 import { createDrizzleClientRepository } from "../../modules/clients/database/client-repository.js"
 import { createClientRoutes } from "../../modules/clients/http/routes.js"
+import { createCommissionService } from "../../modules/commissions/application/commission-service.js"
+import { createCommissionRoutes } from "../../modules/commissions/http/routes.js"
 import type { IdpEnv } from "../../modules/idp/config/env.js"
 import type { IdpDatabase } from "../../modules/idp/database/client.js"
 import { createIdpRoutes } from "../../modules/idp/http/app.js"
@@ -17,6 +25,16 @@ import { requestContextMiddleware } from "../../modules/idp/http/middleware/requ
 import type { IdpAuth, InvitationAcceptedObserver } from "../../modules/idp/identity/auth.js"
 import type { AuthEmailSender } from "../../modules/idp/identity/transactional-email.js"
 import { createLeadRoutes } from "../../modules/leads/http/routes.js"
+import {
+  createFakeArtifactStorage,
+  createFakeReportDispatcher,
+} from "../../modules/reporting/application/export-providers.js"
+import { createReportExportService } from "../../modules/reporting/application/report-export-service.js"
+import { createReportWorker } from "../../modules/reporting/application/report-worker.js"
+import { createReportingService } from "../../modules/reporting/application/reporting-service.js"
+import { createReportingRoutes } from "../../modules/reporting/http/routes.js"
+import { createR2ArtifactStorage } from "../../modules/reporting/infra/r2-artifact-storage.js"
+import { createTriggerReportDispatcher } from "../../modules/reporting/infra/trigger-report-dispatcher.js"
 import {
   createRevenueOperationsService,
   hasOpenRevenueCashDay,
@@ -68,6 +86,47 @@ export function createRestApp(input: CreateRestAppInput) {
   )
   const observeBusinessRequest = (event: object) =>
     console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
+  const reportingService = createReportingService(input.db)
+  const observeReportLifecycle = (event: Record<string, unknown>) =>
+    console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
+  const businessLogoStorage =
+    input.env.PROFILE_IMAGE_STORAGE_DRIVER === "r2"
+      ? createR2BusinessLogoStorage({
+          endpoint: input.env.PROFILE_IMAGE_R2_ENDPOINT,
+          accessKeyId: input.env.PROFILE_IMAGE_R2_ACCESS_KEY_ID,
+          secretAccessKey: input.env.PROFILE_IMAGE_R2_SECRET_ACCESS_KEY,
+          bucket: input.env.PROFILE_IMAGE_R2_BUCKET,
+        })
+      : createLocalBusinessLogoStorage(input.env.BUSINESS_MEDIA_LOCAL_DIRECTORY)
+  const artifactStorage =
+    input.env.REPORT_EXPORT_PROVIDER === "trigger"
+      ? createR2ArtifactStorage({
+          endpoint: input.env.R2_REPORT_ENDPOINT,
+          accessKeyId: input.env.R2_REPORT_ACCESS_KEY_ID,
+          secretAccessKey: input.env.R2_REPORT_SECRET_ACCESS_KEY,
+          bucket: input.env.R2_REPORT_BUCKET,
+        })
+      : createFakeArtifactStorage()
+  const reportWorker = createReportWorker(
+    input.db,
+    reportingService,
+    artifactStorage,
+    observeReportLifecycle,
+  )
+  const fakeReportDispatcher = createFakeReportDispatcher()
+  const reportDispatcher =
+    input.env.REPORT_EXPORT_PROVIDER === "trigger"
+      ? createTriggerReportDispatcher()
+      : {
+          async dispatch(
+            payload: Parameters<ReturnType<typeof createFakeReportDispatcher>["dispatch"]>[0],
+            idempotencyKey: string,
+          ) {
+            const run = await fakeReportDispatcher.dispatch(payload, idempotencyKey)
+            queueMicrotask(() => void reportWorker.run(payload).catch(() => undefined))
+            return run
+          },
+        }
 
   return new Elysia({ name: "crv-triad-api" })
     .use(requestContextMiddleware)
@@ -81,6 +140,20 @@ export function createRestApp(input: CreateRestAppInput) {
     .use(createAccessRoutes(input.db, resolveTenantContext, authorizeTenantAction))
     .use(createOwnershipRoutes(input.db, resolveTenantContext))
     .use(createBackstageRoutes(input.auth, input.db, input.authEmailSender))
+    .use(
+      createBusinessProfileRoutes(
+        createBusinessProfileService(input.db, businessLogoStorage),
+        resolveTenantContext,
+        authorizeTenantAction,
+      ),
+    )
+    .use(
+      createCommissionRoutes(
+        createCommissionService(input.db),
+        resolveTenantContext,
+        authorizeTenantAction,
+      ),
+    )
     .use(createClientRoutes(clientService, resolveTenantContext, authorizeTenantAction))
     .use(
       createCatalogRoutes(
@@ -119,6 +192,20 @@ export function createRestApp(input: CreateRestAppInput) {
         resolveTenantContext,
         authorizeTenantAction,
         observeBusinessRequest,
+      ),
+    )
+    .use(
+      createReportingRoutes(
+        reportingService,
+        createReportExportService(
+          input.db,
+          reportDispatcher,
+          artifactStorage,
+          observeReportLifecycle,
+        ),
+        resolveTenantContext,
+        authorizeTenantAction,
+        input.env.REPORT_EXPORT_ENABLED,
       ),
     )
     .use(createLeadRoutes(input.env, input.pool, { captureAcceptedLead }))

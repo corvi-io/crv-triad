@@ -1,4 +1,5 @@
 import {
+  Building2Icon,
   CalendarDaysIcon,
   CreditCardIcon,
   RotateCcwIcon,
@@ -34,7 +35,7 @@ export function ReportFiltersBar({
   const hasNonDefaultFilters =
     search.from !== defaults.from ||
     search.to !== defaults.to ||
-    Boolean(search.professional || search.service || search.paymentMethod)
+    Boolean(search.unit || search.professional || search.service || search.paymentMethod)
 
   return (
     <div className="flex flex-col gap-2">
@@ -63,6 +64,18 @@ export function ReportFiltersBar({
             <ToggleGroupItem value="custom">Personalizado</ToggleGroupItem>
           </ToggleGroup>
           <div className="flex min-w-0 flex-wrap items-center gap-2 lg:ml-auto">
+            <SingleSelectListFilter
+              icon={Building2Icon}
+              id="report-unit-filter"
+              inactiveValue=""
+              label="Unidade"
+              options={[
+                { label: "Todas as unidades", value: "" },
+                ...facets.units.map(({ id, label }) => ({ label, value: id })),
+              ]}
+              value={search.unit ?? ""}
+              onValueChange={(unit) => onChange({ unit: unit || undefined })}
+            />
             <SingleSelectListFilter
               icon={UserRoundIcon}
               id="report-professional-filter"
@@ -118,6 +131,7 @@ export function ReportFiltersBar({
                     paymentMethod: undefined,
                     professional: undefined,
                     service: undefined,
+                    unit: undefined,
                   })
                 }
               >
