@@ -85,6 +85,13 @@
       "when": 1788659292936,
       "tag": "0025_flaky_malcolm_colcord",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1788700000000,
+      "tag": "0026_restore-client-service-preferences",
+      "breakpoints": true
     }
   ]
 }
