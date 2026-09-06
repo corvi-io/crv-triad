@@ -104,6 +104,7 @@ describe("invitations", () => {
     await expect(
       acceptInvitationForUser(db as never, "Invite@Example.com", "user-1", "invitation-1"),
     ).resolves.toMatchObject({ id: "invitation-1", status: "accepted" })
+    expect(selectCount).toBe(1)
     expect(updateCount).toBe(0)
   })
 

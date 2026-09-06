@@ -209,7 +209,8 @@ export async function acceptInvitationForUser(
 
     if (transitionedToAccepted && accepted.role === "admin")
       await tx.update(user).set({ role: "admin", updatedAt: new Date() }).where(eq(user.id, userId))
-    await acceptOrganizationInvitationsInTransaction(tx, normalizedEmail, userId)
+    if (transitionedToAccepted)
+      await acceptOrganizationInvitationsInTransaction(tx, normalizedEmail, userId)
     return accepted
   })
 }

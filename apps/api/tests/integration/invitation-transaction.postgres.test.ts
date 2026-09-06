@@ -266,6 +266,31 @@ describe("invitation transaction on PostgreSQL", () => {
     ).toEqual([{ role: "member" }])
   })
 
+  it("does not consume organization invitations created after the global invitation was accepted", async () => {
+    const email = "later-organization-invite@example.invalid"
+    const seeded = await seedOrganizationInvitation(email, "member")
+    await acceptInvitationForUser(db as never, email, seeded.invitedUserId, seeded.created.id)
+    const laterInvitationId = createId()
+    await db.insert(organizationInvitation).values({
+      email,
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      id: laterInvitationId,
+      inviterId: seeded.inviterId,
+      organizationId: seeded.organizationId,
+      role: "admin",
+      status: "pending",
+    })
+
+    await acceptInvitationForUser(db as never, email, seeded.invitedUserId, seeded.created.id)
+
+    expect(
+      await db
+        .select({ status: organizationInvitation.status })
+        .from(organizationInvitation)
+        .where(eq(organizationInvitation.id, laterInvitationId)),
+    ).toEqual([{ status: "pending" }])
+  })
+
   it("rejects an email mismatch without consuming either invitation", async () => {
     const seeded = await seedOrganizationInvitation("recipient@example.invalid", "owner")
 
