@@ -350,6 +350,7 @@ export const revenueReceiptLine = pgTable(
     netCents: cents("net_cents").notNull(),
   },
   (table) => [
+    unique("revenue_receipt_lines_tenant_id_unique").on(table.organizationId, table.id),
     foreignKey({
       columns: [table.organizationId, table.receiptId],
       foreignColumns: [revenueReceipt.organizationId, revenueReceipt.id],

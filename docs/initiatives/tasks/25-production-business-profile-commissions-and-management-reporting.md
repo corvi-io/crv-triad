@@ -54,7 +54,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-001 — Freeze predecessor, provider and UX contracts
 
-- Status: Pending
+- Status: Complete — evidence: [contract and provider readiness](../evidence/25-production-business-profile-commissions-and-management-reporting/contracts-and-provider-readiness.md)
 - Covers: REQ-015–REQ-018, REQ-027–REQ-030, AC-012
 - Depends on: Initiative 23/24 review completion for final contract names; PRD approval
 - Can parallelize with: None
@@ -95,7 +95,7 @@ route files are serialized through the owning task to avoid parallel conflicts.
 
 ### TASK-002 — Add additive schemas, migrations and access capabilities
 
-- Status: Pending
+- Status: In progress — generated schema/migration and focused unit evidence complete; disposable PostgreSQL rehearsal remains pending
 - Covers: REQ-001–REQ-002, REQ-005–REQ-006, REQ-014, REQ-022–REQ-023, REQ-030,
   AC-001, AC-003, AC-007, AC-012
 - Depends on: TASK-001
