@@ -6,6 +6,18 @@ export const reportingQueryKeys = {
   all: ["reporting"] as const,
   report: (query: ReportingQuery) => [...reportingQueryKeys.all, "report", query] as const,
   exports: () => [...reportingQueryKeys.all, "exports"] as const,
+  catalog: () => [...reportingQueryKeys.all, "catalog"] as const,
+}
+
+export function useReportCatalog() {
+  const repository = useReportingRepository()
+  return useQuery({
+    enabled: Boolean(repository.getExportCatalog),
+    queryKey: reportingQueryKeys.catalog(),
+    queryFn: () => repository.getExportCatalog?.(),
+    retry: false,
+    staleTime: 5 * 60_000,
+  })
 }
 
 export function useGeneratedReports() {

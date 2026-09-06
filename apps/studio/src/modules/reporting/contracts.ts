@@ -33,10 +33,49 @@ export type GeneratedReport = {
   activeAttempt: number
   completedAt?: string | null
   createdAt: string
+  delivery?: {
+    status: "failed" | "not_requested" | "pending" | "sent" | "skipped"
+  }
   format: "csv" | "pdf"
   id: string
+  idempotencyKey?: string
+  reportDefinitionId?: ReportDefinitionId
   safeFailureCode?: string | null
   status: "expired" | "failed" | "queued" | "ready" | "running"
+}
+
+export type ReportDefinitionId =
+  | "financial-summary"
+  | "revenue-by-period"
+  | "appointments-by-professional"
+  | "top-services"
+  | "commissions-by-professional"
+  | "cancellations-and-no-shows"
+
+export type ReportFilterId = "dateRange" | "unit" | "professional" | "service" | "paymentMethod"
+
+export type ReportCatalogItem = {
+  description: string
+  formats: readonly ("csv" | "pdf")[]
+  id: ReportDefinitionId
+  supportedFilters: readonly ReportFilterId[]
+  title: string
+  version: number
+}
+
+export type ReportCatalog = {
+  items: readonly ReportCatalogItem[]
+  requester: { maskedEmail: string; verified: true }
+  schemaVersion: 1
+}
+
+export type CreateReportExportInput = {
+  deliverByEmail: boolean
+  filters: ReportFilters
+  format: "csv" | "pdf"
+  idempotencyKey: string
+  reportDefinitionId: ReportDefinitionId
+  reportDefinitionVersion: number
 }
 
 export type ReportFacet = {
@@ -128,9 +167,10 @@ export type ReportingResult = {
 }
 
 export type ReportingRepository = {
-  createExport?(input: { filters: ReportFilters; format: "csv" | "pdf" }): Promise<GeneratedReport>
+  createExport?(input: CreateReportExportInput): Promise<GeneratedReport>
   downloadExport?(id: string): Promise<string>
   getExport?(id: string): Promise<GeneratedReport | null>
+  getExportCatalog?(): Promise<ReportCatalog>
   listExports?(): Promise<readonly GeneratedReport[]>
   getReport(query: ReportingQuery): Promise<ReportingResult>
   retryExport?(id: string): Promise<GeneratedReport | null>

@@ -1,7 +1,7 @@
 import { getApiUrl } from "@/modules/auth/services/auth-client"
 import type {
   GeneratedReport,
-  ReportFilters,
+  ReportCatalog,
   ReportingQuery,
   ReportingRepository,
   ReportingResult,
@@ -72,13 +72,15 @@ export class ReportingHttpRepository implements ReportingRepository {
   getExport(id: string) {
     return request<GeneratedReport | null>(`/api/reports/generated/${encodeURIComponent(id)}`)
   }
-  createExport(input: { filters: ReportFilters; format: "csv" | "pdf" }) {
+  getExportCatalog() {
+    return request<ReportCatalog>("/api/reports/catalog")
+  }
+  createExport(input: Parameters<NonNullable<ReportingRepository["createExport"]>>[0]) {
     return request<GeneratedReport>("/api/reports/generated", {
       method: "POST",
       body: {
         ...input,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        idempotencyKey: crypto.randomUUID(),
       },
     })
   }

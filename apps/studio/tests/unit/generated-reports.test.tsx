@@ -3,12 +3,60 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { GeneratedReport, ReportingRepository } from "@/modules/reporting/contracts"
-import { GeneratedReports } from "@/modules/reporting/generated-reports"
+import { GeneratedReports, reportCatalog } from "@/modules/reporting/generated-reports"
 import { ReportingRepositoryProvider } from "@/modules/reporting/repository-context"
 
 afterEach(() => vi.restoreAllMocks())
 
 describe("generated reports", () => {
+  it("keeps all six catalog choices visible when the history is empty", async () => {
+    renderReports({ ...baseRepository, listExports: async () => [] })
+
+    expect(await screen.findAllByRole("button", { name: "Configurar relatório" })).toHaveLength(6)
+    for (const item of reportCatalog) expect(screen.getByText(item.title)).toBeInTheDocument()
+    expect(await screen.findByText(/Nenhum relatório foi solicitado ainda/)).toBeInTheDocument()
+  })
+
+  it("keeps the draft on Back and makes verified email delivery mandatory", async () => {
+    renderReports({
+      ...baseRepository,
+      listExports: async () => [],
+      createExport: async () => reports[2],
+    })
+    fireEvent.click((await screen.findAllByRole("button", { name: "Configurar relatório" }))[2])
+    expect(screen.getByText("O link seguro será enviado para ma••••@exemplo.com.")).toBeVisible()
+    expect(screen.getByLabelText("Profissional")).toBeVisible()
+    expect(screen.getByLabelText("Serviço")).toBeVisible()
+    expect(screen.queryByLabelText("Forma de pagamento")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText("Formato"))
+    const csv = screen.getByRole("option", { hidden: true, name: "CSV" })
+    fireEvent.pointerDown(csv, { buttons: 1, pointerType: "mouse" })
+    fireEvent.click(csv, { detail: 1 })
+    fireEvent.click(screen.getByRole("button", { name: "Revisar relatório" }))
+    expect(await screen.findByText("CSV")).toBeVisible()
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }))
+    expect(screen.getByLabelText("Formato")).toHaveTextContent("csv")
+  })
+
+  it("cancels without submitting and prevents duplicate confirmation", async () => {
+    let resolveCreate: ((report: GeneratedReport) => void) | undefined
+    const createExport = vi.fn(
+      () => new Promise<GeneratedReport>((resolve) => (resolveCreate = resolve)),
+    )
+    renderReports({ ...baseRepository, listExports: async () => [], createExport })
+    fireEvent.click((await screen.findAllByRole("button", { name: "Configurar relatório" }))[0])
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }))
+    expect(createExport).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Configurar relatório" })[0])
+    fireEvent.click(screen.getByRole("button", { name: "Revisar relatório" }))
+    const confirm = screen.getByRole("button", { name: "Confirmar geração" })
+    fireEvent.click(confirm)
+    fireEvent.click(confirm)
+    await waitFor(() => expect(createExport).toHaveBeenCalledTimes(1))
+    resolveCreate?.(reports[2])
+  })
+
   it("creates a selected format and retries failed or expired rows", async () => {
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden")
     const createExport = vi.fn(async () => reports[0])
@@ -19,11 +67,19 @@ describe("generated reports", () => {
       retryExport,
       listExports: async () => reports,
     })
-    expect(await screen.findByText("Falhou · tentativa 1")).toBeInTheDocument()
-    expect(screen.getByText("Arquivo expirado · tentativa 2")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Gerar relatório" }))
+    expect(await screen.findByText(/Geração: Falhou.*tentativa 1/)).toBeInTheDocument()
+    expect(screen.getByText(/Geração: Arquivo expirado.*tentativa 2/)).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole("button", { name: "Configurar relatório" })[0])
+    fireEvent.click(screen.getByRole("button", { name: "Revisar relatório" }))
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar geração" }))
     await waitFor(() =>
-      expect(createExport).toHaveBeenCalledWith(expect.objectContaining({ format: "pdf" })),
+      expect(createExport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deliverByEmail: true,
+          format: "pdf",
+          reportDefinitionId: "financial-summary",
+        }),
+      ),
     )
     const retries = screen.getAllByRole("button", { name: "Tentar novamente" })
     fireEvent.click(retries[0])
@@ -42,10 +98,12 @@ describe("generated reports", () => {
         return []
       },
     })
-    expect(await screen.findByText("Não foi possível carregar os arquivos")).toBeInTheDocument()
+    expect(await screen.findByText("Não foi possível carregar o histórico")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }))
     expect(
-      await screen.findByText("Nenhum relatório foi gerado com esta conta."),
+      await screen.findByText(
+        "Nenhum relatório foi solicitado ainda. Escolha uma opção acima para começar.",
+      ),
     ).toBeInTheDocument()
   })
 
@@ -58,9 +116,9 @@ describe("generated reports", () => {
       listExports,
       downloadExport: async () => "https://private.invalid",
     })
-    expect(await screen.findByText("Pronto · tentativa 1")).toBeInTheDocument()
-    expect(screen.getByText("Na fila · tentativa 1")).toBeInTheDocument()
-    expect(screen.getByText("Gerando · tentativa 1")).toBeInTheDocument()
+    expect(await screen.findByText(/Geração: Pronto.*tentativa 1/)).toBeInTheDocument()
+    expect(screen.getByText(/Geração: Na fila.*tentativa 1/)).toBeInTheDocument()
+    expect(screen.getByText(/Geração: Gerando.*tentativa 1/)).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 10))
     expect(listExports).toHaveBeenCalledTimes(1)
     expect(screen.getByRole("button", { name: "Baixar" })).toBeEnabled()
@@ -76,7 +134,7 @@ describe("generated reports", () => {
       listExports,
       downloadExport: async () => "https://private.invalid/object",
     })
-    expect(await screen.findByText("Na fila · tentativa 1")).toBeInTheDocument()
+    expect(await screen.findByText(/Geração: Na fila.*tentativa 1/)).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 3_200))
     expect(listExports.mock.calls.length).toBeGreaterThanOrEqual(2)
     fireEvent.click(screen.getByRole("button", { name: "Baixar" }))
@@ -120,7 +178,7 @@ describe("generated reports", () => {
       downloadExport: async () => "http://localhost/api/reports/local-artifacts/missing.pdf",
     })
     fireEvent.click(await screen.findByRole("button", { name: "Baixar" }))
-    expect(await screen.findByText("Pronto · tentativa 1")).toBeInTheDocument()
+    expect(await screen.findByText(/Geração: Pronto.*tentativa 1/)).toBeInTheDocument()
   })
 
   it("announces action failures without losing the visible history", async () => {
@@ -137,11 +195,13 @@ describe("generated reports", () => {
         throw new Error("Arquivo indisponível")
       },
     })
-    expect(await screen.findByText("Falhou · tentativa 1")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Gerar relatório" }))
+    expect(await screen.findByText(/Geração: Falhou.*tentativa 1/)).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole("button", { name: "Configurar relatório" })[0])
+    fireEvent.click(screen.getByRole("button", { name: "Revisar relatório" }))
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar geração" }))
     fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }))
     fireEvent.click(screen.getByRole("button", { name: "Baixar" }))
-    expect(screen.getByText("Pronto · tentativa 1")).toBeInTheDocument()
+    expect(screen.getByText(/Geração: Pronto.*tentativa 1/)).toBeInTheDocument()
   })
 
   it("does not render the production history for a characterization repository", () => {
@@ -197,10 +257,20 @@ const baseRepository: ReportingRepository = {
 }
 function renderReports(repository: ReportingRepository) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const resolvedRepository = repository.listExports
+    ? {
+        getExportCatalog: async () => ({
+          items: reportCatalog,
+          requester: { maskedEmail: "ma••••@exemplo.com", verified: true as const },
+          schemaVersion: 1 as const,
+        }),
+        ...repository,
+      }
+    : repository
   return render(<GeneratedReports filters={{ from: "2026-09-01", to: "2026-09-06" }} />, {
     wrapper: ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>
-        <ReportingRepositoryProvider repository={repository}>
+        <ReportingRepositoryProvider repository={resolvedRepository}>
           {children}
         </ReportingRepositoryProvider>
       </QueryClientProvider>

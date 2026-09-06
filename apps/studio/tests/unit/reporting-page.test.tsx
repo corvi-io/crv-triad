@@ -21,7 +21,7 @@ describe("ReportingPage", () => {
   it("renders all seven truthful reports with textual and table equivalents", async () => {
     renderReport("typical")
 
-    expect(await screen.findByText("Faturamento por período")).toBeInTheDocument()
+    expect((await screen.findAllByText("Faturamento por período"))[0]).toBeInTheDocument()
     for (const title of [
       "Atendimentos por profissional",
       "Serviços mais vendidos",
@@ -30,7 +30,7 @@ describe("ReportingPage", () => {
       "Cancelamentos e ausências",
       "Clientes novos e recorrentes",
     ]) {
-      expect(screen.getByText(title)).toBeInTheDocument()
+      expect(screen.getAllByText(title)[0]).toBeInTheDocument()
     }
     expect(
       screen.getByText(
@@ -49,7 +49,9 @@ describe("ReportingPage", () => {
     expect(await screen.findByText("Não foi possível carregar os relatórios")).toBeInTheDocument()
     const retry = screen.getByRole("button", { name: "Tentar novamente" })
     await user.click(retry)
-    await waitFor(() => expect(screen.getByText("Faturamento por período")).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getAllByText("Faturamento por período")[0]).toBeInTheDocument(),
+    )
   })
 
   it("opens Personalizado from a preset without changing the canonical range", async () => {

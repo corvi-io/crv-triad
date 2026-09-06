@@ -37,7 +37,7 @@ test("renders all seven reports and keeps canonical combined filters across relo
     "Cancelamentos e ausências",
     "Clientes novos e recorrentes",
   ]) {
-    await expect(page.getByText(title, { exact: true })).toBeVisible()
+    await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
   }
   await expect(page.getByText(/Denominador:/)).toBeVisible()
   await expect(page.getByText(/sem chave estável ficam fora das proporções/)).toBeVisible()
@@ -94,7 +94,7 @@ test("normalizes invalid URL state and distinguishes loading, empty, fail-next, 
 
   await page.goto(reportsUrl("slow"))
   await expect(page.getByRole("status")).toContainText("Carregando relatórios")
-  await expect(page.getByText("Faturamento por período", { exact: true })).toBeVisible()
+  await expect(page.getByText("Faturamento por período", { exact: true }).first()).toBeVisible()
 
   await page.goto(reportsUrl("empty"))
   await expect(page.getByRole("heading", { name: "Nenhum dado encontrado" })).toBeVisible()
@@ -115,7 +115,7 @@ test("normalizes invalid URL state and distinguishes loading, empty, fail-next, 
   await page.goto(reportsUrl("next-failure"))
   await expect(page.getByRole("alert")).toContainText("Não foi possível carregar os relatórios")
   await page.getByRole("button", { name: "Tentar novamente" }).click()
-  await expect(page.getByText("Faturamento por período", { exact: true })).toBeVisible()
+  await expect(page.getByText("Faturamento por período", { exact: true }).first()).toBeVisible()
 
   await page.goto(reportsUrl("persistent-error"))
   await expect(page.getByRole("alert")).toContainText("não puderam ser carregados")
@@ -128,7 +128,7 @@ test("passes axe and captures light, dark, 320px, 200%-zoom, keyboard, and scree
 }) => {
   await page.setViewportSize({ height: 900, width: 1440 })
   await page.goto(reportsUrl("edge"))
-  await expect(page.getByText("Faturamento por período", { exact: true })).toBeVisible()
+  await expect(page.getByText("Faturamento por período", { exact: true }).first()).toBeVisible()
   await hideDevtools(page)
   await page.screenshot({
     fullPage: true,
@@ -159,7 +159,7 @@ test("passes axe and captures light, dark, 320px, 200%-zoom, keyboard, and scree
   await page.setViewportSize({ height: 720, width: 320 })
   await page.reload()
   await expect(page.locator("html")).toHaveClass(/dark/)
-  await expect(page.getByText("Faturamento por período", { exact: true })).toBeVisible()
+  await expect(page.getByText("Faturamento por período", { exact: true }).first()).toBeVisible()
   await expectNoDocumentOverflow(page)
   await expectMinimumTargets(page)
   await hideDevtools(page)
@@ -186,7 +186,7 @@ test("passes axe and captures light, dark, 320px, 200%-zoom, keyboard, and scree
   await page.emulateMedia({ forcedColors: "active", reducedMotion: "reduce" })
   await page.setViewportSize({ height: 720, width: 320 })
   await page.reload()
-  await expect(page.getByText("Faturamento por período", { exact: true })).toBeVisible()
+  await expect(page.getByText("Faturamento por período", { exact: true }).first()).toBeVisible()
   await expectNoDocumentOverflow(page)
 })
 
