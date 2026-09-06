@@ -114,16 +114,6 @@ export const commissionFact = pgTable(
       name: "commission_facts_tenant_receipt_line_fk",
     }).onDelete("restrict"),
     foreignKey({
-      columns: [table.organizationId, table.professionalId],
-      foreignColumns: [professional.organizationId, professional.id],
-      name: "commission_facts_tenant_professional_fk",
-    }).onDelete("restrict"),
-    foreignKey({
-      columns: [table.organizationId, table.serviceId],
-      foreignColumns: [service.organizationId, service.id],
-      name: "commission_facts_tenant_service_fk",
-    }).onDelete("restrict"),
-    foreignKey({
       columns: [table.organizationId, table.originalFactId],
       foreignColumns: [table.organizationId, table.id],
       name: "commission_facts_tenant_original_fk",

@@ -129,6 +129,7 @@ ALTER TABLE "business_logo_cleanups" ADD CONSTRAINT "business_logo_cleanups_orga
 ALTER TABLE "business_profiles" ADD CONSTRAINT "business_profiles_organization_id_idp_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."idp_organizations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "business_profiles" ADD CONSTRAINT "business_profiles_updated_by_idp_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."idp_users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "business_profiles" ADD CONSTRAINT "business_profiles_tenant_primary_unit_fk" FOREIGN KEY ("organization_id","primary_unit_id") REFERENCES "public"."units"("organization_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "revenue_receipt_lines" ADD CONSTRAINT "revenue_receipt_lines_tenant_id_unique" UNIQUE("organization_id","id");--> statement-breakpoint
 ALTER TABLE "commission_facts" ADD CONSTRAINT "commission_facts_tenant_receipt_fk" FOREIGN KEY ("organization_id","receipt_id") REFERENCES "public"."revenue_receipts"("organization_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "commission_facts" ADD CONSTRAINT "commission_facts_tenant_receipt_line_fk" FOREIGN KEY ("organization_id","receipt_line_id") REFERENCES "public"."revenue_receipt_lines"("organization_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "commission_facts" ADD CONSTRAINT "commission_facts_tenant_professional_fk" FOREIGN KEY ("organization_id","professional_id") REFERENCES "public"."professionals"("organization_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
@@ -159,7 +160,6 @@ CREATE INDEX "report_attempts_status_idx" ON "report_attempts" USING btree ("sta
 CREATE UNIQUE INDEX "report_requests_tenant_key_unique" ON "report_requests" USING btree ("organization_id","idempotency_key");--> statement-breakpoint
 CREATE INDEX "report_requests_history_idx" ON "report_requests" USING btree ("organization_id","created_at","id");--> statement-breakpoint
 CREATE INDEX "report_requests_status_idx" ON "report_requests" USING btree ("status","updated_at","id");--> statement-breakpoint
-ALTER TABLE "revenue_receipt_lines" ADD CONSTRAINT "revenue_receipt_lines_tenant_id_unique" UNIQUE("organization_id","id");--> statement-breakpoint
 INSERT INTO access_plan_entitlements (id, plan_version_id, capability_key, enabled)
 SELECT md5(source.plan_version_id || ':initiative-25:' || target.capability_key), source.plan_version_id, target.capability_key, true
 FROM access_plan_entitlements source
