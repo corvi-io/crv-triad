@@ -15,6 +15,23 @@ export type ArtifactStorage = {
   downloadUrl(key: string, expiresInSeconds: number): Promise<string>
   delete(key: string): Promise<void>
 }
+export type ReportEmailSender = {
+  send(input: {
+    recipient: string
+    reportRequestId: string
+    reportTitle: string
+    authenticatedReportUrl: string
+  }): Promise<{ deliveryReference?: string }>
+}
+export function createFakeReportEmailSender(): ReportEmailSender {
+  const delivered = new Set<string>()
+  return {
+    async send(input) {
+      delivered.add(input.reportRequestId)
+      return { deliveryReference: `fake-email-${input.reportRequestId}` }
+    },
+  }
+}
 export function createFakeReportDispatcher(): ReportDispatcher {
   const runs = new Map<string, string>()
   return {

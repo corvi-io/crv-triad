@@ -85,6 +85,13 @@
       "when": 1788703411934,
       "tag": "0028_swift_sunset_bain",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1788730564492,
+      "tag": "0029_abandoned_lord_hawal",
+      "breakpoints": true
     }
   ]
 }

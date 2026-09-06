@@ -90,7 +90,7 @@ const envSchema = z
       .string()
       .default("false")
       .transform((value) => value === "true"),
-    REPORT_EXPORT_PROVIDER: z.enum(["fake", "trigger"]).default("fake"),
+    REPORT_EXPORT_PROVIDER: z.enum(["fake", "trigger"]).default("trigger"),
     TRIGGER_PROJECT_REF: z.string().default(""),
     TRIGGER_SECRET_KEY: z.string().default(""),
     R2_REPORT_ENDPOINT: z.literal("").or(configuredHttpsUrl).default(""),

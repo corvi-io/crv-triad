@@ -2,7 +2,8 @@ import { and, eq, lt, sql } from "drizzle-orm"
 import type { IdpDatabase } from "../../idp/database/client.js"
 import { createId } from "../../shared/infra/ids.js"
 import { reportArtifact, reportAttempt, reportRequest } from "../database/schema.js"
-import type { ArtifactStorage } from "./export-providers.js"
+import type { ArtifactStorage, ReportEmailSender } from "./export-providers.js"
+import { type ReportType, reportCatalogItem } from "./report-catalog.js"
 import { renderReportCsv, renderReportPdf } from "./report-renderer.js"
 import type { ReportingService } from "./reporting-service.js"
 
@@ -12,8 +13,73 @@ export function createReportWorker(
   db: IdpDatabase,
   reporting: ReportingService,
   storage: ArtifactStorage,
+  emailSender?: ReportEmailSender,
+  studioUrl = "http://localhost:3000",
   observe: (event: Record<string, unknown>) => void = () => undefined,
 ) {
+  async function deliverReadyEmail(request: typeof reportRequest.$inferSelect) {
+    if (!emailSender || !request.requesterEmail) return
+    const claimed = await db
+      .update(reportRequest)
+      .set({
+        emailDeliveryStatus: "sending",
+        emailDeliveryFailureCode: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(reportRequest.organizationId, request.organizationId),
+          eq(reportRequest.id, request.id),
+          eq(reportRequest.status, "ready"),
+          sql`${reportRequest.emailDeliveryStatus} in ('pending', 'failed')`,
+        ),
+      )
+      .returning({ id: reportRequest.id })
+    if (claimed.length !== 1) return
+    try {
+      const authenticatedReportUrl = new URL("/reports", studioUrl)
+      authenticatedReportUrl.searchParams.set("reportId", request.id)
+      await emailSender.send({
+        recipient: request.requesterEmail,
+        reportRequestId: request.id,
+        reportTitle: reportCatalogItem(request.reportType).title,
+        authenticatedReportUrl: authenticatedReportUrl.toString(),
+      })
+      await db
+        .update(reportRequest)
+        .set({ emailDeliveryStatus: "sent", emailDeliveredAt: new Date(), updatedAt: new Date() })
+        .where(
+          and(
+            eq(reportRequest.organizationId, request.organizationId),
+            eq(reportRequest.id, request.id),
+            eq(reportRequest.emailDeliveryStatus, "sending"),
+          ),
+        )
+      observe({ event: "report_email_delivered", reportRequestId: request.id })
+    } catch {
+      await db
+        .update(reportRequest)
+        .set({
+          emailDeliveryStatus: "failed",
+          emailDeliveryFailureCode: "delivery_failed",
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(reportRequest.organizationId, request.organizationId),
+            eq(reportRequest.id, request.id),
+            eq(reportRequest.emailDeliveryStatus, "sending"),
+          ),
+        )
+      observe({
+        event: "report_email_failed",
+        reportRequestId: request.id,
+        safeFailureCode: "delivery_failed",
+      })
+      throw new Error("report_email_delivery_failed")
+    }
+  }
+
   async function run(payload: { organizationId: string; reportRequestId: string }) {
     const [request] = await db
       .select()
@@ -26,12 +92,22 @@ export function createReportWorker(
       )
       .limit(1)
     if (!request) return { outcome: "missing" as const }
-    if (request.status === "ready") return { outcome: "ready" as const }
+    if (request.status === "ready") {
+      await deliverReadyEmail(request)
+      return { outcome: "ready" as const }
+    }
     if (!["queued", "running"].includes(request.status)) return { outcome: "ignored" as const }
     const attempt = request.activeAttempt
     observe({ event: "report_export_started", reportRequestId: request.id, attempt })
     let artifactUploaded = false
     await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`report-worker:${payload.organizationId}`}, 0))`,
+      )
+      const competing = await tx.execute<{ id: string }>(
+        sql`select id from report_requests where organization_id = ${payload.organizationId} and status = 'running' and id <> ${request.id} limit 1`,
+      )
+      if (competing.rows.length > 0) throw new Error("tenant_report_concurrency_busy")
       await tx
         .update(reportRequest)
         .set({
@@ -64,16 +140,9 @@ export function createReportWorker(
         { organizationId: payload.organizationId, actorUserId: request.requesterUserId } as never,
         filters,
       )
-      const rows: Array<[string, string]> = [
-        ["Atendimentos", String(aggregate.summary.receiptCount)],
-        ["Itens realizados", String(aggregate.summary.performedItems)],
-        ["Receita líquida", String(aggregate.summary.netRevenueCents)],
-        ["Comissões", String(aggregate.summary.commissionCents)],
-        ["Parte da barbearia", String(aggregate.summary.barbershopShareCents)],
-        ["Estornos", String(aggregate.summary.reversalCount)],
-      ]
+      const rows = rowsFor(request.reportType, aggregate.summary)
       const document = {
-        title: "Relatório gerencial",
+        title: reportCatalogItem(request.reportType).title,
         period: `${filters.from} a ${filters.to} (${filters.timezone})`,
         rows,
       }
@@ -137,6 +206,11 @@ export function createReportWorker(
           )
       })
       observe({ event: "report_export_ready", reportRequestId: request.id, attempt })
+      await deliverReadyEmail({
+        ...request,
+        status: "ready",
+        emailDeliveryStatus: request.emailDeliveryStatus,
+      })
       return { outcome: "ready" as const, objectKey }
     } catch (error) {
       // A task retry must converge on an object that was uploaded before a database outage.
@@ -218,6 +292,43 @@ export function createReportWorker(
     return artifacts.length
   }
   return { run, expire }
+}
+
+type Summary = Awaited<ReturnType<ReportingService["summary"]>>["summary"]
+
+function rowsFor(type: ReportType, summary: Summary): Array<[string, string]> {
+  const common: Record<ReportType, Array<[string, string]>> = {
+    sales_revenue: [
+      ["Vendas concluídas", String(summary.receiptCount)],
+      ["Itens realizados", String(summary.performedItems)],
+      ["Faturamento líquido (centavos)", String(summary.netRevenueCents)],
+      ["Estornos", String(summary.reversalCount)],
+    ],
+    professional_performance: [
+      ["Atendimentos concluídos", String(summary.receiptCount)],
+      ["Serviços realizados", String(summary.performedItems)],
+      ["Receita líquida (centavos)", String(summary.netRevenueCents)],
+    ],
+    commissions: [
+      ["Comissões (centavos)", String(summary.commissionCents)],
+      ["Parte da barbearia (centavos)", String(summary.barbershopShareCents)],
+      ["Itens realizados", String(summary.performedItems)],
+    ],
+    new_returning_customers: [
+      ["Atendimentos concluídos", String(summary.receiptCount)],
+      ["Cobertura", "Parcial — segmentação de clientes ainda indisponível"],
+    ],
+    cancellations_no_shows: [
+      ["Cancelamentos", "Indisponível na fonte histórica atual"],
+      ["Ausências", "Indisponível na fonte histórica atual"],
+    ],
+    cash_payments: [
+      ["Receita líquida (centavos)", String(summary.netRevenueCents)],
+      ["Estornos", String(summary.reversalCount)],
+      ["Cobertura por forma de pagamento", "Parcial"],
+    ],
+  }
+  return common[type]
 }
 
 export type ReportWorker = ReturnType<typeof createReportWorker>

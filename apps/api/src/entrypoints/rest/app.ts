@@ -35,12 +35,14 @@ import { createOnboardingRoutes } from "../../modules/onboarding/http/routes.js"
 import {
   createFakeArtifactStorage,
   createFakeReportDispatcher,
+  createFakeReportEmailSender,
 } from "../../modules/reporting/application/export-providers.js"
 import { createReportExportService } from "../../modules/reporting/application/report-export-service.js"
 import { createReportWorker } from "../../modules/reporting/application/report-worker.js"
 import { createReportingService } from "../../modules/reporting/application/reporting-service.js"
 import { createReportingRoutes } from "../../modules/reporting/http/routes.js"
 import { createR2ArtifactStorage } from "../../modules/reporting/infra/r2-artifact-storage.js"
+import { createReportEmailSender } from "../../modules/reporting/infra/report-email-sender.js"
 import { createTriggerReportDispatcher } from "../../modules/reporting/infra/trigger-report-dispatcher.js"
 import {
   createRevenueOperationsService,
@@ -124,6 +126,10 @@ export function createRestApp(input: CreateRestAppInput) {
     input.db,
     reportingService,
     artifactStorage,
+    input.env.REPORT_EXPORT_PROVIDER === "trigger"
+      ? createReportEmailSender(input.env)
+      : createFakeReportEmailSender(),
+    input.env.IDP_STUDIO_URL,
     observeReportLifecycle,
   )
   const fakeReportDispatcher = createFakeReportDispatcher()

@@ -36,6 +36,7 @@ describe("parseEnv", () => {
     expect(env.POSTHOG_UPSTREAM_URL).toBe("https://us.i.posthog.com")
     expect(env.POSTHOG_PROJECT_KEY).toBe("")
     expect(env.PROFILE_IMAGE_STORAGE_DRIVER).toBe("local")
+    expect(env.REPORT_EXPORT_PROVIDER).toBe("trigger")
   })
 
   it("requires R2 and all of its values in deployed environments", () => {

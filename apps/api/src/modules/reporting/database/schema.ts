@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm/pg-core"
 
 import { organization, user } from "../../idp/database/schema.js"
+import type { ReportConfigSnapshot, ReportType } from "../application/report-catalog.js"
 
 export type ReportFilters = {
   from: string
@@ -35,7 +36,12 @@ export const reportRequest = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "restrict" }),
     format: text("format", { enum: ["pdf", "csv"] }).notNull(),
+    reportType: text("report_type").$type<ReportType>().default("sales_revenue").notNull(),
+    configVersion: integer("config_version").default(1).notNull(),
+    configSnapshot: jsonb("config_snapshot").$type<ReportConfigSnapshot>(),
     filters: jsonb("filters").$type<ReportFilters>().notNull(),
+    requesterEmail: text("requester_email"),
+    requesterEmailVerifiedAt: timestamp("requester_email_verified_at", { withTimezone: true }),
     idempotencyKey: text("idempotency_key").notNull(),
     status: text("status", { enum: ["queued", "running", "ready", "failed", "expired"] })
       .default("queued")
@@ -44,6 +50,13 @@ export const reportRequest = pgTable(
     activeAttempt: integer("active_attempt").default(1).notNull(),
     providerRunReference: text("provider_run_reference"),
     safeFailureCode: text("safe_failure_code"),
+    emailDeliveryStatus: text("email_delivery_status", {
+      enum: ["pending", "sending", "sent", "failed"],
+    })
+      .default("pending")
+      .notNull(),
+    emailDeliveryFailureCode: text("email_delivery_failure_code"),
+    emailDeliveredAt: timestamp("email_delivered_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
@@ -54,7 +67,7 @@ export const reportRequest = pgTable(
     uniqueIndex("report_requests_tenant_key_unique").on(table.organizationId, table.idempotencyKey),
     check(
       "report_requests_version_check",
-      sql`${table.version} > 0 and ${table.activeAttempt} > 0`,
+      sql`${table.version} > 0 and ${table.activeAttempt} > 0 and ${table.configVersion} > 0`,
     ),
     index("report_requests_history_idx").on(table.organizationId, table.createdAt, table.id),
     index("report_requests_status_idx").on(table.status, table.updatedAt, table.id),

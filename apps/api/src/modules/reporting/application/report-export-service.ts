@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto"
 import { and, desc, eq, sql } from "drizzle-orm"
-import { z } from "zod"
 import type { IdpDatabase } from "../../idp/database/client.js"
+import { user } from "../../idp/database/schema.js"
 import { createId } from "../../shared/infra/ids.js"
 import type { TenantContext } from "../../tenancy/domain/business-context.js"
 import { reportAttempt, reportRequest } from "../database/schema.js"
 import type { ArtifactStorage, ReportDispatcher } from "./export-providers.js"
-import { reportFilterSchema } from "./reporting-service.js"
+import { createReportRequestSchema } from "./report-catalog.js"
 
 export function createReportExportService(
   db: IdpDatabase,
@@ -45,38 +45,47 @@ export function createReportExportService(
     })
   }
   async function request(actor: TenantContext, raw: unknown) {
-    const input = z
-      .object({
-        format: z.enum(["pdf", "csv"]),
-        filters: reportFilterSchema,
-        timezone: z.string().min(1),
-        idempotencyKey: z.string().uuid(),
-      })
-      .strict()
-      .parse(raw)
-    const [existing] = await db
-      .select()
-      .from(reportRequest)
-      .where(
-        and(
-          eq(reportRequest.organizationId, actor.organizationId),
-          eq(reportRequest.idempotencyKey, input.idempotencyKey),
-        ),
-      )
-      .limit(1)
+    const input = createReportRequestSchema.parse(raw)
+    const existing = await findByIdempotencyKey(actor.organizationId, input.idempotencyKey)
     if (existing) {
+      assertSameIdempotentRequest(existing, input)
       if (existing.status === "queued" && !existing.providerRunReference)
         await dispatch(existing.id, actor.organizationId, existing.activeAttempt)
       return status(actor, existing.id)
     }
     const id = createId()
-    await db.transaction(async (tx) => {
+    const created = await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`report:${actor.organizationId}`}, 0))`,
+      )
+      const [concurrent] = await tx
+        .select()
+        .from(reportRequest)
+        .where(
+          and(
+            eq(reportRequest.organizationId, actor.organizationId),
+            eq(reportRequest.idempotencyKey, input.idempotencyKey),
+          ),
+        )
+        .limit(1)
+      if (concurrent) return concurrent
+      const [requester] = await tx
+        .select({ email: user.email, emailVerified: user.emailVerified, status: user.status })
+        .from(user)
+        .where(eq(user.id, actor.actorUserId))
+        .limit(1)
+      if (requester?.status !== "active" || requester.emailVerified !== true)
+        throw new Error("requester_email_unverified")
       await tx.insert(reportRequest).values({
         id,
         organizationId: actor.organizationId,
         requesterUserId: actor.actorUserId,
         format: input.format,
+        reportType: input.reportType,
+        configSnapshot: input.configSnapshot,
         filters: { ...input.filters, timezone: input.timezone },
+        requesterEmail: requester.email,
+        requesterEmailVerifiedAt: new Date(),
         idempotencyKey: input.idempotencyKey,
       })
       await tx.insert(reportAttempt).values({
@@ -85,12 +94,36 @@ export function createReportExportService(
         reportRequestId: id,
         attempt: 1,
       })
+      return null
     })
+    if (created) {
+      assertSameIdempotentRequest(created, input)
+      if (created.status === "queued" && !created.providerRunReference)
+        await dispatch(created.id, actor.organizationId, created.activeAttempt)
+      return status(actor, created.id)
+    }
     await dispatch(id, actor.organizationId, 1)
     observe({ event: "report_export_requested", reportRequestId: id, attempt: 1 })
     return status(actor, id)
   }
+  async function findByIdempotencyKey(organizationId: string, idempotencyKey: string) {
+    const [row] = await db
+      .select()
+      .from(reportRequest)
+      .where(
+        and(
+          eq(reportRequest.organizationId, organizationId),
+          eq(reportRequest.idempotencyKey, idempotencyKey),
+        ),
+      )
+      .limit(1)
+    return row
+  }
   async function status(actor: TenantContext, id: string) {
+    const row = await statusRow(actor, id)
+    return row ? publicReportRequest(row) : null
+  }
+  async function statusRow(actor: TenantContext, id: string) {
     const [row] = await db
       .select()
       .from(reportRequest)
@@ -99,15 +132,16 @@ export function createReportExportService(
     return row ?? null
   }
   async function history(actor: TenantContext) {
-    return db
+    const rows = await db
       .select()
       .from(reportRequest)
       .where(eq(reportRequest.organizationId, actor.organizationId))
       .orderBy(desc(reportRequest.createdAt), desc(reportRequest.id))
       .limit(50)
+    return rows.map(publicReportRequest)
   }
   async function retry(actor: TenantContext, id: string) {
-    const current = await status(actor, id)
+    const current = await statusRow(actor, id)
     if (!current || !["failed", "expired"].includes(current.status)) return current
     const attempt = current.activeAttempt + 1
     const won = await db.transaction(async (tx) => {
@@ -144,7 +178,7 @@ export function createReportExportService(
     return status(actor, id)
   }
   async function download(actor: TenantContext, id: string) {
-    const current = await status(actor, id)
+    const current = await statusRow(actor, id)
     if (current?.status !== "ready") return null
     observe({ event: "report_export_download_granted", reportRequestId: id })
     return storage.downloadUrl(
@@ -158,3 +192,40 @@ export function createReportExportService(
   return { request, status, history, retry, download, readLocalArtifact }
 }
 export type ReportExportService = ReturnType<typeof createReportExportService>
+
+function assertSameIdempotentRequest(
+  existing: typeof reportRequest.$inferSelect,
+  input: ReturnType<typeof createReportRequestSchema.parse>,
+) {
+  const { timezone, ...legacyFilters } = existing.filters
+  const existingSnapshot =
+    existing.configSnapshot ??
+    createReportRequestSchema.parse({
+      format: existing.format,
+      filters: legacyFilters,
+      timezone,
+      idempotencyKey: existing.idempotencyKey,
+      reportType: existing.reportType,
+    }).configSnapshot
+  if (
+    existing.format !== input.format ||
+    existing.reportType !== input.reportType ||
+    canonicalJson(existingSnapshot) !== canonicalJson(input.configSnapshot)
+  )
+    throw new Error("idempotency_conflict")
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`
+  if (value && typeof value === "object")
+    return `{${Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
+      .join(",")}}`
+  return JSON.stringify(value)
+}
+
+function publicReportRequest(row: typeof reportRequest.$inferSelect) {
+  const { requesterEmail: _email, requesterEmailVerifiedAt: _verifiedAt, ...safe } = row
+  return safe
+}

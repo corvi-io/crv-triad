@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia"
 import type { TenantActionAuthorizer } from "../../access/application/authorize-tenant-action.js"
 import type { TenantContextResolver } from "../../tenancy/application/create-tenant-context-resolver.js"
+import { reportCatalog } from "../application/report-catalog.js"
 import type { ReportExportService } from "../application/report-export-service.js"
 import type { ReportingService } from "../application/reporting-service.js"
 
@@ -33,6 +34,13 @@ export function createReportingRoutes(
         set.status = 503
         return { code: "report_export_unavailable" }
       }
+      if (
+        error instanceof Error &&
+        ["requester_email_unverified", "idempotency_conflict"].includes(error.message)
+      ) {
+        set.status = 409
+        return { code: error.message }
+      }
       set.status = 400
       return { code: "invalid_request" }
     })
@@ -41,6 +49,10 @@ export function createReportingRoutes(
       async ({ request, query }) => service.summary(await actor(request.headers), query),
       { query: t.Record(t.String(), t.Optional(t.String())) },
     )
+    .get("/catalog", async ({ request }) => {
+      await actor(request.headers)
+      return { items: reportCatalog }
+    })
     .get("/generated", async ({ request }) => exports.history(await actor(request.headers)))
     .get("/generated/:id", async ({ request, params, set }) => {
       const result = await exports.status(await actor(request.headers), params.id)

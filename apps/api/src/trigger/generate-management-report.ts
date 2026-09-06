@@ -5,6 +5,7 @@ import { createDatabase } from "../modules/idp/database/client.js"
 import { createReportWorker } from "../modules/reporting/application/report-worker.js"
 import { createReportingService } from "../modules/reporting/application/reporting-service.js"
 import { createR2ArtifactStorage } from "../modules/reporting/infra/r2-artifact-storage.js"
+import { createReportEmailSender } from "../modules/reporting/infra/report-email-sender.js"
 export const managementReportQueue = queue({
   name: "management-report-export",
   concurrencyLimit: 4,
@@ -35,8 +36,13 @@ export const generateManagementReport = schemaTask({
       bucket: env.R2_REPORT_BUCKET,
     })
     try {
-      return await createReportWorker(db, createReportingService(db), storage, (event) =>
-        console.info(JSON.stringify({ ...event, appEnvironment: env.APP_ENV })),
+      return await createReportWorker(
+        db,
+        createReportingService(db),
+        storage,
+        createReportEmailSender(env),
+        env.IDP_STUDIO_URL,
+        (event) => console.info(JSON.stringify({ ...event, appEnvironment: env.APP_ENV })),
       ).run(payload)
     } finally {
       await pool.end()

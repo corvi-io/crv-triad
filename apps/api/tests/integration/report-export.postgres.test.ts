@@ -47,9 +47,12 @@ beforeAll(async () => {
   await db
     .insert(organization)
     .values({ id: actor.organizationId, name: "Report A", slug: "report-a" })
-  await db
-    .insert(user)
-    .values({ id: actor.actorUserId, name: "Owner", email: "report@example.invalid" })
+  await db.insert(user).values({
+    id: actor.actorUserId,
+    name: "Owner",
+    email: "report@example.invalid",
+    emailVerified: true,
+  })
   await db.insert(member).values({
     id: "report-member",
     organizationId: actor.organizationId,
@@ -102,6 +105,105 @@ describe.sequential("report export lifecycle", () => {
           )
       )[0].value,
     ).toBe(1)
+  })
+
+  it("serializes concurrent requests per tenant and preserves one immutable snapshot", async () => {
+    const service = createReportExportService(
+      db as never,
+      createFakeReportDispatcher(),
+      createFakeArtifactStorage(),
+    )
+    const idempotencyKey = crypto.randomUUID()
+    const input = {
+      ...baseInput,
+      reportType: "commissions",
+      config: { includeReversals: false },
+      idempotencyKey,
+    }
+    const [first, second] = await Promise.all([
+      service.request(actor, input),
+      service.request(actor, input),
+    ])
+    expect(first?.id).toBe(second?.id)
+    expect(first?.configSnapshot).toMatchObject({
+      reportType: "commissions",
+      includeReversals: false,
+    })
+    expect(first).not.toHaveProperty("requesterEmail")
+    const [persisted] = await db
+      .select({ requesterEmail: reportRequest.requesterEmail })
+      .from(reportRequest)
+      .where(eq(reportRequest.id, first?.id ?? ""))
+    expect(persisted?.requesterEmail).toBe("report@example.invalid")
+    await expect(
+      service.request(actor, {
+        ...baseInput,
+        reportType: "sales_revenue",
+        idempotencyKey,
+      }),
+    ).rejects.toThrow("idempotency_conflict")
+  })
+
+  it("requires the requester's active verified identity email", async () => {
+    const service = createReportExportService(
+      db as never,
+      createFakeReportDispatcher(),
+      createFakeArtifactStorage(),
+    )
+    await db.update(user).set({ emailVerified: false }).where(eq(user.id, actor.actorUserId))
+    await expect(
+      service.request(actor, { ...baseInput, idempotencyKey: crypto.randomUUID() }),
+    ).rejects.toThrow("requester_email_unverified")
+    await db.update(user).set({ emailVerified: true }).where(eq(user.id, actor.actorUserId))
+  })
+
+  it("allows only one active generation per tenant", async () => {
+    const storage = createFakeArtifactStorage()
+    const service = createReportExportService(db as never, createFakeReportDispatcher(), storage)
+    const first = await service.request(actor, {
+      ...baseInput,
+      idempotencyKey: crypto.randomUUID(),
+    })
+    const second = await service.request(actor, {
+      ...baseInput,
+      idempotencyKey: crypto.randomUUID(),
+    })
+    let releaseSummary: (() => void) | undefined
+    let markSummaryStarted: (() => void) | undefined
+    const summaryStarted = new Promise<void>((resolve) => {
+      markSummaryStarted = resolve
+    })
+    const summaryReleased = new Promise<void>((resolve) => {
+      releaseSummary = resolve
+    })
+    const delayedReporting = {
+      async summary() {
+        markSummaryStarted?.()
+        await summaryReleased
+        return {
+          summary: {
+            receiptCount: 0,
+            performedItems: 0,
+            netRevenueCents: 0,
+            grossCents: 0,
+            commissionCents: 0,
+            barbershopShareCents: 0,
+            reversalCount: 0,
+          },
+        }
+      },
+    }
+    const worker = createReportWorker(db as never, delayedReporting as never, storage)
+    const firstRun = worker.run({
+      organizationId: actor.organizationId,
+      reportRequestId: first?.id ?? "",
+    })
+    await summaryStarted
+    await expect(
+      worker.run({ organizationId: actor.organizationId, reportRequestId: second?.id ?? "" }),
+    ).rejects.toThrow("tenant_report_concurrency_busy")
+    releaseSummary?.()
+    await expect(firstRun).resolves.toMatchObject({ outcome: "ready" })
   })
 
   it("allows only one concurrent retry to create and dispatch an attempt", async () => {
@@ -184,6 +286,40 @@ describe.sequential("report export lifecycle", () => {
           .where(eq(reportArtifact.reportRequestId, requested?.id ?? ""))
       )[0].value,
     ).toBe(1)
+  })
+
+  it("keeps generation ready while retrying email delivery independently", async () => {
+    const storage = createFakeArtifactStorage()
+    const service = createReportExportService(db as never, createFakeReportDispatcher(), storage)
+    const requested = await service.request(actor, {
+      ...baseInput,
+      reportType: "commissions",
+      idempotencyKey: crypto.randomUUID(),
+    })
+    let deliveries = 0
+    const emailSender = {
+      async send() {
+        deliveries += 1
+        if (deliveries === 1) throw new Error("provider_unavailable")
+        return { deliveryReference: "email-ready" }
+      },
+    }
+    const worker = createReportWorker(
+      db as never,
+      createReportingService(db as never),
+      storage,
+      emailSender,
+      "https://studio.example.com",
+    )
+    await expect(
+      worker.run({ organizationId: actor.organizationId, reportRequestId: requested?.id ?? "" }),
+    ).rejects.toThrow("report_email_delivery_failed")
+    expect((await service.status(actor, requested?.id ?? ""))?.status).toBe("ready")
+    expect((await service.status(actor, requested?.id ?? ""))?.emailDeliveryStatus).toBe("failed")
+    await expect(
+      worker.run({ organizationId: actor.organizationId, reportRequestId: requested?.id ?? "" }),
+    ).resolves.toMatchObject({ outcome: "ready" })
+    expect((await service.status(actor, requested?.id ?? ""))?.emailDeliveryStatus).toBe("sent")
   })
 
   it("deletes expired artifacts and changes ready requests to expired", async () => {
