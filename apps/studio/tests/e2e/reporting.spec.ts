@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright"
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, type Route, test } from "@playwright/test"
 
 const reportsUrl = (scenario = "typical") =>
   `/reports?from=2026-07-01&to=2026-07-31&scenario=${scenario}`
@@ -252,6 +252,22 @@ async function hideDevtools(page: Page) {
 }
 
 async function routeAuthenticatedSession(page: Page) {
+  await page.route("**/api/contexts", (route) =>
+    fulfillJson(route, {
+      activeOrganizationId: "tenant-reporting-fixture",
+      platform: null,
+      status: "available",
+      tenants: [{ id: "tenant-reporting-fixture", name: "Barbearia de teste", role: "owner" }],
+    }),
+  )
+  await page.route("**/api/access/summary", (route) =>
+    fulfillJson(route, {
+      capabilities: [{ capability: "clients.read", allowed: true, reason: null }],
+      organizationId: "tenant-reporting-fixture",
+      role: "owner",
+      subscriptionState: "active",
+    }),
+  )
   await page.route("**/api/auth/**", async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({ headers: corsHeaders(), status: 204 })
@@ -270,6 +286,15 @@ async function routeAuthenticatedSession(page: Page) {
       headers: corsHeaders(),
       status: 200,
     })
+  })
+}
+
+async function fulfillJson(route: Route, body: unknown) {
+  await route.fulfill({
+    body: JSON.stringify(body),
+    contentType: "application/json",
+    headers: corsHeaders(),
+    status: 200,
   })
 }
 

@@ -7,7 +7,10 @@ import { invitation, user } from "../../database/schema.js"
 import type { IdpRole, InvitationStatus } from "../../identity/access-policy.js"
 import { normalizeEmail } from "../../identity/access-policy.js"
 import type { IdpAuth, InvitationAcceptedObserver } from "../../identity/auth.js"
-import type { InvitationDisplayContextProvider } from "../../identity/invitation-display-context.js"
+import type {
+  InvitationDisplayContextProvider,
+  InvitationLogoProvider,
+} from "../../identity/invitation-display-context.js"
 import {
   acceptInvitationForUser,
   createInvitation,
@@ -48,6 +51,8 @@ export function createInvitationRoutes(
   authEmailSender?: Pick<AuthEmailSender, "sendInvitation">,
   onInvitationAccepted?: InvitationAcceptedObserver,
   invitationDisplayContext?: InvitationDisplayContextProvider,
+  invitationLogo?: InvitationLogoProvider,
+  invitationEmailDisplayContext?: InvitationDisplayContextProvider,
 ) {
   const resolveGlobalLimiter = createBoundedRateLimiter(
     RESOLVE_GLOBAL_RATE_LIMIT,
@@ -117,8 +122,32 @@ export function createInvitationRoutes(
               .limit(1)
           )[0],
         ),
-        context: await invitationDisplayContext?.(resolution.invitation.id).catch(() => null),
+        context: publicInvitationContext(
+          await invitationDisplayContext?.(resolution.invitation.id).catch(() => null),
+        ),
       }
+    })
+    .post("/invitations/logo", async ({ request, set, status }) => {
+      set.headers["Cache-Control"] = "no-store"
+      set.headers["Referrer-Policy"] = "no-referrer"
+      const body = await request.json().catch(() => null)
+      const token =
+        body && typeof body === "object" && "token" in body && typeof body.token === "string"
+          ? body.token
+          : ""
+      const rateLimitKey = digestInvitationToken(token) ?? "malformed"
+      if (!resolveGlobalLimiter.accept("global") || !resolveTokenLimiter.accept(rateLimitKey)) {
+        return status(429, { code: "rate_limited" as const })
+      }
+      const resolution = await resolveInvitationToken(db, token)
+      if (resolution.state !== "valid" || !resolution.invitation) {
+        return status(404, { code: "not_found" as const })
+      }
+      const logo = await invitationLogo?.(resolution.invitation.id).catch(() => null)
+      if (!logo) return status(404, { code: "not_found" as const })
+      set.headers["Content-Type"] = logo.contentType
+      set.headers["X-Content-Type-Options"] = "nosniff"
+      return logo.body
     })
     .get("/invitations", async ({ request, status }) => {
       const actorResult = await resolveAdminActor(auth, db, request)
@@ -205,7 +234,9 @@ export function createInvitationRoutes(
           expiresAt: issued.invitation.expiresAt,
           role: issued.invitation.role,
           token: issued.token,
-          displayContext: await invitationDisplayContext?.(issued.invitation.id),
+          displayContext: invitationEmailDisplayContext
+            ? await invitationEmailDisplayContext(issued.invitation.id).catch(() => null)
+            : null,
         })) ?? "skipped"
 
       return status(201, {
@@ -241,7 +272,9 @@ export function createInvitationRoutes(
           expiresAt: issued.invitation.expiresAt,
           role: issued.invitation.role,
           token: issued.token,
-          displayContext: await invitationDisplayContext?.(issued.invitation.id),
+          displayContext: invitationEmailDisplayContext
+            ? await invitationEmailDisplayContext(issued.invitation.id).catch(() => null)
+            : null,
         })) ?? "skipped"
 
       return {
@@ -322,5 +355,18 @@ function mapInvitationResponse(row: typeof invitation.$inferSelect) {
     acceptedByUserId: row.acceptedByUserId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
+function publicInvitationContext(
+  context: Awaited<ReturnType<InvitationDisplayContextProvider>> | null | undefined,
+) {
+  if (!context) return undefined
+  return {
+    organizationName: context.organizationName,
+    ...(context.professionalRole ? { professionalRole: context.professionalRole } : {}),
+    ...(context.unitNames?.length ? { unitNames: context.unitNames } : {}),
+    ...(context.inviterName ? { inviterName: context.inviterName } : {}),
+    logoAvailable: Boolean(context.logoAvailable),
   }
 }

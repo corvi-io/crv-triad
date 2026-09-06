@@ -178,7 +178,9 @@ function createRoutesForKind(
                 expiresAt: issued.expiresAt,
                 role: "member",
                 token: issued.token,
-                displayContext: await invitationDisplayContext?.(issued.identityInvitationId),
+                displayContext: invitationDisplayContext
+                  ? await invitationDisplayContext(issued.identityInvitationId).catch(() => null)
+                  : null,
               })) ?? "skipped"
             if (emailDelivery !== "sent") {
               await service.revokeUndeliveredProfessionalInvitation(
@@ -222,7 +224,9 @@ function createRoutesForKind(
             expiresAt: issued.expiresAt,
             role: "member",
             token: issued.token,
-            displayContext: await invitationDisplayContext?.(issued.identityInvitationId),
+            displayContext: invitationDisplayContext
+              ? await invitationDisplayContext(issued.identityInvitationId).catch(() => null)
+              : null,
           })) ?? "skipped"
         if (emailDelivery !== "sent") throw new InvitationDeliveryError()
         return { emailDelivery, status: "pending" as const }

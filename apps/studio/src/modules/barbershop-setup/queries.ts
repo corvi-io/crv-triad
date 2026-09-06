@@ -1,4 +1,5 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { activationReadinessKey } from "@/modules/onboarding/activation-card"
 import type {
   AvailabilityQuery,
   AvailabilityResult,
@@ -119,7 +120,10 @@ function useEntityMutation<TVariables>(
     onMutate: () => ({ generation: getQueryGeneration(queryClient) }),
     onSuccess: (_data, _variables, context) => {
       if (isCurrentGeneration(queryClient, context.generation))
-        return queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all })
+        return Promise.all([
+          queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all }),
+          queryClient.invalidateQueries({ queryKey: activationReadinessKey }),
+        ])
     },
   })
 }

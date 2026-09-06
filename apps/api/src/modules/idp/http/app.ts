@@ -4,7 +4,10 @@ import { Elysia } from "elysia"
 import type { IdpEnv } from "../config/env.js"
 import type { IdpDatabase } from "../database/client.js"
 import type { IdpAuth, InvitationAcceptedObserver } from "../identity/auth.js"
-import type { InvitationDisplayContextProvider } from "../identity/invitation-display-context.js"
+import type {
+  InvitationDisplayContextProvider,
+  InvitationLogoProvider,
+} from "../identity/invitation-display-context.js"
 import { type AuthEmailSender, createAuthEmailSender } from "../identity/transactional-email.js"
 import {
   createProfileImageStorage,
@@ -27,6 +30,8 @@ export type CreateIdpRoutesInput = {
   db: IdpDatabase
   onInvitationAccepted?: InvitationAcceptedObserver
   invitationDisplayContext?: InvitationDisplayContextProvider
+  invitationEmailDisplayContext?: InvitationDisplayContextProvider
+  invitationLogo?: InvitationLogoProvider
   profileImageStorage?: ProfileImageStorage
 }
 
@@ -37,6 +42,8 @@ export function createIdpRoutes({
   db,
   onInvitationAccepted,
   invitationDisplayContext,
+  invitationEmailDisplayContext,
+  invitationLogo,
   profileImageStorage,
 }: CreateIdpRoutesInput) {
   const app = new Elysia({ name: "idp-routes" })
@@ -50,7 +57,15 @@ export function createIdpRoutes({
     .use(createProfileImageRoutes(auth, db, profileImageStorage ?? createProfileImageStorage(env)))
     .use(createUserRoutes(auth, db))
     .use(
-      createInvitationRoutes(auth, db, emailSender, onInvitationAccepted, invitationDisplayContext),
+      createInvitationRoutes(
+        auth,
+        db,
+        emailSender,
+        onInvitationAccepted,
+        invitationDisplayContext,
+        invitationLogo,
+        invitationEmailDisplayContext,
+      ),
     )
     .use(createAuthRoutes(auth))
 

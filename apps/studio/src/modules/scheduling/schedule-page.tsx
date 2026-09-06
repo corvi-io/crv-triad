@@ -430,6 +430,7 @@ export function SchedulePage({
             }
             onSlot={(slot) => setDrawer({ mode: "create", slot })}
             onTransitionRequest={requestTransition}
+            unitId={search.unit}
           />
         ) : (
           <AgendaList

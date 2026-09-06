@@ -26,7 +26,11 @@ import type { IdpAuth, InvitationAcceptedObserver } from "../../modules/idp/iden
 import type { AuthEmailSender } from "../../modules/idp/identity/transactional-email.js"
 import { createLeadRoutes } from "../../modules/leads/http/routes.js"
 import { createActivationReadinessService } from "../../modules/onboarding/application/activation-readiness.js"
-import { createInvitationDisplayContextProvider } from "../../modules/onboarding/application/invitation-display-context.js"
+import {
+  createInvitationDisplayContextProvider,
+  createInvitationEmailDisplayContextProvider,
+  createInvitationLogoProvider,
+} from "../../modules/onboarding/application/invitation-display-context.js"
 import { createOnboardingRoutes } from "../../modules/onboarding/http/routes.js"
 import {
   createFakeArtifactStorage,
@@ -89,7 +93,6 @@ export function createRestApp(input: CreateRestAppInput) {
   )
   const observeBusinessRequest = (event: object) =>
     console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
-  const invitationDisplayContext = createInvitationDisplayContextProvider(input.db)
   const reportingService = createReportingService(input.db)
   const observeReportLifecycle = (event: Record<string, unknown>) =>
     console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
@@ -102,6 +105,12 @@ export function createRestApp(input: CreateRestAppInput) {
           bucket: input.env.PROFILE_IMAGE_R2_BUCKET,
         })
       : createLocalBusinessLogoStorage(input.env.BUSINESS_MEDIA_LOCAL_DIRECTORY)
+  const invitationDisplayContext = createInvitationDisplayContextProvider(input.db)
+  const invitationEmailDisplayContext = createInvitationEmailDisplayContextProvider(
+    input.db,
+    businessLogoStorage,
+  )
+  const invitationLogo = createInvitationLogoProvider(input.db, businessLogoStorage)
   const artifactStorage =
     input.env.REPORT_EXPORT_PROVIDER === "trigger"
       ? createR2ArtifactStorage({
@@ -138,6 +147,8 @@ export function createRestApp(input: CreateRestAppInput) {
       createIdpRoutes({
         ...input,
         invitationDisplayContext,
+        invitationEmailDisplayContext,
+        invitationLogo,
       }),
     )
     .use(
@@ -178,7 +189,7 @@ export function createRestApp(input: CreateRestAppInput) {
         authorizeTenantAction,
         input.authEmailSender,
         createCatalogAuditWriter(input.db),
-        invitationDisplayContext,
+        invitationEmailDisplayContext,
       ),
     )
     .use(

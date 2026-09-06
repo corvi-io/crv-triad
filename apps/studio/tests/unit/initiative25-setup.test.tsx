@@ -94,7 +94,7 @@ describe("initiative 25 setup production surfaces", () => {
     expect(await screen.findByText("Comissões")).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText(/No mês/)).toHaveTextContent("30,00"))
     await user.click(screen.getByRole("combobox", { name: "Profissional da comissão" }))
-    await user.click(screen.getByRole("option", { name: "Ana" }))
+    await user.click(await screen.findByRole("option", { name: "Ana" }))
     fireEvent.click(screen.getByRole("button", { name: "Salvar regra" }))
     await waitFor(() =>
       expect(saveCommissionPolicy).toHaveBeenCalledWith(

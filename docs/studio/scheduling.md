@@ -1,5 +1,13 @@
 # Production scheduling
 
+## Initial position for today
+
+After layout, today's Agenda assigns its internal `scrollTop` once per local date and unit key so the
+current marker sits near the usable viewport center. The value is clamped, excludes the sticky
+header, and uses the opening boundary when time is outside the range. It preserves horizontal/page
+scroll and focus. Minute ticks, refreshes, resize, and rerenders do not recenter after user control;
+leaving today resets eligibility for a later return.
+
 Normal Agenda, availability and Dashboard routes use the tenant-scoped HTTP API. Set
 `VITE_SCHEDULING_SOURCE=http`, `VITE_BARBERSHOP_SETUP_SOURCE=http` and
 `VITE_CLIENT_MANAGEMENT_SOURCE=http`. HTTP is the scheduling default; failures never substitute

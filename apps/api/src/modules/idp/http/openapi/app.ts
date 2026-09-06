@@ -208,6 +208,37 @@ export function createOpenApiDocument(baseUrl: string): OpenAPIObject {
           },
         },
       },
+      "/invitations/logo": {
+        post: {
+          tags: ["Invitations"],
+          summary: "Read a valid invitation's business logo",
+          description:
+            "Validates the opaque invitation proof before returning private, no-store image bytes. Storage keys and permanent URLs are never exposed.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["token"],
+                  properties: { token: { type: "string", writeOnly: true } },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Private invitation logo bytes",
+              content: {
+                "image/jpeg": { schema: { type: "string", format: "binary" } },
+                "image/png": { schema: { type: "string", format: "binary" } },
+                "image/webp": { schema: { type: "string", format: "binary" } },
+              },
+            },
+            "404": { description: "Proof is invalid, terminal, or has no available logo" },
+          },
+        },
+      },
       "/users": {
         get: {
           tags: ["Users"],

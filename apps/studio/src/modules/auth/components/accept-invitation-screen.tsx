@@ -15,6 +15,7 @@ import {
   acceptInvitation,
   type InvitationResolution,
   resolveInvitation,
+  resolveInvitationLogo,
 } from "@/modules/auth/services/auth-client"
 import { Button, buttonVariants } from "@/modules/shared/components/ui/button"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/modules/shared/components/ui/field"
@@ -33,6 +34,7 @@ type InvitationAcceptanceValues = z.infer<typeof invitationAcceptanceSchema>
 export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
   const [invitationToken] = useState(token)
   const [resolution, setResolution] = useState<InvitationResolution | null>(null)
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const navigate = useNavigate()
   const [screenState, setScreenState] = useState<ScreenState>(
     invitationToken ? "validating" : "invalid",
@@ -78,6 +80,23 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
     }
   }, [invitationToken, screenState])
 
+  useEffect(() => {
+    if (!invitationToken || screenState !== "valid" || !resolution?.context?.logoAvailable) return
+    const controller = new AbortController()
+    let objectUrl: string | null = null
+    resolveInvitationLogo(invitationToken, controller.signal)
+      .then((logo) => {
+        if (!logo || controller.signal.aborted) return
+        objectUrl = URL.createObjectURL(logo)
+        setLogoUrl(objectUrl)
+      })
+      .catch(() => undefined)
+    return () => {
+      controller.abort()
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [invitationToken, resolution?.context?.logoAvailable, screenState])
+
   async function handleAccept(values: InvitationAcceptanceValues) {
     if (!invitationToken || isSubmitting || screenState !== "valid") return
     setIsSubmitting(true)
@@ -102,7 +121,7 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
         }
         return
       }
-      await navigate({ replace: true, to: "/overview" })
+      await navigate({ replace: true, to: invitationLanding(resolution) })
     } catch {
       setSubmitError("Não foi possível criar sua senha agora. Tente novamente.")
     } finally {
@@ -132,16 +151,7 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
         )
         return
       }
-      await navigate({
-        params: { section: "professionals" },
-        replace: true,
-        search: {
-          availabilityDate: new Date().toISOString().slice(0, 10),
-          availabilityView: "week",
-          scenario: "production",
-        },
-        to: "/barbershop-setup/$section",
-      })
+      await navigate({ replace: true, to: invitationLanding(resolution) })
     } catch {
       setSubmitError("Não foi possível aceitar o convite agora. Tente novamente.")
     } finally {
@@ -186,10 +196,8 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
 
       {screenState === "valid" && resolution?.hasAccount ? (
         <div className="flex flex-col gap-5">
-          <AuthFeedback tone="info">
-            Este convite pertence a uma conta existente. Entre com sua conta para aceitar o vínculo
-            com a barbearia.
-          </AuthFeedback>
+          <InvitationContext logoUrl={logoUrl} resolution={resolution} />
+          <AuthFeedback tone="info">Entre com seu acesso para confirmar o convite.</AuthFeedback>
           {submitError ? <AuthFeedback tone="error">{submitError}</AuthFeedback> : null}
           <Button className="w-full" isLoading={isSubmitting} onClick={handleExistingAccountAccept}>
             Entrar e aceitar convite
@@ -199,10 +207,8 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
 
       {screenState === "valid" && !resolution?.hasAccount ? (
         <form className="space-y-5" noValidate onSubmit={handleSubmit(handleAccept)}>
-          <AuthFeedback tone="info">
-            Convite válido para o perfil de{" "}
-            {resolution?.role === "admin" ? "administrador" : "membro"}.
-          </AuthFeedback>
+          <InvitationContext logoUrl={logoUrl} resolution={resolution} />
+          <AuthFeedback tone="info">Crie seu acesso para confirmar o convite.</AuthFeedback>
           {submitError ? <AuthFeedback tone="error">{submitError}</AuthFeedback> : null}
           <FieldGroup>
             <Field data-invalid={!!errors.name}>
@@ -259,6 +265,64 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
       ) : null}
     </AuthShell>
   )
+}
+
+function InvitationContext({
+  logoUrl,
+  resolution,
+}: {
+  logoUrl: string | null
+  resolution: InvitationResolution | null
+}) {
+  const context = resolution?.context
+  if (!context) return null
+  return (
+    <section
+      className="invitation-threshold-reveal rounded-xl border border-primary/30 bg-primary/5 p-4 motion-reduce:animate-none"
+      aria-labelledby="invitation-business-name"
+    >
+      <div className="flex items-center gap-3">
+        {logoUrl ? (
+          <img
+            alt=""
+            className="size-11 shrink-0 rounded-full border border-border object-cover"
+            height={44}
+            src={logoUrl}
+            width={44}
+          />
+        ) : (
+          <span
+            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+            aria-hidden="true"
+          >
+            {context.organizationName.slice(0, 2).toLocaleUpperCase("pt-BR")}
+          </span>
+        )}
+        <div className="min-w-0">
+          <h2 className="truncate font-heading text-lg font-medium" id="invitation-business-name">
+            {context.organizationName}
+          </h2>
+          {context.professionalRole ? (
+            <p className="text-sm text-muted-foreground">{context.professionalRole}</p>
+          ) : null}
+        </div>
+      </div>
+      {context.unitNames?.length ? (
+        <p className="mt-3 text-sm">
+          {context.unitNames.length === 1 ? "Unidade" : "Unidades"}: {context.unitNames.join(", ")}
+        </p>
+      ) : null}
+      {context.inviterName ? (
+        <p className="mt-1 text-sm text-muted-foreground">
+          Convite enviado por {context.inviterName}.
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
+function invitationLanding(resolution: InvitationResolution | null): "/agenda" | "/overview" {
+  return resolution?.context?.professionalRole ? "/agenda" : "/overview"
 }
 
 const terminalStateCopy = {

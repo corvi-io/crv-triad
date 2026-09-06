@@ -4,7 +4,7 @@
 
 - Planning state: Ready
 - Approval state: Approved
-- Delivery state: Not started
+- Delivery state: Complete (local testable branch)
 - Owner: CRV Triad
 - Last updated: 2026-09-06
 - Approved by/date: User / 2026-09-06

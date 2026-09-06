@@ -34,7 +34,11 @@ import {
 import { cn } from "@/modules/shared/lib/utils"
 import type { AgendaColumnId } from "./agenda"
 import { AgendaAvatar } from "./agenda-avatar"
-import { type AgendaCurrentTimeMarker, resolveAgendaCurrentTimeMarker } from "./agenda-current-time"
+import {
+  type AgendaCurrentTimeMarker,
+  resolveAgendaCurrentTimeMarker,
+  resolveAgendaDate,
+} from "./agenda-current-time"
 import { resolveAgendaInitialScrollTop } from "./agenda-initial-position"
 import type { Appointment, Professional, ScheduleDay, Service } from "./contracts"
 import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
@@ -72,6 +76,7 @@ export function AgendaBoard({
   onReschedule,
   onSlot,
   onTransitionRequest,
+  unitId,
 }: {
   day: ScheduleDay
   isReschedulePending: boolean
@@ -80,6 +85,7 @@ export function AgendaBoard({
   onReschedule: (appointment: Appointment, destination: AgendaDropDestination) => void
   onSlot: (slot: AgendaDropDestination) => void
   onTransitionRequest: (appointment: Appointment, column?: AgendaColumnId) => void
+  unitId: string
 }) {
   const slots = useMemo(() => makeSlots(day.startTime, day.endTime), [day.endTime, day.startTime])
   const services = useMemo(
@@ -94,12 +100,13 @@ export function AgendaBoard({
     now: new Date(currentMinute),
     selectedDate: day.date,
     startTime: day.startTime,
+    timezone: day.timezone,
   })
   const keyboardCursorRef = useRef<AgendaKeyboardCursor | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
   const markerRef = useRef<HTMLSpanElement | null>(null)
   const positionedKeyRef = useRef<string | null>(null)
-  const positioningKey = `${day.date}:${day.unitName}`
+  const positioningKey = `${day.date}:${unitId}`
   const keyboardCoordinateGetter = useMemo(
     () => createAgendaKeyboardCoordinates(keyboardCursorRef),
     [],
@@ -152,8 +159,7 @@ export function AgendaBoard({
     if (positionedKeyRef.current === positioningKey) return
     const scroller = scrollerRef.current
     if (!scroller) return
-    const now = new Date(currentMinute)
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+    const today = resolveAgendaDate(new Date(currentMinute), day.timezone)
     if (day.date !== today) {
       positionedKeyRef.current = null
       return
@@ -173,7 +179,7 @@ export function AgendaBoard({
     })
     scroller.scrollLeft = horizontalPosition
     positionedKeyRef.current = positioningKey
-  }, [currentMinute, day.date, positioningKey])
+  }, [currentMinute, day.date, day.timezone, positioningKey])
 
   return (
     <DndContext

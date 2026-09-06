@@ -63,7 +63,7 @@ route artifacts are updated by their owning task and never edited concurrently.
 
 ### TASK-001 — Reconcile Initiative 25 and freeze the first-value contract
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-001–REQ-010, REQ-017, AC-001–AC-009, AC-016
 - Depends on: Explicit approval of Initiative 26; Initiative 25 implementation and evidence complete
 - Can parallelize with: None
@@ -84,7 +84,7 @@ route artifacts are updated by their owning task and never edited concurrently.
 
 ### TASK-002 — Implement the bounded activation-readiness API
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-001–REQ-005, REQ-015–REQ-017, AC-001–AC-004, AC-014–AC-016
 - Depends on: TASK-001
 - Can parallelize with: TASK-004, TASK-007
@@ -106,7 +106,7 @@ route artifacts are updated by their owning task and never edited concurrently.
 
 ### TASK-003 — Add progressive owner/admin activation to existing Studio surfaces
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-001–REQ-005, REQ-014, REQ-017, REQ-019–REQ-020, AC-001–AC-004, AC-013,
   AC-016, AC-018–AC-019
 - Depends on: TASK-002
@@ -133,7 +133,7 @@ route artifacts are updated by their owning task and never edited concurrently.
 
 ### TASK-004 — Compose secure business context for identity invitations
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-006–REQ-009, REQ-015–REQ-017, AC-005–AC-009, AC-014–AC-016
 - Depends on: TASK-001
 - Can parallelize with: TASK-002, TASK-007
@@ -156,7 +156,7 @@ route artifacts are updated by their owning task and never edited concurrently.
 
 ### TASK-005 — Refine invitation acceptance and role-correct workspace entry
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-004–REQ-010, REQ-014, REQ-017, REQ-019–REQ-020, AC-004–AC-009, AC-013,
   AC-016, AC-018–AC-019
 - Depends on: TASK-004
@@ -179,7 +179,7 @@ route artifacts are updated by their owning task and never edited concurrently.
 
 ### TASK-006 — Align contextual invitation email delivery and previews
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-006–REQ-010, REQ-014, REQ-017, AC-005–AC-009, AC-013, AC-016
 - Depends on: TASK-004
 - Can parallelize with: TASK-003, TASK-005, TASK-007
@@ -199,7 +199,7 @@ route artifacts are updated by their owning task and never edited concurrently.
 
 ### TASK-007 — Position today's Agenda once at the current operational time
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-011–REQ-014, REQ-017, REQ-019–REQ-020, AC-010–AC-013, AC-016,
   AC-018–AC-019
 - Depends on: TASK-001
@@ -222,7 +222,7 @@ route artifacts are updated by their owning task and never edited concurrently.
 
 ### TASK-008 — Add privacy-safe onboarding observability
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-016, AC-015
 - Depends on: TASK-002, TASK-004, TASK-007
 - Can parallelize with: None
@@ -242,7 +242,7 @@ route artifacts are updated by their owning task and never edited concurrently.
 
 ### TASK-009 — Execute cross-boundary automated and product QA
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-001–REQ-020, AC-001–AC-019
 - Depends on: TASK-003, TASK-005, TASK-006, TASK-007, TASK-008
 - Can parallelize with: None
@@ -265,7 +265,7 @@ route artifacts are updated by their owning task and never edited concurrently.
 
 ### TASK-010 — Finalize rollout, rollback, and durable documentation
 
-- Status: Pending
+- Status: Complete
 - Covers: REQ-017–REQ-020, AC-016–AC-019
 - Depends on: TASK-009
 - Can parallelize with: None
@@ -288,28 +288,34 @@ route artifacts are updated by their owning task and never edited concurrently.
 
 Record evidence as tasks are completed:
 
-- Command:
-- Result:
-- Notes:
+- API focused: 5 files / 58 tests passed after blocker corrections.
+- PostgreSQL: disposable `idp26_test`, sequential execution, 9 files / 45 tests passed.
+- API package: check, build, and coverage gate passed; exact final totals are recorded in the
+  Initiative 26 evidence document.
+- Studio package: 80 files / 788 tests, production-boundary check, and build passed.
+- Playwright: 101/101 passed with four workers after reconciling legacy context/access mocks,
+  deterministic fixture clocks, and the drawer transition assertion.
+- Notes: external R2/Resend rendering and hml pending-invitation smoke remain deployment checks;
+  no provider secret was persisted or logged.
 
 ## Risks And Follow-Ups
 
-- [ ] Initiative 25 may materially change profile/logo/readiness ownership; TASK-001 must reconcile
+- [x] Initiative 25 may materially change profile/logo/readiness ownership; TASK-001 reconciled
   its implemented contract before any overlapping edit.
-- [ ] Over-broad readiness can recreate the rejected wizard as a checklist. Preserve
+- [x] Over-broad readiness can recreate the rejected wizard as a checklist. Preserved
   `schedule_ready` as the only required owner activation milestone.
-- [ ] Invitation context can become an enumeration or leakage vector. Keep it behind a valid opaque
+- [x] Invitation context can become an enumeration or leakage vector. Kept it behind a valid opaque
   token, minimal, no-store, rate-limited, and absent from terminal states/logs.
-- [ ] Cross-module projection can become a catch-all aggregator. Keep stable step IDs and narrow
+- [x] Cross-module projection can become a catch-all aggregator. Kept stable step IDs and narrow
   existence queries; do not expose raw domain entities.
-- [ ] Layout timing can recenter Agenda after user interaction. Make eligibility one-time per
+- [x] Layout timing can recenter Agenda after user interaction. Eligibility is one-time per
   date/unit key and test minute/refresh/resize/manual-scroll cases.
-- [ ] Visual ambition can become generic spectacle or performance debt. Keep one earned gold-thread
+- [x] Visual ambition can become generic spectacle or performance debt. Kept one earned gold-thread
   system, no new dependency by default, no navigation delay, and require settled/reduced-motion plus
   measured desktop/mobile evidence.
-- [ ] Client analytics remains deferred until consent/identity governance is confirmed; operational
+- [x] Client analytics remains deferred until consent/identity governance is confirmed; operational
   server metrics must still establish a baseline.
-- [ ] Consider an explicit `Voltar para agora` command only after evidence shows users need repeat
+- [x] Consider an explicit `Voltar para agora` command only after evidence shows users need repeat
   navigation; it is outside this initiative.
 
 ## Scope Changes
@@ -322,9 +328,9 @@ Record evidence as tasks are completed:
 
 ## Definition of Done
 
-- [ ] The implemented PRD version was explicitly approved.
-- [ ] Initiative 25 completion was reconciled before overlapping implementation.
-- [ ] All applicable gates in
+- [x] The implemented PRD version was explicitly approved.
+- [x] Initiative 25 completion was reconciled before overlapping implementation.
+- [x] All applicable gates in
       `.agents/skills/triad-initiative-workflow/references/planning-gates.md` pass.
-- [ ] Every in-scope AC has reviewable evidence.
-- [ ] Deviations, skipped checks, residual risks, and follow-ups are recorded.
+- [x] Every in-scope AC has reviewable evidence.
+- [x] Deviations, skipped checks, residual risks, and follow-ups are recorded.

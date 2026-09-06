@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm"
+import { and, asc, eq, inArray, min } from "drizzle-orm"
 
 import { readSeries } from "../../availability/application/availability-service.js"
 import {
@@ -79,13 +79,9 @@ export function createActivationReadinessService(db: IdpDatabase, clock = () => 
       : []
     const unitReady = Boolean(location?.timezone && periods.some((period) => period.days.length))
 
-    const candidates = location
+    const [eligibleProfessional] = location
       ? await db
-          .select({
-            durationMinutes: service.durationMinutes,
-            professionalId: professional.id,
-            serviceId: service.id,
-          })
+          .select({ id: professional.id })
           .from(professional)
           .innerJoin(user, eq(user.id, professional.globalUserId))
           .innerJoin(
@@ -103,14 +99,45 @@ export function createActivationReadinessService(db: IdpDatabase, clock = () => 
               eq(professionalUnit.unitId, location.id),
             ),
           )
-          .leftJoin(
+          .where(
+            and(
+              eq(professional.organizationId, context.organizationId),
+              eq(professional.status, "active"),
+              eq(user.status, "active"),
+              eq(member.status, "active"),
+            ),
+          )
+          .orderBy(asc(professional.id))
+          .limit(1)
+      : []
+    const [eligibleService] = location
+      ? await db
+          .select({ id: service.id })
+          .from(professional)
+          .innerJoin(user, eq(user.id, professional.globalUserId))
+          .innerJoin(
+            member,
+            and(
+              eq(member.organizationId, professional.organizationId),
+              eq(member.userId, professional.globalUserId),
+            ),
+          )
+          .innerJoin(
+            professionalUnit,
+            and(
+              eq(professionalUnit.organizationId, professional.organizationId),
+              eq(professionalUnit.professionalId, professional.id),
+              eq(professionalUnit.unitId, location.id),
+            ),
+          )
+          .innerJoin(
             professionalService,
             and(
               eq(professionalService.organizationId, professional.organizationId),
               eq(professionalService.professionalId, professional.id),
             ),
           )
-          .leftJoin(
+          .innerJoin(
             service,
             and(
               eq(service.organizationId, professional.organizationId),
@@ -118,7 +145,7 @@ export function createActivationReadinessService(db: IdpDatabase, clock = () => 
               eq(service.status, "active"),
             ),
           )
-          .leftJoin(
+          .innerJoin(
             serviceUnit,
             and(
               eq(serviceUnit.organizationId, professional.organizationId),
@@ -134,16 +161,12 @@ export function createActivationReadinessService(db: IdpDatabase, clock = () => 
               eq(member.status, "active"),
             ),
           )
-          .limit(50)
+          .orderBy(asc(professional.id), asc(service.id))
+          .limit(1)
       : []
-    const professionalReady = candidates.length > 0
-    const eligible = candidates.filter(
-      (item): item is { durationMinutes: number; professionalId: string; serviceId: string } =>
-        Boolean(item.serviceId && item.durationMinutes),
-    )
-    const serviceReady = eligible.length > 0
-    let availabilityReady = false
-    if (unitReady && location?.timezone && eligible.length) {
+    let today = ""
+    let occurrences: ReturnType<typeof projectAvailability> = []
+    if (unitReady && location?.timezone) {
       const parts = new Intl.DateTimeFormat("en-US", {
         timeZone: location.timezone,
         year: "numeric",
@@ -152,15 +175,95 @@ export function createActivationReadinessService(db: IdpDatabase, clock = () => 
       }).formatToParts(clock())
       const part = (type: Intl.DateTimeFormatPartTypes) =>
         parts.find((item) => item.type === type)?.value ?? ""
-      const today = `${part("year")}-${part("month")}-${part("day")}`
+      today = `${part("year")}-${part("month")}-${part("day")}`
       const end = addDate(today, 13)
-      const occurrences = projectAvailability(
+      occurrences = projectAvailability(
         await readSeries(db, context.organizationId, location.id, today, end),
         today,
         end,
       )
-      availabilityReady = eligible.some((candidate) =>
-        hasSchedulableSlot(candidate, location.id, today, periods, occurrences),
+    }
+    const availableProfessionalIds = [
+      ...new Set(
+        occurrences
+          .filter((occurrence) => occurrence.kind === "available")
+          .map((occurrence) => occurrence.professionalId),
+      ),
+    ].sort()
+    const candidates =
+      location && availableProfessionalIds.length
+        ? await db
+            .select({
+              durationMinutes: min(service.durationMinutes),
+              professionalId: professional.id,
+            })
+            .from(professional)
+            .innerJoin(user, eq(user.id, professional.globalUserId))
+            .innerJoin(
+              member,
+              and(
+                eq(member.organizationId, professional.organizationId),
+                eq(member.userId, professional.globalUserId),
+              ),
+            )
+            .innerJoin(
+              professionalUnit,
+              and(
+                eq(professionalUnit.organizationId, professional.organizationId),
+                eq(professionalUnit.professionalId, professional.id),
+                eq(professionalUnit.unitId, location.id),
+              ),
+            )
+            .innerJoin(
+              professionalService,
+              and(
+                eq(professionalService.organizationId, professional.organizationId),
+                eq(professionalService.professionalId, professional.id),
+              ),
+            )
+            .innerJoin(
+              service,
+              and(
+                eq(service.organizationId, professional.organizationId),
+                eq(service.id, professionalService.serviceId),
+                eq(service.status, "active"),
+              ),
+            )
+            .innerJoin(
+              serviceUnit,
+              and(
+                eq(serviceUnit.organizationId, professional.organizationId),
+                eq(serviceUnit.serviceId, service.id),
+                eq(serviceUnit.unitId, location.id),
+              ),
+            )
+            .where(
+              and(
+                eq(professional.organizationId, context.organizationId),
+                eq(professional.status, "active"),
+                eq(user.status, "active"),
+                eq(member.status, "active"),
+                inArray(professional.id, availableProfessionalIds),
+              ),
+            )
+            .groupBy(professional.id)
+            .orderBy(asc(professional.id))
+        : []
+    const professionalReady = Boolean(eligibleProfessional)
+    const eligible = candidates
+    const serviceReady = Boolean(eligibleService)
+    let availabilityReady = false
+    if (unitReady && location?.timezone && eligible.length) {
+      availabilityReady = hasAnySchedulableSlot(
+        eligible.flatMap((candidate) =>
+          candidate.durationMinutes === null
+            ? []
+            : [{ ...candidate, durationMinutes: candidate.durationMinutes }],
+        ),
+        location.id,
+        today,
+        periods,
+        occurrences,
       )
     }
 
@@ -189,7 +292,7 @@ export function createActivationReadinessService(db: IdpDatabase, clock = () => 
   }
 }
 
-function hasSchedulableSlot(
+export function hasSchedulableSlot(
   candidate: { durationMinutes: number; professionalId: string },
   unitId: string,
   startDate: string,
@@ -199,13 +302,20 @@ function hasSchedulableSlot(
   for (let dayIndex = 0; dayIndex < 14; dayIndex++) {
     const date = addDate(startDate, dayIndex)
     for (const period of periods.filter((item) => item.days.includes(weekday(date)))) {
-      for (
-        let minute = toMinute(period.start);
-        minute + candidate.durationMinutes <= toMinute(period.end);
-        minute += 15
-      ) {
-        const start = toTime(minute)
-        const end = toTime(minute + candidate.durationMinutes)
+      const boundaries = new Set([period.start])
+      for (const occurrence of occurrences) {
+        if (
+          occurrence.date === date &&
+          occurrence.professionalId === candidate.professionalId &&
+          occurrence.unitId === unitId
+        ) {
+          boundaries.add(occurrence.start)
+          boundaries.add(occurrence.end)
+        }
+      }
+      for (const start of [...boundaries].sort()) {
+        const end = toTime(toMinute(start) + candidate.durationMinutes)
+        if (end > period.end) continue
         try {
           assertOpeningHours(
             {
@@ -233,6 +343,18 @@ function hasSchedulableSlot(
     }
   }
   return false
+}
+
+export function hasAnySchedulableSlot(
+  candidates: readonly { durationMinutes: number; professionalId: string }[],
+  unitId: string,
+  startDate: string,
+  periods: readonly { days: readonly string[]; start: string; end: string }[],
+  occurrences: ReturnType<typeof projectAvailability>,
+) {
+  return candidates.some((candidate) =>
+    hasSchedulableSlot(candidate, unitId, startDate, periods, occurrences),
+  )
 }
 
 const toMinute = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5))

@@ -149,6 +149,24 @@ describe("Agenda current-time marker", () => {
     })
   })
 
+  it("uses the unit timezone for its date and clock instead of the browser timezone", () => {
+    expect(
+      resolveAgendaCurrentTimeMarker({
+        ...workingDay,
+        now: new Date("2026-07-22T17:37:00.000Z"),
+        timezone: "America/Recife",
+      }),
+    ).toMatchObject({ label: "Agora 14:37", time: "14:37" })
+
+    expect(
+      resolveAgendaCurrentTimeMarker({
+        ...workingDay,
+        now: new Date("2026-07-23T02:00:00.000Z"),
+        timezone: "America/Recife",
+      }),
+    ).toBeUndefined()
+  })
+
   it("includes the opening minute and excludes the closing minute", () => {
     expect(
       resolveAgendaCurrentTimeMarker({

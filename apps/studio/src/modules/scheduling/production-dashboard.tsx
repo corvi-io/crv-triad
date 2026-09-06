@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { addDays, format, parseISO } from "date-fns"
 import { MapPinIcon } from "lucide-react"
 import { useState } from "react"
+import { ActivationCard } from "@/modules/onboarding/activation-card"
 import { SingleSelectListFilter } from "@/modules/shared/components/data-display/list-filter"
 import { DatePicker } from "@/modules/shared/components/forms/date-picker"
 import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
@@ -82,6 +83,7 @@ function Dashboard({ search, onSearchChange }: DashboardProps) {
     )
     return (
       <>
+        <ActivationCard />
         <WorkspaceOverview
           state="ready"
           model={model}

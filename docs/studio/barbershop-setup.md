@@ -1,5 +1,16 @@
 # Studio Barbershop Setup
 
+## Role-aware activation
+
+The production overview consumes server-derived readiness. Owners and administrators see one
+optional `Comece por aqui` card pointing at the next real setup surface; members do not receive
+owner configuration as their primary task. Setup mutations invalidate readiness, and completion may
+regress when authoritative facts change.
+
+The earned `schedule_ready` state uses one restrained gold thread and `Abrir agenda`. Content remains
+visible without animation, reduced motion disables the reveal, and navigation never waits. The
+designer handoff was evidence only; no modal, session-storage, route, CSS, or memory source was reused.
+
 ENG-41 integrates `/barbershop-setup` into the authenticated Studio workspace. Each configuration
 section has its own route under `/barbershop-setup/{section}`; the base route redirects to the
 overview. The module uses the

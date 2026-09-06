@@ -1,4 +1,4 @@
-import { Text } from "@react-email/components"
+import { Img, Text } from "@react-email/components"
 import type { InvitationDisplayContext } from "../invitation-display-context.js"
 import { AuthEmailLayout, authEmailTextStyle } from "./auth-email-layout.js"
 
@@ -32,6 +32,15 @@ export function InvitationEmailTemplate({
           : "A rotina da barbearia começa por aqui."
       }
     >
+      {context?.logoDataUrl ? (
+        <Img
+          alt={`Logo de ${context.organizationName}`}
+          height="64"
+          src={context.logoDataUrl}
+          style={{ borderRadius: "32px", margin: "0 0 20px", objectFit: "cover" }}
+          width="64"
+        />
+      ) : null}
       <Text style={authEmailTextStyle}>
         {context
           ? `Confirme o acesso à barbearia ${context.organizationName}${context.professionalRole ? ` como ${context.professionalRole}` : ""}.`

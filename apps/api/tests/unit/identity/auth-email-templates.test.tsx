@@ -52,6 +52,7 @@ describe("authentication email templates", () => {
     const message = await buildInvitationMessage(env, {
       displayContext: {
         inviterName: "Ana",
+        logoDataUrl: "data:image/png;base64,c3ludGhldGlj",
         organizationName: "Barbearia Aurora",
         professionalRole: "Barbeiro sênior",
         unitNames: ["Boa Viagem", "Centro"],
@@ -67,6 +68,8 @@ describe("authentication email templates", () => {
       expect(message.html).toContain(expected)
       expect(message.text).toContain(expected)
     }
+    expect(message.html).toContain("data:image/png;base64,c3ludGhldGlj")
+    expect(message.html).toContain("Logo de Barbearia Aurora")
   })
 
   it("escapes untrusted presentation text through React rendering", async () => {

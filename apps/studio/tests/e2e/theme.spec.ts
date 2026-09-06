@@ -26,6 +26,10 @@ const scheduleStates = [
   ["no-show", "No-show"],
 ] as const
 
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-07-19T12:00:00-03:00"))
+})
+
 test("resolves saved and system preferences before the first animation frame", async ({
   browser,
 }) => {
