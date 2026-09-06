@@ -292,7 +292,8 @@ Record evidence as tasks are completed:
 - PostgreSQL: disposable `idp26_test`, sequential execution, 9 files / 45 tests passed.
 - API package: check, build, and coverage gate passed; exact final totals are recorded in the
   Initiative 26 evidence document.
-- Studio package: 80 files / 788 tests, production-boundary check, and build passed.
+- Studio package: 80 files / 804 tests, production-boundary check, build, and coverage thresholds
+  passed.
 - Playwright: 101/101 passed with four workers after reconciling legacy context/access mocks,
   deterministic fixture clocks, and the drawer transition assertion.
 - Notes: external R2/Resend rendering and hml pending-invitation smoke remain deployment checks;

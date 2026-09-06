@@ -15,7 +15,8 @@
 - API check: 45 files, 397 tests passed; API build passed.
 - PostgreSQL isolated loopback `idp26_test`, one worker: 9 files, 45 tests passed.
 - Studio invitation/activation/Agenda focused unit suites: 39/39 passed.
-- Studio check: 80 files, 788 tests passed; production-boundary verification and build passed.
+- Studio check/coverage: 80 files, 804 tests passed; production-boundary verification and build
+  passed. Coverage: 84.52% statements, 80.20% branches, 82.66% functions, and 86.22% lines.
 - Focused Playwright invitation/Agenda recheck: 25/25 passed with one worker, including axe,
   narrow layout, themes, forced colors, reduced motion, focus, horizontal bounds, and replay.
 - Full Playwright sweep: 101/101 passed with four workers. Legacy reporting and notification
