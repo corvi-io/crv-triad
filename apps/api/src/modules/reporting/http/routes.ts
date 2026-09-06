@@ -5,11 +5,13 @@ import type { ReportExportService } from "../application/report-export-service.j
 import type { ReportingService } from "../application/reporting-service.js"
 
 class AccessError extends Error {}
+class ExportUnavailableError extends Error {}
 export function createReportingRoutes(
   service: ReportingService,
   exports: ReportExportService,
   resolve: TenantContextResolver,
   authorize: TenantActionAuthorizer,
+  exportEnabled = true,
 ) {
   async function actor(
     headers: Headers,
@@ -27,6 +29,10 @@ export function createReportingRoutes(
         set.status = error.message === "unauthenticated" ? 401 : 403
         return { code: error.message }
       }
+      if (error instanceof ExportUnavailableError) {
+        set.status = 503
+        return { code: "report_export_unavailable" }
+      }
       set.status = 400
       return { code: "invalid_request" }
     })
@@ -36,18 +42,23 @@ export function createReportingRoutes(
       { query: t.Record(t.String(), t.Optional(t.String())) },
     )
     .get("/generated", async ({ request }) => exports.history(await actor(request.headers)))
-    .get("/generated/:id", async ({ request, params }) =>
-      exports.status(await actor(request.headers), params.id),
-    )
+    .get("/generated/:id", async ({ request, params, set }) => {
+      const result = await exports.status(await actor(request.headers), params.id)
+      if (!result) set.status = 404
+      return result ?? { code: "not_found" }
+    })
     .post(
       "/generated",
       async ({ request, body }) =>
-        exports.request(await actor(request.headers, "reports.export"), body),
+        exportEnabled
+          ? exports.request(await actor(request.headers, "reports.export"), body)
+          : Promise.reject(new ExportUnavailableError()),
       { body: t.Record(t.String(), t.Any()) },
     )
-    .post("/generated/:id/retry", async ({ request, params }) =>
-      exports.retry(await actor(request.headers, "reports.export"), params.id),
-    )
+    .post("/generated/:id/retry", async ({ request, params }) => {
+      if (!exportEnabled) throw new ExportUnavailableError()
+      return exports.retry(await actor(request.headers, "reports.export"), params.id)
+    })
     .get("/generated/:id/download", async ({ request, params, set }) => {
       const url = await exports.download(await actor(request.headers, "reports.export"), params.id)
       if (!url) {
@@ -55,5 +66,20 @@ export function createReportingRoutes(
         return { code: "not_found" }
       }
       return { url, expiresInSeconds: 300 }
+    })
+    .get("/local-artifacts/*", async ({ request, params, set }) => {
+      const current = await actor(request.headers, "reports.export")
+      const key = decodeURIComponent(params["*"])
+      if (!key.startsWith(`${current.organizationId}/`) || !exports.readLocalArtifact) {
+        set.status = 404
+        return { code: "not_found" }
+      }
+      const artifact = await exports.readLocalArtifact(key)
+      if (!artifact) {
+        set.status = 404
+        return { code: "not_found" }
+      }
+      set.headers["content-type"] = artifact.contentType
+      return artifact.body
     })
 }

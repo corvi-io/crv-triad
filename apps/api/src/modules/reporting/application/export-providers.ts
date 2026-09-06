@@ -11,6 +11,7 @@ export type ArtifactStorage = {
     contentType: string,
   ): Promise<{ checksum: string; byteSize: number }>
   head(key: string): Promise<{ checksum: string; byteSize: number } | null>
+  read?(key: string): Promise<{ body: Uint8Array; contentType: string } | null>
   downloadUrl(key: string, expiresInSeconds: number): Promise<string>
   delete(key: string): Promise<void>
 }
@@ -40,7 +41,11 @@ export function createFakeArtifactStorage(): ArtifactStorage {
     },
     async downloadUrl(key, expiresInSeconds) {
       if (!objects.has(key)) throw new Error("artifact_missing")
-      return `http://127.0.0.1:8000/api/reports/local-artifacts/${encodeURIComponent(key)}?expires=${expiresInSeconds}`
+      return `http://localhost:${process.env.API_PORT ?? "8000"}/api/reports/local-artifacts/${encodeURIComponent(key)}?expires=${expiresInSeconds}`
+    },
+    async read(key) {
+      const value = objects.get(key)
+      return value ? { body: value.body, contentType: value.contentType } : null
     },
     async delete(key) {
       objects.delete(key)

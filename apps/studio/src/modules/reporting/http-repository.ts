@@ -16,7 +16,8 @@ const paymentMethods = [
 
 export class ReportingHttpRepository implements ReportingRepository {
   async getReport(query: ReportingQuery): Promise<ReportingResult> {
-    const params = new URLSearchParams(query.filters as Record<string, string>)
+    const params = new URLSearchParams()
+    for (const [key, value] of Object.entries(query.filters)) if (value) params.set(key, value)
     const result = await request<ApiSummary>(`/api/reports/summary?${params}`)
     const summary = result.summary
     return {

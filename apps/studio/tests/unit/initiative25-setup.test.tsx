@@ -42,6 +42,39 @@ describe("initiative 25 setup production surfaces", () => {
     expect(uploadBusinessLogo).toHaveBeenCalledWith(expect.any(File), 3)
   })
 
+  it("persists profile, uploads and removes a logo while advancing the visible version", async () => {
+    const user = userEvent.setup()
+    const updateProfile = vi.fn(async (value: SetupCompletion["profile"]) => ({
+      ...value,
+      version: 4,
+    }))
+    const uploadBusinessLogo = vi.fn(async (_file: File, _version: number) => ({
+      ...completion.profile,
+      logoAvailable: true,
+      version: 5,
+    }))
+    const removeBusinessLogo = vi.fn(async (_version: number) => ({
+      ...completion.profile,
+      logoAvailable: false,
+      version: 6,
+    }))
+    renderSurface(<BusinessProfileSection scenarioId="production" />, {
+      ...repository,
+      updateProfile,
+      uploadBusinessLogo,
+      removeBusinessLogo,
+    })
+    fireEvent.click(await screen.findByRole("button", { name: "Salvar dados" }))
+    await waitFor(() => expect(updateProfile).toHaveBeenCalled())
+    await user.upload(
+      screen.getByLabelText("Logotipo"),
+      new File(["png"], "logo.png", { type: "image/png" }),
+    )
+    await waitFor(() => expect(uploadBusinessLogo).toHaveBeenCalledWith(expect.any(File), 4))
+    await user.click(screen.getByRole("button", { name: "Remover logotipo" }))
+    await waitFor(() => expect(removeBusinessLogo).toHaveBeenCalledWith(5))
+  })
+
   it("loads commission totals and saves a future-only percentage policy", async () => {
     const user = userEvent.setup()
     const saveCommissionPolicy = vi.fn(async () => [
@@ -72,6 +105,116 @@ describe("initiative 25 setup production surfaces", () => {
         }),
       ),
     )
+  })
+
+  it("restores persisted commission labels and values instead of exposing technical ids", async () => {
+    renderSurface(<PaymentsSection scenarioId="production" />, {
+      ...repository,
+      getCommissionPolicies: async () => [
+        {
+          professionalId: "professional-a",
+          serviceId: null,
+          kind: "percentage",
+          basisPoints: 3250,
+          fixedCents: null,
+          version: 2,
+        },
+      ],
+    })
+    expect(
+      await screen.findByRole("combobox", { name: "Profissional da comissão" }),
+    ).toHaveTextContent("Ana")
+    expect(screen.getByRole("combobox", { name: "Serviço da comissão" })).toHaveTextContent(
+      "Regra padrão",
+    )
+    expect(screen.getByRole("combobox", { name: "Tipo de comissão" })).toHaveTextContent(
+      "Percentual",
+    )
+    await waitFor(() => expect(screen.getByLabelText("Percentual da comissão")).toHaveValue("32.5"))
+  })
+
+  it("restores a fixed service exception and its localized selector labels", async () => {
+    const user = userEvent.setup()
+    renderSurface(<PaymentsSection scenarioId="production" />, {
+      ...repository,
+      getCommissionPolicies: async () => [
+        {
+          professionalId: "professional-a",
+          serviceId: "service-a",
+          kind: "fixed",
+          basisPoints: null,
+          fixedCents: 1234,
+          version: 4,
+        },
+      ],
+    })
+    await user.click(await screen.findByRole("combobox", { name: "Serviço da comissão" }))
+    await user.click(await screen.findByRole("option", { name: "Corte" }))
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Serviço da comissão" })).toHaveTextContent(
+        "Corte",
+      )
+      expect(screen.getByRole("combobox", { name: "Tipo de comissão" })).toHaveTextContent(
+        "Valor fixo por serviço",
+      )
+      expect(screen.getByLabelText("Valor fixo da comissão")).toHaveValue("12,34")
+    })
+  })
+
+  it("explains when no primary unit is selected", async () => {
+    renderSurface(<BusinessProfileSection scenarioId="production" />, {
+      ...repository,
+      getCompletion: async () => ({
+        ...completion,
+        profile: { ...completion.profile, primaryUnitId: undefined },
+      }),
+    })
+    expect(await screen.findByText("Cadastre uma unidade para definir o endereço.")).toBeVisible()
+    expect(screen.getByLabelText("Unidade principal")).toHaveTextContent("Selecione uma unidade")
+  })
+
+  it("explains a selected unit whose address is unavailable", async () => {
+    renderSurface(<BusinessProfileSection scenarioId="production" />, {
+      ...repository,
+      getAvailability: async () => ({
+        ...(await repository.getAvailability({} as never)),
+        units: [
+          {
+            id: "unit-a",
+            kind: "unit",
+            status: "active",
+            name: "Centro",
+            code: "C",
+            address: undefined as unknown as string,
+            businessHours: { days: ["monday"], start: "09:00", end: "18:00" },
+          },
+        ],
+      }),
+    })
+    expect(await screen.findByText("Endereço não informado para esta unidade.")).toBeVisible()
+  })
+
+  it("restores an explicit no-commission policy without an amount field", async () => {
+    renderSurface(<PaymentsSection scenarioId="production" />, {
+      ...repository,
+      getCommissionPolicies: async () => [
+        {
+          professionalId: "professional-a",
+          serviceId: null,
+          kind: "none",
+          basisPoints: null,
+          fixedCents: null,
+          version: 1,
+        },
+      ],
+    })
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Tipo de comissão" })).toHaveTextContent(
+        "Sem comissão",
+      ),
+    )
+    expect(screen.queryByLabelText("Percentual da comissão")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Valor fixo da comissão")).not.toBeInTheDocument()
   })
 })
 

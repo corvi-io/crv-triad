@@ -37,7 +37,19 @@ export function GeneratedReports({ filters }: { filters: ReportFilters }) {
   if (!repository.listExports) return null
   async function download(id: string) {
     try {
-      window.open(await actions.download(id), "_self", "noopener")
+      const url = await actions.download(id)
+      if (!url.includes("/api/reports/local-artifacts/")) {
+        window.open(url, "_self", "noopener")
+        return
+      }
+      const response = await fetch(url, { credentials: "include" })
+      if (!response.ok) throw new Error("Não foi possível baixar o relatório.")
+      const objectUrl = URL.createObjectURL(await response.blob())
+      const link = document.createElement("a")
+      link.href = objectUrl
+      link.download = "relatorio"
+      link.click()
+      URL.revokeObjectURL(objectUrl)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível baixar o relatório.")
     }

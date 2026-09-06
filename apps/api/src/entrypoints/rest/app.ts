@@ -9,7 +9,10 @@ import { createAvailabilityService } from "../../modules/availability/applicatio
 import { createBackstageRoutes } from "../../modules/backstage/http/routes.js"
 import { createBusinessProfileService } from "../../modules/business-profile/application/business-profile-service.js"
 import { createBusinessProfileRoutes } from "../../modules/business-profile/http/routes.js"
-import { createLocalBusinessLogoStorage } from "../../modules/business-profile/infra/logo-storage.js"
+import {
+  createLocalBusinessLogoStorage,
+  createR2BusinessLogoStorage,
+} from "../../modules/business-profile/infra/logo-storage.js"
 import { createClientService } from "../../modules/clients/application/client-service.js"
 import { createDrizzleClientRepository } from "../../modules/clients/database/client-repository.js"
 import { createClientRoutes } from "../../modules/clients/http/routes.js"
@@ -84,6 +87,15 @@ export function createRestApp(input: CreateRestAppInput) {
   const observeBusinessRequest = (event: object) =>
     console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
   const reportingService = createReportingService(input.db)
+  const businessLogoStorage =
+    input.env.PROFILE_IMAGE_STORAGE_DRIVER === "r2"
+      ? createR2BusinessLogoStorage({
+          endpoint: input.env.PROFILE_IMAGE_R2_ENDPOINT,
+          accessKeyId: input.env.PROFILE_IMAGE_R2_ACCESS_KEY_ID,
+          secretAccessKey: input.env.PROFILE_IMAGE_R2_SECRET_ACCESS_KEY,
+          bucket: input.env.PROFILE_IMAGE_R2_BUCKET,
+        })
+      : createLocalBusinessLogoStorage(input.env.BUSINESS_MEDIA_LOCAL_DIRECTORY)
   const artifactStorage =
     input.env.REPORT_EXPORT_PROVIDER === "trigger"
       ? createR2ArtifactStorage({
@@ -123,10 +135,7 @@ export function createRestApp(input: CreateRestAppInput) {
     .use(createBackstageRoutes(input.auth, input.db, input.authEmailSender))
     .use(
       createBusinessProfileRoutes(
-        createBusinessProfileService(
-          input.db,
-          createLocalBusinessLogoStorage(input.env.BUSINESS_MEDIA_LOCAL_DIRECTORY),
-        ),
+        createBusinessProfileService(input.db, businessLogoStorage),
         resolveTenantContext,
         authorizeTenantAction,
       ),
@@ -184,6 +193,7 @@ export function createRestApp(input: CreateRestAppInput) {
         createReportExportService(input.db, reportDispatcher, artifactStorage),
         resolveTenantContext,
         authorizeTenantAction,
+        input.env.REPORT_EXPORT_ENABLED,
       ),
     )
     .use(createLeadRoutes(input.env, input.pool, { captureAcceptedLead }))

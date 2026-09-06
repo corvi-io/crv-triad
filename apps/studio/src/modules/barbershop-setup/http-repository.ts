@@ -265,7 +265,8 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
       await request<ApiBusinessProfile>("/api/business-profile", {
         method: "PUT",
         body: {
-          ...input,
+          displayName: input.displayName,
+          email: input.email,
           phone: normalizeBrazilPhone(input.phone),
           whatsapp: input.whatsapp ? normalizeBrazilPhone(input.whatsapp) : null,
           primaryUnitId: input.primaryUnitId ?? null,
@@ -273,8 +274,6 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
           website: input.website || null,
           instagram: input.instagram || null,
           expectedVersion: input.version ?? null,
-          version: undefined,
-          logoAvailable: undefined,
         },
       }),
     )
@@ -370,7 +369,10 @@ async function request<T>(path: string, options: { body?: unknown; method?: stri
       options.body === undefined || isForm ? undefined : { "content-type": "application/json" },
     method: options.method ?? "GET",
   })
-  if (response.ok) return response.json() as Promise<T>
+  if (response.ok) {
+    const payload = await response.text()
+    return (payload ? JSON.parse(payload) : null) as T
+  }
   const error = (await response.json().catch(() => ({}))) as ApiError
   if (response.status === 503 && error.code === "invitation_delivery_failed")
     throw new SetupValidationError(

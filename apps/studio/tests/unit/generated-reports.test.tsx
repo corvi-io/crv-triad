@@ -85,6 +85,44 @@ describe("generated reports", () => {
     )
   }, 10_000)
 
+  it("downloads an authenticated local fake artifact through a temporary object URL", async () => {
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden")
+    const fetchArtifact = vi.fn(
+      async () =>
+        new Response(new Blob(["report"]), {
+          headers: { "content-type": "application/pdf" },
+          status: 200,
+        }),
+    )
+    vi.stubGlobal("fetch", fetchArtifact)
+    renderReports({
+      ...baseRepository,
+      listExports: async () => [reports[2]],
+      downloadExport: async () => "http://localhost/api/reports/local-artifacts/report.pdf",
+    })
+    fireEvent.click(await screen.findByRole("button", { name: "Baixar" }))
+    await waitFor(() =>
+      expect(fetchArtifact).toHaveBeenCalledWith(expect.any(String), {
+        credentials: "include",
+      }),
+    )
+  })
+
+  it("keeps ready history visible when a local artifact grant fails", async () => {
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 403 })),
+    )
+    renderReports({
+      ...baseRepository,
+      listExports: async () => [reports[2]],
+      downloadExport: async () => "http://localhost/api/reports/local-artifacts/missing.pdf",
+    })
+    fireEvent.click(await screen.findByRole("button", { name: "Baixar" }))
+    expect(await screen.findByText("Pronto · tentativa 1")).toBeInTheDocument()
+  })
+
   it("announces action failures without losing the visible history", async () => {
     renderReports({
       ...baseRepository,

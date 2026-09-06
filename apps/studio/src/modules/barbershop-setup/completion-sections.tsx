@@ -99,7 +99,8 @@ function BusinessProfileForm({
       return
     }
     try {
-      await mutation.mutateAsync(values)
+      const saved = await mutation.mutateAsync(values)
+      setValues(saved)
       toast.success("Dados da barbearia atualizados.")
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar os dados.")
@@ -202,7 +203,10 @@ function BusinessProfileForm({
                     : "barbershop-primary-unit-description"
                 }
               >
-                <SelectValue />
+                <SelectValue>
+                  {units.find(({ id }) => id === values.primaryUnitId)?.name ??
+                    "Selecione uma unidade"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -216,7 +220,9 @@ function BusinessProfileForm({
             </Select>
             <FieldDescription id="barbershop-primary-unit-description">
               {units.find(({ id }) => id === values.primaryUnitId)?.address ??
-                "Cadastre uma unidade para definir o endereço."}
+                (values.primaryUnitId
+                  ? "Endereço não informado para esta unidade."
+                  : "Cadastre uma unidade para definir o endereço.")}
             </FieldDescription>
             {attempted && unitInvalid ? (
               <FieldError id="barbershop-primary-unit-error">
@@ -400,10 +406,22 @@ function CommissionSettings({
     queryKey: ["barbershop-setup", "commission-detail", from, to],
     queryFn: () => repository.getCommissionDetail?.({ from, to }),
   })
-  const [professionalId, setProfessionalId] = useState("")
+  const [professionalId, setProfessionalId] = useState(professionals[0]?.id ?? "")
   const [serviceId, setServiceId] = useState("")
   const [kind, setKind] = useState<"fixed" | "none" | "percentage">("percentage")
   const [amount, setAmount] = useState("40")
+  useEffect(() => {
+    const current = policies.data?.find(
+      (item) => item.professionalId === professionalId && (item.serviceId ?? "") === serviceId,
+    )
+    if (!current) return
+    setKind(current.kind)
+    setAmount(
+      current.kind === "percentage"
+        ? String((current.basisPoints ?? 0) / 100)
+        : String((current.fixedCents ?? 0) / 100).replace(".", ","),
+    )
+  }, [policies.data, professionalId, serviceId])
   const save = useMutation({
     mutationFn: async () => {
       if (!repository.saveCommissionPolicy) throw new Error("Configuração indisponível.")
@@ -439,7 +457,9 @@ function CommissionSettings({
       <CardContent className="grid gap-3">
         <Select value={professionalId} onValueChange={(value) => setProfessionalId(value ?? "")}>
           <SelectTrigger aria-label="Profissional da comissão">
-            <SelectValue placeholder="Selecione o profissional" />
+            <SelectValue placeholder="Selecione o profissional">
+              {professionals.find(({ id }) => id === professionalId)?.name}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {professionals.map((item) => (
@@ -454,7 +474,11 @@ function CommissionSettings({
           onValueChange={(value) => setServiceId(value === "default" ? "" : (value ?? ""))}
         >
           <SelectTrigger aria-label="Serviço da comissão">
-            <SelectValue />
+            <SelectValue>
+              {serviceId
+                ? (services.find(({ id }) => id === serviceId)?.name ?? "Selecione um serviço")
+                : "Regra padrão"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="default">Regra padrão</SelectItem>
@@ -467,7 +491,13 @@ function CommissionSettings({
         </Select>
         <Select value={kind} onValueChange={(value) => setKind((value ?? "none") as typeof kind)}>
           <SelectTrigger aria-label="Tipo de comissão">
-            <SelectValue />
+            <SelectValue>
+              {kind === "percentage"
+                ? "Percentual"
+                : kind === "fixed"
+                  ? "Valor fixo por serviço"
+                  : "Sem comissão"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="percentage">Percentual</SelectItem>

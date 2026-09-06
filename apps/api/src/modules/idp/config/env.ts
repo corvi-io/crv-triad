@@ -131,6 +131,7 @@ const envSchema = z
   .superRefine((value, context) => {
     if (
       value.REPORT_EXPORT_ENABLED &&
+      ["development", "staging", "production"].includes(value.APP_ENV) &&
       (value.REPORT_EXPORT_PROVIDER !== "trigger" ||
         !value.TRIGGER_PROJECT_REF ||
         !value.TRIGGER_SECRET_KEY ||

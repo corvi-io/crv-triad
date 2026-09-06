@@ -147,6 +147,9 @@ export function createReportExportService(
       300,
     )
   }
-  return { request, status, history, retry, download }
+  async function readLocalArtifact(key: string) {
+    return storage.read?.(key) ?? null
+  }
+  return { request, status, history, retry, download, readLocalArtifact }
 }
 export type ReportExportService = ReturnType<typeof createReportExportService>
