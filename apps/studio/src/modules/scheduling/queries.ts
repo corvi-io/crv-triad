@@ -24,10 +24,7 @@ export function useScheduleDay(query: ScheduleDayQuery) {
       repository.source === "http"
         ? ["scheduling", tenantId, "day", query]
         : schedulingQueryKeys.day(query),
-    queryFn: ({ signal }) =>
-      repository.source === "http"
-        ? repository.getRange(query, signal)
-        : getScheduleRange(repository, query),
+    queryFn: ({ signal }) => getScheduleRange(repository, query, signal),
     enabled: Boolean(query.unitId),
   })
 }

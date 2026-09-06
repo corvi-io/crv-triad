@@ -197,3 +197,23 @@ it("reuses horizontal space for consecutive unnamed blocks and identifies absenc
   expect(first.style.width).toBe(second.style.width)
   expect(second).toHaveClass("bg-feedback-destructive")
 })
+
+it("does not create a draft from hovering or repeated pointer cancellation", () => {
+  const create = vi.fn()
+  render(
+    <AvailabilityTimeGrid
+      dates={["2026-09-07"]}
+      blocks={[]}
+      canManage
+      onCreate={create}
+      onEdit={vi.fn()}
+    />,
+  )
+  const target = screen.getByRole("button", { name: "Selecionar horário em 2026-09-07" })
+  fireEvent.pointerMove(target, { clientY: 864 })
+  fireEvent.pointerCancel(target)
+  fireEvent.pointerCancel(target)
+  fireEvent.pointerUp(target, { clientY: 960 })
+  expect(create).not.toHaveBeenCalled()
+  expect(screen.queryByText("09:00–10:00")).not.toBeInTheDocument()
+})

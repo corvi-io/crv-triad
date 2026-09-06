@@ -83,7 +83,7 @@ bun scripts/scheduling-local-qa.ts
 ```
 
 Open `http://localhost:3102`. The isolated API is `http://localhost:8102`, PostgreSQL is loopback
-55442, and synthetic credentials are in `apps/api/.artifacts/initiative22/credentials.json`.
+55444, and synthetic credentials are in `apps/api/.artifacts/initiative22/credentials.json`.
 Accounts include `qa22-a-owner@example.invalid`, `qa22-a-admin@example.invalid`,
 `qa22-a-member@example.invalid` and `qa22-b-owner@example.invalid`. The runner seeds relationships
 and access, preserves existing QA bookings, and does not read the normal app database URL. On a
@@ -105,3 +105,20 @@ See [API contracts](../api/availability-and-scheduling.md),
 [execution and evidence](../initiatives/tasks/22-production-availability-and-scheduling.md), and
 [historical prototype grammar](schedule-prototype.md). Future queue/fulfillment work owns the
 trusted waiting/in-progress/completed transitions; this slice exposes no generic public status write.
+
+## Production Dashboard and accepted calendar refinements
+
+The production Dashboard reuses WorkspaceOverview and its original card layout. Scheduling,
+cancellations, service scheduled values and net capacity use the HTTP source. Completion,
+paid values and reception stages remain explicitly unintegrated, with no fixture fallback.
+Period queries are split into at most five seven-day requests; filters retain canonical IDs.
+Net capacity excludes overlapping negative blocks once. Comparison metrics are omitted until
+a complete comparison source is queried.
+
+Availability supports edge auto-scroll during pointer selection and focuses the saved recurrence
+period after creation. Appointment client, service and professional selection uses the existing
+searchable combobox with canonical IDs; arbitrary text does not constitute a selected record.
+
+List-period filter options are hydrated across the complete selected period, using sequential
+requests of no more than seven days and a maximum period of 366 days. Appointment rows remain
+server-paginated. Changing filters or search resets the controlled page to one.

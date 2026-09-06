@@ -79,6 +79,65 @@ describe("service session page", () => {
     release()
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Serviço adicionado."))
   })
+
+  it("renders completed, paid and canceled sessions with exact bounded actions", async () => {
+    const repository = createRepository()
+    const base = await repository.getSession("session-walk-in-fulfillment-single")
+    const checkout = vi.fn()
+    vi.spyOn(repository, "getSession").mockResolvedValueOnce({
+      ...base,
+      status: "ready-for-payment",
+      finishedAt: base.now,
+    })
+    const completed = renderSession(repository, checkout)
+    expect(await screen.findByText("Pronto para pagamento")).toBeVisible()
+    await userEvent.setup().click(screen.getByRole("button", { name: "Ir para pagamento" }))
+    expect(checkout).toHaveBeenCalledOnce()
+    completed.unmount()
+
+    vi.spyOn(repository, "getSession").mockResolvedValueOnce({
+      ...base,
+      status: "paid",
+      finishedAt: base.now,
+    })
+    const paid = renderSession(repository, checkout)
+    expect(
+      await screen.findByText(
+        "O atendimento foi concluído e o pagamento está somente para leitura.",
+      ),
+    ).toBeVisible()
+    expect(screen.getByRole("button", { name: "Ver pagamento" })).toBeVisible()
+    paid.unmount()
+
+    vi.spyOn(repository, "getSession").mockResolvedValueOnce({
+      ...base,
+      status: "canceled",
+      finishedAt: base.now,
+    })
+    renderSession(repository)
+    expect(await screen.findByText("Saída registrada")).toBeVisible()
+    expect(screen.getByText("Nenhum serviço realizado foi enviado para pagamento.")).toBeVisible()
+    expect(screen.queryByRole("button", { name: /pagamento/i })).not.toBeInTheDocument()
+  })
+
+  it("exposes sequential controls only for pending and active items", async () => {
+    const repository = createRepository()
+    const base = await repository.getSession("session-walk-in-fulfillment-single")
+    vi.spyOn(repository, "getSession").mockResolvedValue({
+      ...base,
+      items: [
+        { ...base.items[0], id: "active", status: "active" },
+        { ...base.items[0], id: "pending", source: "added", status: "pending" },
+        { ...base.items[0], id: "completed", source: "added", status: "completed" },
+      ],
+    })
+    renderSession(repository)
+    await screen.findByRole("heading", { name: "Serviços realizados" })
+    expect(screen.getByRole("button", { name: "Concluir serviço" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Estender horário" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Iniciar serviço" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Remover serviço" })).toBeVisible()
+  })
 })
 
 function createRepository() {
@@ -87,14 +146,18 @@ function createRepository() {
   })
 }
 
-function renderSession(repository: ServiceDeskRepository) {
+function renderSession(repository: ServiceDeskRepository, onCheckout?: () => void) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   })
   return render(
     <QueryClientProvider client={queryClient}>
       <ServiceDeskRepositoryProvider repository={repository}>
-        <ServiceSessionPage sessionId="session-walk-in-fulfillment-single" onBack={vi.fn()} />
+        <ServiceSessionPage
+          sessionId="session-walk-in-fulfillment-single"
+          onBack={vi.fn()}
+          onCheckout={onCheckout}
+        />
       </ServiceDeskRepositoryProvider>
     </QueryClientProvider>,
   )

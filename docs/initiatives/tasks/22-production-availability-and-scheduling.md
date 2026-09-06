@@ -474,3 +474,12 @@ Record evidence as tasks are completed:
 
 All criteria AC-001–AC-023 are verified in the acceptance matrix. Deferred queue/fulfillment work,
 release publication and deployment are outside this completed local implementation scope.
+
+## Product acceptance and staging handoff — 2026-09-05
+
+The product owner approved availability and scheduling after interactive local testing.
+The owner additionally requested restoration of the original Dashboard composition, with real
+integrated scheduling values and explicit pending states for unavailable operational metrics,
+followed by preflight, Codex review and merge into staging. Production promotion is not included.
+The release branch preserves staging migration history and appends 0018–0020; the shared local
+checkout and its concurrent migration consolidation remain untouched.

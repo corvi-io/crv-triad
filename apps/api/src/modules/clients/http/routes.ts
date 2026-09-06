@@ -230,13 +230,14 @@ function presentDetail<
     updatedAt: Date
     notes: readonly unknown[]
     nextAppointmentAt?: string | null
+    lastVisitAt?: Date | null
   },
 >(record: T) {
   return {
     ...record,
     appointments: [],
     createdAt: record.createdAt.toISOString(),
-    lastVisitAt: null,
+    lastVisitAt: record.lastVisitAt?.toISOString() ?? null,
     nextAppointmentAt: record.nextAppointmentAt ?? null,
     notes: record.notes.map((note) => {
       const value = note as { createdAt: Date; updatedAt: Date }
@@ -252,7 +253,12 @@ function presentDetail<
 
 function presentPage<
   T extends {
-    items: readonly { createdAt: Date; updatedAt: Date; nextAppointmentAt?: string | null }[]
+    items: readonly {
+      createdAt: Date
+      updatedAt: Date
+      nextAppointmentAt?: string | null
+      lastVisitAt?: Date | null
+    }[]
     page: number
     pageSize: number
     totalCount: number
@@ -264,7 +270,7 @@ function presentPage<
     items: page.items.map((record) => ({
       ...record,
       createdAt: record.createdAt.toISOString(),
-      lastVisitAt: null,
+      lastVisitAt: record.lastVisitAt?.toISOString() ?? null,
       nextAppointmentAt: record.nextAppointmentAt ?? null,
       updatedAt: record.updatedAt.toISOString(),
     })),

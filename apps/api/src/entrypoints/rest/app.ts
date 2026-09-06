@@ -18,11 +18,18 @@ import type { IdpAuth, InvitationAcceptedObserver } from "../../modules/idp/iden
 import type { AuthEmailSender } from "../../modules/idp/identity/transactional-email.js"
 import { createLeadRoutes } from "../../modules/leads/http/routes.js"
 import {
+  createRevenueOperationsService,
+  hasOpenRevenueCashDay,
+} from "../../modules/revenue-operations/application/revenue-operations-service.js"
+import { createRevenueOperationsRoutes } from "../../modules/revenue-operations/http/routes.js"
+import {
   createSchedulingService,
   guardAvailabilityAppointments,
 } from "../../modules/scheduling/application/scheduling-service.js"
 import { nextClientAppointment } from "../../modules/scheduling/database/client-projection.js"
 import { createSchedulingRoutes } from "../../modules/scheduling/http/routes.js"
+import { createServiceDeskService } from "../../modules/service-desk/application/service-desk-service.js"
+import { createServiceDeskRoutes } from "../../modules/service-desk/http/routes.js"
 import { createCatalogAuditWriter } from "../../modules/services/application/catalog-audit.js"
 import { createCatalogService } from "../../modules/services/application/catalog-service.js"
 import { createCatalogRoutes } from "../../modules/services/http/catalog-routes.js"
@@ -53,6 +60,14 @@ export function createRestApp(input: CreateRestAppInput) {
   )
   const authorizeTenantAction = createTenantActionAuthorizer(input.db)
   const catalogService = createCatalogService(input.db)
+  const schedulingService = createSchedulingService(input.db, input.env.BETTER_AUTH_SECRET)
+  const serviceDeskService = createServiceDeskService(
+    input.db,
+    schedulingService,
+    input.env.BETTER_AUTH_SECRET,
+  )
+  const observeBusinessRequest = (event: object) =>
+    console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
 
   return new Elysia({ name: "crv-triad-api" })
     .use(requestContextMiddleware)
@@ -78,15 +93,32 @@ export function createRestApp(input: CreateRestAppInput) {
     )
     .use(
       createSchedulingRoutes(
-        createSchedulingService(input.db, input.env.BETTER_AUTH_SECRET),
+        schedulingService,
         createAvailabilityService(
           input.db,
           guardAvailabilityAppointments,
           input.env.BETTER_AUTH_SECRET,
+          hasOpenRevenueCashDay,
         ),
         resolveTenantContext,
         authorizeTenantAction,
-        (event) => console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV })),
+        observeBusinessRequest,
+      ),
+    )
+    .use(
+      createServiceDeskRoutes(
+        serviceDeskService,
+        resolveTenantContext,
+        authorizeTenantAction,
+        observeBusinessRequest,
+      ),
+    )
+    .use(
+      createRevenueOperationsRoutes(
+        createRevenueOperationsService(input.db, serviceDeskService, input.env.BETTER_AUTH_SECRET),
+        resolveTenantContext,
+        authorizeTenantAction,
+        observeBusinessRequest,
       ),
     )
     .use(createLeadRoutes(input.env, input.pool, { captureAcceptedLead }))

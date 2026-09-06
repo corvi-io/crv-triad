@@ -1,5 +1,6 @@
 import { getApiUrl } from "@/modules/auth/services/auth-client"
 import { FormSubmissionError } from "@/modules/shared/forms/form-submission-error"
+import { createDefaultPaymentMethods } from "./completion"
 import type {
   AvailabilityQuery,
   AvailabilityResult,
@@ -32,6 +33,7 @@ type ApiError = { code?: string; details?: { field?: string }; requestId?: strin
 
 export class BarbershopSetupHttpRepository implements BarbershopSetupRepository {
   readonly catalogSource = "http" as const
+  #paymentVersion?: number
   async list(query: SetupListQuery): Promise<SetupEntityPage> {
     const params = new URLSearchParams({
       page: String(query.page),
@@ -167,7 +169,10 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
     throw new SetupValidationError("Este recurso ainda não está disponível em produção.")
   }
   async getCompletion(_scenarioId: string): Promise<SetupCompletion> {
-    const overview = await this.getOverview()
+    const [overview, paymentMethods] = await Promise.all([
+      this.getOverview(),
+      this.#paymentMethods(),
+    ])
     const steps = overview.items.map((item) => ({
       complete: item.complete,
       description: item.description,
@@ -183,7 +188,7 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
       title: item.title,
     }))
     return {
-      paymentMethods: [],
+      paymentMethods,
       profile: { displayName: "", email: "", phone: "" },
       readiness: {
         completedCount: overview.completedCount,
@@ -200,8 +205,10 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
   ): Promise<ProfessionalOperationalSummary> {
     return Promise.reject(this.unsupported())
   }
-  getActivePaymentMethodIds(): Promise<readonly ("pix" | "cash" | "debit" | "credit")[]> {
-    return Promise.reject(this.unsupported())
+  async getActivePaymentMethodIds(): Promise<readonly ("pix" | "cash" | "debit" | "credit")[]> {
+    return (await this.#paymentMethods())
+      .filter(({ active, id }) => active && id !== "mixed")
+      .map(({ id }) => id as "pix" | "cash" | "debit" | "credit")
   }
   getProfessionalCommissionBasisPoints(_professionalId: string): Promise<number> {
     return Promise.reject(this.unsupported())
@@ -230,14 +237,48 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
   ): Promise<readonly SetupAvailability[]> {
     return Promise.reject(this.unsupported())
   }
-  updatePaymentMethods(
-    _input: UpdatePaymentMethodsInput,
+  async updatePaymentMethods(
+    input: UpdatePaymentMethodsInput,
   ): Promise<readonly PaymentMethodSetting[]> {
-    return Promise.reject(this.unsupported())
+    if (this.#paymentVersion === undefined) await this.#paymentMethods()
+    if (this.#paymentVersion === undefined) throw this.unsupported()
+    const base = input.settings.filter(({ id }) => id !== "mixed")
+    if (base.length !== 4) throw new SetupValidationError("Revise as formas de pagamento.")
+    const rows = await request<readonly ApiPaymentMethod[]>(
+      "/api/revenue-operations/payment-methods",
+      {
+        method: "PUT",
+        body: {
+          expectedVersion: this.#paymentVersion,
+          methods: base.map(({ active, id }) => ({ enabled: active, method: id })),
+          idempotencyKey: crypto.randomUUID(),
+        },
+      },
+    )
+    return this.#mapPaymentMethods(rows)
   }
   updateProfile(_input: BarbershopProfile): Promise<BarbershopProfile> {
     return Promise.reject(this.unsupported())
   }
+
+  async #paymentMethods() {
+    return this.#mapPaymentMethods(
+      await request<readonly ApiPaymentMethod[]>("/api/revenue-operations/payment-methods"),
+    )
+  }
+
+  #mapPaymentMethods(rows: readonly ApiPaymentMethod[]) {
+    this.#paymentVersion = rows[0]?.version
+    return createDefaultPaymentMethods(
+      rows.filter(({ enabled }) => enabled).map(({ method }) => method),
+    )
+  }
+}
+
+type ApiPaymentMethod = {
+  enabled: boolean
+  method: "pix" | "cash" | "debit" | "credit"
+  version: number
 }
 
 function plural(kind: SetupEntityKind) {

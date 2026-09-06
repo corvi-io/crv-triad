@@ -148,3 +148,45 @@ export const schedulingCommand = pgTable(
     index("scheduling_commands_actor_idx").on(table.actorUserId),
   ],
 )
+export const schedulingOccupancy = pgTable(
+  "scheduling_occupancies",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id),
+    professionalId: text("professional_id").notNull(),
+    unitId: text("unit_id").notNull(),
+    source: text("source", { enum: ["appointment", "service"] }).notNull(),
+    sourceId: text("source_id").notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    live: integer("live").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("scheduling_occupancies_source_unique").on(
+      table.organizationId,
+      table.source,
+      table.sourceId,
+    ),
+    index("scheduling_occupancies_professional_time_idx").on(
+      table.organizationId,
+      table.professionalId,
+      table.startsAt,
+      table.endsAt,
+    ),
+    foreignKey({
+      columns: [table.organizationId, table.professionalId],
+      foreignColumns: [professional.organizationId, professional.id],
+    }),
+    foreignKey({
+      columns: [table.organizationId, table.unitId],
+      foreignColumns: [unit.organizationId, unit.id],
+    }),
+    check(
+      "scheduling_occupancies_range_check",
+      sql`${table.startsAt} < ${table.endsAt} and ${table.live} in (0, 1)`,
+    ),
+  ],
+)

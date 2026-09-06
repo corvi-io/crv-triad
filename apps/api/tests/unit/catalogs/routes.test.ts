@@ -23,6 +23,50 @@ function request(path: string, init?: RequestInit) {
 }
 
 describe("catalog routes", () => {
+  it("keeps a committed mutation successful when audit persistence fails", async () => {
+    const warning = vi.spyOn(console, "error").mockImplementation(() => {})
+    const create = vi.fn(async () => ({ id: "created-unit" }))
+    const audit = vi.fn(async () => {
+      throw new Error("PRIVATE_AUDIT_FAILURE")
+    })
+    const app = createCatalogRoutes(
+      { create } as never,
+      resolve as never,
+      authorize as never,
+      undefined,
+      audit,
+    )
+    const response = await app.handle(
+      request("/api/units", { method: "POST", body: JSON.stringify({ name: "Unit" }) }),
+    )
+    expect(response.status).toBe(201)
+    expect(create).toHaveBeenCalledTimes(1)
+    expect(audit).toHaveBeenCalledTimes(1)
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("catalog_audit_failed"))
+    expect(JSON.stringify(warning.mock.calls)).not.toContain("PRIVATE_AUDIT_FAILURE")
+    warning.mockRestore()
+  })
+  it("correlates audit events with the generated response request ID", async () => {
+    const audit = vi.fn(async () => {})
+    const app = createCatalogRoutes(
+      { create: async () => ({ id: "unit-a" }) } as never,
+      resolve as never,
+      authorize as never,
+      undefined,
+      audit,
+    )
+    const response = await app.handle(
+      new Request("https://api.test/api/units", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Unit" }),
+      }),
+    )
+    expect(response.status).toBe(201)
+    const requestId = response.headers.get("x-request-id")
+    expect(requestId).toMatch(/^[a-f0-9-]{36}$/)
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ requestId }))
+  })
   it("maps wrapped constraints and schema issues to exact form fields", () => {
     expect(
       mapCatalogPersistenceError({

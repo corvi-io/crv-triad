@@ -41,7 +41,7 @@ import { WeeklyBoard } from "./weekly-board"
 export type { ScheduleSearch } from "./agenda"
 
 export function SchedulePage({
-  onSearchChange,
+  onSearchChange: commitSearch,
   search,
   units,
 }: {
@@ -49,6 +49,21 @@ export function SchedulePage({
   search: ScheduleSearch
   units?: readonly { id: string; name: string }[]
 }) {
+  const onSearchChange = (next: Partial<ScheduleSearch>) => {
+    const filters = [
+      "unit",
+      "date",
+      "period",
+      "customStart",
+      "customEnd",
+      "professional",
+      "service",
+      "client",
+      "status",
+      "scope",
+    ]
+    commitSearch(filters.some((key) => key in next) ? { ...next, page: 1 } : next)
+  }
   const repository = useSchedulingRepository()
   const [searchText, setSearchText] = useState("")
   const debouncedSearchText = useDebouncedValue(searchText, 250)
@@ -64,11 +79,7 @@ export function SchedulePage({
     statusIds: parseIdList(search.status) as AppointmentStatus[],
     unitId: search.unit,
   }
-  const dayQuery = useScheduleDay(
-    repository.source === "http" && search.view === "list"
-      ? { ...query, endDate: query.startDate }
-      : query,
-  )
+  const dayQuery = useScheduleDay(query)
   const scenarios = useScenarioActions(query)
   const transitionMutation = useTransitionAppointment()
   const rescheduleMutation = useRescheduleAppointment()
@@ -357,7 +368,10 @@ export function SchedulePage({
             onReset={resetScenario}
             onScenarioChange={selectScenario}
             onSearchChange={onSearchChange}
-            onSearchTextChange={setSearchText}
+            onSearchTextChange={(value) => {
+              setSearchText(value)
+              commitSearch({ page: 1 })
+            }}
           />
         </>
       }

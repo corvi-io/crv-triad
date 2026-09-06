@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
+import { fileURLToPath } from "node:url"
+import { drizzle } from "drizzle-orm/node-postgres"
+import { migrate } from "drizzle-orm/node-postgres/migrator"
 import { Pool } from "pg"
 import { expect, it } from "vitest"
 
@@ -13,6 +16,9 @@ it("upgrades existing catalog plans without overriding denials or unrelated plan
     throw new Error("An isolated loopback test database is required")
   }
   const pool = new Pool({ connectionString: url.toString() })
+  await migrate(drizzle(pool), {
+    migrationsFolder: fileURLToPath(new URL("../../drizzle", import.meta.url)),
+  })
   const connection = await pool.connect()
   try {
     await connection.query("BEGIN")
@@ -38,7 +44,7 @@ it("upgrades existing catalog plans without overriding denials or unrelated plan
       )
     }
     const sql = await readFile(
-      new URL("../../drizzle/0003_scheduling-plan-entitlements.sql", import.meta.url),
+      new URL("../../drizzle/0020_scheduling-plan-entitlements.sql", import.meta.url),
       "utf8",
     )
     await connection.query(sql)

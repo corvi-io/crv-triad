@@ -24,15 +24,18 @@ export const Route = createFileRoute("/_authenticated/cash/")({
   component: CashRoute,
   validateSearch: (search: Record<string, unknown>): CashSearch => ({
     closing:
-      typeof search.closing === "string" && /^closing-[\w-]+$/.test(search.closing)
+      typeof search.closing === "string" && /^[a-zA-Z0-9_-]{1,100}$/.test(search.closing)
         ? search.closing
         : null,
     date: typeof search.date === "string" && isValidDateOnly(search.date) ? search.date : today(),
     scenario:
-      typeof search.scenario === "string" && cashScenarioIds.includes(search.scenario)
+      typeof search.scenario === "string" && cashScenarioIds?.includes(search.scenario as never)
         ? search.scenario
-        : "cash-typical",
-    unitId: search.unitId === "artesao" ? "artesao" : "centro",
+        : "",
+    unitId:
+      typeof search.unitId === "string" && /^[a-zA-Z0-9_-]{1,100}$/.test(search.unitId)
+        ? search.unitId
+        : "",
   }),
 })
 

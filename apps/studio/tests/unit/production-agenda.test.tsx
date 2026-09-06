@@ -99,10 +99,61 @@ describe("production Agenda and Dashboard", { timeout: 20000 }, () => {
         .filter((r) => r.path.startsWith("/api/scheduling/range"))
         .every(
           (r) =>
-            new URL(`http://test${r.path}`).searchParams.get("endDate") ===
-            new URL(`http://test${r.path}`).searchParams.get("startDate"),
+            Date.parse(new URL(`http://test${r.path}`).searchParams.get("endDate") ?? "") -
+              Date.parse(new URL(`http://test${r.path}`).searchParams.get("startDate") ?? "") <
+            7 * 86400000,
         ),
     ).toBe(true)
+  })
+  it("resets a controlled list page when searching", async () => {
+    const requests = httpFixture()
+    renderProduction(<Agenda search={{ ...initial, page: 5 }} />)
+    await screen.findByRole("table", { name: "Agendamentos" })
+    await userEvent.type(screen.getByRole("searchbox", { name: "Buscar na agenda" }), "Pessoa")
+    await waitFor(() =>
+      expect(
+        requests.some((r) => {
+          const url = new URL(r.path, "http://test")
+          return (
+            url.pathname === "/api/scheduling/appointments" &&
+            url.searchParams.get("search") === "Pessoa" &&
+            url.searchParams.get("page") === "1"
+          )
+        }),
+      ).toBe(true),
+    )
+  })
+  it("hydrates client filters beyond the first day of a custom list period", async () => {
+    httpFixture((r) => {
+      if (!r.path.startsWith("/api/scheduling/range")) return undefined
+      const first = new URL(r.path, "http://test").searchParams.get("startDate") === "2026-09-07"
+      return respond({
+        ...range,
+        appointments: first
+          ? []
+          : [
+              {
+                ...booking,
+                id: "later",
+                date: "2026-09-08",
+                customerName: "Cliente do segundo dia",
+              },
+            ],
+      })
+    })
+    renderProduction(
+      <Agenda
+        search={{
+          ...initial,
+          period: "custom",
+          customStart: "2026-09-07",
+          customEnd: "2026-09-08",
+        }}
+      />,
+    )
+    await screen.findByRole("table", { name: "Agendamentos" })
+    await userEvent.click(screen.getByRole("button", { name: "Cliente" }))
+    expect(await screen.findByText("Cliente do segundo dia")).toBeVisible()
   })
   it("renders a day board and a week board using server availability", async () => {
     httpFixture()

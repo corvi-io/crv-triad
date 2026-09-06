@@ -20,12 +20,13 @@ export function isSessionReadyToFinish(session: ServiceSession) {
   const professionals = new Set(session.professionals.map(({ id }) => id))
   const unavailable = new Set(session.unavailableProfessionalIds)
   const serviceById = new Map(session.services.map((service) => [service.id, service]))
-  return session.items.every(({ professionalId, serviceId }) => {
+  return session.items.every(({ professionalId, serviceId, status }) => {
     const service = serviceById.get(serviceId)
     return (
       professionals.has(professionalId) &&
       !unavailable.has(professionalId) &&
-      Boolean(service?.eligibleProfessionalIds.includes(professionalId))
+      Boolean(service?.eligibleProfessionalIds.includes(professionalId)) &&
+      (status === undefined || status === "completed")
     )
   })
 }

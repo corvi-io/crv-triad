@@ -11,7 +11,7 @@ The IDP uses Better Auth `1.6.23` as the authentication engine. Both `apps/api/s
 | Email verification and resend           | `emailVerification.sendVerificationEmail`, `sendOnSignUp`, `sendOnSignIn`, `/send-verification-email`                                  | The shared IDP email sender renders the Portuguese message and builds the link from configured IDP/Studio origins. A valid verification signs the user in and redirects to `/overview`; invitation and active-user gates still run before session creation. Better Auth defers automatic sends through its background handler, but `1.6.23` awaits the sender in the manual resend endpoint; ENG-39 owns future durable queue delivery. |
 | Forgot/reset password                   | `/request-password-reset`, `/reset-password/:token`, `/reset-password`, `resetPasswordTokenExpiresIn`, `revokeSessionsOnPasswordReset` | React Email renders the reset message; Better Auth still owns tokens, expiry, single use, native hashing, and session revocation.                                                                                                                                                              |
 | Authenticated password change           | `changePassword` with current-password proof and `revokeOtherSessions`                                                                 | Studio will choose the native request option in Phase B; IDP adds no endpoint.                                                                                                                                                                                                                 |
-| Google sign-in                          | `socialProviders.google`, `/sign-in/social`, `/callback/google`                                                                        | Required server-only runtime credentials and the existing access hooks. Callback URI derives from `BETTER_AUTH_URL`.                                                                                                                                                                           |
+| Google sign-in                          | `socialProviders.google`, `/sign-in/social`, `/callback/google`                                                                        | Required server-only runtime credentials and the existing access hooks. An invitation-aware Studio login returns to the token acceptance route after Better Auth has persisted the Google session; callback URI derives from `BETTER_AUTH_URL`.                                                                                                               |
 | Same-email linking                      | `account.accountLinking`, implicit verified-email linking, `linkSocial`                                                                | Google is the only configured social/linking provider. A provider-verified exact normalized email may link to an existing active user even when the matching local email starts unverified; Better Auth promotes it to verified before session creation. Different-email linking remains disabled.                                                            |
 | Connected methods and unlink            | `listAccounts`, `unlinkAccount`                                                                                                        | `allowUnlinkingAll: false` keeps the native last-method guard. No parallel account API exists.                                                                                                                                                                                                 |
 | OAuth token protection                  | `account.encryptOAuthTokens`                                                                                                           | Better Auth `1.6.23` encrypts persisted access and refresh tokens, while `idToken` follows its native persistence without that transform. ENG-38 accepts this at-rest limitation and exposes no stored token to Studio.                                                                        |
@@ -48,6 +48,11 @@ verification, and reset delivery.
   status, non-null issuance, and future expiry. A zero-row update aborts and rolls back the native
   user/account transaction. The native hash is unchanged and successful acceptance returns no
   session.
+- Existing-account acceptance validates the authenticated session against the proof email, then
+  completes the exact identity invitation, matching organization invitations, and memberships in
+  one TRIAD-owned PostgreSQL transaction. A replay by the same user is idempotent and retries the
+  downstream professional projection; a different authenticated email receives a safe mismatch
+  response without exposing the invited address.
 - Resend marks the old invitation `superseded`, creates a new UUIDv7 invitation and digest, and
   attempts delivery. Provider failure never returns the raw value and the older link remains
   unusable.
@@ -111,9 +116,11 @@ updated.
   bypass is configured because Better Auth `1.6.23` treats `trustedProviders` as an alternative to
   the provider `emailVerified` claim.
 - Google first access for a valid invitee creates a usable session only when the provider email is
-  verified. The active user preserves the invitation role, and the invitation is accepted after
-  Better Auth completes transactional user/account creation. An unverified provider identity
-  cannot create a usable session even with a valid pending invitation.
+  verified. Studio preserves the proof through the OAuth return and sends the authenticated user
+  back to explicit invitation acceptance. This is an idempotent recovery boundary rather than a
+  claim that Better Auth's callback/session transaction also owns TRIAD invitation and membership
+  writes. An unverified provider identity cannot create a usable session even with a valid pending
+  invitation.
 - Provider accounts are unique by `(provider_id, account_id)`; the database is the concurrency
   boundary for repeated callbacks.
 

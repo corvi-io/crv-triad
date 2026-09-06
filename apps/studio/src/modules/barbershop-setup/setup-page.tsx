@@ -120,7 +120,7 @@ const sectionHeaders: Record<SetupSection, { description: string; title: string 
   },
   payments: {
     title: "Pagamentos",
-    description: "Configure formas de pagamento e regras de comissão.",
+    description: "Configure as formas aceitas para registros de pagamento.",
   },
   availability: {
     title: "Disponibilidade",
@@ -282,14 +282,7 @@ function SetupSectionContent({
         />
       )
     case "payments":
-      return usesHttpCatalogs ? (
-        <UnavailableSetupSection
-          title="Formas de pagamento"
-          description="A configuração de pagamentos ainda não possui persistência de produção. Nenhuma alteração será simulada ou armazenada somente no navegador."
-        />
-      ) : (
-        <PaymentsSection scenarioId={search.scenario} />
-      )
+      return <PaymentsSection scenarioId={search.scenario} />
     case "availability":
       return usesHttpCatalogs ? (
         <ProductionAvailability

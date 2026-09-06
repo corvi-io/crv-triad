@@ -2,106 +2,53 @@
 
 ## Scope
 
-`/service-desk` is an authenticated local/configured-`dev` product-evaluation module labeled
-`Atendimentos`. Reception can project scheduled arrivals into a queue, add a temporary walk-in,
-call a customer, start service, operate the performed-service session, and hand it off as
-`Pronto para pagamento`, then exposes a narrow handoff to the revenue-operations checkout.
+`/service-desk` is the authenticated reception and service-fulfillment workspace. The production source is the tenant-safe HTTP API; the deterministic memory source remains an explicit local/dev test seam. Reception can admit scheduled arrivals or walk-ins, call and return customers, register a pre-service exit, conduct services sequentially, interrupt work with manager authorization, and read bounded completed history.
 
-It does not own prices, discounts, payment, commission, cash closing,
-production authorization, persistence, realtime reconciliation, or automatic allocation.
+Service Desk owns operational fulfillment. It does not mutate payments, discounts, commissions or cash. Completion seals an internal handoff for the finance boundary; the production UI truth is `Atendimento concluído`, not a promise that payment has been recorded.
 
-## Architecture
+## Runtime composition
 
-- `src/modules/service-desk` owns queue vocabulary, pure time/filter/count projections, safe search
-  state, the repository port, TanStack Query hooks, RHF/Zod form behavior, and presentation.
-- `src/dev/service-desk` owns deterministic walk-ins, the scheduled `called` overlay, the injected
-  source clock, scenarios, and the session-memory coordinator.
-- `virtual:studio-service-desk-source` is the only route composition seam. Presentation never
-  imports `src/dev`.
-- The memory coordinator receives the module-scoped scheduling repository created by
-  `src/dev/scheduling/entry.ts`. Agenda, Dashboard, and Service Desk therefore read the same
-  appointment instance.
+- `VITE_SERVICE_DESK_SOURCE=http` is the default and production-safe value.
+- `memory` is accepted only with `VITE_DEPLOY_TARGET=local|dev`; it preserves synthetic evaluation scenarios and the prior checkout prototype for adjacent regression coverage.
+- `disabled` renders the bounded unavailable state. There is no implicit fallback from HTTP to memory.
+- `virtual:studio-service-desk-source` is the route composition seam. Production presentation does not import `src/dev`.
+- Query keys, requests and invalidation are scoped by active tenant and selected unit. Commands use a stable idempotency key and the version captured when the user initiated the action.
 
-Scheduled `arrived` and `waiting` appointments are projected rather than copied. `Chamar cliente`
-adds only a reception-owned `called` overlay. `Iniciar atendimento` calls the scheduling
-repository's public transition contract with `in-progress`, so Agenda and Dashboard remain coherent.
-Walk-ins remain temporary contact snapshots and create neither Client records nor Agenda
-appointments.
+## Reception and identity
 
-## Service Fulfillment
+Scheduled admission references one eligible appointment and is unique per tenant/appointment. Walk-ins choose exactly one identity mode: an active canonical `clientId`, or a guest display name with optional phone. A guest is not silently converted into a Client. The drawer exposes canonical unit, client, service and professional options supplied by the API and keeps names, phone, notes and reasons out of URLs.
 
-`/service-desk/$sessionId` is the focused child workspace for an `in-service` queue entry. The same
-service-desk repository owns the queue entry and its service session; no second source or browser
-storage exists. Starting service creates one immutable initial item from the selected service and
-professional. Additional catalog services may be added, reassigned to an eligible available
-professional, and removed. Operational notes are optional, trimmed, limited to 500 characters, and
-must not contain credentials, payment-card data, documents, or health information.
+Queue order is server-owned FIFO. The operational stages are `Aguardando`, `Chamados` and `Em atendimento`; completed/canceled visits move to bounded history. Calls may return to waiting. Pre-service departure requires a private reason and produces no completed handoff.
 
-The source clock records `startedAt` and derives elapsed time with future-clock clamping for
-presentation. Every session write rejects a regressed source clock before changing the snapshot.
-Stable operation IDs deduplicate exact retries for add, remove, reassignment, notes, and finish at
-the memory boundary without forbidding separate duplicate service items. Completion requires at
-least the initial item and an eligible available professional on every item. Finish is atomic,
-pending-safe, and idempotent, records `finishedAt`, and changes only the service session and queue
-handoff to `ready-for-payment`. A linked scheduled appointment remains `in-progress`. Completed
-sessions are read-only and cannot be reopened.
+## Sequential fulfillment
 
-The child route carries only the board's allowlisted technical search context and restores it on
-return. Missing sessions use a bounded not-found state. Recoverable source failures use a shared
-Alert with `Tentar novamente`; mutation promises keep stable labels, suppress duplicate submission,
-and produce concise PII-free Sonner success/error feedback.
+A called visit can start only while its unit is open and the selected professional/service remains eligible. Scheduling owns the shared occupancy projection and lock, so appointment and live-service claims cannot overlap across units. Exactly one visit item can be active at a time. Pending items may be removed; active items may be finished or extended; completed items retain immutable service, professional and price snapshots.
 
-## Queue And Form Contract
+Finishing the visit requires at least one completed item and no pending/active item. The API commits visit state, item snapshots, occupancy release, client projection, metadata events and sealed handoff in one PostgreSQL transaction. Exact idempotent retries replay the stored result before version validation; a reused key with a different payload is rejected. Completed and canceled visits are read-only and cannot reopen.
 
-The visible stages are `Aguardando`, `Chamados`, and `Em atendimento`. Only waiting can become
-called, and only called can become in service. A first-available walk-in remains unassigned until a
-person explicitly selects an eligible professional at start time. No optimizer or automatic
-assignment is implied.
+## Sealed handoff v1
 
-The walk-in drawer collects a required name and service, optional masked phone, specific or
-first-available preference, conditional professional, arrival time, normal or fit-in priority, and
-bounded notes. React Hook Form and Zod own application validation. Every validation branch has
-explicit Brazilian Portuguese copy, errors are linked to controls, and invalid submission focuses
-the first field.
+The immutable internal `CompletedServiceHandoff` contains:
 
-Search uses `ListSearchField`; stage, priority, preference, and professional use shared list-filter
-compositions. Only unit, stage, priority, preference, stable professional ID, and technical scenario
-ID may enter URL state. Search text, names, phones, notes, and form values remain component/session
-memory and are never logged.
+- `schemaVersion: 1`, `tenantId`, `unitId`, `unitName`, `timezone`, `visitId`;
+- `clientId | null`, `appointmentId | null`, `customerDisplayName`;
+- `finishedAt`, `visitVersion`;
+- `items[]`: `itemId`, `serviceId`, `serviceName`, `professionalId`, `professionalName`, `priceCents`, `startedAt`, `finishedAt`.
 
-## Deterministic Source And Reset
+Only a completed visit with at least one performed item is eligible. Guest completion uses `clientId: null`; linked-client completion updates `lastVisitAt` in the same transaction. Canceled or zero-item interrupted visits never create the handoff. Contact details, operational notes, private reasons, revenue and commission are excluded.
 
-The source exposes bounded normal, empty, dense, long-wait, specific-professional,
-first-available, unavailable-professional, slow, next-failure, and persistent-error scenarios.
-Scenario IDs are technical URL inputs. In local/dev only, the separate `Cenários de desenvolvimento`
-launcher groups queue, reliability, and fulfillment fixtures outside the ordinary product controls;
-choosing an option updates the allowlisted URL state. It is absent when the source is disabled in
-`hml`/`prd`. A full reload reconstructs fixtures. Scenario changes and resets increment a generation
-so delayed operations cannot write into a newer scenario. Failures occur before writes.
+## Authorization, privacy and observability
 
-The service-desk memory source follows the scheduling source boundary. It is available only when
-`VITE_SCHEDULING_SOURCE=memory` and `VITE_DEPLOY_TARGET` is `local` or `dev`. No new public
-environment variable exists. `hml` and `prd` resolve the disabled shim, and production artifact
-scans reject the adapter, scenarios, and representative synthetic markers.
+`service_desk.read` reads bounded projections, `service_desk.manage` performs ordinary reception and fulfillment commands, and `service_desk.correct` permits owner/admin correction or interruption. Tenant and unit references are revalidated server-side; foreign resources use safe not-found/denied responses.
 
-## Accessibility And Responsive Behavior
+Logs and events contain correlation, actor/entity IDs, command/result, versions and timing only. Do not log customer names, phone, notes, reasons, tokens or handoff payloads. Durable HMAC receipts prove command payload identity without retaining payloads in telemetry.
 
-The board uses ordered named regions with neutral cards, visible text plus badge/icon state, native
-buttons, full Card anatomy, Avatar fallbacks, and shared feedback components. Wide screens use three
-columns; medium and narrow screens stack the stages without document overflow. Stage lists own
-bounded internal vertical scrolling. Shared focus-managed drawer behavior restores the trigger,
-reduced motion removes transitions, and actions preserve at least 24 by 24 CSS pixels.
+## Accessibility and shared overlays
 
-Playwright records 1600x900 and 320-CSS-pixel evidence, focused axe WCAG 2.2 A/AA, light/dark/system,
-forced colors, reduced motion, focus return, target size, loading/error/empty states, both accepted
-journeys, and production disablement. Real browser 200% zoom, VoiceOver/NVDA, and physical
-coarse-pointer review remain manual evidence and must be reported honestly.
+The board, list, drawers and session workspace use shared Sheet, Select, form, card and feedback primitives. Keyboard dismissal restores focus. Desktop and 320px layouts avoid document overflow; reduced-motion and forced-colors modes remain usable. Any shared Sheet/Select correction requires explicit open/close regression in desktop, mobile and reduced-motion modes before delivery.
 
-## Future Production Boundary
+## Local verification
 
-A production initiative must define canonical visit/client identity, tenant and unit authorization,
-queue ordering, concurrency and idempotency, audit attribution, persistence, clock/timezone
-semantics, bounded API queries, realtime reconciliation, privacy lifecycle, and observability.
-The accepted revenue-operations evaluation module consumes the public payment handoff and returns
-only the final completion transition. Its contract is documented in
-`docs/studio/revenue-operations.md`; production finance remains a future backend initiative.
+Use `apps/api/tests/fixtures/service-desk-local-qa.ts` to prepare two isolated synthetic tenants, then run API on 8103 and Studio on 3103 with `VITE_SERVICE_DESK_SOURCE=http`. The Playwright memory suite accepts an isolated port through `STUDIO_E2E_PORT`, starts its own Vite process with `reuseExistingServer: false`, and derives mock CORS from the same port.
+
+For incident and rollout guidance, see `docs/operations/service-desk-fulfillment-runbook.md`.

@@ -6,6 +6,8 @@ import {
   serviceDeskScenarioIds,
 } from "virtual:studio-service-desk-source"
 import { createFileRoute, redirect } from "@tanstack/react-router"
+import { toast } from "sonner"
+import { openCheckoutBeforeNavigation } from "@/modules/revenue-operations/open-checkout-navigation"
 import { ServiceDeskRepositoryProvider } from "@/modules/service-desk/repository-context"
 import {
   canonicalServiceDeskSearch,
@@ -19,6 +21,7 @@ import { PageHeader } from "@/modules/shared/components/layout/page-header"
 import { Alert, AlertDescription, AlertTitle } from "@/modules/shared/components/ui/alert"
 
 const repository = createServiceDeskRepository?.()
+const revenueRepository = createRevenueOperationsRepository?.()
 
 export const Route = createFileRoute("/_authenticated/service-desk/")({
   component: ServiceDeskRoute,
@@ -65,9 +68,19 @@ function ServiceDeskRoute() {
         scenarioGroups={developmentScenarioGroups}
         scenarioIds={serviceDeskScenarioIds}
         scenarioPresentation={developmentScenarioPresentation}
-        onCheckout={(sessionId) =>
-          navigate({ to: "/service-desk/$sessionId/checkout", params: { sessionId }, search })
-        }
+        onCheckout={async (sessionId) => {
+          try {
+            await openCheckoutBeforeNavigation(revenueRepository, sessionId, () =>
+              navigate({
+                to: "/service-desk/$sessionId/checkout",
+                params: { sessionId },
+                search,
+              }),
+            )
+          } catch {
+            toast.error("Não foi possível abrir a comanda.")
+          }
+        }}
         onOpenSession={(sessionId) =>
           navigate({ to: "/service-desk/$sessionId", params: { sessionId }, search })
         }
@@ -78,3 +91,5 @@ function ServiceDeskRoute() {
     </ServiceDeskRepositoryProvider>
   )
 }
+
+import { createRevenueOperationsRepository } from "virtual:studio-revenue-operations-source"

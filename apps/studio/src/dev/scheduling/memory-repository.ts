@@ -142,6 +142,7 @@ export class SchedulingMemoryRepository implements SchedulingRepository {
           : professionals,
         services,
         startTime: "08:00",
+        timezone: "America/Recife",
         unitName: query.unitId === "centro" ? "Centro" : "Artesão",
       }
     })

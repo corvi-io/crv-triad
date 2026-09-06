@@ -20,11 +20,11 @@ import {
 import { unit } from "../../src/modules/units/database/schema.js"
 
 const databaseUrl =
-  process.env.TEST_DATABASE_URL ?? "postgresql://postgres@127.0.0.1:55442/initiative22_test"
+  process.env.TEST_DATABASE_URL ?? "postgresql://postgres@127.0.0.1:55444/initiative22_test"
 const target = new URL(databaseUrl)
 if (
   !["localhost", "127.0.0.1"].includes(target.hostname) ||
-  target.port !== "55442" ||
+  target.port !== "55444" ||
   target.pathname !== "/initiative22_test"
 )
   throw new Error("The dedicated local scheduling QA database is required.")

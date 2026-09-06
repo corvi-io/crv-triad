@@ -52,6 +52,7 @@ export type ClientRecord = {
   phone: string
   preferenceNote: string
   professionalPreferenceIds?: readonly string[]
+  servicePreferences?: readonly string[]
   preferredServices?: readonly { id: string; name: string; status: ClientStatus }[]
   servicePreferenceIds?: readonly string[]
   status: ClientStatus

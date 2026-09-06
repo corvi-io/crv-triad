@@ -38,8 +38,20 @@ describe("client routes", () => {
   })
 
   it("passes only the server-resolved organization to list", async () => {
+    const lastVisitAt = new Date("2026-09-04T15:00:00.000Z")
     const list = vi.fn(async () => ({
-      items: [],
+      items: [
+        {
+          id: "client-a",
+          name: "Cliente A",
+          status: "active",
+          tags: [],
+          version: 1,
+          createdAt: lastVisitAt,
+          updatedAt: lastVisitAt,
+          lastVisitAt,
+        },
+      ],
       page: 1,
       pageSize: 20,
       totalCount: 0,
@@ -53,6 +65,9 @@ describe("client routes", () => {
     const response = await app.handle(request("/api/clients?page=1&pageSize=20"))
 
     expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      items: [{ id: "client-a", lastVisitAt: "2026-09-04T15:00:00.000Z" }],
+    })
     expect(list).toHaveBeenCalledWith(
       "tenant-a",
       expect.objectContaining({ page: "1", pageSize: "20" }),

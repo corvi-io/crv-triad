@@ -155,6 +155,6 @@ The workspace navigation preserves one conceptual order across expanded,
 collapsed, and mobile shells: `Dashboard`, `Agenda`, `Clientes`, followed by
 the existing lower administrative block `Barbearia`, `Configurações`.
 
-## HTTP scheduling projection
+## Production source
 
-With the normal HTTP source, Dashboard reads the same unit/date range and paginated appointment list as Agenda and reuses its drawer. It displays supported appointment counts only. The prototype metrics described below remain explicit memory QA behavior. See [Production scheduling](scheduling.md).
+The HTTP Dashboard reuses the original WorkspaceOverview layout. Appointment counts, cancellations, scheduled service values and net availability are integrated; payment, completion and reception metrics explicitly remain unintegrated. Period requests are bounded to seven days per API call, with at most five calls for a month. No demo records or estimated paid values fill missing integrations.

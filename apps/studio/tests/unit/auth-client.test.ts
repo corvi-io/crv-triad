@@ -31,6 +31,7 @@ vi.mock("better-auth/react", () => ({
 }))
 
 import {
+  acceptExistingInvitation,
   acceptInvitation,
   changePassword,
   linkGoogle,
@@ -100,6 +101,21 @@ describe("auth client", () => {
     expect(acceptanceRequest?.[1]).toMatchObject({ method: "POST", referrerPolicy: "no-referrer" })
   })
 
+  it.each([
+    [400, "INVITATION_ACCOUNT_MISMATCH", "account_mismatch"],
+    [409, "INVITATION_CHANGED", "invitation_changed"],
+    [503, "INVITATION_COMPLETION_FAILED", "completion_failed"],
+  ] as const)("maps safe existing-invitation error %s", async (status, code, expected) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ code }), { status })),
+    )
+
+    await expect(acceptExistingInvitation("synthetic-invitation-proof")).resolves.toEqual({
+      error: expected,
+    })
+  })
+
   it("requests password reset with an absolute redirect URL", async () => {
     await requestPasswordReset("maria@example.com")
 
@@ -149,5 +165,16 @@ describe("auth client", () => {
     expect(authMocks.listAccounts).toHaveBeenCalledOnce()
     expect(authMocks.signInSocial.mock.calls[0]?.[0]).not.toHaveProperty("scopes")
     expect(authMocks.linkSocial.mock.calls[0]?.[0]).not.toHaveProperty("scopes")
+  })
+
+  it("returns invited Google sign-in to the token acceptance route", async () => {
+    await signInWithGoogle("synthetic-invitation-proof")
+
+    expect(authMocks.signInSocial).toHaveBeenCalledWith({
+      callbackURL: "http://localhost:3000/accept-invitation?token=synthetic-invitation-proof",
+      errorCallbackURL:
+        "http://localhost:3000/login?error=provider&invitationToken=synthetic-invitation-proof",
+      provider: "google",
+    })
   })
 })

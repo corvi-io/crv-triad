@@ -58,8 +58,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-001 — Verify predecessor, handoff and cash policy contract
 
-- [ ] Deliver and verify TASK-001.
-- Status: Pending
+- [x] Deliver and verify TASK-001.
+- Status: Complete
 - Covers: REQ-001, REQ-002, REQ-007, REQ-011, REQ-012, REQ-013, REQ-020, REQ-021, REQ-037, AC-001, AC-002,
   AC-004, AC-007, AC-008, AC-011, AC-018
 - Depends on: Explicit PRD approval and predecessor acceptance; no implementation task dependency.
@@ -78,8 +78,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-002 — Freeze inherited parity and money field inventory
 
-- [ ] Deliver and verify TASK-002.
-- Status: Pending
+- [x] Deliver and verify TASK-002.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-025, REQ-026, REQ-027, REQ-031, REQ-032, AC-012, AC-013, AC-014
 - Depends on: TASK-001
 - Can parallelize with: Only independent artifact preparation allowed by Dependency Order; no concurrent
@@ -98,8 +98,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-003 — Persist checkout, ledger, day and policy invariants
 
-- [ ] Deliver and verify TASK-003.
-- Status: Pending
+- [x] Deliver and verify TASK-003.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-002, REQ-003, REQ-007, REQ-012, REQ-013, REQ-014, REQ-017, REQ-019, REQ-020, REQ-021, REQ-028,
   REQ-029, REQ-035, AC-002, AC-004, AC-006, AC-008, AC-009, AC-010, AC-011, AC-016
 - Depends on: TASK-001
@@ -119,8 +119,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-004 — Implement exact monetary policies and validation
 
-- [ ] Deliver and verify TASK-004.
-- Status: Pending
+- [x] Deliver and verify TASK-004.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-004, REQ-005, REQ-006, REQ-008, REQ-009, REQ-015, REQ-016, AC-003, AC-005, AC-009, AC-013
 - Depends on: TASK-003
 - Can parallelize with: Only independent artifact preparation allowed by Dependency Order; no concurrent
@@ -139,8 +139,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-005 — Implement checkout opening, policy and drafts
 
-- [ ] Deliver and verify TASK-005.
-- Status: Pending
+- [x] Deliver and verify TASK-005.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-001, REQ-002, REQ-005, REQ-007, REQ-008, REQ-009, REQ-011, REQ-024, REQ-028, AC-001, AC-002,
   AC-003, AC-004, AC-005, AC-007, AC-017
 - Depends on: TASK-004
@@ -160,8 +160,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-006 — Implement cash opening and immutable movements
 
-- [ ] Deliver and verify TASK-006.
-- Status: Pending
+- [x] Deliver and verify TASK-006.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-001, REQ-012, REQ-013, REQ-014, REQ-015, REQ-028, REQ-029, AC-001, AC-008, AC-009, AC-010
 - Depends on: TASK-005
 - Can parallelize with: Only independent artifact preparation allowed by Dependency Order; no concurrent
@@ -180,8 +180,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-007 — Implement atomic registration and correction
 
-- [ ] Deliver and verify TASK-007.
-- Status: Pending
+- [x] Deliver and verify TASK-007.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-003, REQ-009, REQ-010, REQ-011, REQ-012, REQ-013, REQ-020, REQ-021, REQ-028, REQ-029, AC-004,
   AC-005, AC-006, AC-007, AC-008, AC-010, AC-011
 - Depends on: TASK-006
@@ -202,8 +202,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-008 — Implement closing and immutable revisions
 
-- [ ] Deliver and verify TASK-008.
-- Status: Pending
+- [x] Deliver and verify TASK-008.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-015, REQ-016, REQ-017, REQ-018, REQ-019, REQ-028, REQ-029, AC-009, AC-010, AC-011
 - Depends on: TASK-007
 - Can parallelize with: Only independent artifact preparation allowed by Dependency Order; no concurrent
@@ -221,8 +221,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-009 — Publish bounded API and authorized financial projections
 
-- [ ] Deliver and verify TASK-009.
-- Status: Pending
+- [x] Deliver and verify TASK-009.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-001, REQ-016, REQ-022, REQ-023, REQ-024, REQ-033, REQ-034, AC-001, AC-009, AC-012, AC-015,
   AC-016, AC-017
 - Depends on: TASK-008
@@ -241,8 +241,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-010 — Integrate repositories, money masks and protected drafts
 
-- [ ] Deliver and verify TASK-010.
-- Status: Pending
+- [x] Deliver and verify TASK-010.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-030, REQ-031, AC-006, AC-012, AC-013, AC-017
 - Depends on: TASK-002, TASK-009
 - Can parallelize with: Only independent artifact preparation allowed by Dependency Order; no concurrent
@@ -261,8 +261,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-011 — Deliver checkout and method settings
 
-- [ ] Deliver and verify TASK-011.
-- Status: Pending
+- [x] Deliver and verify TASK-011.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-002, REQ-005, REQ-007, REQ-008, REQ-009, REQ-011, REQ-020, REQ-021, REQ-024, REQ-025, REQ-026,
   REQ-027, REQ-032, AC-002, AC-003, AC-004, AC-005, AC-007, AC-011, AC-013, AC-014, AC-017
 - Depends on: TASK-010
@@ -282,8 +282,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-012 — Deliver cash day, movements and closing history
 
-- [ ] Deliver and verify TASK-012.
-- Status: Pending
+- [x] Deliver and verify TASK-012.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-012, REQ-013, REQ-014, REQ-015, REQ-016, REQ-017, REQ-018, REQ-019, REQ-022, REQ-023, REQ-025,
   REQ-026, REQ-027, REQ-030, REQ-032, AC-008, AC-009, AC-010, AC-011, AC-012, AC-013, AC-014
 - Depends on: TASK-011
@@ -302,8 +302,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-013 — Validate privacy, telemetry and SQL operations
 
-- [ ] Deliver and verify TASK-013.
-- Status: Pending
+- [x] Deliver and verify TASK-013.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-028, REQ-029, REQ-033, REQ-034, REQ-036, AC-006, AC-010, AC-015, AC-016
 - Depends on: TASK-009
 - Can parallelize with: Only independent artifact preparation allowed by Dependency Order; no concurrent
@@ -323,8 +323,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-014 — Run full product acceptance and source rollback
 
-- [ ] Deliver and verify TASK-014.
-- Status: Pending
+- [x] Deliver and verify TASK-014.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-001, REQ-003, REQ-004, REQ-010, REQ-017, REQ-020, REQ-024, REQ-025, REQ-027, REQ-028, REQ-029,
   REQ-030, REQ-031, REQ-032, REQ-034, REQ-035, REQ-038, AC-001, AC-002, AC-003, AC-004, AC-005, AC-006,
   AC-007, AC-008, AC-009, AC-010, AC-011, AC-012, AC-013, AC-014, AC-015, AC-016, AC-017, AC-018
@@ -345,8 +345,8 @@ mutations against a memory-only or provisional service source.
 
 ### TASK-015 — Finalize durable finance contracts and evidence
 
-- [ ] Deliver and verify TASK-015.
-- Status: Pending
+- [x] Deliver and verify TASK-015.
+- Status: Complete — evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md).
 - Covers: REQ-024, REQ-025, REQ-035, REQ-036, REQ-037, REQ-038, AC-013, AC-015, AC-016, AC-017, AC-018
 - Depends on: TASK-014
 - Can parallelize with: Only independent artifact preparation allowed by Dependency Order; no concurrent
@@ -462,3 +462,20 @@ a concurrency, money or browser-comparison claim.
 - [ ] Durable docs/source/operational contracts and the Continuation Checkpoint are accurate.
 - [ ] Deviations, skipped manual checks, residual risks and follow-up owners are recorded; unresolved
   required gates prevent Done.
+
+## Runtime execution closure (2026-09-05)
+
+- Accepted dependency: Initiative 23 merged to `staging` at
+  `1842099b94d9b11790f82a58128909e17ba11043`; its `CompletedServiceHandoff` schema version 1 is consumed
+  through the public application read port.
+- Delivered runtime: additive migration `0025_flaky_malcolm_colcord.sql`, the API
+  `revenue-operations` module, strict authenticated routes, Studio HTTP repository, production checkout,
+  receipt correction, payment-method settings, cash movements, closing and immutable revision history.
+- Authority clarification: `responsiblePersonName` is absent from the HTTP request. Actor ID/name and
+  operational date are resolved server-side; route tests reject a spoofed field before service invocation.
+- Evidence: [runtime and local QA](../evidence/24-runtime-and-local-qa.md). It records exact-money,
+  PostgreSQL concurrency/tenant isolation, API/Studio coverage, production-boundary E2E, real-browser QA,
+  responsive checks, defects corrected, and explicit manual limits.
+- Contract status: the approved PRD and plan were copied from Ground without content or Approval-state
+  changes to close the branch documentation gap. No financial behavior changes Initiative 23 lifecycle
+  state, and commission/provider processing remains deferred.

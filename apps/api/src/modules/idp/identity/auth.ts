@@ -17,7 +17,6 @@ import {
   resolveInvitationProof,
 } from "./invitation-proof.js"
 import {
-  acceptInvitationForUser,
   acceptOrganizationInvitationsForUser,
   findPendingInvitationByEmail,
 } from "./invitations.js"
@@ -368,7 +367,7 @@ export function createAuthOptions(
               }
             }
 
-            if (context?.path === "/callback/google" && candidate.emailVerified !== true) {
+            if (isGoogleOAuthCallback(context) && candidate.emailVerified !== true) {
               throw new APIError("FORBIDDEN", {
                 message: "Google email must be verified.",
               })
@@ -407,12 +406,6 @@ export function createAuthOptions(
             }
 
             return { data: { ...candidate, email } }
-          },
-          after: async (createdUser, context) => {
-            if (context?.path === "/callback/google") {
-              const accepted = await acceptInvitationForUser(db, createdUser.email, createdUser.id)
-              if (accepted) await onInvitationAccepted?.(accepted.id, createdUser.id)
-            }
           },
         },
       },
@@ -456,6 +449,12 @@ export function createAuthOptions(
       },
     },
   }
+}
+
+function isGoogleOAuthCallback(context: unknown): boolean {
+  if (!context || typeof context !== "object") return false
+  const candidate = context as { params?: { id?: unknown }; path?: unknown }
+  return candidate.path === "/callback/:id" && candidate.params?.id === "google"
 }
 
 function getProposedPassword(path: string, body: unknown): string | null {

@@ -29,6 +29,62 @@
       "when": 1788637309865,
       "tag": "0003_scheduling-plan-entitlements",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788568180415,
+      "tag": "0018_amusing_deathbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788568181415,
+      "tag": "0019_lethal_luckman",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788568182415,
+      "tag": "0020_scheduling-plan-entitlements",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788644324025,
+      "tag": "0021_access-audit-catalog-fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788647431354,
+      "tag": "0022_magenta_sinister_six",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788647582854,
+      "tag": "0023_tiresome_hardball",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788656400000,
+      "tag": "0024_release_completed_appointments",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788659292936,
+      "tag": "0025_flaky_malcolm_colcord",
+      "breakpoints": true
     }
   ]
 }

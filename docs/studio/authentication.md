@@ -11,7 +11,8 @@ provider credentials, account-linking decisions, or persistence.
 - `/accept-invitation` reads only an opaque query proof, removes it from browser history, resolves
   the lifecycle through the IDP, and offers password creation only for a valid result. It renders
   explicit validating, invalid, expired, revoked, used, superseded, network, and submitting states.
-  Success creates a session and replaces the route with the authenticated `/overview` screen.
+  Existing accounts authenticate first and return to this route with the same proof; acceptance
+  then completes the IDP and organization links before entering the workspace.
 - `/forgot-password` validates an email and always uses enumeration-safe result copy. Its native
   `requestPasswordReset` call sets `redirectTo` to the fixed browser-origin
   `/reset-password` route.
@@ -32,8 +33,8 @@ environment variables.
 | ------------------------- | ------------------------- | ---------------------------------------------------------- |
 | Email/password sign-in    | `signIn.email`            | `/overview`                                                |
 | Token-proven first access | `signUp.email`            | Opaque write-only proof; IDP owns email, role, and gate    |
-| Google sign-in            | `signIn.social`           | Google only; `/overview`; safe `/login` error target       |
-| Verification resend       | `sendVerificationEmail`   | Auto-authenticated `/overview` after valid verification    |
+| Google sign-in            | `signIn.social`           | Google only; invitation-aware return or `/overview`        |
+| Verification resend       | `sendVerificationEmail`   | `/login?verified=true`                                     |
 | Forgot password           | `requestPasswordReset`    | `/reset-password`                                          |
 | Complete reset            | `resetPassword`           | Native URL token only                                      |
 | Change password           | `changePassword`          | Current password; revoke other sessions                    |
@@ -49,6 +50,12 @@ encryption, durable delivery, or provider-independent timing. Backlog follow-up 
 durable queued IDP transactional-email delivery. The server remains the authority for invitation
 access, verified provider email, same-email linking, minimal `openid`/`email`/`profile` scopes,
 profile preservation, session revocation, and unlink-all rejection.
+
+When login starts from an invitation, Studio preserves the opaque proof only in Better Auth's
+validated OAuth return/error URLs and returns to `/accept-invitation` after the session exists. The
+authenticated acceptance endpoint distinguishes account mismatch, changed proof, and recoverable
+completion failure without returning the invited email or upstream error details. Replaying the
+same proof for the same account is safe; a different account cannot consume it.
 
 ## UI And Accessibility Contract
 
@@ -90,11 +97,3 @@ interactive foundation. The shared component inventory therefore does not change
 Deployment still depends on the IDP runtime values documented under `docs/idp`, approved public
 Google consent/privacy/support content, and an authorized cookie-session cutover. Studio cannot
 complete those external or operational prerequisites.
-
-## Profile image
-
-The authenticated profile screen uploads PNG, JPEG, or WebP files up to 2 MB through the API and
-refreshes the Better Auth session after persistence. Removal clears the identity record and deletes
-the owned object. Local development uses the API-owned `.data/profile-images` directory; deployed
-environments are required to use Cloudflare R2 through the server-side S3-compatible adapter. The
-browser never receives object-storage credentials.

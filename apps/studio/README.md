@@ -55,10 +55,13 @@ it does not expose identity administration. See `docs/studio/authentication.md` 
 UI states, provider-error handling, accessibility, and test boundaries.
 
 Invitation acceptance removes the opaque query proof from browser history before form entry,
-uses a no-referrer policy, never accepts editable identity or role data, prevents duplicate submit,
-creates a session, and redirects directly to the authenticated overview. Invitation, reset, and
-preference password forms share the same 8–256-character composition guidance in Portuguese while
-the IDP remains authoritative.
+uses a no-referrer policy, never accepts editable identity or role data, and prevents duplicate
+submit. New credential accounts create a session through Better Auth; existing accounts, including
+Google first access, preserve the proof through login and complete the invitation only after the
+session exists. Safe Portuguese feedback distinguishes a different signed-in account from a
+changed proof or recoverable completion failure without revealing the invited address. Invitation,
+reset, and preference password forms share the same 8–256-character composition guidance in
+Portuguese while the IDP remains authoritative.
 
 The preview and sandbox redirect to `/login` in production. The sandbox is deterministic and
 resettable, persists nothing, and never mocks authentication. Verify it with
@@ -161,6 +164,4 @@ work. Remote `dev` builds require `VITE_DEPLOY_TARGET=dev` plus `memory` in the 
 variable. The composition boundary ignores memory for `hml` and `prd`, and production checks reject
 synthetic markers.
 
-## Production scheduling
-
-Agenda, Disponibilidade, Client history, professional upcoming appointments and Dashboard use the same tenant-scoped HTTP scheduling data. See [Production scheduling](../../docs/studio/scheduling.md) for source settings and the isolated local runner.
+Production scheduling and availability now use the HTTP source by default. The Dashboard preserves its original panels and explicitly labels metrics whose source is not integrated. See [scheduling](../../docs/studio/scheduling.md).

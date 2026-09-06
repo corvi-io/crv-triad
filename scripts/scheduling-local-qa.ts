@@ -3,7 +3,7 @@ import { resolve } from "node:path"
 
 // An explicitly invoked, synthetic local environment. It never reads a deployment database URL.
 const root = resolve(import.meta.dir, "..")
-const name = "triad-initiative22-postgres"
+const name = "triad-initiative22-published-postgres"
 async function run(cmd: string[], cwd = root) {
   const process = Bun.spawn(cmd, { cwd, stdout: "pipe", stderr: "pipe" })
   const [stdout, stderr, code] = await Promise.all([
@@ -23,9 +23,9 @@ if (!containers.split("\n").includes(name)) {
     "--name",
     name,
     "--publish",
-    "127.0.0.1:55442:5432",
+    "127.0.0.1:55444:5432",
     "--mount",
-    "type=volume,source=triad-initiative22-qa,target=/var/lib/postgresql/data",
+    "type=volume,source=triad-initiative22-published-qa,target=/var/lib/postgresql/data",
     "--env",
     "POSTGRES_HOST_AUTH_METHOD=trust",
     "--env",
@@ -35,7 +35,7 @@ if (!containers.split("\n").includes(name)) {
 }
 const inspected = JSON.parse(await run(["docker", "inspect", name]))[0]
 const binding = inspected.HostConfig.PortBindings["5432/tcp"]?.[0]
-if (binding?.HostIp !== "127.0.0.1" || binding.HostPort !== "55442")
+if (binding?.HostIp !== "127.0.0.1" || binding.HostPort !== "55444")
   throw new Error("Unexpected QA database binding; no changes made.")
 await run(["docker", "start", name])
 let ready = false
@@ -65,7 +65,7 @@ const api = Bun.spawn(["bun", "--watch", "src/server.ts"], {
     APP_ENV: "local",
     API_HOST: "127.0.0.1",
     API_PORT: String(apiPort),
-    DATABASE_URL: "postgresql://postgres@127.0.0.1:55442/initiative22_test",
+    DATABASE_URL: "postgresql://postgres@127.0.0.1:55444/initiative22_test",
     BETTER_AUTH_SECRET: "qa22-local-disposable-secret-32-characters",
     BETTER_AUTH_URL: `http://localhost:${apiPort}/api/auth`,
     AUTH_TRUSTED_ORIGINS: `http://localhost:${studioPort}`,

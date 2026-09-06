@@ -9,6 +9,7 @@ import {
   availabilityCommand,
   availabilitySeries,
 } from "../../src/modules/availability/database/schema.js"
+import { createDrizzleClientRepository } from "../../src/modules/clients/database/client-repository.js"
 import { client } from "../../src/modules/clients/database/schema.js"
 import { member, organization, user } from "../../src/modules/idp/database/schema.js"
 import { professional, professionalUnit } from "../../src/modules/professionals/database/schema.js"
@@ -16,10 +17,12 @@ import {
   createSchedulingService,
   guardAvailabilityAppointments,
 } from "../../src/modules/scheduling/application/scheduling-service.js"
+import { nextClientAppointment } from "../../src/modules/scheduling/database/client-projection.js"
 import {
   appointment,
   appointmentEvent,
   schedulingCommand,
+  schedulingOccupancy,
 } from "../../src/modules/scheduling/database/schema.js"
 import {
   professionalService,
@@ -122,6 +125,7 @@ afterAll(async () => {
     availabilityCommand,
     schedulingCommand,
     appointmentEvent,
+    schedulingOccupancy,
     appointment,
     availabilitySeries,
     professionalService,
@@ -281,7 +285,7 @@ describe.sequential("persistent scheduling", () => {
     if (!current) throw new Error("Expected an occupying booking")
     await db
       .update(service)
-      .set({ priceCents: 9900, durationMinutes: 60 })
+      .set({ priceCents: 9900, durationMinutes: 60, status: "archived" })
       .where(eq(service.id, base.serviceId))
     const edited = await scheduling.update(
       actor,
@@ -292,6 +296,23 @@ describe.sequential("persistent scheduling", () => {
     )
     expect(edited.priceCents).toBe(5000)
     expect(edited.durationMinutes).toBe(30)
+    await expect(
+      scheduling.update(
+        actor,
+        current.id,
+        { ...base, start: "15:00" },
+        edited.version,
+        crypto.randomUUID(),
+      ),
+    ).rejects.toMatchObject({ code: "invalid_relation", field: "serviceId" })
+    const matching = await scheduling.page(actor.organizationId, {
+      unitId: base.unitId,
+      startDate: base.date,
+      endDate: base.date,
+      search: current.professionalName,
+    })
+    expect(matching.items.some((item) => item.id === current.id)).toBe(true)
+
     await expect(
       availability.save(actor.organizationId, null, {
         id: seriesId,
@@ -308,22 +329,16 @@ describe.sequential("persistent scheduling", () => {
     expect(rule.version).toBe(2)
     await db
       .update(service)
-      .set({ priceCents: 5000, durationMinutes: 30 })
+      .set({ priceCents: 5000, durationMinutes: 30, status: "active" })
       .where(eq(service.id, base.serviceId))
   })
-  it("enforces the PostgreSQL exclusion even when application locking is bypassed", async () => {
-    const rows = await db
-      .select()
-      .from(appointment)
-      .where(eq(appointment.organizationId, actor.organizationId))
-    const current = rows.find((row) => row.status === "scheduled")
-    if (!current) throw new Error("Expected an occupying booking")
-    const attempts = await Promise.allSettled(
-      [1, 2].map(() => db.insert(appointment).values({ ...current, id: crypto.randomUUID() })),
-    )
-    expect(attempts.every((result) => result.status === "rejected")).toBe(true)
-    for (const result of attempts)
-      if (result.status === "rejected") expect(result.reason.cause.code).toBe("23P01")
+  it("removes the legacy appointment exclusion in favor of unified occupancy", async () => {
+    const constraints = await db.execute(sql`
+      select conname from pg_constraint
+      where conrelid = 'scheduling_appointments'::regclass
+        and conname = 'scheduling_appointments_no_overlap'
+    `)
+    expect(constraints.rows).toHaveLength(0)
   })
   it("restores excluded dates, archives and restores series, and replays availability commands", async () => {
     await availability.save(actor.organizationId, null, {
@@ -437,6 +452,18 @@ describe.sequential("persistent scheduling", () => {
       3,
       crypto.randomUUID(),
     )
+    expect(
+      await db
+        .select()
+        .from(schedulingOccupancy)
+        .where(eq(schedulingOccupancy.sourceId, fulfilled.id)),
+    ).toHaveLength(0)
+    const releasedInterval = await scheduling.create(
+      actor,
+      { ...base, start: "13:00" },
+      crypto.randomUUID(),
+    )
+    expect(releasedInterval.status).toBe("scheduled")
     const result = await scheduling.transitionFromFulfillment(
       actor,
       fulfilled.id,
@@ -449,5 +476,89 @@ describe.sequential("persistent scheduling", () => {
     expect(
       (await scheduling.clientHistory(actor.organizationId, base.clientId)).lastVisitAt,
     ).toBeNull()
+  })
+  it("blocks new appointments while a live service is overdue and its release is unknown", async () => {
+    await db.insert(schedulingOccupancy).values({
+      id: "overdue-live-service",
+      organizationId: actor.organizationId,
+      professionalId: base.professionalId,
+      unitId: base.unitId,
+      source: "service",
+      sourceId: "overdue-item",
+      startsAt: new Date("2026-09-05T10:00:00Z"),
+      endsAt: new Date("2026-09-05T10:30:00Z"),
+      live: 1,
+    })
+    await expect(
+      scheduling.create(actor, { ...base, start: "17:00" }, crypto.randomUUID()),
+    ).rejects.toMatchObject({ code: "appointment_conflict", field: "start" })
+    await db.delete(schedulingOccupancy).where(eq(schedulingOccupancy.id, "overdue-live-service"))
+    expect(
+      await scheduling.create(actor, { ...base, start: "17:00" }, crypto.randomUUID()),
+    ).toMatchObject({ status: "scheduled" })
+  })
+  it("restores an excluded occurrence at the capacity limit", async () => {
+    const [current] = await db
+      .select()
+      .from(availabilitySeries)
+      .where(eq(availabilitySeries.id, seriesId))
+    const excludedDates = Array.from({ length: 1000 }, (_, index) =>
+      new Date(Date.UTC(2030, 0, index + 1)).toISOString().slice(0, 10),
+    )
+    await db
+      .update(availabilitySeries)
+      .set({ excludedDates })
+      .where(eq(availabilitySeries.id, seriesId))
+    try {
+      await availability.save(actor.organizationId, null, {
+        id: seriesId,
+        version: current.version,
+        scope: "occurrence",
+        date: excludedDates[0],
+        restore: true,
+      })
+      const [updated] = await db
+        .select()
+        .from(availabilitySeries)
+        .where(eq(availabilitySeries.id, seriesId))
+      expect(updated.excludedDates).toHaveLength(999)
+      expect(updated.excludedDates).not.toContain(excludedDates[0])
+    } finally {
+      await db
+        .update(availabilitySeries)
+        .set({ excludedDates: current.excludedDates })
+        .where(eq(availabilitySeries.id, seriesId))
+    }
+  })
+  it("does not return already started appointments as upcoming", async () => {
+    vi.setSystemTime(new Date("2026-09-07T15:00:00Z"))
+    try {
+      const next = await scheduling.professionalSchedule(
+        actor.organizationId,
+        base.professionalId,
+        base.date,
+      )
+      expect(next.every((item) => item.startsAt >= new Date())).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+  it("projects local appointment time and preserves legacy client preferences", async () => {
+    await db
+      .update(client)
+      .set({ servicePreferences: ["Legacy preference"] })
+      .where(eq(client.id, base.clientId))
+    const repository = createDrizzleClientRepository(db as never, nextClientAppointment)
+    const projected = await repository.get({
+      organizationId: actor.organizationId,
+      clientId: base.clientId,
+    })
+    expect(projected).toMatchObject({ servicePreferences: ["Legacy preference"] })
+    const expected = await pool.query(
+      "select date::text, start from scheduling_appointments where organization_id=$1 and client_id=$2 and starts_at >= now() and status in ('scheduled','confirmed','arrived') order by starts_at,id limit 1",
+      [actor.organizationId, base.clientId],
+    )
+    expect(expected.rows).toHaveLength(1)
+    expect(projected?.nextAppointmentAt).toBe(`${expected.rows[0].date}T${expected.rows[0].start}`)
   })
 })
