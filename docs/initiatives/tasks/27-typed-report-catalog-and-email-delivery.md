@@ -35,7 +35,7 @@ TASK-001 freezes the typed contract and additive schema first. TASK-002 and TASK
 
 ### TASK-001 — Freeze typed report and delivery contracts
 
-- Status: Pending
+- Status: Done
 - Covers: REQ-001–009, REQ-012–014; AC-001–006, AC-008–009
 - Depends on: PRD approval
 - Can parallelize with: None
@@ -47,7 +47,7 @@ TASK-001 freezes the typed contract and additive schema first. TASK-002 and TASK
 
 ### TASK-002 — Implement bounded typed aggregations and render models
 
-- Status: Pending
+- Status: Done
 - Covers: REQ-004, REQ-009, REQ-017, REQ-020; AC-005, AC-012
 - Depends on: TASK-001
 - Can parallelize with: TASK-005
@@ -59,7 +59,7 @@ TASK-001 freezes the typed contract and additive schema first. TASK-002 and TASK
 
 ### TASK-003 — Extend request API and resilient worker lifecycle
 
-- Status: Pending
+- Status: Done
 - Covers: REQ-007–010, REQ-012–014, REQ-017–018; AC-004–009, AC-012, AC-014
 - Depends on: TASK-001, TASK-002
 - Can parallelize with: TASK-004 after lifecycle interfaces stabilize
@@ -71,7 +71,7 @@ TASK-001 freezes the typed contract and additive schema first. TASK-002 and TASK
 
 ### TASK-004 — Compose private R2 and transactional email delivery
 
-- Status: Pending
+- Status: Done
 - Covers: REQ-010–012, REQ-014–016, REQ-018, REQ-021; AC-006–011, AC-014
 - Depends on: TASK-001; stable worker lifecycle from TASK-003
 - Can parallelize with: late TASK-003 and TASK-005
@@ -83,7 +83,7 @@ TASK-001 freezes the typed contract and additive schema first. TASK-002 and TASK
 
 ### TASK-005 — Build the Studio catalog and two-step dialog
 
-- Status: Pending
+- Status: Done
 - Covers: REQ-001–006, REQ-013, REQ-019; AC-001–004, AC-008, AC-013
 - Depends on: TASK-001
 - Can parallelize with: TASK-002
@@ -95,7 +95,7 @@ TASK-001 freezes the typed contract and additive schema first. TASK-002 and TASK
 
 ### TASK-006 — Prove API, persistence, and provider reliability
 
-- Status: Pending
+- Status: Done
 - Covers: REQ-007–014, REQ-017–018, REQ-020; AC-004–009, AC-012, AC-014–015
 - Depends on: TASK-002, TASK-003, TASK-004
 - Can parallelize with: TASK-005
@@ -107,7 +107,7 @@ TASK-001 freezes the typed contract and additive schema first. TASK-002 and TASK
 
 ### TASK-007 — Make real providers the normal local development path
 
-- Status: Pending
+- Status: Blocked
 - Covers: REQ-015–016, REQ-018, REQ-021; AC-010–011, AC-014, AC-016
 - Depends on: TASK-003, TASK-004; user-provided Trigger.dev project/key and R2 development bucket/configuration
 - Can parallelize with: final TASK-006
@@ -119,7 +119,7 @@ TASK-001 freezes the typed contract and additive schema first. TASK-002 and TASK
 
 ### TASK-008 — Execute corrective browser and accessibility QA
 
-- Status: Pending
+- Status: In progress
 - Covers: REQ-001–006, REQ-013–019; AC-001–015
 - Depends on: TASK-005, TASK-006, TASK-007
 - Can parallelize with: None
@@ -145,9 +145,19 @@ TASK-001 freezes the typed contract and additive schema first. TASK-002 and TASK
 
 Record evidence as tasks are completed:
 
-- Command:
-- Result:
-- Notes:
+- Command: `bun run check` at the repository root.
+- Result: 4/4 packages passed; API 403/403; Studio 811/811 plus production boundary on the reconciled tree at `60df630`.
+- Command: fresh `idp27_root_test` PostgreSQL database plus `bun run test:integration:postgres`.
+- Result: 10 files and 61/61 tests passed against a database recreated from zero, including six truthful metric sets, combined split-tender filters, cross-tenant negatives, dispatch/acknowledgement recovery, storage recovery, and independent email retry.
+- Command: Studio coverage and focused reporting Playwright.
+- Result: coverage 84.76/80.11/82.72/86.39 and Playwright 3/3 with axe, keyboard, 320px, 200% zoom, themes, and reduced motion.
+- Command: `bun run db:migrate` against the configured local Neon database.
+- Result: migrations 0029 and 0030 applied successfully on 2026-09-06.
+- Command: two independent read-only corrective audits of the reporting lifecycle, metrics, privacy boundary, and tenant isolation.
+- Result: all six blocking findings closed at `60df630`; no code blocker remains.
+- Command: `bun audit`.
+- Result: not green: 23 transitive findings (1 critical, 10 high, 11 moderate, 1 low), including Trigger.dev dependencies. Staging remains blocked until these are upgraded, mitigated, or explicitly risk-accepted through the release process.
+- Notes: real Trigger.dev/R2/email smoke remains blocked on provider values promised by the product owner. API global coverage remains an inherited repository gate failure (403 tests pass; branch coverage remains below the configured global threshold) and is not represented as green.
 
 ## Risks And Follow-Ups
 
