@@ -410,8 +410,10 @@ export class RevenueOperationsHttpRepository implements RevenueOperationsReposit
   async getOpenDaySummary(query: OperationalDayQuery) {
     const selected = await this.#unit(query.unitId)
     const params = new URLSearchParams({ unitId: selected.id, date: query.date })
-    const day = await request<ApiCashDay | null>(`/api/revenue-operations/cash-days?${params}`)
-    return day ? this.#cashDay(day, selected) : emptyCashDay(query.date, selected)
+    const result = await request<{ day: ApiCashDay | null }>(
+      `/api/revenue-operations/cash-days?${params}`,
+    )
+    return result.day ? this.#cashDay(result.day, selected) : emptyCashDay(query.date, selected)
   }
 
   async openCashDay(unitId: string, openingCashCents: number, operationId: string) {

@@ -11,6 +11,11 @@ class AccessError extends Error {}
 const body = t.Record(t.String(), t.Any())
 const query = t.Record(t.String(), t.Optional(t.String()))
 const uuid = z.string().uuid()
+const opaqueId = z
+  .string()
+  .min(1)
+  .max(100)
+  .regex(/^[a-zA-Z0-9_-]+$/)
 const page = z.coerce.number().int().min(1).max(10_000).default(1)
 const pageSize = z.coerce
   .number()
@@ -144,7 +149,7 @@ export function createRevenueOperationsRoutes(
         const actor = await context(request.headers, "revenue.read_checkout")
         const input = z
           .object({
-            unitId: uuid.optional(),
+            unitId: opaqueId.optional(),
             status: z.enum(["open", "registered"]).optional(),
             page,
             pageSize,
@@ -341,7 +346,7 @@ export function createRevenueOperationsRoutes(
         const actor = await context(request.headers, "cash.read")
         const input = z
           .object({
-            unitId: uuid,
+            unitId: opaqueId,
             date: z.iso.date().optional(),
             from: z.iso.date().optional(),
             to: z.iso.date().optional(),
@@ -360,7 +365,7 @@ export function createRevenueOperationsRoutes(
           })
         }
         if (!input.date) throw new RevenueOperationsError("invalid_request", "date")
-        return service.getCashDay(actor, input.unitId, input.date)
+        return { day: await service.getCashDay(actor, input.unitId, input.date) }
       },
       { query },
     )
@@ -368,7 +373,7 @@ export function createRevenueOperationsRoutes(
       "/cash-days",
       async ({ request, body: value }) => {
         const input = z
-          .object({ unitId: uuid, openingCashCents: z.number(), ...command })
+          .object({ unitId: opaqueId, openingCashCents: z.number(), ...command })
           .strict()
           .parse(value)
         return service.openCashDay(await context(request.headers, "cash.manage"), {
@@ -381,7 +386,7 @@ export function createRevenueOperationsRoutes(
     .get(
       "/cash-days/current",
       async ({ request, query: value }) => {
-        const input = z.object({ unitId: uuid }).strict().parse(value)
+        const input = z.object({ unitId: opaqueId }).strict().parse(value)
         return service.getCurrentCashDay(await context(request.headers, "cash.read"), input.unitId)
       },
       { query },

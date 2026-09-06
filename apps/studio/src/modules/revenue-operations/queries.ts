@@ -52,6 +52,7 @@ export const revenueOperationsQueryKeys = {
 export function useOpenDaySummary(query: OperationalDayQuery) {
   const repository = useRevenueOperationsRepository()
   return useQuery({
+    enabled: Boolean(query.unitId),
     queryFn: () => repository.getOpenDaySummary(query),
     queryKey: revenueOperationsQueryKeys.cash(query),
     refetchInterval: () =>
@@ -125,6 +126,7 @@ export function useReopenCashDay(query: OperationalDayQuery) {
 export function useDailyClosings(query: ClosingHistoryQuery) {
   const repository = useRevenueOperationsRepository()
   return useQuery({
+    enabled: Boolean(query.unitId),
     queryFn: () => repository.listDailyClosings(query),
     queryKey: revenueOperationsQueryKeys.closings(query),
   })
@@ -200,8 +202,8 @@ function useCheckoutMutation<TInput>(
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({
-          exact: true,
-          queryKey: revenueOperationsQueryKeys.checkout(sessionId),
+          predicate: ({ queryKey }) =>
+            queryKey[0] === "revenue-operations" && queryKey[1] === "checkout",
         }),
         queryClient.invalidateQueries({
           exact: true,

@@ -79,16 +79,19 @@ type CashPageProps = {
 
 export function CashPage({ closingId, onOpenClosing, query }: CashPageProps) {
   const repository = useRevenueOperationsRepository()
-  const summaryQuery = useOpenDaySummary(query)
+  const unitsQuery = useRevenueUnits()
+  const hydratedUnitId = query.unitId || unitsQuery.data?.[0]?.id || ""
+  const hydratedQuery = { ...query, unitId: hydratedUnitId }
+  const summaryQuery = useOpenDaySummary(hydratedQuery)
   const historyQuery = useDailyClosings({
     date: query.date,
     limit: CLOSING_HISTORY_LIMIT,
     scenarioId: query.scenarioId,
-    unitId: query.unitId,
+    unitId: hydratedUnitId,
   })
-  const detailQuery = useDailyClosing(closingId, query)
+  const detailQuery = useDailyClosing(closingId, hydratedQuery)
 
-  if (summaryQuery.isPending || historyQuery.isPending) {
+  if (unitsQuery.isPending || summaryQuery.isPending || historyQuery.isPending) {
     return (
       <div
         aria-busy="true"
@@ -115,7 +118,7 @@ export function CashPage({ closingId, onOpenClosing, query }: CashPageProps) {
 
   const summary = summaryQuery.data
   if (!summary.id && repository.openCashDay) {
-    return <CashOpening query={query} />
+    return <CashOpening query={hydratedQuery} />
   }
   return (
     <div className="space-y-6">
@@ -126,7 +129,7 @@ export function CashPage({ closingId, onOpenClosing, query }: CashPageProps) {
           onClose={() => onOpenClosing(null)}
         />
       ) : null}
-      <OpenDay canReopen={Boolean(repository.reopenDay)} summary={summary} query={query} />
+      <OpenDay canReopen={Boolean(repository.reopenDay)} summary={summary} query={hydratedQuery} />
       <ClosingHistory closings={historyQuery.data} onOpenClosing={onOpenClosing} />
     </div>
   )

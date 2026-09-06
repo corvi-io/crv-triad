@@ -40,6 +40,25 @@ type Database = IdpDatabase
 type Actor = TenantContext
 type Clock = () => Date
 
+export async function hasOpenRevenueCashDay(
+  db: Pick<Database, "select">,
+  organizationId: string,
+  unitId: string,
+) {
+  const [row] = await db
+    .select({ id: revenueCashDay.id })
+    .from(revenueCashDay)
+    .where(
+      and(
+        eq(revenueCashDay.organizationId, organizationId),
+        eq(revenueCashDay.unitId, unitId),
+        eq(revenueCashDay.status, "open"),
+      ),
+    )
+    .limit(1)
+  return Boolean(row)
+}
+
 function localDate(at: Date, timezone: string) {
   try {
     const parts = new Intl.DateTimeFormat("en-CA", {
@@ -689,6 +708,7 @@ export function createRevenueOperationsService(
       structuralInput: { unitId: input.unitId, openingCashCents: opening, localDate: date },
       locks: [
         `revenue:policy:${actor.organizationId}`,
+        `revenue:unit-timezone:${actor.organizationId}:${input.unitId}`,
         `revenue:day:${actor.organizationId}:${input.unitId}`,
       ],
       resourceType: "cash-day",

@@ -17,7 +17,10 @@ import { requestContextMiddleware } from "../../modules/idp/http/middleware/requ
 import type { IdpAuth, InvitationAcceptedObserver } from "../../modules/idp/identity/auth.js"
 import type { AuthEmailSender } from "../../modules/idp/identity/transactional-email.js"
 import { createLeadRoutes } from "../../modules/leads/http/routes.js"
-import { createRevenueOperationsService } from "../../modules/revenue-operations/application/revenue-operations-service.js"
+import {
+  createRevenueOperationsService,
+  hasOpenRevenueCashDay,
+} from "../../modules/revenue-operations/application/revenue-operations-service.js"
 import { createRevenueOperationsRoutes } from "../../modules/revenue-operations/http/routes.js"
 import {
   createSchedulingService,
@@ -95,6 +98,7 @@ export function createRestApp(input: CreateRestAppInput) {
           input.db,
           guardAvailabilityAppointments,
           input.env.BETTER_AUTH_SECRET,
+          hasOpenRevenueCashDay,
         ),
         resolveTenantContext,
         authorizeTenantAction,

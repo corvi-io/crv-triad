@@ -33,14 +33,16 @@ describe("production revenue operations HTTP adapter", () => {
         return json([{ id: unitId, name: "Centro", timezone: "America/Recife" }])
       if (url.includes("/api/revenue-operations/cash-days?"))
         return json({
-          id: dayId,
-          localDate: "2026-09-05",
-          status: "open",
-          unitId,
-          version: 3,
-          openedByName: "Servidor",
-          closings: [],
-          summary,
+          day: {
+            id: dayId,
+            localDate: "2026-09-05",
+            status: "open",
+            unitId,
+            version: 3,
+            openedByName: "Servidor",
+            closings: [],
+            summary,
+          },
         })
       return json({
         id: dayId,

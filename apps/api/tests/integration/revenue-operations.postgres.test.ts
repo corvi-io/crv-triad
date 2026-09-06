@@ -4,8 +4,12 @@ import { drizzle } from "drizzle-orm/node-postgres"
 import { migrate } from "drizzle-orm/node-postgres/migrator"
 import { Pool } from "pg"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { createAvailabilityService } from "../../src/modules/availability/application/availability-service.js"
 import { member, organization, user } from "../../src/modules/idp/database/schema.js"
-import { createRevenueOperationsService } from "../../src/modules/revenue-operations/application/revenue-operations-service.js"
+import {
+  createRevenueOperationsService,
+  hasOpenRevenueCashDay,
+} from "../../src/modules/revenue-operations/application/revenue-operations-service.js"
 import {
   revenueCashDay,
   revenueCashMovement,
@@ -277,6 +281,15 @@ describe.sequential("production revenue operations", () => {
       openingCashCents: 2_000,
       key: crypto.randomUUID(),
     })
+    const availability = createAvailabilityService(
+      db as never,
+      async () => undefined,
+      "revenue-operations-test-secret",
+      hasOpenRevenueCashDay,
+    )
+    await expect(
+      availability.timezone(actor.organizationId, "revenue-unit-a", "America/Sao_Paulo", 1),
+    ).rejects.toMatchObject({ code: "timezone_in_use" })
     const receipt = await service.registerReceipt(actor, {
       checkoutId: checkout.id,
       expectedCheckoutVersion: checkout.version,
