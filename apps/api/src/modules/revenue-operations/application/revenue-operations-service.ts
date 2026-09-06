@@ -924,11 +924,16 @@ export function createRevenueOperationsService(
   }
 
   async function paymentMethods(actor: Actor) {
-    return db
-      .select()
-      .from(revenuePaymentMethod)
-      .where(eq(revenuePaymentMethod.organizationId, actor.organizationId))
-      .orderBy(asc(revenuePaymentMethod.method))
+    return db.transaction(async (transaction) => {
+      const tx = transaction as unknown as Database
+      await lock(tx, `revenue:policy:${actor.organizationId}`)
+      await ensureMethods(tx, actor)
+      return tx
+        .select()
+        .from(revenuePaymentMethod)
+        .where(eq(revenuePaymentMethod.organizationId, actor.organizationId))
+        .orderBy(asc(revenuePaymentMethod.method))
+    })
   }
 
   async function addMovement(

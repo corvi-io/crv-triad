@@ -50,6 +50,8 @@ Observed real-browser journey:
 8. Closed the day at R$ 0,00 and verified the responsible display snapshot was the authenticated fixture user,
    not caller input or a placeholder.
 9. Rechecked the cash layout at a 320 CSS-pixel viewport with no document-level horizontal overflow.
+10. Opened production payment settings, disabled Credit, saved it through the versioned revenue policy and
+    confirmed the disabled state survived a full route reload. No commission controls were rendered.
 
 Issues found and corrected during QA: inherited opaque unit IDs were incorrectly constrained as UUIDs; an
 absent cash day produced an empty HTTP body instead of explicit JSON; and checkout mutations invalidated a
