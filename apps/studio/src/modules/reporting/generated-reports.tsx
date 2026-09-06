@@ -35,51 +35,51 @@ import { useReportingRepository } from "./repository-context"
 
 export const reportCatalog = [
   {
-    id: "financial-summary",
-    title: "Resumo financeiro",
-    description: "Totais de vendas, faturamento e repasses no período.",
+    id: "sales_revenue",
+    title: "Vendas e faturamento",
+    description: "Acompanhe vendas, receita líquida, estornos e ticket médio do período.",
     formats: ["pdf", "csv"],
-    supportedFilters: ["dateRange", "unit", "paymentMethod"],
+    supportedFilters: ["dateRange", "unit", "professional", "service", "paymentMethod"],
     version: 1,
   },
   {
-    id: "revenue-by-period",
-    title: "Faturamento por período",
-    description: "Evolução do faturamento para acompanhar dias e intervalos.",
-    formats: ["pdf", "csv"],
-    supportedFilters: ["dateRange", "unit", "paymentMethod"],
-    version: 1,
-  },
-  {
-    id: "appointments-by-professional",
-    title: "Atendimentos por profissional",
-    description: "Volume de atendimentos concluídos por pessoa da equipe.",
+    id: "professional_performance",
+    title: "Desempenho por profissional",
+    description: "Compare atendimentos concluídos, receita, ticket médio e ocorrências da equipe.",
     formats: ["pdf", "csv"],
     supportedFilters: ["dateRange", "unit", "professional", "service"],
     version: 1,
   },
   {
-    id: "top-services",
-    title: "Serviços mais vendidos",
-    description: "Serviços com maior procura, quantidade e receita.",
-    formats: ["pdf", "csv"],
-    supportedFilters: ["dateRange", "unit", "service"],
-    version: 1,
-  },
-  {
-    id: "commissions-by-professional",
+    id: "commissions",
     title: "Comissões por profissional",
-    description: "Comissões consolidadas conforme as regras vigentes em cada venda.",
+    description: "Consulte comissões, estornos e a participação líquida da barbearia.",
+    formats: ["pdf", "csv"],
+    supportedFilters: ["dateRange", "unit", "professional"],
+    version: 1,
+  },
+  {
+    id: "new_returning_customers",
+    title: "Clientes novos e recorrentes",
+    description: "Entenda quantos clientes chegaram e quantos voltaram no período.",
     formats: ["pdf", "csv"],
     supportedFilters: ["dateRange", "unit", "professional", "service"],
     version: 1,
   },
   {
-    id: "cancellations-and-no-shows",
-    title: "Cancelamentos e faltas",
-    description: "Cancelamentos, não comparecimentos e taxas do período.",
+    id: "cancellations_no_shows",
+    title: "Cancelamentos e ausências",
+    description: "Identifique cancelamentos, faltas e perdas de agenda no período.",
     formats: ["pdf", "csv"],
     supportedFilters: ["dateRange", "unit", "professional", "service"],
+    version: 1,
+  },
+  {
+    id: "cash_payments",
+    title: "Caixa e formas de pagamento",
+    description: "Veja recebimentos, estornos e totais por forma de pagamento.",
+    formats: ["pdf", "csv"],
+    supportedFilters: ["dateRange", "unit", "paymentMethod"],
     version: 1,
   },
 ] as const satisfies readonly ReportCatalogItem[]
@@ -92,11 +92,10 @@ const lifecycleLabels = {
   expired: "Arquivo expirado",
 } as const
 const deliveryLabels = {
-  not_requested: "Sem envio por e-mail",
   pending: "E-mail pendente",
+  sending: "Enviando e-mail",
   sent: "E-mail enviado",
   failed: "Falha no e-mail",
-  skipped: "E-mail não enviado",
 } as const
 
 export function GeneratedReports({ filters }: { filters: ReportFilters }) {
@@ -230,12 +229,12 @@ export function GeneratedReports({ filters }: { filters: ReportFilters }) {
               >
                 <div>
                   <p className="font-medium">
-                    {items.find(({ id }) => id === report.reportDefinitionId)?.title ??
+                    {items.find(({ id }) => id === report.reportType)?.title ??
                       (report.format === "pdf" ? "Relatório em PDF" : "Relatório em CSV")}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Geração: {lifecycleLabels[report.status]} ·{" "}
-                    {deliveryLabels[report.delivery?.status ?? "not_requested"]} · tentativa{" "}
+                    {deliveryLabels[report.emailDeliveryStatus ?? "pending"]} · tentativa{" "}
                     {report.activeAttempt}
                   </p>
                 </div>
@@ -284,7 +283,6 @@ function ReportRequestDialog({
   const [step, setStep] = useState<"configure" | "confirm">("configure")
   const [submitted, setSubmitted] = useState(false)
   const [draft, setDraft] = useState(() => ({
-    deliverByEmail: true,
     filters: filterReportFilters(initialFilters, item),
     format: item.formats[0] ?? "pdf",
     idempotencyKey: crypto.randomUUID(),
@@ -298,8 +296,7 @@ function ReportRequestDialog({
     try {
       await onSubmit({
         ...draft,
-        reportDefinitionId: item.id,
-        reportDefinitionVersion: item.version,
+        reportType: item.id,
       })
     } finally {
       setSubmitted(false)

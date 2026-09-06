@@ -157,6 +157,30 @@ describe.sequential("report export lifecycle", () => {
     await db.update(user).set({ emailVerified: true }).where(eq(user.id, actor.actorUserId))
   })
 
+  it("returns the six typed reports and only a masked verified destination", async () => {
+    const service = createReportExportService(
+      db as never,
+      createFakeReportDispatcher(),
+      createFakeArtifactStorage(),
+    )
+    const catalog = await service.catalog(actor)
+    expect(catalog.items).toHaveLength(6)
+    expect(catalog.items.map((item) => item.id)).toEqual([
+      "sales_revenue",
+      "professional_performance",
+      "commissions",
+      "new_returning_customers",
+      "cancellations_no_shows",
+      "cash_payments",
+    ])
+    expect(catalog.requester).toEqual({ maskedEmail: "re••••@example.invalid", verified: true })
+    expect(JSON.stringify(catalog)).not.toContain("report@example.invalid")
+
+    await db.update(user).set({ emailVerified: false }).where(eq(user.id, actor.actorUserId))
+    await expect(service.catalog(actor)).rejects.toThrow("requester_email_unverified")
+    await db.update(user).set({ emailVerified: true }).where(eq(user.id, actor.actorUserId))
+  })
+
   it("allows only one active generation per tenant", async () => {
     const storage = createFakeArtifactStorage()
     const service = createReportExportService(db as never, createFakeReportDispatcher(), storage)

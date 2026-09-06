@@ -64,11 +64,11 @@ export class ReportingMemoryRepository implements ReportingRepository {
     const report: GeneratedReport = {
       activeAttempt: 1,
       createdAt: new Date().toISOString(),
-      delivery: { status: "pending" },
+      emailDeliveryStatus: "pending",
       format: input.format,
       id: crypto.randomUUID(),
       idempotencyKey: input.idempotencyKey,
-      reportDefinitionId: input.reportDefinitionId,
+      reportType: input.reportType,
       status: "queued",
     }
     this.generatedReports = [report, ...this.generatedReports]

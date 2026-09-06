@@ -23,7 +23,7 @@ describe("generated reports", () => {
       listExports: async () => [],
       createExport: async () => reports[2],
     })
-    fireEvent.click((await screen.findAllByRole("button", { name: "Configurar relatório" }))[2])
+    fireEvent.click((await screen.findAllByRole("button", { name: "Configurar relatório" }))[1])
     expect(screen.getByText("O link seguro será enviado para ma••••@exemplo.com.")).toBeVisible()
     expect(screen.getByLabelText("Profissional")).toBeVisible()
     expect(screen.getByLabelText("Serviço")).toBeVisible()
@@ -75,9 +75,8 @@ describe("generated reports", () => {
     await waitFor(() =>
       expect(createExport).toHaveBeenCalledWith(
         expect.objectContaining({
-          deliverByEmail: true,
           format: "pdf",
-          reportDefinitionId: "financial-summary",
+          reportType: "sales_revenue",
         }),
       ),
     )

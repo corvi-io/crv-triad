@@ -13,24 +13,54 @@ export const reportTypeSchema = z.enum([
 export type ReportType = z.infer<typeof reportTypeSchema>
 
 export const reportCatalog = [
-  { type: "sales_revenue", title: "Vendas e faturamento", formats: ["pdf", "csv"] },
+  {
+    type: "sales_revenue",
+    title: "Vendas e faturamento",
+    description: "Acompanhe vendas, receita líquida, estornos e ticket médio do período.",
+    formats: ["pdf", "csv"],
+    supportedFilters: ["dateRange", "unit", "professional", "service", "paymentMethod"],
+  },
   {
     type: "professional_performance",
     title: "Desempenho por profissional",
+    description: "Compare atendimentos concluídos, receita, ticket médio e ocorrências da equipe.",
     formats: ["pdf", "csv"],
+    supportedFilters: ["dateRange", "unit", "professional", "service"],
   },
-  { type: "commissions", title: "Comissões", formats: ["pdf", "csv"] },
+  {
+    type: "commissions",
+    title: "Comissões por profissional",
+    description: "Consulte comissões, estornos e a participação líquida da barbearia.",
+    formats: ["pdf", "csv"],
+    supportedFilters: ["dateRange", "unit", "professional"],
+  },
   {
     type: "new_returning_customers",
     title: "Clientes novos e recorrentes",
+    description: "Entenda quantos clientes chegaram e quantos voltaram no período.",
     formats: ["pdf", "csv"],
+    supportedFilters: ["dateRange", "unit", "professional", "service"],
   },
-  { type: "cancellations_no_shows", title: "Cancelamentos e ausências", formats: ["pdf", "csv"] },
-  { type: "cash_payments", title: "Caixa e pagamentos", formats: ["pdf", "csv"] },
+  {
+    type: "cancellations_no_shows",
+    title: "Cancelamentos e ausências",
+    description: "Identifique cancelamentos, faltas e perdas de agenda no período.",
+    formats: ["pdf", "csv"],
+    supportedFilters: ["dateRange", "unit", "professional", "service"],
+  },
+  {
+    type: "cash_payments",
+    title: "Caixa e formas de pagamento",
+    description: "Veja recebimentos, estornos e totais por forma de pagamento.",
+    formats: ["pdf", "csv"],
+    supportedFilters: ["dateRange", "unit", "paymentMethod"],
+  },
 ] as const satisfies ReadonlyArray<{
   type: ReportType
   title: string
+  description: string
   formats: readonly ["pdf", "csv"]
+  supportedFilters: readonly string[]
 }>
 
 const commonConfig = z

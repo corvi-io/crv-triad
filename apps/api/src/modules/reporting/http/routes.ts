@@ -1,7 +1,6 @@
 import { Elysia, t } from "elysia"
 import type { TenantActionAuthorizer } from "../../access/application/authorize-tenant-action.js"
 import type { TenantContextResolver } from "../../tenancy/application/create-tenant-context-resolver.js"
-import { reportCatalog } from "../application/report-catalog.js"
 import type { ReportExportService } from "../application/report-export-service.js"
 import type { ReportingService } from "../application/reporting-service.js"
 
@@ -50,8 +49,7 @@ export function createReportingRoutes(
       { query: t.Record(t.String(), t.Optional(t.String())) },
     )
     .get("/catalog", async ({ request }) => {
-      await actor(request.headers)
-      return { items: reportCatalog }
+      return exports.catalog(await actor(request.headers))
     })
     .get("/generated", async ({ request }) => exports.history(await actor(request.headers)))
     .get("/generated/:id", async ({ request, params, set }) => {

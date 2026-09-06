@@ -6,7 +6,7 @@ import { createId } from "../../shared/infra/ids.js"
 import type { TenantContext } from "../../tenancy/domain/business-context.js"
 import { reportAttempt, reportRequest } from "../database/schema.js"
 import type { ArtifactStorage, ReportDispatcher } from "./export-providers.js"
-import { createReportRequestSchema } from "./report-catalog.js"
+import { createReportRequestSchema, reportCatalog } from "./report-catalog.js"
 
 export function createReportExportService(
   db: IdpDatabase,
@@ -140,6 +140,27 @@ export function createReportExportService(
       .limit(50)
     return rows.map(publicReportRequest)
   }
+  async function catalog(actor: TenantContext) {
+    const [requester] = await db
+      .select({ email: user.email, emailVerified: user.emailVerified, status: user.status })
+      .from(user)
+      .where(eq(user.id, actor.actorUserId))
+      .limit(1)
+    if (requester?.status !== "active" || requester.emailVerified !== true)
+      throw new Error("requester_email_unverified")
+    return {
+      schemaVersion: 1 as const,
+      items: reportCatalog.map((item) => ({
+        id: item.type,
+        title: item.title,
+        description: item.description,
+        formats: item.formats,
+        supportedFilters: item.supportedFilters,
+        version: 1,
+      })),
+      requester: { maskedEmail: maskEmail(requester.email), verified: true as const },
+    }
+  }
   async function retry(actor: TenantContext, id: string) {
     const current = await statusRow(actor, id)
     if (!current || !["failed", "expired"].includes(current.status)) return current
@@ -189,7 +210,7 @@ export function createReportExportService(
   async function readLocalArtifact(key: string) {
     return storage.read?.(key) ?? null
   }
-  return { request, status, history, retry, download, readLocalArtifact }
+  return { request, status, history, catalog, retry, download, readLocalArtifact }
 }
 export type ReportExportService = ReturnType<typeof createReportExportService>
 
@@ -228,4 +249,10 @@ function canonicalJson(value: unknown): string {
 function publicReportRequest(row: typeof reportRequest.$inferSelect) {
   const { requesterEmail: _email, requesterEmailVerifiedAt: _verifiedAt, ...safe } = row
   return safe
+}
+
+function maskEmail(email: string): string {
+  const [local = "", domain = ""] = email.split("@")
+  const visible = local.slice(0, Math.min(2, local.length))
+  return `${visible}${"•".repeat(Math.max(3, local.length - visible.length))}@${domain}`
 }
