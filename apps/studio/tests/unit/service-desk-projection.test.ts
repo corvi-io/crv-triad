@@ -277,7 +277,7 @@ describe("service desk URL and walk-in validation", () => {
   })
 
   it("creates fresh clock-based defaults and a temporary snapshot input", () => {
-    const now = sourceDate(11, 30)
+    const now = new Date("2026-07-23T14:30:00.000Z")
     expect(createWalkInFormDefaults(now, "America/Recife")).toMatchObject({
       arrivalTime: "11:30",
       preferenceKind: "first-available",

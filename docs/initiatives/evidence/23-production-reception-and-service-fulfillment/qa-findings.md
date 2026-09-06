@@ -18,6 +18,7 @@
 14. History polling now fetches only the requested 10-record page and exposes total/page metadata with previous/next controls. The stable HTTP-adapter regression asserts exactly one history request and page 2 projection; the temporary page-mount coverage test was removed because importing the entire route tree changed the coverage universe without adding contract confidence.
 15. Queue search matches customer or service name and no longer searches private notes. PostgreSQL regression proves a service-only match.
 16. Pending arrivals use a stable `(startsAt, id)` cursor. PostgreSQL proves 51 records are returned as 50 plus 1, while the Studio adapter regression proves every cursor is consumed without silently hiding later arrivals.
+17. Final CI exposed a timezone-dependent test clock: `new Date(year, month, day, 11, 30)` represented 11:30 in the host timezone, not in the unit timezone. The fixture now uses the explicit instant `2026-07-23T14:30:00.000Z` (11:30 in Recife), so the same behavioral assertion is deterministic locally and on UTC runners.
 
 ## Limitations
 
