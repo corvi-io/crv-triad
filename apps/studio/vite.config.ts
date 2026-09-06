@@ -24,9 +24,12 @@ export default defineConfig(({ command, mode }) => {
     : publicEnv.VITE_SCHEDULING_SOURCE === "disabled"
       ? "./src/modules/shared/config/scheduling-prototype-disabled.ts"
       : "./src/modules/scheduling/http-entry.ts"
-  const serviceDeskSourceEntry = schedulingPrototypeEnabled
-    ? "./src/dev/service-desk/entry.ts"
-    : "./src/modules/shared/config/service-desk-source-disabled.ts"
+  const serviceDeskSourceEntry =
+    schedulingPrototypeEnabled && publicEnv.VITE_SERVICE_DESK_SOURCE === "memory"
+      ? "./src/dev/service-desk/entry.ts"
+      : publicEnv.VITE_SERVICE_DESK_SOURCE === "disabled"
+        ? "./src/modules/shared/config/service-desk-source-disabled.ts"
+        : "./src/modules/service-desk/http-entry.ts"
   const revenueOperationsSourceEntry = schedulingPrototypeEnabled
     ? "./src/dev/revenue-operations/entry.ts"
     : "./src/modules/shared/config/revenue-operations-source-disabled.ts"

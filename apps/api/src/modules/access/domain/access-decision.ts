@@ -5,6 +5,9 @@ export const capabilities = [
   "availability.manage",
   "scheduling.read",
   "scheduling.manage",
+  "service_desk.read",
+  "service_desk.manage",
+  "service_desk.correct",
   "clients.read",
   "clients.manage",
   "catalogs.read",
@@ -25,6 +28,9 @@ const roleCapabilities: Readonly<Record<TenantRole, ReadonlySet<Capability>>> = 
     "availability.manage",
     "scheduling.read",
     "scheduling.manage",
+    "service_desk.read",
+    "service_desk.manage",
+    "service_desk.correct",
     "clients.read",
     "clients.manage",
     "catalogs.read",
@@ -40,6 +46,8 @@ const roleCapabilities: Readonly<Record<TenantRole, ReadonlySet<Capability>>> = 
     "availability.read",
     "scheduling.read",
     "scheduling.manage",
+    "service_desk.read",
+    "service_desk.manage",
   ]),
 }
 

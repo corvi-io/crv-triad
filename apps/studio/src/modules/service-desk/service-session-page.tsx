@@ -47,9 +47,12 @@ import { type ServiceSession, ServiceSessionNotFoundError } from "./contracts"
 import {
   useAddServiceItem,
   useAssignServiceItemProfessional,
+  useExtendServiceItem,
+  useFinishServiceItem,
   useFinishSession,
   useRemoveServiceItem,
   useServiceSession,
+  useStartServiceItem,
   useUpdateSessionNotes,
 } from "./queries"
 import {
@@ -134,6 +137,9 @@ function SessionWorkspace({
   const assign = useAssignServiceItemProfessional(session.id)
   const updateNotes = useUpdateSessionNotes(session.id)
   const finish = useFinishSession(session.id)
+  const finishItem = useFinishServiceItem(session.id)
+  const startItem = useStartServiceItem(session.id)
+  const extendItem = useExtendServiceItem(session.id)
   const selectedService = session.services.find(({ id }) => id === serviceId)
   const eligible = session.professionals.filter(
     ({ id }) =>
@@ -146,7 +152,10 @@ function SessionWorkspace({
     removeItem.isPending ||
     assign.isPending ||
     updateNotes.isPending ||
-    finish.isPending
+    finish.isPending ||
+    finishItem.isPending ||
+    startItem.isPending ||
+    extendItem.isPending
 
   async function add() {
     if (!serviceId || !professionalId || pending) return
@@ -228,9 +237,42 @@ function SessionWorkspace({
       })
       finishOperation.current = ""
       setConfirming(false)
-      toast.success("Atendimento pronto para pagamento.")
+      toast.success("Atendimento concluído.")
     } catch {
       toast.error("Não foi possível finalizar o atendimento.")
+    }
+  }
+
+  async function runItem(
+    action: "start" | "finish" | "extend",
+    itemId: string,
+    responsibleId: string,
+  ) {
+    if (pending) return
+    const token = `${action}:${itemId}`
+    const operationId = itemOperations.current.get(token) ?? createOperationId()
+    itemOperations.current.set(token, operationId)
+    try {
+      if (action === "start")
+        await startItem.mutateAsync({
+          sessionId: session.id,
+          itemId,
+          professionalId: responsibleId,
+          operationId,
+        })
+      else if (action === "finish")
+        await finishItem.mutateAsync({ sessionId: session.id, itemId, operationId })
+      else await extendItem.mutateAsync({ sessionId: session.id, itemId, minutes: 15, operationId })
+      itemOperations.current.delete(token)
+      toast.success(
+        action === "finish"
+          ? "Serviço concluído."
+          : action === "extend"
+            ? "Horário estendido em 15 minutos."
+            : "Serviço iniciado.",
+      )
+    } catch {
+      toast.error("Não foi possível concluir a ação. Revise os dados atuais.")
     }
   }
 
@@ -253,19 +295,29 @@ function SessionWorkspace({
           </p>
         </div>
         <Badge variant={active ? "secondary" : "outline"}>
-          {active ? "Em atendimento" : "Pronto para pagamento"}
+          {active ? "Em atendimento" : session.status === "canceled" ? "Cancelado" : "Concluído"}
         </Badge>
       </header>
       {!active ? (
         <Alert>
           <CircleCheckIcon aria-hidden="true" />
-          <AlertTitle>Pronto para pagamento</AlertTitle>
+          <AlertTitle>
+            {session.status === "canceled"
+              ? "Saída registrada"
+              : onCheckout
+                ? "Pronto para pagamento"
+                : "Atendimento concluído"}
+          </AlertTitle>
           <AlertDescription>
-            {session.status === "paid"
-              ? "O atendimento foi concluído e o pagamento está somente para leitura."
-              : "O serviço foi finalizado. Revise a comanda para registrar o pagamento."}
+            {session.status === "canceled"
+              ? "Nenhum serviço realizado foi enviado para pagamento."
+              : session.status === "paid"
+                ? "O atendimento foi concluído e o pagamento está somente para leitura."
+                : onCheckout
+                  ? "O serviço foi finalizado. Revise a comanda para registrar o pagamento."
+                  : "Os serviços realizados foram salvos. O pagamento é registrado separadamente."}
           </AlertDescription>
-          {onCheckout ? (
+          {onCheckout && session.status !== "canceled" ? (
             <Button type="button" variant="outline" onClick={onCheckout}>
               {session.status === "paid" ? "Ver pagamento" : "Ir para pagamento"}
             </Button>
@@ -277,6 +329,7 @@ function SessionWorkspace({
           Serviços realizados
         </h2>
         {session.items.map((item) => {
+          const itemStatus = item.status ?? (item.source === "initial" ? "active" : "pending")
           const service = session.services.find(({ id }) => id === item.serviceId)
           const professionals = session.professionals.filter(
             ({ id }) =>
@@ -286,7 +339,7 @@ function SessionWorkspace({
           return (
             <Card key={item.id}>
               <CardHeader>
-                <CardTitle>{service?.name ?? "Serviço indisponível"}</CardTitle>
+                <CardTitle>{service?.name ?? item.serviceName ?? "Serviço indisponível"}</CardTitle>
                 <CardDescription>
                   {item.source === "initial" ? "Serviço inicial" : "Serviço adicionado"}
                 </CardDescription>
@@ -317,17 +370,43 @@ function SessionWorkspace({
                   </Select>
                 </Field>
               </CardContent>
-              {active && item.source === "added" ? (
-                <CardFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    isLoading={removeItem.isPending}
-                    onClick={() => void remove(item.id)}
-                  >
-                    <Trash2Icon data-icon="inline-start" aria-hidden="true" />
-                    Remover serviço
-                  </Button>
+              {active ? (
+                <CardFooter className="flex flex-wrap gap-2">
+                  {itemStatus === "pending" ? (
+                    <>
+                      <Button
+                        type="button"
+                        onClick={() => void runItem("start", item.id, item.professionalId)}
+                      >
+                        Iniciar serviço
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        isLoading={removeItem.isPending}
+                        onClick={() => void remove(item.id)}
+                      >
+                        <Trash2Icon data-icon="inline-start" aria-hidden="true" /> Remover serviço
+                      </Button>
+                    </>
+                  ) : null}
+                  {itemStatus === "active" ? (
+                    <>
+                      <Button
+                        type="button"
+                        onClick={() => void runItem("finish", item.id, item.professionalId)}
+                      >
+                        Concluir serviço
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void runItem("extend", item.id, item.professionalId)}
+                      >
+                        Estender horário
+                      </Button>
+                    </>
+                  ) : null}
                 </CardFooter>
               ) : null}
             </Card>
@@ -456,7 +535,7 @@ function SessionWorkspace({
           <CardHeader>
             <CardTitle>Finalizar atendimento</CardTitle>
             <CardDescription>
-              Confirme os serviços e profissionais antes de encaminhar para pagamento.
+              Confirme que todos os serviços foram concluídos antes de encerrar o atendimento.
             </CardDescription>
           </CardHeader>
           <CardFooter>
@@ -475,7 +554,7 @@ function SessionWorkspace({
         isOpen={confirming}
         isLoading={finish.isPending}
         title="Finalizar atendimento?"
-        description="O atendimento ficará Pronto para pagamento e não poderá ser reaberto nesta etapa."
+        description="Os serviços concluídos serão salvos e não poderão ser editados."
         cancelLabel="Continuar atendimento"
         confirmLabel="Finalizar atendimento"
         confirmVariant="default"

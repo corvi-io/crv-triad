@@ -251,6 +251,8 @@ describe("service desk URL and walk-in validation", () => {
   it("provides explicit Portuguese messages for every form bound", () => {
     const result = walkInFormSchema.safeParse({
       arrivalTime: "25:99",
+      identityKind: "guest",
+      clientId: "",
       customerName: "A",
       customerPhone: "123",
       notes: "x".repeat(301),

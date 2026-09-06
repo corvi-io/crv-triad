@@ -42,7 +42,12 @@ import { professional, professionalUnit } from "../../professionals/database/sch
 import { professionalService, service, serviceUnit } from "../../services/database/schema.js"
 import { createId } from "../../shared/infra/ids.js"
 import { unit } from "../../units/database/schema.js"
-import { appointment, appointmentEvent, schedulingCommand } from "../database/schema.js"
+import {
+  appointment,
+  appointmentEvent,
+  schedulingCommand,
+  schedulingOccupancy,
+} from "../database/schema.js"
 import {
   type AppointmentCommand,
   type AppointmentInput,
@@ -348,6 +353,46 @@ export function createSchedulingService(db: IdpDatabase, fingerprintSecret: stri
       serviceName: keepSnapshot ? current.serviceName : offering.name,
     }
   }
+  async function syncAppointmentOccupancy(tx: TransactionDatabase, row: Record) {
+    if (["canceled", "no-show", "completed"].includes(row.status)) {
+      await tx
+        .delete(schedulingOccupancy)
+        .where(
+          and(
+            eq(schedulingOccupancy.organizationId, row.organizationId),
+            eq(schedulingOccupancy.source, "appointment"),
+            eq(schedulingOccupancy.sourceId, row.id),
+          ),
+        )
+      return
+    }
+    await tx
+      .insert(schedulingOccupancy)
+      .values({
+        id: createId(),
+        organizationId: row.organizationId,
+        professionalId: row.professionalId,
+        unitId: row.unitId,
+        source: "appointment",
+        sourceId: row.id,
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
+        live: 0,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schedulingOccupancy.organizationId,
+          schedulingOccupancy.source,
+          schedulingOccupancy.sourceId,
+        ],
+        set: {
+          professionalId: row.professionalId,
+          unitId: row.unitId,
+          startsAt: row.startsAt,
+          endsAt: row.endsAt,
+        },
+      })
+  }
   async function event(
     tx: TransactionDatabase,
     actor: Actor,
@@ -375,6 +420,7 @@ export function createSchedulingService(db: IdpDatabase, fingerprintSecret: stri
         .insert(appointment)
         .values({ ...values, organizationId: actor.organizationId, id: createId() })
         .returning()
+      await syncAppointmentOccupancy(tx, row)
       await event(tx, actor, row, "create", undefined, Object.keys(input))
       return row
     })
@@ -398,6 +444,7 @@ export function createSchedulingService(db: IdpDatabase, fingerprintSecret: stri
         .set({ ...values, version: version + 1, updatedAt: new Date() })
         .where(and(eq(appointment.organizationId, actor.organizationId), eq(appointment.id, id)))
         .returning()
+      await syncAppointmentOccupancy(tx, row)
       await event(
         tx,
         actor,
@@ -449,6 +496,7 @@ export function createSchedulingService(db: IdpDatabase, fingerprintSecret: stri
         })
         .where(eq(appointment.id, id))
         .returning()
+      await syncAppointmentOccupancy(tx, row)
       await event(
         tx,
         actor,
@@ -480,9 +528,36 @@ export function createSchedulingService(db: IdpDatabase, fingerprintSecret: stri
         })
         .where(and(eq(appointment.organizationId, actor.organizationId), eq(appointment.id, id)))
         .returning()
+      await syncAppointmentOccupancy(tx, row)
       await event(tx, actor, row, "fulfillment", current, ["status"])
       return row
     })
+  }
+  async function transitionFromFulfillmentInTransaction(
+    tx: TransactionDatabase,
+    actor: Actor,
+    id: string,
+    status: "waiting" | "in-progress" | "completed" | "canceled",
+    version: number,
+  ) {
+    const current = await get(actor.organizationId, id, tx)
+    if (current.version !== version) throw new SchedulingError("version_conflict")
+    const nextStatus =
+      status === "canceled"
+        ? current.status === "waiting" || current.status === "in-progress"
+          ? "canceled"
+          : (() => {
+              throw new SchedulingError("invalid_transition")
+            })()
+        : trustedServiceTransition(current.status, status)
+    const [row] = await tx
+      .update(appointment)
+      .set({ status: nextStatus, version: version + 1, updatedAt: new Date() })
+      .where(and(eq(appointment.organizationId, actor.organizationId), eq(appointment.id, id)))
+      .returning()
+    await syncAppointmentOccupancy(tx, row)
+    await event(tx, actor, row, "fulfillment", current, ["status"])
+    return row
   }
   async function units(organizationId: string, search = "") {
     return db
@@ -820,6 +895,7 @@ export function createSchedulingService(db: IdpDatabase, fingerprintSecret: stri
     clientHistory,
     professionalSchedule,
     transitionFromFulfillment,
+    transitionFromFulfillmentInTransaction,
   }
 }
 export type SchedulingService = ReturnType<typeof createSchedulingService>

@@ -29,6 +29,7 @@ import {
 } from "./walk-in-schema"
 
 export function WalkInForm({
+  clients,
   formId,
   now,
   onSubmit,
@@ -36,21 +37,22 @@ export function WalkInForm({
   services,
   unitId,
 }: {
+  clients: readonly { id: string; name: string }[]
   formId: string
   now: Date
   onSubmit: (input: WalkInInput) => Promise<void>
   professionals: readonly Professional[]
   services: readonly Service[]
-  unitId: "centro" | "artesao"
+  unitId: string
 }) {
   const form = useForm<WalkInFormValues>({
     defaultValues: createWalkInFormDefaults(now),
     resolver: zodResolver(walkInFormSchema),
     shouldFocusError: true,
   })
-  const [preferenceKind, serviceId] = useWatch({
+  const [identityKind, preferenceKind, serviceId] = useWatch({
     control: form.control,
-    name: ["preferenceKind", "serviceId"],
+    name: ["identityKind", "preferenceKind", "serviceId"],
   })
   const service = services.find(({ id }) => id === serviceId)
   const eligibleProfessionals = professionals.filter(({ id }) =>
@@ -66,6 +68,8 @@ export function WalkInForm({
     async (values) => onSubmit(walkInFormValuesToInput(values, now, unitId)),
     (errors) => {
       const order: (keyof WalkInFormValues)[] = [
+        "identityKind",
+        "clientId",
         "customerName",
         "customerPhone",
         "serviceId",
@@ -83,47 +87,124 @@ export function WalkInForm({
   return (
     <form id={formId} noValidate onSubmit={submit}>
       <FieldGroup>
-        <FormField
-          error={form.formState.errors.customerName?.message}
-          id={`${formId}-customer-name`}
-          label="Nome do cliente"
-          required
-        >
-          <Input
-            id={`${formId}-customer-name`}
-            autoComplete="name"
-            aria-invalid={Boolean(form.formState.errors.customerName)}
-            aria-describedby={
-              form.formState.errors.customerName ? `${formId}-customer-name-error` : undefined
-            }
-            {...form.register("customerName")}
-          />
-        </FormField>
-
-        <FormField
-          error={form.formState.errors.customerPhone?.message}
-          id={`${formId}-customer-phone`}
-          label="Telefone"
-        >
+        <FieldSet>
+          <FieldLegend variant="label">Identificação *</FieldLegend>
           <Controller
             control={form.control}
-            name="customerPhone"
+            name="identityKind"
             render={({ field }) => (
-              <MaskedInput
-                id={`${formId}-customer-phone`}
-                mask="brPhone"
-                ref={field.ref}
-                value={field.value}
-                onBlur={field.onBlur}
-                onValueChange={field.onChange}
-                aria-invalid={Boolean(form.formState.errors.customerPhone)}
-                aria-describedby={
-                  form.formState.errors.customerPhone ? `${formId}-customer-phone-error` : undefined
-                }
-              />
+              <ToggleGroup
+                value={[field.value]}
+                onValueChange={(values) => values[0] && field.onChange(values[0])}
+                className="flex w-full flex-wrap"
+              >
+                <ToggleGroupItem value="client" variant="outline">
+                  Cliente cadastrado
+                </ToggleGroupItem>
+                <ToggleGroupItem value="guest" variant="outline">
+                  Sem cadastro
+                </ToggleGroupItem>
+              </ToggleGroup>
             )}
           />
-        </FormField>
+        </FieldSet>
+
+        {identityKind === "client" ? (
+          <FormField
+            error={form.formState.errors.clientId?.message}
+            id={`${formId}-client`}
+            label="Cliente"
+            required
+          >
+            <Controller
+              control={form.control}
+              name="clientId"
+              render={({ field }) => (
+                <Select
+                  items={clients.map(({ id, name }) => ({ label: name, value: id }))}
+                  value={field.value || null}
+                  onValueChange={(value) => field.onChange(value ?? "")}
+                >
+                  <SelectTrigger
+                    id={`${formId}-client`}
+                    ref={field.ref}
+                    aria-invalid={Boolean(form.formState.errors.clientId)}
+                  >
+                    <SelectValue>
+                      {clients.find(({ id }) => id === field.value)?.name ?? "Escolha um cliente"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <a
+              className="w-fit text-sm font-medium text-primary underline underline-offset-4 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              href="/clients"
+              rel="noreferrer"
+              target="_blank"
+            >
+              Cadastrar cliente em nova aba
+            </a>
+            <p className="text-sm text-muted-foreground">
+              Esta ficha permanece aberta enquanto você conclui o cadastro.
+            </p>
+          </FormField>
+        ) : null}
+
+        {identityKind === "guest" ? (
+          <>
+            <FormField
+              error={form.formState.errors.customerName?.message}
+              id={`${formId}-customer-name`}
+              label="Nome do cliente"
+              required
+            >
+              <Input
+                id={`${formId}-customer-name`}
+                autoComplete="name"
+                aria-invalid={Boolean(form.formState.errors.customerName)}
+                aria-describedby={
+                  form.formState.errors.customerName ? `${formId}-customer-name-error` : undefined
+                }
+                {...form.register("customerName")}
+              />
+            </FormField>
+
+            <FormField
+              error={form.formState.errors.customerPhone?.message}
+              id={`${formId}-customer-phone`}
+              label="Telefone"
+            >
+              <Controller
+                control={form.control}
+                name="customerPhone"
+                render={({ field }) => (
+                  <MaskedInput
+                    id={`${formId}-customer-phone`}
+                    mask="brPhone"
+                    ref={field.ref}
+                    value={field.value}
+                    onBlur={field.onBlur}
+                    onValueChange={field.onChange}
+                    aria-invalid={Boolean(form.formState.errors.customerPhone)}
+                    aria-describedby={
+                      form.formState.errors.customerPhone
+                        ? `${formId}-customer-phone-error`
+                        : undefined
+                    }
+                  />
+                )}
+              />
+            </FormField>
+          </>
+        ) : null}
 
         <FormField
           error={form.formState.errors.serviceId?.message}

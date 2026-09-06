@@ -77,12 +77,38 @@ export function useFinishSession(sessionId: string) {
     repository.finishSession(input),
   )
 }
+export function useFinishServiceItem(sessionId: string) {
+  const repository = useServiceDeskRepository()
+  return useSessionMutation(sessionId, (input: SessionItemInput) => {
+    if (!repository.finishServiceItem)
+      throw new Error("A conclusão do serviço não está disponível.")
+    return repository.finishServiceItem(input)
+  })
+}
+export function useStartServiceItem(sessionId: string) {
+  const repository = useServiceDeskRepository()
+  return useSessionMutation(sessionId, (input: SessionItemInput & { professionalId: string }) => {
+    if (!repository.startServiceItem) throw new Error("O início do serviço não está disponível.")
+    return repository.startServiceItem(input)
+  })
+}
+export function useExtendServiceItem(sessionId: string) {
+  const repository = useServiceDeskRepository()
+  return useSessionMutation(sessionId, (input: SessionItemInput & { minutes: number }) => {
+    if (!repository.extendServiceItem) throw new Error("A extensão não está disponível.")
+    return repository.extendServiceItem(input)
+  })
+}
 
 export function useServiceDeskQueue(query: ServiceDeskQuery) {
   const repository = useServiceDeskRepository()
   return useQuery({
     queryKey: serviceDeskQueryKeys.queue(query),
     queryFn: () => repository.getQueue(query),
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -106,10 +132,31 @@ export function useAddWalkIn() {
   const repository = useServiceDeskRepository()
   return useQueueMutation((input: WalkInInput) => repository.addWalkIn(input))
 }
+export function useAdmitScheduled() {
+  const repository = useServiceDeskRepository()
+  return useQueueMutation((input: { appointmentId: string; appointmentVersion: number }) => {
+    if (!repository.admitScheduled) throw new Error("A admissão agendada não está disponível.")
+    return repository.admitScheduled(input.appointmentId, input.appointmentVersion)
+  }, true)
+}
 
 export function useCallQueueEntry() {
   const repository = useServiceDeskRepository()
   return useQueueMutation((entryId: string) => repository.call(entryId))
+}
+export function useReturnQueueEntry() {
+  const repository = useServiceDeskRepository()
+  return useQueueMutation((entryId: string) => {
+    if (!repository.returnToWaiting) throw new Error("O retorno à espera não está disponível.")
+    return repository.returnToWaiting(entryId)
+  })
+}
+export function useCancelQueueEntry() {
+  const repository = useServiceDeskRepository()
+  return useQueueMutation((input: { entryId: string; reason: string }) => {
+    if (!repository.cancel) throw new Error("O registro de saída não está disponível.")
+    return repository.cancel(input.entryId, input.reason)
+  }, true)
 }
 
 export function useStartQueueEntry() {

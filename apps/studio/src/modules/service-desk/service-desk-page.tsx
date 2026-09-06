@@ -59,6 +59,7 @@ import {
 } from "@/modules/shared/components/ui/select"
 import { Separator } from "@/modules/shared/components/ui/separator"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
+import { Textarea } from "@/modules/shared/components/ui/textarea"
 import type { QueueEntry, QueueStage, ServiceDeskScenarioId, WalkInInput } from "./contracts"
 import {
   formatArrival,
@@ -68,7 +69,15 @@ import {
   queuePriorityLabels,
   queueStageLabels,
 } from "./projection"
-import { useAddWalkIn, useCallQueueEntry, useServiceDeskQueue, useStartQueueEntry } from "./queries"
+import {
+  useAddWalkIn,
+  useAdmitScheduled,
+  useCallQueueEntry,
+  useCancelQueueEntry,
+  useReturnQueueEntry,
+  useServiceDeskQueue,
+  useStartQueueEntry,
+} from "./queries"
 import type { ServiceDeskSearch } from "./search"
 import { WalkInForm } from "./walk-in-form"
 
@@ -94,6 +103,8 @@ export function ServiceDeskPage({
   const [searchText, setSearchText] = useState("")
   const deferredSearch = useDeferredValue(searchText)
   const [adding, setAdding] = useState(false)
+  const [leaving, setLeaving] = useState<QueueEntry | null>(null)
+  const [leavingReason, setLeavingReason] = useState("")
   const [startAssignments, setStartAssignments] = useState<Record<string, string>>({})
   const queryInput = {
     preference: search.preference,
@@ -106,7 +117,10 @@ export function ServiceDeskPage({
   } as const
   const query = useServiceDeskQueue(queryInput)
   const addWalkIn = useAddWalkIn()
+  const admitScheduled = useAdmitScheduled()
   const callEntry = useCallQueueEntry()
+  const cancelEntry = useCancelQueueEntry()
+  const returnEntry = useReturnQueueEntry()
   const startEntry = useStartQueueEntry()
   const snapshot = query.data
   const entries = snapshot?.entries ?? []
@@ -152,6 +166,27 @@ export function ServiceDeskPage({
     }
   }
 
+  async function returnToWaiting(entry: QueueEntry) {
+    try {
+      await returnEntry.mutateAsync(entry.id)
+      toast.success("Cliente voltou para a espera.")
+    } catch {
+      toast.error("Não foi possível voltar para a espera.")
+    }
+  }
+
+  async function registerDeparture() {
+    if (!leaving || leavingReason.trim().length < 3 || cancelEntry.isPending) return
+    try {
+      await cancelEntry.mutateAsync({ entryId: leaving.id, reason: leavingReason.trim() })
+      setLeaving(null)
+      setLeavingReason("")
+      toast.success("Saída registrada.")
+    } catch {
+      toast.error("Não foi possível registrar a saída. Revise os dados atuais.")
+    }
+  }
+
   return (
     <>
       <ModuleLayout
@@ -179,15 +214,15 @@ export function ServiceDeskPage({
               <SingleSelectListFilter
                 icon={Building2Icon}
                 id="service-desk-unit-filter"
-                inactiveValue="centro"
+                inactiveValue=""
                 label="Unidade"
                 showSelectedLabel
-                value={search.unit}
+                value={snapshot?.unitId ?? search.unit}
                 onValueChange={(unit) => onSearchChange({ unit })}
-                options={[
-                  { label: "Centro", value: "centro" },
-                  { label: "Artesão", value: "artesao" },
-                ]}
+                options={(snapshot?.units ?? []).map(({ id, name }) => ({
+                  label: name,
+                  value: id,
+                }))}
               />
               <SingleSelectListFilter
                 icon={ListFilterIcon}
@@ -201,7 +236,9 @@ export function ServiceDeskPage({
                   { label: "Aguardando", value: "waiting" },
                   { label: "Chamados", value: "called" },
                   { label: "Em atendimento", value: "in-service" },
-                  { label: "Pronto para pagamento", value: "ready-for-payment" },
+                  ...(scenarioIds
+                    ? [{ label: "Pronto para pagamento", value: "ready-for-payment" as const }]
+                    : []),
                 ]}
               />
               <SingleSelectListFilter
@@ -273,65 +310,130 @@ export function ServiceDeskPage({
             </Button>
           </Alert>
         ) : null}
+        {snapshot?.arrivals?.length ? (
+          <section
+            aria-labelledby="service-desk-arrivals"
+            className="rounded-lg border bg-card p-4"
+          >
+            <h2 id="service-desk-arrivals" className="mb-3 font-semibold">
+              Chegadas confirmadas
+            </h2>
+            <div className="grid gap-2">
+              {snapshot.arrivals.map((arrival) => (
+                <div
+                  key={arrival.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
+                >
+                  <div>
+                    <p className="font-medium">{arrival.customerName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {arrival.serviceName} · {arrival.professionalName}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    isLoading={admitScheduled.isPending}
+                    onClick={() =>
+                      admitScheduled.mutate({
+                        appointmentId: arrival.id,
+                        appointmentVersion: arrival.version,
+                      })
+                    }
+                  >
+                    Adicionar à fila
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+        {snapshot?.history?.length ? (
+          <section aria-labelledby="service-desk-history" className="rounded-lg border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 id="service-desk-history" className="font-semibold">
+                Histórico recente
+              </h2>
+              <span className="text-sm text-muted-foreground">Últimos 10 atendimentos</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {snapshot.history.map((visit) => (
+                <button
+                  key={visit.id}
+                  type="button"
+                  className="min-h-11 rounded-md border p-3 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => onOpenSession(visit.id)}
+                >
+                  <span className="block font-medium">{visit.customerName}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {visit.status === "completed" ? "Atendimento concluído" : "Saída registrada"} ·{" "}
+                    {formatArrival(visit.finishedAt)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
         {snapshot ? (
-          <>
-            {entries.length === 0 ? (
-              <Empty className="min-h-64">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <UsersIcon aria-hidden="true" />
-                  </EmptyMedia>
-                  <EmptyTitle>
-                    {hasFilters ? "Nenhum atendimento encontrado" : "Fila sem atendimentos"}
-                  </EmptyTitle>
-                  <EmptyDescription>
-                    {hasFilters
-                      ? "Revise a busca ou os filtros selecionados."
-                      : "Adicione um cliente sem agendamento ou registre uma chegada pela Agenda."}
-                  </EmptyDescription>
-                </EmptyHeader>
-                {!hasFilters ? (
-                  <EmptyContent>
-                    <Button type="button" variant="outline" onClick={() => setAdding(true)}>
-                      Adicionar à fila
-                    </Button>
-                  </EmptyContent>
-                ) : null}
-              </Empty>
-            ) : (
-              <section
-                className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-4 gap-3 sm:h-full sm:grid-cols-2 sm:grid-rows-2 xl:grid-cols-4 xl:grid-rows-1"
-                aria-label="Etapas da fila de atendimento"
-              >
-                {(["waiting", "called", "in-service", "ready-for-payment"] as const).map(
-                  (stage) => (
-                    <QueueColumn
-                      entries={groups[stage]}
-                      key={stage}
-                      now={snapshot.now}
-                      professionals={snapshot.professionals}
-                      services={snapshot.services}
-                      stage={stage}
-                      startAssignments={startAssignments}
-                      unavailableProfessionalIds={snapshot.unavailableProfessionalIds}
-                      isCalling={callEntry.isPending}
-                      isStarting={startEntry.isPending}
-                      onAssignmentChange={(entryId, professionalId) =>
-                        setStartAssignments((current) => ({
-                          ...current,
-                          [entryId]: professionalId,
-                        }))
-                      }
-                      onCall={call}
-                      onCheckout={onCheckout}
-                      onStart={start}
-                      onOpenSession={onOpenSession}
-                    />
-                  ),
-                )}
-              </section>
-            )}
-          </>
+          entries.length === 0 ? (
+            <Empty className="min-h-64">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <UsersIcon aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>
+                  {hasFilters ? "Nenhum atendimento encontrado" : "Fila sem atendimentos"}
+                </EmptyTitle>
+                <EmptyDescription>
+                  {hasFilters
+                    ? "Revise a busca ou os filtros selecionados."
+                    : "Adicione um cliente sem agendamento ou registre uma chegada pela Agenda."}
+                </EmptyDescription>
+              </EmptyHeader>
+              {!hasFilters ? (
+                <EmptyContent>
+                  <Button type="button" variant="outline" onClick={() => setAdding(true)}>
+                    Adicionar à fila
+                  </Button>
+                </EmptyContent>
+              ) : null}
+            </Empty>
+          ) : (
+            <section
+              className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-4 gap-3 sm:h-full sm:grid-cols-2 sm:grid-rows-2 xl:grid-cols-4 xl:grid-rows-1"
+              aria-label="Etapas da fila de atendimento"
+            >
+              {(scenarioIds
+                ? (["waiting", "called", "in-service", "ready-for-payment"] as const)
+                : (["waiting", "called", "in-service"] as const)
+              ).map((stage) => (
+                <QueueColumn
+                  entries={groups[stage]}
+                  key={stage}
+                  now={snapshot.now}
+                  professionals={snapshot.professionals}
+                  services={snapshot.services}
+                  stage={stage}
+                  startAssignments={startAssignments}
+                  unavailableProfessionalIds={snapshot.unavailableProfessionalIds}
+                  isCalling={callEntry.isPending}
+                  isStarting={startEntry.isPending}
+                  onAssignmentChange={(entryId, professionalId) =>
+                    setStartAssignments((current) => ({
+                      ...current,
+                      [entryId]: professionalId,
+                    }))
+                  }
+                  onCall={call}
+                  onCancel={setLeaving}
+                  onCheckout={onCheckout}
+                  onStart={start}
+                  onReturn={returnToWaiting}
+                  onOpenSession={onOpenSession}
+                />
+              ))}
+            </section>
+          )
         ) : null}
       </ModuleLayout>
       <ActionDrawer
@@ -339,7 +441,7 @@ export function ServiceDeskPage({
         onOpenChange={setAdding}
         context="Atendimentos"
         title="Adicionar à fila"
-        description="Crie um contato temporário apenas para esta sessão."
+        description="Selecione um cliente cadastrado ou identifique esta visita como sem cadastro."
         size="form"
         secondaryActions={
           <Button type="button" variant="outline" onClick={() => setAdding(false)}>
@@ -354,15 +456,52 @@ export function ServiceDeskPage({
       >
         {snapshot ? (
           <WalkInForm
+            clients={snapshot.clients ?? []}
             key={adding ? "open" : "closed"}
             formId="service-desk-walk-in-form"
             now={new Date(snapshot.now)}
             onSubmit={add}
             professionals={snapshot.professionals}
             services={snapshot.services}
-            unitId={search.unit}
+            unitId={snapshot.unitId ?? search.unit}
           />
         ) : null}
+      </ActionDrawer>
+      <ActionDrawer
+        isOpen={Boolean(leaving)}
+        onOpenChange={(open) => !open && setLeaving(null)}
+        context="Atendimentos"
+        title="Registrar saída"
+        description="Retire o cliente da fila sem criar um serviço concluído."
+        secondaryActions={
+          <Button type="button" variant="outline" onClick={() => setLeaving(null)}>
+            Cancelar
+          </Button>
+        }
+        primaryAction={
+          <Button
+            type="button"
+            isLoading={cancelEntry.isPending}
+            disabled={leavingReason.trim().length < 3}
+            onClick={registerDeparture}
+          >
+            Registrar saída
+          </Button>
+        }
+      >
+        <label className="grid gap-2 font-medium" htmlFor="service-desk-departure-reason">
+          Motivo da saída
+          <Textarea
+            id="service-desk-departure-reason"
+            minLength={3}
+            maxLength={160}
+            value={leavingReason}
+            onChange={(event) => setLeavingReason(event.currentTarget.value)}
+          />
+          <span className="text-sm font-normal text-muted-foreground">
+            Use de 3 a 160 caracteres. O motivo fica restrito à operação.
+          </span>
+        </label>
       </ActionDrawer>
     </>
   )
@@ -452,9 +591,11 @@ function QueueColumn({
   now,
   onAssignmentChange,
   onCall,
+  onCancel,
   onCheckout,
   onOpenSession,
   onStart,
+  onReturn,
   professionals,
   services,
   stage,
@@ -467,9 +608,11 @@ function QueueColumn({
   now: string
   onAssignmentChange: (entryId: string, professionalId: string) => void
   onCall: (entry: QueueEntry) => void
+  onCancel: (entry: QueueEntry) => void
   onCheckout: (sessionId: string) => void
   onOpenSession: (sessionId: string) => void
   onStart: (entry: QueueEntry) => void
+  onReturn: (entry: QueueEntry) => void
   professionals: readonly Professional[]
   services: readonly Service[]
   stage: QueueStage
@@ -508,9 +651,11 @@ function QueueColumn({
               now={now}
               onAssignmentChange={onAssignmentChange}
               onCall={onCall}
+              onCancel={onCancel}
               onCheckout={onCheckout}
               onOpenSession={onOpenSession}
               onStart={onStart}
+              onReturn={onReturn}
               professionals={professionals}
               selectedProfessionalId={startAssignments[entry.id]}
               services={services}
@@ -530,9 +675,11 @@ function QueueCard({
   now,
   onAssignmentChange,
   onCall,
+  onCancel,
   onCheckout,
   onOpenSession,
   onStart,
+  onReturn,
   professionals,
   selectedProfessionalId,
   services,
@@ -544,9 +691,11 @@ function QueueCard({
   now: string
   onAssignmentChange: (entryId: string, professionalId: string) => void
   onCall: (entry: QueueEntry) => void
+  onCancel: (entry: QueueEntry) => void
   onCheckout: (sessionId: string) => void
   onOpenSession: (sessionId: string) => void
   onStart: (entry: QueueEntry) => void
+  onReturn: (entry: QueueEntry) => void
   professionals: readonly Professional[]
   selectedProfessionalId?: string
   services: readonly Service[]
@@ -629,7 +778,7 @@ function QueueCard({
           </Select>
         ) : null}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex flex-wrap gap-2">
         {entry.stage === "waiting" ? (
           <Button
             className="w-full"
@@ -643,15 +792,30 @@ function QueueCard({
           </Button>
         ) : null}
         {entry.stage === "called" ? (
-          <Button
-            className="w-full"
-            type="button"
-            isLoading={isStarting}
-            disabled={entry.preferenceKind === "first-available" && !selectedProfessionalId}
-            onClick={() => onStart(entry)}
-          >
-            <BriefcaseBusinessIcon data-icon="inline-start" aria-hidden="true" />
-            Iniciar atendimento
+          <>
+            <Button
+              className="flex-1"
+              type="button"
+              variant="outline"
+              onClick={() => onReturn(entry)}
+            >
+              Voltar para espera
+            </Button>
+            <Button
+              className="flex-1"
+              type="button"
+              isLoading={isStarting}
+              disabled={entry.preferenceKind === "first-available" && !selectedProfessionalId}
+              onClick={() => onStart(entry)}
+            >
+              <BriefcaseBusinessIcon data-icon="inline-start" aria-hidden="true" />
+              Iniciar atendimento
+            </Button>
+          </>
+        ) : null}
+        {entry.stage === "waiting" || entry.stage === "called" ? (
+          <Button className="w-full" type="button" variant="ghost" onClick={() => onCancel(entry)}>
+            Registrar saída
           </Button>
         ) : null}
         {entry.stage === "ready-for-payment" && entry.paymentStatus !== "paid" ? (

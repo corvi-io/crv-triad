@@ -102,7 +102,9 @@ test("adds a walk-in, validates focus, keeps PII out of URL, and requires assign
   await expect(trigger).toBeFocused()
 })
 
-test("fulfills a service and hands it off as ready for payment", async ({ page }, testInfo) => {
+test("fulfills a service and persists the completed operational handoff", async ({
+  page,
+}, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto("/service-desk?scenario=empty")
   await page.getByRole("button", { name: "Adicionar à fila" }).first().click()
@@ -147,7 +149,10 @@ test("fulfills a service and hands it off as ready for payment", async ({ page }
   await page.getByRole("button", { name: "Finalizar atendimento" }).click()
   const confirmation = page.getByRole("dialog", { name: "Finalizar atendimento?" })
   await confirmation.getByRole("button", { name: "Finalizar atendimento" }).click()
-  await expect(page.getByText("Pronto para pagamento").first()).toBeVisible()
+  await expect(page.getByText("Atendimento concluído").first()).toBeVisible()
+  await expect(
+    page.getByText("Os serviços realizados foram salvos. O pagamento é registrado separadamente."),
+  ).toBeVisible()
   expect(page.url()).not.toContain("Registro")
   await page.screenshot({ fullPage: true, path: testInfo.outputPath("service-session-1440.png") })
 })
@@ -160,16 +165,16 @@ test("reloads deterministic fulfillment scenarios with exact truth claims", asyn
     ["fulfillment-long-running", "4 h 30 min"],
     ["fulfillment-long-labels", "Observação sintética extensa"],
     ["fulfillment-no-eligible", "Escolha um profissional"],
-    ["fulfillment-ready", "Pronto para pagamento"],
+    ["fulfillment-ready", "Atendimento concluído"],
   ] as const
   for (const [scenario, truth] of scenarios) {
     await page.goto(`/service-desk/session-walk-in-${scenario}?scenario=${scenario}`)
     await expect(page.getByText(truth).first()).toBeVisible()
   }
   await page.reload()
-  await expect(page.getByText("Pronto para pagamento").first()).toBeVisible()
+  await expect(page.getByText("Atendimento concluído").first()).toBeVisible()
   await expect(
-    page.getByText("O serviço foi finalizado. Revise a comanda para registrar o pagamento."),
+    page.getByText("Os serviços realizados foram salvos. O pagamento é registrado separadamente."),
   ).toBeVisible()
 })
 
@@ -374,7 +379,7 @@ test("opens checkout directly from a ready-for-payment card and keeps columns in
     .first()
     .click()
   await expect(page).toHaveURL(/\/service-desk\/session-.*\/checkout/)
-  await expect(page.getByRole("heading", { name: "Pagamento" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Pagamento", exact: true })).toBeVisible()
 
   await page.goto("/service-desk?scenario=dense")
   await expect(page.getByText(/Maior espera visível/)).toHaveCount(0)
@@ -522,7 +527,7 @@ test("reuses the owning inset across Service Desk session, checkout, and drawer 
   expect(sessionGeometry.sessionLeft).toBeCloseTo(sessionGeometry.contentLeft, 0)
 
   await page.goto("/service-desk/session-walk-in-checkout-paid/checkout?scenario=checkout-paid")
-  await expect(page.getByRole("heading", { name: "Pagamento" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Pagamento", exact: true })).toBeVisible()
 
   const checkoutGeometry = await page.locator("#main-content").evaluate((main) => {
     const workspaceContent = main.querySelector<HTMLElement>('[data-slot="workspace-content"]')
@@ -585,6 +590,23 @@ test("passes axe and preserves themes, forced colors, reduced motion, targets, a
   expect(Math.max(geometry.body, geometry.root)).toBeLessThanOrEqual(geometry.viewport)
   expect(geometry.reduced).toBe(true)
 
+  const drawerTrigger = page.getByRole("button", { name: "Adicionar à fila" }).first()
+  await drawerTrigger.click()
+  const drawer = page.getByRole("dialog", { name: /Atendimentos \/ Adicionar à fila/ })
+  await expect(drawer).toBeVisible()
+  const drawerBox = await drawer.boundingBox()
+  expect(drawerBox?.x ?? -1).toBeGreaterThanOrEqual(0)
+  expect((drawerBox?.x ?? 0) + (drawerBox?.width ?? 321)).toBeLessThanOrEqual(320)
+
+  await drawer.getByLabel("Serviço").click()
+  const serviceOption = page.getByRole("option", { name: "Corte simples" })
+  await expect(serviceOption).toBeVisible()
+  await serviceOption.click()
+  await expect(serviceOption).toBeHidden()
+  await page.keyboard.press("Escape")
+  await expect(drawer).toBeHidden()
+  await expect(drawerTrigger).toBeFocused()
+
   const controls = page.locator("#main-content button:visible")
   for (let index = 0; index < (await controls.count()); index += 1) {
     const box = await controls.nth(index).boundingBox()
@@ -605,6 +627,15 @@ test("passes axe and preserves themes, forced colors, reduced motion, targets, a
 })
 
 async function routeAuthenticatedSession(page: Page) {
+  await page.route("**/api/contexts", async (route) => {
+    if (await fulfillPreflight(route)) return
+    await fulfillJson(route, {
+      activeOrganizationId: "test-tenant",
+      platform: null,
+      status: "available",
+      tenants: [{ id: "test-tenant", name: "Barbearia de teste", role: "owner" }],
+    })
+  })
   await page.route("**/api/auth/**", async (route) => {
     if (await fulfillPreflight(route)) return
     await fulfillJson(route, {
@@ -638,6 +669,6 @@ function corsHeaders() {
     "access-control-allow-credentials": "true",
     "access-control-allow-headers": "content-type",
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-origin": "http://127.0.0.1:3100",
+    "access-control-allow-origin": `http://127.0.0.1:${process.env.STUDIO_E2E_PORT ?? "3100"}`,
   }
 }

@@ -145,6 +145,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
       return this.#engine.create(
         {
           ...input,
+          customerName: input.customerName ?? "Cliente cadastrado",
           source: "walk-in",
           stage: "waiting",
         },
@@ -418,7 +419,13 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
         throw new ServiceDeskTransitionError("Escolha o profissional específico.")
       }
       this.#assertEligible(
-        { ...input, id: "pending", source: "walk-in", stage: "waiting" },
+        {
+          ...input,
+          customerName: input.customerName ?? "Cliente cadastrado",
+          id: "pending",
+          source: "walk-in",
+          stage: "waiting",
+        },
         input.professionalId,
       )
     }

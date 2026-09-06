@@ -22,6 +22,7 @@ import {
   appointment,
   appointmentEvent,
   schedulingCommand,
+  schedulingOccupancy,
 } from "../../src/modules/scheduling/database/schema.js"
 import {
   professionalService,
@@ -124,6 +125,7 @@ afterAll(async () => {
     availabilityCommand,
     schedulingCommand,
     appointmentEvent,
+    schedulingOccupancy,
     appointment,
     availabilitySeries,
     professionalService,
