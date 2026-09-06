@@ -332,19 +332,13 @@ describe.sequential("persistent scheduling", () => {
       .set({ priceCents: 5000, durationMinutes: 30, status: "active" })
       .where(eq(service.id, base.serviceId))
   })
-  it("enforces the PostgreSQL exclusion even when application locking is bypassed", async () => {
-    const rows = await db
-      .select()
-      .from(appointment)
-      .where(eq(appointment.organizationId, actor.organizationId))
-    const current = rows.find((row) => row.status === "scheduled")
-    if (!current) throw new Error("Expected an occupying booking")
-    const attempts = await Promise.allSettled(
-      [1, 2].map(() => db.insert(appointment).values({ ...current, id: crypto.randomUUID() })),
-    )
-    expect(attempts.every((result) => result.status === "rejected")).toBe(true)
-    for (const result of attempts)
-      if (result.status === "rejected") expect(result.reason.cause.code).toBe("23P01")
+  it("removes the legacy appointment exclusion in favor of unified occupancy", async () => {
+    const constraints = await db.execute(sql`
+      select conname from pg_constraint
+      where conrelid = 'scheduling_appointments'::regclass
+        and conname = 'scheduling_appointments_no_overlap'
+    `)
+    expect(constraints.rows).toHaveLength(0)
   })
   it("restores excluded dates, archives and restores series, and replays availability commands", async () => {
     await availability.save(actor.organizationId, null, {
@@ -464,6 +458,12 @@ describe.sequential("persistent scheduling", () => {
         .from(schedulingOccupancy)
         .where(eq(schedulingOccupancy.sourceId, fulfilled.id)),
     ).toHaveLength(0)
+    const releasedInterval = await scheduling.create(
+      actor,
+      { ...base, start: "13:00" },
+      crypto.randomUUID(),
+    )
+    expect(releasedInterval.status).toBe("scheduled")
     const result = await scheduling.transitionFromFulfillment(
       actor,
       fulfilled.id,
@@ -476,6 +476,26 @@ describe.sequential("persistent scheduling", () => {
     expect(
       (await scheduling.clientHistory(actor.organizationId, base.clientId)).lastVisitAt,
     ).toBeNull()
+  })
+  it("blocks new appointments while a live service is overdue and its release is unknown", async () => {
+    await db.insert(schedulingOccupancy).values({
+      id: "overdue-live-service",
+      organizationId: actor.organizationId,
+      professionalId: base.professionalId,
+      unitId: base.unitId,
+      source: "service",
+      sourceId: "overdue-item",
+      startsAt: new Date("2026-09-05T10:00:00Z"),
+      endsAt: new Date("2026-09-05T10:30:00Z"),
+      live: 1,
+    })
+    await expect(
+      scheduling.create(actor, { ...base, start: "17:00" }, crypto.randomUUID()),
+    ).rejects.toMatchObject({ code: "appointment_conflict", field: "start" })
+    await db.delete(schedulingOccupancy).where(eq(schedulingOccupancy.id, "overdue-live-service"))
+    expect(
+      await scheduling.create(actor, { ...base, start: "17:00" }, crypto.randomUUID()),
+    ).toMatchObject({ status: "scheduled" })
   })
   it("restores an excluded occurrence at the capacity limit", async () => {
     const [current] = await db

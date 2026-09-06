@@ -11,18 +11,22 @@ function json(value: unknown, status = 200) {
 describe("production service desk HTTP adapter", () => {
   it("resolves opaque real unit IDs and composes arrivals, queue and options without fixtures", async () => {
     const fetch = vi.fn(async (url: string) => {
-      if (url.includes("/scheduling/units")) return json([{ id: "unit-real", name: "Centro" }])
+      if (url.includes("/scheduling/units"))
+        return json([{ id: "unit-real", name: "Centro", timezone: "America/Recife" }])
       if (url.includes("/service-desk/arrivals"))
-        return json([
-          {
-            id: "appointment-real",
-            version: 3,
-            customerName: "Cliente",
-            serviceName: "Corte",
-            professionalName: "Ana",
-            startsAt: "2026-09-05T12:00:00.000Z",
-          },
-        ])
+        return json({
+          items: [
+            {
+              id: "appointment-real",
+              version: 3,
+              customerName: "Cliente",
+              serviceName: "Corte",
+              professionalName: "Ana",
+              startsAt: "2026-09-05T12:00:00.000Z",
+            },
+          ],
+          nextCursor: null,
+        })
       if (url.includes("/scheduling/options")) return json({ professionals: [], services: [] })
       return json({
         items: [
@@ -53,6 +57,7 @@ describe("production service desk HTTP adapter", () => {
       scenarioId: "typical",
     })
     expect(result.unitId).toBe("unit-real")
+    expect(result.unitTimezone).toBe("America/Recife")
     expect(result.arrivals).toHaveLength(1)
     expect(result.entries[0]).toMatchObject({ id: "visit-real", version: 2 })
     expect(fetch.mock.calls.some(([url]) => String(url).includes("scenario"))).toBe(false)
@@ -112,12 +117,14 @@ describe("production service desk HTTP adapter", () => {
       }),
     )
     const fetch = vi.fn(async (url: string) => {
-      if (url.includes("/scheduling/units")) return json([{ id: "unit-real", name: "Centro" }])
-      if (url.includes("/service-desk/arrivals")) return json([])
+      if (url.includes("/scheduling/units"))
+        return json([{ id: "unit-real", name: "Centro", timezone: "America/Recife" }])
+      if (url.includes("/service-desk/arrivals")) return json({ items: [], nextCursor: null })
       if (url.includes("/scheduling/options"))
         return json({ professionals: [], services: [], unavailableProfessionalIds: ["busy"] })
       if (url.includes("/api/clients/")) return json({ items: [] })
-      if (url.includes("/service-desk/history")) return json({ items: visits.slice(3) })
+      if (url.includes("/service-desk/history"))
+        return json({ items: visits.slice(3), total: 2, page: 1, pageSize: 10 })
       return json({ items: visits })
     })
     vi.stubGlobal("fetch", fetch)
@@ -251,17 +258,23 @@ describe("production service desk HTTP adapter", () => {
       operationId: "extend",
     })
     await repository.finishSession({ sessionId: "visit-real", operationId: "finish" })
+    await repository.interruptSession({
+      sessionId: "visit-real",
+      operationId: "interrupt",
+      reason: "Correção operacional",
+    })
     status = "completed"
     expect((await repository.getSession("visit-real")).status).toBe("ready-for-payment")
     status = "canceled"
     expect((await repository.getSession("visit-real")).status).toBe("canceled")
-    expect(methods).toHaveLength(12)
+    expect(methods).toHaveLength(13)
+    expect(methods.some((method) => method.includes("/interrupt"))).toBe(true)
     await expect(repository.getPaymentHandoff()).rejects.toThrow("etapa separada")
     await expect(repository.completePayment()).rejects.toThrow("etapa separada")
     await expect(repository.reset()).rejects.toThrow("No development source")
   })
 
-  it("consumes queue cursors and every client/history page while forwarding server filters", async () => {
+  it("consumes queue and arrival cursors while loading only the requested history page", async () => {
     const urls: string[] = []
     const queueVisit = (id: string) => ({
       id,
@@ -279,8 +292,12 @@ describe("production service desk HTTP adapter", () => {
     })
     const fetch = vi.fn(async (url: string) => {
       urls.push(url)
-      if (url.includes("/scheduling/units")) return json([{ id: "unit-real", name: "Centro" }])
-      if (url.includes("/service-desk/arrivals")) return json([])
+      if (url.includes("/scheduling/units"))
+        return json([{ id: "unit-real", name: "Centro", timezone: "America/Recife" }])
+      if (url.includes("/service-desk/arrivals"))
+        return url.includes("cursor=arrival-next")
+          ? json({ items: [], nextCursor: null })
+          : json({ items: [], nextCursor: "arrival-next" })
       if (url.includes("/scheduling/options")) return json({ professionals: [], services: [] })
       if (url.includes("/api/clients/")) {
         const page = new URL(url).searchParams.get("page")
@@ -289,20 +306,12 @@ describe("production service desk HTTP adapter", () => {
           : json({ items: [{ id: "client-2", name: "Z" }], total: 2 })
       }
       if (url.includes("/service-desk/history")) {
-        const page = new URL(url).searchParams.get("page")
-        return page === "1"
-          ? json({
-              items: [{ ...queueVisit("history-1"), status: "completed" }],
-              total: 2,
-              page: 1,
-              pageSize: 50,
-            })
-          : json({
-              items: [{ ...queueVisit("history-2"), status: "canceled" }],
-              total: 2,
-              page: 2,
-              pageSize: 50,
-            })
+        return json({
+          items: [{ ...queueVisit("history-2"), status: "canceled" }],
+          total: 20,
+          page: 2,
+          pageSize: 10,
+        })
       }
       return url.includes("cursor=next")
         ? json({ items: [queueVisit("visit-2")], nextCursor: null })
@@ -316,12 +325,18 @@ describe("production service desk HTTP adapter", () => {
       priority: "fit-in",
       preference: "specific",
       professionalId: "professional-real",
+      historyPage: 2,
       scenarioId: "typical",
     })
     expect(result.entries).toHaveLength(2)
     expect(result.clients).toHaveLength(2)
-    expect(result.history).toHaveLength(2)
+    expect(result.history).toHaveLength(1)
+    expect(result.historyPage).toBe(2)
+    expect(result.historyTotal).toBe(20)
     expect(urls.some((url) => url.includes("cursor=next"))).toBe(true)
+    expect(urls.some((url) => url.includes("cursor=arrival-next"))).toBe(true)
+    expect(urls.filter((url) => url.includes("/service-desk/history"))).toHaveLength(1)
+    expect(urls.find((url) => url.includes("/service-desk/history"))).toContain("page=2")
     const queueUrl = urls.find((url) => url.includes("/service-desk/visits?")) ?? ""
     expect(queueUrl).toContain("search=Pessoa")
     expect(queueUrl).toContain("priority=fit-in")

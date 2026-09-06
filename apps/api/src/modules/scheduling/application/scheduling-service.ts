@@ -9,7 +9,6 @@ import {
   ilike,
   inArray,
   lte,
-  ne,
   notInArray,
   or,
   sql,
@@ -325,20 +324,20 @@ export function createSchedulingService(db: IdpDatabase, fingerprintSecret: stri
     const series = await readSeries(tx, actor.organizationId, input.unitId, input.date, input.date)
     if (series.length > 2000) throw new SchedulingError("range_capacity_exceeded")
     assertAvailable(projectAvailability(series, input.date, input.date), { ...input, end })
-    const [collision] = await tx
-      .select({ id: appointment.id })
-      .from(appointment)
+    const [overdueLiveService] = await tx
+      .select({ id: schedulingOccupancy.id })
+      .from(schedulingOccupancy)
       .where(
         and(
-          eq(appointment.organizationId, actor.organizationId),
-          eq(appointment.professionalId, input.professionalId),
-          notInArray(appointment.status, ["canceled", "no-show"]),
-          sql`${appointment.startsAt} < ${endsAt} and ${appointment.endsAt} > ${startsAt}`,
-          current ? ne(appointment.id, current.id) : undefined,
+          eq(schedulingOccupancy.organizationId, actor.organizationId),
+          eq(schedulingOccupancy.professionalId, input.professionalId),
+          eq(schedulingOccupancy.source, "service"),
+          eq(schedulingOccupancy.live, 1),
+          lte(schedulingOccupancy.endsAt, new Date()),
         ),
       )
       .limit(1)
-    if (collision) throw new SchedulingError("appointment_conflict", "start")
+    if (overdueLiveService) throw new SchedulingError("appointment_conflict", "start")
     return {
       ...input,
       durationMinutes,

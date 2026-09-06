@@ -2,7 +2,7 @@
 
 ## Source and scope
 
-- Branch: `feature/initiative-23-service-fulfillment`, based on accepted staging `51265ac`.
+- Branch: `feature/initiative-23-service-fulfillment`, synchronized with accepted staging `e8c7df0cfffce30ba3d547fc96a0247baafc3f20`.
 - Approved PRD remains byte-identical to the Ground source (`cmp` exit 0); approval state remains Approved.
 - The approved PRD/plan were absent from staging and incorporated before implementation without contractual change. Only execution status/evidence changed in the plan.
 - Diff scope is limited to API service-desk/scheduling/client/access composition, Studio Service Desk and the two shared overlay corrections exposed by acceptance.
@@ -10,12 +10,12 @@
 ## Passed gates
 
 - `git diff --cached --check`: passed; 49 intended files.
-- API check: 37 files / 338 tests; type/build passed.
+- API check: 37 files / 340 tests; type/build passed; coverage branches 81.27%.
 - Clean PostgreSQL 16 integration: 7 files / 26 tests against isolated loopback database.
-- Studio unit/component: 73 files / 709 tests.
-- Studio coverage: 84.67% statements, 80.06% branches, 83.58% functions, 86.17% lines; exit 0.
-- Studio production build and boundary: 107 files / 1,778,256 bytes; passed.
-- Service Desk E2E on isolated port 3113: 16/16 passed.
+- Studio unit/component: 74 files / 729 tests; captured exit 0.
+- Studio coverage: 84.41% statements, 80.04% branches, 82.92% functions, 85.99% lines; captured exit 0.
+- Studio production build and boundary: 105 files / 1,782,132 bytes; captured exit 0.
+- Service Desk E2E on isolated port 3104: 17/17 passed; production E2E: 11/11.
 - Shared Sheet/Select: desktop and 320px reduced-motion open/select/close, focus restoration and viewport bounds passed (focused 2/2).
 - Product QA: real HTTP/PostgreSQL guest completion/history journey, desktop/mobile visual inspection and WCAG scan passed.
 - Evidence JSON parses successfully; PRD Ground comparison passed.

@@ -3,6 +3,7 @@ import { schedulingQueryKeys } from "@/modules/scheduling/queries"
 import type {
   AddServiceItemInput,
   AssignServiceItemProfessionalInput,
+  InterruptSessionInput,
   ServiceDeskQuery,
   SessionItemInput,
   SessionMutationInput,
@@ -76,6 +77,13 @@ export function useFinishSession(sessionId: string) {
   return useSessionMutation(sessionId, (input: SessionMutationInput) =>
     repository.finishSession(input),
   )
+}
+export function useInterruptSession(sessionId: string) {
+  const repository = useServiceDeskRepository()
+  return useSessionMutation(sessionId, (input: InterruptSessionInput) => {
+    if (!repository.interruptSession) throw new Error("A interrupção não está disponível.")
+    return repository.interruptSession(input)
+  })
 }
 export function useFinishServiceItem(sessionId: string) {
   const repository = useServiceDeskRepository()

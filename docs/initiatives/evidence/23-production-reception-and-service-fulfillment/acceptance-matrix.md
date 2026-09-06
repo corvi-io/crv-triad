@@ -15,6 +15,6 @@ This matrix records local evidence for the approved Initiative 23 contract.
 | AC-015 | Additive migrations 0022/0023 and clean PostgreSQL 16 integration run: 7 files / 26 tests | Passed locally |
 | AC-016 | Metadata-only telemetry, HMAC receipts, private-field exclusions and sentinel assertions | Passed locally |
 | AC-017 | HTTP production build/boundary scan; additive-data rollback guidance in runbook | Passed locally |
-| AC-018 | API 338 tests; Studio 709 tests; E2E 16; coverage >=80% all metrics; durable docs and preflight evidence | Passed locally |
+| AC-018 | API 340 tests; Studio 729 tests; Service Desk E2E 17; production E2E 11; coverage >=80% all metrics; durable docs and preflight evidence | Passed locally |
 
 Local browser QA used synthetic data on isolated API 8103, Studio 3103 and PostgreSQL 55443. No deployment or remote database mutation is claimed.

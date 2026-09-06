@@ -5,6 +5,7 @@ import type {
   AddServiceItemInput,
   AssignServiceItemProfessionalInput,
   CompleteServicePaymentInput,
+  InterruptSessionInput,
   QueueEntry,
   ServiceDeskQuery,
   ServiceDeskRepository,
@@ -309,6 +310,15 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
     })
   }
 
+  async interruptSession(input: InterruptSessionInput) {
+    return this.#mutateSession("interrupt", input, (session, now) => {
+      this.#assertSessionActive(session)
+      if (input.reason.trim().length < 3 || input.reason.trim().length > 160)
+        throw new ServiceDeskTransitionError("Informe um motivo entre 3 e 160 caracteres.")
+      return { ...session, finishedAt: now, status: "canceled" as const }
+    })
+  }
+
   async call(entryId: string) {
     const generation = this.#generation
     return this.#engine.execute("update", () => {
@@ -492,7 +502,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
   }
 
   async #mutateSession(
-    kind: "add" | "assign" | "finish" | "notes" | "remove",
+    kind: "add" | "assign" | "finish" | "interrupt" | "notes" | "remove",
     input: SessionMutationInput,
     update: (session: ServiceSession, now: string) => ServiceSession,
   ) {

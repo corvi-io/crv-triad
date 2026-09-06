@@ -5,9 +5,12 @@ import {
   PlusIcon,
   ScissorsIcon,
   Trash2Icon,
+  TriangleAlertIcon,
 } from "lucide-react"
 import { useRef, useState } from "react"
 import { toast } from "sonner"
+import { useAccessSummary } from "@/modules/access/use-access-summary"
+import { ActionDrawer } from "@/modules/shared/components/overlays/action-drawer"
 import { ConfirmationDialog } from "@/modules/shared/components/overlays/confirmation-dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/modules/shared/components/ui/alert"
 import { Badge } from "@/modules/shared/components/ui/badge"
@@ -50,6 +53,7 @@ import {
   useExtendServiceItem,
   useFinishServiceItem,
   useFinishSession,
+  useInterruptSession,
   useRemoveServiceItem,
   useServiceSession,
   useStartServiceItem,
@@ -128,8 +132,12 @@ function SessionWorkspace({
   const [professionalId, setProfessionalId] = useState("")
   const [notes, setNotes] = useState(session.notes)
   const [confirming, setConfirming] = useState(false)
+  const [interrupting, setInterrupting] = useState(false)
+  const [interruptReason, setInterruptReason] = useState("")
+  const access = useAccessSummary()
   const addOperation = useRef("")
   const finishOperation = useRef("")
+  const interruptOperation = useRef("")
   const notesOperation = useRef<{ notes: string; operationId: string } | undefined>(undefined)
   const itemOperations = useRef(new Map<string, string>())
   const addItem = useAddServiceItem(session.id)
@@ -137,6 +145,7 @@ function SessionWorkspace({
   const assign = useAssignServiceItemProfessional(session.id)
   const updateNotes = useUpdateSessionNotes(session.id)
   const finish = useFinishSession(session.id)
+  const interrupt = useInterruptSession(session.id)
   const finishItem = useFinishServiceItem(session.id)
   const startItem = useStartServiceItem(session.id)
   const extendItem = useExtendServiceItem(session.id)
@@ -153,9 +162,16 @@ function SessionWorkspace({
     assign.isPending ||
     updateNotes.isPending ||
     finish.isPending ||
+    interrupt.isPending ||
     finishItem.isPending ||
     startItem.isPending ||
     extendItem.isPending
+  const canInterrupt =
+    active &&
+    (access.data?.capabilities.some(
+      ({ capability, allowed }) => capability === "service_desk.correct" && allowed,
+    ) ??
+      false)
 
   async function add() {
     if (!serviceId || !professionalId || pending) return
@@ -240,6 +256,25 @@ function SessionWorkspace({
       toast.success("Atendimento concluído.")
     } catch {
       toast.error("Não foi possível finalizar o atendimento.")
+    }
+  }
+
+  async function interruptService() {
+    const reason = interruptReason.trim()
+    if (pending || reason.length < 3 || reason.length > 160) return
+    interruptOperation.current ||= createOperationId()
+    try {
+      await interrupt.mutateAsync({
+        operationId: interruptOperation.current,
+        reason,
+        sessionId: session.id,
+      })
+      setInterrupting(false)
+      setInterruptReason("")
+      interruptOperation.current = ""
+      toast.success("Atendimento interrompido.")
+    } catch {
+      toast.error("Não foi possível interromper o atendimento.")
     }
   }
 
@@ -491,6 +526,22 @@ function SessionWorkspace({
           </CardFooter>
         </Card>
       ) : null}
+      {canInterrupt ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Correção operacional</CardTitle>
+            <CardDescription>
+              Interrompa somente quando o atendimento não puder ser concluído normalmente.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button type="button" variant="destructive" onClick={() => setInterrupting(true)}>
+              <TriangleAlertIcon data-icon="inline-start" aria-hidden="true" />
+              Interromper atendimento
+            </Button>
+          </CardFooter>
+        </Card>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>Observações do atendimento</CardTitle>
@@ -561,6 +612,47 @@ function SessionWorkspace({
         onCancel={() => setConfirming(false)}
         onConfirm={complete}
       />
+      <ActionDrawer
+        isOpen={interrupting}
+        onOpenChange={setInterrupting}
+        context="Atendimento"
+        title="Interromper atendimento"
+        description="A interrupção libera a agenda e registra o motivo para auditoria."
+        secondaryActions={
+          <Button type="button" variant="outline" onClick={() => setInterrupting(false)}>
+            Cancelar
+          </Button>
+        }
+        primaryAction={
+          <Button
+            type="button"
+            variant="destructive"
+            isLoading={interrupt.isPending}
+            disabled={interruptReason.trim().length < 3 || interruptReason.trim().length > 160}
+            onClick={interruptService}
+          >
+            Confirmar interrupção
+          </Button>
+        }
+      >
+        <Field data-invalid={interruptReason.length > 160 || undefined}>
+          <FieldLabel htmlFor="service-interruption-reason" required>
+            Motivo
+          </FieldLabel>
+          <Textarea
+            id="service-interruption-reason"
+            value={interruptReason}
+            minLength={3}
+            maxLength={161}
+            aria-invalid={interruptReason.length > 160}
+            onChange={(event) => setInterruptReason(event.currentTarget.value)}
+          />
+          <FieldDescription>{interruptReason.length}/160 caracteres</FieldDescription>
+          {interruptReason.length > 160 ? (
+            <FieldError>Use no máximo 160 caracteres.</FieldError>
+          ) : null}
+        </Field>
+      </ActionDrawer>
     </div>
   )
 }

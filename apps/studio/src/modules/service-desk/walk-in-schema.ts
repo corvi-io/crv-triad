@@ -53,9 +53,45 @@ export const walkInFormSchema = z
 
 export type WalkInFormValues = z.infer<typeof walkInFormSchema>
 
-export function createWalkInFormDefaults(now: Date): WalkInFormValues {
+function localParts(now: Date, timezone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now)
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? ""
   return {
-    arrivalTime: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+    date: `${get("year")}-${get("month")}-${get("day")}`,
+    time: `${get("hour")}:${get("minute")}`,
+  }
+}
+
+function toInstant(date: string, time: string, timezone: string) {
+  const naive = Date.parse(`${date}T${time}:00Z`)
+  const offsets = new Set<number>()
+  for (let hour = -48; hour <= 48; hour += 6) {
+    const sample = naive + hour * 3_600_000
+    const parts = localParts(new Date(sample), timezone)
+    offsets.add(Date.parse(`${parts.date}T${parts.time}:00Z`) - sample)
+  }
+  const matches = [...offsets]
+    .map((offset) => new Date(naive - offset))
+    .filter((instant) => {
+      const parts = localParts(instant, timezone)
+      return parts.date === date && parts.time === time
+    })
+  if (matches.length !== 1) throw new Error("Horário de chegada inválido para o fuso da unidade.")
+  return matches[0]
+}
+
+export function createWalkInFormDefaults(now: Date, timezone = "UTC"): WalkInFormValues {
+  const parts = localParts(now, timezone)
+  return {
+    arrivalTime: parts.time,
     identityKind: "guest",
     clientId: "",
     customerName: "",
@@ -72,10 +108,14 @@ export function walkInFormValuesToInput(
   values: WalkInFormValues,
   now: Date,
   unitId: string,
+  timezone = "UTC",
 ): WalkInInput {
   const [hours, minutes] = values.arrivalTime.split(":").map(Number)
-  const arrival = new Date(now)
-  arrival.setHours(hours, minutes, 0, 0)
+  const arrival = toInstant(
+    localParts(now, timezone).date,
+    `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
+    timezone,
+  )
   return {
     arrivalAt: arrival.toISOString(),
     clientId: values.identityKind === "client" ? values.clientId : undefined,

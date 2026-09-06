@@ -57,7 +57,7 @@ const stages: Record<Visit["status"], QueueEntry["stage"] | undefined> = {
 }
 export class ServiceDeskHttpRepository implements ServiceDeskRepository {
   readonly #versions = new Map<string, number>()
-  readonly #units = new Map<string, string>()
+  readonly #units = new Map<string, { name: string; timezone: string | null }>()
   readonly #retries = new Map<string, string>()
   async #command(
     path: string,
@@ -85,8 +85,10 @@ export class ServiceDeskHttpRepository implements ServiceDeskRepository {
   }
   async #resolveUnit(requested: string) {
     const units =
-      await schedulingRequest<readonly { id: string; name: string }[]>("/api/scheduling/units")
-    for (const entry of units) this.#units.set(entry.id, entry.name)
+      await schedulingRequest<readonly { id: string; name: string; timezone: string | null }[]>(
+        "/api/scheduling/units",
+      )
+    for (const entry of units) this.#units.set(entry.id, entry)
     const selected = units.some(({ id }) => id === requested) ? requested : units[0]?.id
     if (!selected) throw new Error("Nenhuma unidade ativa disponível.")
     return { selected, units }
@@ -102,12 +104,12 @@ export class ServiceDeskHttpRepository implements ServiceDeskRepository {
     if (query.professionalId !== "all") params.set("professionalId", query.professionalId)
     const [result, arrivals, options, clients, history] = await Promise.all([
       this.#allQueuePages(params),
-      schedulingRequest<NonNullable<ServiceDeskSnapshot["arrivals"]>>(
-        `/api/service-desk/arrivals?unitId=${encodeURIComponent(selected)}`,
-      ),
+      this.#allArrivalPages(selected),
       schedulingRequest<Options>(`/api/scheduling/options?unitId=${encodeURIComponent(selected)}`),
       this.#allClientPages(),
-      this.#allHistoryPages(selected),
+      schedulingRequest<HistoryPage>(
+        `/api/service-desk/history?unitId=${encodeURIComponent(selected)}&page=${query.historyPage ?? 1}&pageSize=10`,
+      ),
     ])
     const entries = result.items
       .map((visit) => {
@@ -124,13 +126,17 @@ export class ServiceDeskHttpRepository implements ServiceDeskRepository {
         finishedAt: visit.finishedAt ?? visit.arrivedAt,
         status: visit.status === "completed" ? "completed" : "canceled",
       })),
-      arrivals,
+      historyPage: history.page,
+      historyPageSize: history.pageSize,
+      historyTotal: history.total,
+      arrivals: arrivals.items,
       now: new Date().toISOString(),
       professionals: options.professionals,
       services: options.services,
       unavailableProfessionalIds: options.unavailableProfessionalIds ?? [],
       unitId: selected,
-      unitName: this.#units.get(selected) ?? "Unidade",
+      unitName: this.#units.get(selected)?.name ?? "Unidade",
+      unitTimezone: this.#units.get(selected)?.timezone ?? null,
       units,
     }
   }
@@ -161,19 +167,19 @@ export class ServiceDeskHttpRepository implements ServiceDeskRepository {
     }
     return { items }
   }
-  async #allHistoryPages(unitId: string) {
-    const items: Visit[] = []
-    let page = 1
-    let total = Number.POSITIVE_INFINITY
-    while (items.length < total) {
-      const result = await schedulingRequest<HistoryPage>(
-        `/api/service-desk/history?unitId=${encodeURIComponent(unitId)}&page=${page}&pageSize=50`,
-      )
+  async #allArrivalPages(unitId: string) {
+    const items: NonNullable<ServiceDeskSnapshot["arrivals"]>[number][] = []
+    let cursor: string | null | undefined
+    do {
+      const params = new URLSearchParams({ unitId })
+      if (cursor) params.set("cursor", cursor)
+      const result = await schedulingRequest<{
+        items: NonNullable<ServiceDeskSnapshot["arrivals"]>
+        nextCursor?: string | null
+      }>(`/api/service-desk/arrivals?${params}`)
       items.push(...result.items)
-      total = result.total
-      if (result.items.length === 0) break
-      page += 1
-    }
+      cursor = result.nextCursor
+    } while (cursor)
     return { items }
   }
   #entry(visit: Visit): QueueEntry | undefined {
@@ -371,6 +377,15 @@ export class ServiceDeskHttpRepository implements ServiceDeskRepository {
       `/api/service-desk/visits/${encodeURIComponent(input.sessionId)}/finish`,
       input.sessionId,
       input.operationId,
+    )
+    return this.getSession(input.sessionId)
+  }
+  async interruptSession(input: { sessionId: string; operationId: string; reason: string }) {
+    await this.#command(
+      `/api/service-desk/visits/${encodeURIComponent(input.sessionId)}/interrupt`,
+      input.sessionId,
+      input.operationId,
+      { reason: input.reason },
     )
     return this.getSession(input.sessionId)
   }

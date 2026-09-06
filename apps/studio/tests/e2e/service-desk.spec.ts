@@ -236,6 +236,19 @@ test("canonicalizes raw child-route search to allowlisted technical filters", as
   expect(page.url()).not.toMatch(/Maria|Nome%20Privado|Texto%20privado|name=|notes=/i)
 })
 
+test("allows an authorized owner to interrupt an active service with an audited reason", async ({
+  page,
+}) => {
+  await page.goto("/service-desk/session-walk-in-fulfillment-single?scenario=fulfillment-single")
+  await page.getByRole("button", { name: "Interromper atendimento" }).click()
+  const drawer = page.getByRole("dialog", { name: /Atendimento \/ Interromper atendimento/ })
+  await expect(drawer.getByRole("button", { name: "Confirmar interrupção" })).toBeDisabled()
+  await drawer.getByLabel("Motivo").fill("Correção operacional confirmada")
+  await drawer.getByRole("button", { name: "Confirmar interrupção" }).click()
+  await expect(page.getByText("Atendimento interrompido.")).toBeVisible()
+  await expect(page.getByText("Saída registrada")).toBeVisible()
+})
+
 test("keeps the session accessible at a 320px zoom-equivalent viewport and restores focus", async ({
   page,
 }) => {
@@ -627,6 +640,15 @@ test("passes axe and preserves themes, forced colors, reduced motion, targets, a
 })
 
 async function routeAuthenticatedSession(page: Page) {
+  await page.route("**/api/access/summary", async (route) => {
+    if (await fulfillPreflight(route)) return
+    await fulfillJson(route, {
+      capabilities: [{ allowed: true, capability: "service_desk.correct", reason: null }],
+      organizationId: "test-tenant",
+      role: "owner",
+      subscriptionState: "active",
+    })
+  })
   await page.route("**/api/contexts", async (route) => {
     if (await fulfillPreflight(route)) return
     await fulfillJson(route, {

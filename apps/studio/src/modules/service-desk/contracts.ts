@@ -125,6 +125,7 @@ export type CompleteServicePaymentInput = {
   sessionId: string
 }
 export type SessionMutationInput = { operationId: string; sessionId: string }
+export type InterruptSessionInput = SessionMutationInput & { reason: string }
 export type AddServiceItemInput = SessionMutationInput & {
   professionalId: string
   serviceId: string
@@ -155,6 +156,7 @@ export type ServiceDeskQuery = {
   preference: ProfessionalPreferenceKind | "all"
   priority: QueuePriority | "all"
   professionalId: string | "all"
+  historyPage?: number
   scenarioId: ServiceDeskScenarioId
   search: string
   stage: QueueStage | "all"
@@ -169,6 +171,9 @@ export type ServiceDeskSnapshot = {
     finishedAt: string
     status: "completed" | "canceled"
   }[]
+  historyPage?: number
+  historyPageSize?: number
+  historyTotal?: number
   arrivals?: readonly {
     id: string
     version: number
@@ -184,7 +189,8 @@ export type ServiceDeskSnapshot = {
   unavailableProfessionalIds: readonly string[]
   unitName: string
   unitId?: string
-  units?: readonly { id: string; name: string }[]
+  units?: readonly { id: string; name: string; timezone?: string | null }[]
+  unitTimezone?: string | null
 }
 
 export type StartServiceInput = {
@@ -200,6 +206,7 @@ export type ServiceDeskRepository = {
   call(entryId: string): Promise<QueueEntry>
   cancel?(entryId: string, reason: string): Promise<QueueEntry>
   finishSession(input: SessionMutationInput): Promise<ServiceSession>
+  interruptSession?(input: InterruptSessionInput): Promise<ServiceSession>
   finishServiceItem?(input: SessionItemInput): Promise<ServiceSession>
   startServiceItem?(input: SessionItemInput & { professionalId: string }): Promise<ServiceSession>
   extendServiceItem?(input: SessionItemInput & { minutes: number }): Promise<ServiceSession>

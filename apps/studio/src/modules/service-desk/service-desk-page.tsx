@@ -105,11 +105,13 @@ export function ServiceDeskPage({
   const [adding, setAdding] = useState(false)
   const [leaving, setLeaving] = useState<QueueEntry | null>(null)
   const [leavingReason, setLeavingReason] = useState("")
+  const [historyPage, setHistoryPage] = useState(1)
   const [startAssignments, setStartAssignments] = useState<Record<string, string>>({})
   const queryInput = {
     preference: search.preference,
     priority: search.priority,
     professionalId: search.professional,
+    historyPage,
     scenarioId: search.scenario,
     search: deferredSearch,
     stage: search.stage,
@@ -218,7 +220,10 @@ export function ServiceDeskPage({
                 label="Unidade"
                 showSelectedLabel
                 value={snapshot?.unitId ?? search.unit}
-                onValueChange={(unit) => onSearchChange({ unit })}
+                onValueChange={(unit) => {
+                  setHistoryPage(1)
+                  onSearchChange({ unit })
+                }}
                 options={(snapshot?.units ?? []).map(({ id, name }) => ({
                   label: name,
                   value: id,
@@ -354,7 +359,37 @@ export function ServiceDeskPage({
               <h2 id="service-desk-history" className="font-semibold">
                 Histórico recente
               </h2>
-              <span className="text-sm text-muted-foreground">Últimos 10 atendimentos</span>
+              <span className="text-sm text-muted-foreground">
+                Página {snapshot.historyPage ?? 1} de{" "}
+                {Math.max(
+                  1,
+                  Math.ceil(
+                    (snapshot.historyTotal ?? snapshot.history.length) /
+                      (snapshot.historyPageSize ?? 10),
+                  ),
+                )}
+              </span>
+            </div>
+            <div className="mt-3 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={(snapshot.historyPage ?? 1) <= 1}
+                onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}
+              >
+                Anterior
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={
+                  (snapshot.historyPage ?? 1) * (snapshot.historyPageSize ?? 10) >=
+                  (snapshot.historyTotal ?? snapshot.history.length)
+                }
+                onClick={() => setHistoryPage((page) => page + 1)}
+              >
+                Próxima
+              </Button>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {snapshot.history.map((visit) => (
@@ -454,7 +489,7 @@ export function ServiceDeskPage({
           </Button>
         }
       >
-        {snapshot ? (
+        {snapshot?.unitTimezone ? (
           <WalkInForm
             clients={snapshot.clients ?? []}
             key={adding ? "open" : "closed"}
@@ -464,7 +499,15 @@ export function ServiceDeskPage({
             professionals={snapshot.professionals}
             services={snapshot.services}
             unitId={snapshot.unitId ?? search.unit}
+            unitTimezone={snapshot.unitTimezone}
           />
+        ) : snapshot ? (
+          <Alert>
+            <AlertTitle>Fuso horário da unidade pendente</AlertTitle>
+            <AlertDescription>
+              Configure o fuso horário da unidade antes de registrar uma chegada.
+            </AlertDescription>
+          </Alert>
         ) : null}
       </ActionDrawer>
       <ActionDrawer

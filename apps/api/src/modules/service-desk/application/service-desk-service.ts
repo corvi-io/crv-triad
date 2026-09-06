@@ -1139,7 +1139,12 @@ export function createServiceDeskService(
                   serviceDeskVisit.customerDisplayName,
                   `%${search.replace(/[\\%_]/g, "\\$&")}%`,
                 ),
-                ilike(serviceDeskVisit.notes, `%${search.replace(/[\\%_]/g, "\\$&")}%`),
+                sql`exists (
+                  select 1 from ${service}
+                  where ${service.organizationId} = ${serviceDeskVisit.organizationId}
+                    and ${service.id} = ${serviceDeskVisit.requestedServiceId}
+                    and ${service.name} ilike ${`%${search.replace(/[\\%_]/g, "\\$&")}%`}
+                )`,
               )
             : undefined,
           priority ? eq(serviceDeskVisit.priority, priority) : undefined,
@@ -1161,8 +1166,8 @@ export function createServiceDeskService(
       nextCursor: rows.length > 50 ? `${rows[49].arrivedAt.toISOString()}|${rows[49].id}` : null,
     }
   }
-  async function arrivals(organizationId: string, unitId: string) {
-    return db
+  async function arrivals(organizationId: string, unitId: string, cursor?: string) {
+    const rows = await db
       .select({
         id: appointment.id,
         version: appointment.version,
@@ -1188,10 +1193,17 @@ export function createServiceDeskService(
           eq(appointment.unitId, unitId),
           eq(appointment.status, "arrived"),
           isNull(serviceDeskVisit.id),
+          cursor
+            ? sql`(${appointment.startsAt}, ${appointment.id}) > (${new Date(cursor.split("|")[0])}, ${cursor.split("|")[1]})`
+            : undefined,
         ),
       )
       .orderBy(asc(appointment.startsAt), asc(appointment.id))
-      .limit(50)
+      .limit(51)
+    return {
+      items: rows.slice(0, 50),
+      nextCursor: rows.length > 50 ? `${rows[49].startsAt.toISOString()}|${rows[49].id}` : null,
+    }
   }
   async function history(
     organizationId: string,

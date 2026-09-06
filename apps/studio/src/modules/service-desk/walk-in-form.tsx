@@ -36,6 +36,7 @@ export function WalkInForm({
   professionals,
   services,
   unitId,
+  unitTimezone,
 }: {
   clients: readonly { id: string; name: string }[]
   formId: string
@@ -44,9 +45,10 @@ export function WalkInForm({
   professionals: readonly Professional[]
   services: readonly Service[]
   unitId: string
+  unitTimezone: string
 }) {
   const form = useForm<WalkInFormValues>({
-    defaultValues: createWalkInFormDefaults(now),
+    defaultValues: createWalkInFormDefaults(now, unitTimezone),
     resolver: zodResolver(walkInFormSchema),
     shouldFocusError: true,
   })
@@ -65,7 +67,7 @@ export function WalkInForm({
   }))
 
   const submit = form.handleSubmit(
-    async (values) => onSubmit(walkInFormValuesToInput(values, now, unitId)),
+    async (values) => onSubmit(walkInFormValuesToInput(values, now, unitId, unitTimezone)),
     (errors) => {
       const order: (keyof WalkInFormValues)[] = [
         "identityKind",

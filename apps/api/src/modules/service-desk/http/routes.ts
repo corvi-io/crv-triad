@@ -171,8 +171,10 @@ export function createServiceDeskRoutes(
       "/arrivals",
       async ({ request, query: value }) => {
         const actor = await context(request.headers, "service_desk.read")
-        const input = z.object({ unitId: z.string().min(1) }).parse(value)
-        return service.arrivals(actor.organizationId, input.unitId)
+        const input = z
+          .object({ unitId: z.string().min(1), cursor: z.string().max(256).optional() })
+          .parse(value)
+        return service.arrivals(actor.organizationId, input.unitId, input.cursor)
       },
       { query },
     )

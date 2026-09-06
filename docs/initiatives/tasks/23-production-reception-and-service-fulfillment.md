@@ -406,32 +406,35 @@ environment; preserve normal app ports.
 | --- | --- | --- |
 | Planning research | Source and documentation inspected; no runtime validation | PRD evidence table and reviewed contract decisions |
 | Planning structure validation (2026-09-05) | Passed: unique IDs, requirement/AC coverage, task fields, ordered dependencies, standards classifications, relative links and Markdown hygiene | Read-only Python validation across both PRDs/plans; 72 requirements, 36 ACs and 29 tasks; no runtime suite executed |
-| Predecessor acceptance | Execution prerequisite, not certified here | Commit/worktree basis and remaining/completed gates |
-| Consistency baseline | PRD matrix specified; live baseline pending | Per-surface source, exact copy/control contract and screenshots |
-| API and PostgreSQL | Not run | Commands, exit codes, disposable target identity, race and rollback evidence |
-| Studio and production boundary | Not run | Commands, exits, coverage totals, artifact scan output |
-| Live QA | Not run | Journeys/roles/viewports/states, screenshots, defects and manual limitations |
-| Rollback | Planned only | Compatible versions, retained-record checks and reenabling result |
+| Predecessor acceptance | Passed: branch synchronized with Initiative 22 and staging through `e8c7df0c` | Commit/worktree basis and remaining/completed gates |
+| Consistency baseline | Passed: source/copy/control matrix and browser evidence recorded | Per-surface source, exact copy/control contract and screenshots |
+| API and PostgreSQL | Passed: API 340/340; focused scheduling/service-desk PostgreSQL 18/18 on isolated loopback PostgreSQL | Commands, exit codes, disposable target identity, race and rollback evidence |
+| Studio and production boundary | Passed: Studio 729/729; coverage branches 80.04%; boundary exit 0; production E2E 11/11 | Commands, exits, coverage totals, artifact scan output |
+| Live QA | Passed locally: Service Desk 17/17 on isolated port 3104, including authorized interruption, mobile/reduced-motion and axe | Journeys/roles/viewports/states, screenshots, defects and manual limitations |
+| Rollback | Verified as additive/retained-record migration strategy; obsolete exclusion removal is isolated in migration 0024 | Compatible versions, retained-record checks and reenabling result |
 
 Every AC requires a direct evidence link or a precise record here. A passing suite name is insufficient for
 a concurrency, money or browser-comparison claim.
 
 ## Continuation Checkpoint
 
-- Active phase: Approved on 2026-09-05; runtime implementation not started.
-- Completed: Source/document research, proposed product decisions, consistency/copy inventory,
-  requirement/acceptance mapping and dependency-ordered execution plan.
-- Not started: All runtime code, migrations, API/UI implementation, test execution, live baseline/QA,
-  deployment and release.
+- Active phase: Follow-up review fixes verified locally; final commit, push and CI remain.
+- Completed: TASK-001 through TASK-014, migrations, API/UI implementation, PostgreSQL and browser
+  acceptance, coverage, production boundary and self-audit.
+- Remaining: Commit/push the follow-up batch, resolve its eight review threads, require final CI green,
+  merge PR #68 into staging and send the sealed Initiative 24 handoff with the exact merge SHA.
 - Decisions: User explicitly approved both initiatives on 2026-09-05 (“pode aprovar as 2”); the linked PRD scope is unchanged.
-- Changed by this planning task: Only new initiative 23/24 PRDs and task plans.
-- Concurrent work risk: The inspected worktree contains extensive active 21/22 API/Studio/migration/document
-  changes. Re-read current status and diff at execution; do not reset, format, stage or overwrite unrelated
-  work.
-- Commands/results during execution: None yet; planning validation is recorded in the final handoff.
-- Known failures: No runtime result claimed; predecessor final acceptance and manual UI evidence remain
-  prerequisites.
-- Exact next action: Begin TASK-001 with the current predecessor and overlap audit when execution starts; initiative 24 retains its dependency on initiative 23.
+- Changed by this initiative: Approved Initiative 23 documents, service-desk/scheduling/client API,
+  Studio reception/fulfillment surfaces, migrations and their focused evidence.
+- Concurrent work risk: Initiative 22 and the merged invitation fix are preserved in the synchronized
+  staging ancestry; Initiative 24 remains gated on the sealed handoff and merge SHA.
+- Commands/results during execution: API 340/340 and coverage 81.27% branches; focused PostgreSQL
+  18/18; Studio 729/729; Studio coverage 80.04% branches; Service Desk E2E 17/17 on port 3104;
+  production boundary and production E2E 11/11, all with exit 0.
+- Known failures: A deliberately concurrent full PostgreSQL invocation contaminated the shared test
+  database across files; the two affected Initiative 23 files pass 18/18 sequentially. No code failure
+  remains. Remote CI is pending the follow-up push.
+- Exact next action: Commit/push the reviewed batch, resolve all eight threads, wait for final CI and merge.
 - At every interruption, replace this checkpoint with exact active task, completed/remaining behavior,
   changed paths, new migration IDs, decisions, commands/exits, failures and next action.
 
