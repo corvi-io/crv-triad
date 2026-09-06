@@ -23,6 +23,13 @@ import type { IdpAuth, InvitationAcceptedObserver } from "../../modules/idp/iden
 import type { AuthEmailSender } from "../../modules/idp/identity/transactional-email.js"
 import { createLeadRoutes } from "../../modules/leads/http/routes.js"
 import {
+  createFakeArtifactStorage,
+  createFakeReportDispatcher,
+} from "../../modules/reporting/application/export-providers.js"
+import { createReportExportService } from "../../modules/reporting/application/report-export-service.js"
+import { createReportingService } from "../../modules/reporting/application/reporting-service.js"
+import { createReportingRoutes } from "../../modules/reporting/http/routes.js"
+import {
   createRevenueOperationsService,
   hasOpenRevenueCashDay,
 } from "../../modules/revenue-operations/application/revenue-operations-service.js"
@@ -141,6 +148,18 @@ export function createRestApp(input: CreateRestAppInput) {
         resolveTenantContext,
         authorizeTenantAction,
         observeBusinessRequest,
+      ),
+    )
+    .use(
+      createReportingRoutes(
+        createReportingService(input.db),
+        createReportExportService(
+          input.db,
+          createFakeReportDispatcher(),
+          createFakeArtifactStorage(),
+        ),
+        resolveTenantContext,
+        authorizeTenantAction,
       ),
     )
     .use(createLeadRoutes(input.env, input.pool, { captureAcceptedLead }))

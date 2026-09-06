@@ -11,6 +11,25 @@ export function createBusinessProfileRoutes(
   resolve: TenantContextResolver,
   authorize: TenantActionAuthorizer,
 ) {
+  const publicProfile = (value: Awaited<ReturnType<BusinessProfileService["get"]>>) =>
+    value && {
+      id: value.id,
+      displayName: value.displayName,
+      email: value.email,
+      phone: value.phone,
+      whatsapp: value.whatsapp,
+      description: value.description,
+      website: value.website,
+      instagram: value.instagram,
+      primaryUnitId: value.primaryUnitId,
+      logoAvailable: Boolean(value.logoObjectKey),
+      logoContentType: value.logoContentType,
+      logoByteSize: value.logoByteSize,
+      logoWidth: value.logoWidth,
+      logoHeight: value.logoHeight,
+      version: value.version,
+      updatedAt: value.updatedAt,
+    }
   async function context(headers: Headers, capability: Capability) {
     const result = await resolve(headers)
     if (!result.allowed) throw new AccessError(result.reason)
@@ -31,11 +50,15 @@ export function createBusinessProfileRoutes(
       set.status = 400
       return { code: "invalid_request" }
     })
-    .get("/", ({ request }) => context(request.headers, "business_profile.read").then(service.get))
+    .get("/", ({ request }) =>
+      context(request.headers, "business_profile.read").then(service.get).then(publicProfile),
+    )
     .put(
       "/",
       async ({ request, body }) =>
-        service.save(await context(request.headers, "business_profile.manage"), body),
+        service
+          .save(await context(request.headers, "business_profile.manage"), body)
+          .then(publicProfile),
       { body: t.Record(t.String(), t.Any()) },
     )
     .post(
@@ -43,11 +66,13 @@ export function createBusinessProfileRoutes(
       async ({ request, body }) => {
         const actor = await context(request.headers, "business_profile.manage")
         const input = body as { file: File; expectedVersion: string }
-        return service.uploadLogo(
-          actor,
-          new Uint8Array(await input.file.arrayBuffer()),
-          Number(input.expectedVersion),
-        )
+        return service
+          .uploadLogo(
+            actor,
+            new Uint8Array(await input.file.arrayBuffer()),
+            Number(input.expectedVersion),
+          )
+          .then(publicProfile)
       },
       {
         body: t.Object({ file: t.File({ maxSize: 5 * 1024 * 1024 }), expectedVersion: t.String() }),
@@ -65,10 +90,12 @@ export function createBusinessProfileRoutes(
     .delete(
       "/logo",
       async ({ request, query }) =>
-        service.removeLogo(
-          await context(request.headers, "business_profile.manage"),
-          Number(query.expectedVersion),
-        ),
+        service
+          .removeLogo(
+            await context(request.headers, "business_profile.manage"),
+            Number(query.expectedVersion),
+          )
+          .then(publicProfile),
       { query: t.Object({ expectedVersion: t.String() }) },
     )
 }

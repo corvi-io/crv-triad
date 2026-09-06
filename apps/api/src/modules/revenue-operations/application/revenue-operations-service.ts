@@ -1236,8 +1236,8 @@ export function createRevenueOperationsService(
               )
           : []
         await tx.insert(commissionFact).values(
-          receiptLines.map((line, index) => {
-            const snapshot = checkout.lines[index]!.snapshot
+          receiptLines.map((line) => {
+            const snapshot = line.snapshot
             const override = policies.find(
               (policy) =>
                 policy.professionalId === snapshot.professionalId &&
@@ -1253,14 +1253,14 @@ export function createRevenueOperationsService(
               : policy.kind === "percentage"
                 ? {
                     kind: "percentage",
-                    basisPoints: policy.basisPoints!,
+                    basisPoints: policy.basisPoints ?? 0,
                     source: override ? "override" : "default",
                     policyVersion: policy.version,
                   }
                 : policy.kind === "fixed"
                   ? {
                       kind: "fixed",
-                      fixedCents: policy.fixedCents!,
+                      fixedCents: policy.fixedCents ?? 0,
                       source: "override",
                       policyVersion: policy.version,
                     }
