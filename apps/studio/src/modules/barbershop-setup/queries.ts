@@ -41,6 +41,8 @@ export const barbershopSetupQueryKeys = {
     [...barbershopSetupQueryKeys.all, "overview", scenarioId] as const,
   professionalSummary: (professionalId: string, date: string) =>
     [...barbershopSetupQueryKeys.all, "professional-summary", professionalId, date] as const,
+  professionalInvitations: () =>
+    [...barbershopSetupQueryKeys.all, "professional-invitations"] as const,
 }
 
 export function useSetupCompletion(scenarioId: SetupScenarioId) {
@@ -72,6 +74,31 @@ export function useSetupEntities(query: SetupListQuery) {
   return useQuery({
     queryKey: barbershopSetupQueryKeys.list(query),
     queryFn: () => repository.list(query),
+  })
+}
+
+export function usePendingProfessionalInvitations(enabled: boolean) {
+  const repository = useBarbershopSetupRepository()
+  return useQuery({
+    enabled: enabled && Boolean(repository.listPendingProfessionalInvitations),
+    queryKey: barbershopSetupQueryKeys.professionalInvitations(),
+    queryFn: () => repository.listPendingProfessionalInvitations?.() ?? Promise.resolve([]),
+  })
+}
+
+export function useResendProfessionalInvitation() {
+  const repository = useBarbershopSetupRepository()
+  return useCompletionMutation((id: string) => {
+    if (!repository.resendProfessionalInvitation) throw new Error("Reenvio indisponível.")
+    return repository.resendProfessionalInvitation(id)
+  })
+}
+
+export function useRevokeProfessionalInvitation() {
+  const repository = useBarbershopSetupRepository()
+  return useCompletionMutation((id: string) => {
+    if (!repository.revokeProfessionalInvitation) throw new Error("Cancelamento indisponível.")
+    return repository.revokeProfessionalInvitation(id)
   })
 }
 

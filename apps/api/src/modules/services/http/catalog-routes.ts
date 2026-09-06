@@ -4,6 +4,7 @@ import type { TenantActionAuthorizer } from "../../access/application/authorize-
 import type { AccessDenialReason } from "../../access/domain/access-decision.js"
 import type { AuthEmailSender } from "../../idp/identity/transactional-email.js"
 import type { TenantContextResolver } from "../../tenancy/application/create-tenant-context-resolver.js"
+import type { CatalogAuditWriter } from "../application/catalog-audit.js"
 import type { CatalogKind, CatalogService } from "../application/catalog-service.js"
 import { CatalogError } from "../application/catalog-service.js"
 
@@ -14,6 +15,7 @@ export function createCatalogRoutes(
   resolveContext: TenantContextResolver,
   authorizeAction: TenantActionAuthorizer,
   authEmailSender?: Pick<AuthEmailSender, "sendInvitation">,
+  writeAudit?: CatalogAuditWriter,
 ) {
   const root = new Elysia({ name: "catalog-routes" })
   for (const [kind, path] of [
@@ -22,7 +24,15 @@ export function createCatalogRoutes(
     ["service", "services"],
   ] as const) {
     root.use(
-      createRoutesForKind(kind, path, service, resolveContext, authorizeAction, authEmailSender),
+      createRoutesForKind(
+        kind,
+        path,
+        service,
+        resolveContext,
+        authorizeAction,
+        authEmailSender,
+        writeAudit,
+      ),
     )
   }
   return root
@@ -35,6 +45,7 @@ function createRoutesForKind(
   resolveContext: TenantContextResolver,
   authorizeAction: TenantActionAuthorizer,
   authEmailSender?: Pick<AuthEmailSender, "sendInvitation">,
+  writeAudit?: CatalogAuditWriter,
 ) {
   async function authorize(headers: Headers, manage = false) {
     const decision = await resolveContext(headers)
@@ -45,6 +56,43 @@ function createRoutesForKind(
     )
     if (!access.allowed) throw new CatalogAccessError(access.reason)
     return decision.context
+  }
+
+  async function audited<T>(
+    context: { actorUserId: string; organizationId: string },
+    request: Request,
+    action: "archive" | "create" | "invite" | "resend" | "restore" | "revoke" | "update",
+    changedFields: readonly string[],
+    entityId: string | undefined,
+    operation: () => Promise<T>,
+  ) {
+    const requestId = request.headers.get("x-request-id") ?? "unavailable"
+    try {
+      const result = await operation()
+      await writeAudit?.({
+        action,
+        actorUserId: context.actorUserId,
+        changedFields,
+        entityId: entityId ?? entityIdFrom(result),
+        entityType: kind,
+        organizationId: context.organizationId,
+        requestId,
+        result: "succeeded",
+      })
+      return result
+    } catch (error) {
+      await writeAudit?.({
+        action,
+        actorUserId: context.actorUserId,
+        changedFields,
+        entityId,
+        entityType: kind,
+        organizationId: context.organizationId,
+        requestId,
+        result: "failed",
+      })
+      throw error
+    }
   }
 
   return new Elysia({ name: `catalog-${path}-routes`, prefix: `/api/${path}` })
@@ -61,7 +109,7 @@ function createRoutesForKind(
       if (error instanceof CatalogError) {
         set.status =
           error.code === "not_found" ? 404 : error.code === "version_conflict" ? 409 : 400
-        return { code: error.code, requestId }
+        return { code: error.code, ...(error.details ? { details: error.details } : {}), requestId }
       }
       if (code === "VALIDATION") {
         set.status = 400
@@ -83,27 +131,37 @@ function createRoutesForKind(
       async ({ body, request, status }) => {
         if (kind !== "professional") throw new CatalogError("not_found")
         const context = await authorize(request.headers, true)
-        const issued = await service.inviteProfessional(
-          context.organizationId,
-          context.actorUserId,
-          body,
+        const result = await audited(
+          context,
+          request,
+          "invite",
+          ["commissionBasisPoints", "role", "serviceIds", "specialties", "unitIds"],
+          undefined,
+          async () => {
+            const issued = await service.inviteProfessional(
+              context.organizationId,
+              context.actorUserId,
+              body,
+            )
+            const emailDelivery =
+              (await authEmailSender?.sendInvitation({
+                email: issued.email,
+                expiresAt: issued.expiresAt,
+                role: "member",
+                token: issued.token,
+              })) ?? "skipped"
+            if (emailDelivery !== "sent") {
+              await service.revokeUndeliveredProfessionalInvitation(
+                context.organizationId,
+                issued.identityInvitationId,
+                issued.email,
+              )
+              throw new InvitationDeliveryError()
+            }
+            return { emailDelivery, status: "pending" as const }
+          },
         )
-        const emailDelivery =
-          (await authEmailSender?.sendInvitation({
-            email: issued.email,
-            expiresAt: issued.expiresAt,
-            role: "member",
-            token: issued.token,
-          })) ?? "skipped"
-        if (emailDelivery !== "sent") {
-          await service.revokeUndeliveredProfessionalInvitation(
-            context.organizationId,
-            issued.identityInvitationId,
-            issued.email,
-          )
-          throw new InvitationDeliveryError()
-        }
-        return status(201, { emailDelivery, status: "pending" as const })
+        return status(201, result)
       },
       { body: t.Record(t.String(), t.Any()) },
     )
@@ -115,11 +173,47 @@ function createRoutesForKind(
       },
       { query: t.Record(t.String(), t.Optional(t.String())) },
     )
+    .get("/invitations", async ({ request }) => {
+      if (kind !== "professional") throw new CatalogError("not_found")
+      const context = await authorize(request.headers, true)
+      return service.listPendingProfessionalInvitations(context.organizationId)
+    })
+    .post("/invitations/:invitationId/resend", async ({ params, request }) => {
+      if (kind !== "professional") throw new CatalogError("not_found")
+      const context = await authorize(request.headers, true)
+      return audited(context, request, "resend", [], params.invitationId, async () => {
+        const issued = await service.resendProfessionalInvitation(
+          context.organizationId,
+          params.invitationId,
+        )
+        const emailDelivery =
+          (await authEmailSender?.sendInvitation({
+            email: issued.email,
+            expiresAt: issued.expiresAt,
+            role: "member",
+            token: issued.token,
+          })) ?? "skipped"
+        if (emailDelivery !== "sent") throw new InvitationDeliveryError()
+        return { emailDelivery, status: "pending" as const }
+      })
+    })
+    .post("/invitations/:invitationId/revoke", async ({ params, request }) => {
+      if (kind !== "professional") throw new CatalogError("not_found")
+      const context = await authorize(request.headers, true)
+      return audited(context, request, "revoke", ["status"], params.invitationId, () =>
+        service.revokeProfessionalInvitation(context.organizationId, params.invitationId),
+      )
+    })
     .post(
       "/",
       async ({ body, request, status }) => {
         const context = await authorize(request.headers, true)
-        return status(201, await service.create(context.organizationId, kind, body))
+        return status(
+          201,
+          await audited(context, request, "create", changedFieldsFor(kind), undefined, () =>
+            service.create(context.organizationId, kind, body),
+          ),
+        )
       },
       { body: t.Record(t.String(), t.Any()) },
     )
@@ -132,7 +226,9 @@ function createRoutesForKind(
       async ({ body, params, request }) => {
         const context = await authorize(request.headers, true)
         const { version, ...input } = body
-        return service.update(context.organizationId, kind, params.id, version, input)
+        return audited(context, request, "update", changedFieldsFor(kind), params.id, () =>
+          service.update(context.organizationId, kind, params.id, version, input),
+        )
       },
       { body: t.Object({ version: t.Integer({ minimum: 1 }) }, { additionalProperties: true }) },
     )
@@ -140,7 +236,9 @@ function createRoutesForKind(
       "/:id/archive",
       async ({ body, params, request }) => {
         const context = await authorize(request.headers, true)
-        return service.setArchived(context.organizationId, kind, params.id, true, body.version)
+        return audited(context, request, "archive", ["status"], params.id, () =>
+          service.setArchived(context.organizationId, kind, params.id, true, body.version),
+        )
       },
       { body: versionBody },
     )
@@ -148,7 +246,9 @@ function createRoutesForKind(
       "/:id/restore",
       async ({ body, params, request }) => {
         const context = await authorize(request.headers, true)
-        return service.setArchived(context.organizationId, kind, params.id, false, body.version)
+        return audited(context, request, "restore", ["status"], params.id, () =>
+          service.setArchived(context.organizationId, kind, params.id, false, body.version),
+        )
       },
       { body: versionBody },
     )
@@ -160,4 +260,24 @@ class CatalogAccessError extends Error {
   constructor(readonly reason: AccessDenialReason) {
     super("Catalog access denied.")
   }
+}
+
+function entityIdFrom(value: unknown) {
+  if (typeof value !== "object" || value === null || !("id" in value)) return undefined
+  return typeof value.id === "string" ? value.id : undefined
+}
+
+function changedFieldsFor(kind: CatalogKind) {
+  if (kind === "unit") return ["address", "businessHours", "code", "name"] as const
+  if (kind === "professional")
+    return ["commissionBasisPoints", "role", "serviceIds", "specialties", "unitIds"] as const
+  return [
+    "category",
+    "description",
+    "durationMinutes",
+    "name",
+    "priceCents",
+    "professionalIds",
+    "unitIds",
+  ] as const
 }

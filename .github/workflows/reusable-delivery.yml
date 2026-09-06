@@ -81,9 +81,8 @@ jobs:
     with: { app: studio, deploy: "${{ inputs.deploy }}", environment: "${{ inputs.environment }}", target: "${{ inputs.target }}" }
   backstage:
     name: Backstage delivery
-    needs: [detect, security]
-    if: ${{ needs.detect.outputs.backstage == 'true' }}
+    needs: [detect, security, api]
+    if: ${{ always() && needs.detect.outputs.backstage == 'true' && needs.security.result == 'success' && (needs.api.result == 'success' || needs.api.result == 'skipped') }}
     permissions: { contents: read, id-token: write }
     uses: ./.github/workflows/reusable-app-delivery.yml
-    # Backstage quality remains required, but deployment stays disabled until its hosting is provisioned.
-    with: { app: backstage, deploy: false, environment: "${{ inputs.environment }}", target: "${{ inputs.target }}" }
+    with: { app: backstage, deploy: "${{ inputs.deploy }}", environment: "${{ inputs.environment }}", target: "${{ inputs.target }}" }

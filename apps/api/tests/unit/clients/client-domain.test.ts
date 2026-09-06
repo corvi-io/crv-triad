@@ -16,7 +16,7 @@ describe("client profile", () => {
         name: "  Maria Cliente  ",
         phone: "+55 (81) 99999-0000",
         preferenceNote: "  Prefere manhã  ",
-        servicePreferences: ["Corte", "Corte"],
+        servicePreferenceIds: ["service-a", "service-a"],
         tags: ["VIP", "VIP"],
       }),
     ).toEqual({
@@ -27,8 +27,7 @@ describe("client profile", () => {
       phone: "+55 (81) 99999-0000",
       preferenceNote: "Prefere manhã",
       professionalPreferenceIds: [],
-      servicePreferenceIds: [],
-      servicePreferences: ["Corte"],
+      servicePreferenceIds: ["service-a"],
       tags: ["VIP"],
       unitPreferenceIds: [],
     })

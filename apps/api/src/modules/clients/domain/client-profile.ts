@@ -16,7 +16,6 @@ const clientInputSchema = z
     preferenceNote: trimmedString(1_000).default(""),
     professionalPreferenceIds: z.array(z.string().min(1).max(128)).max(5).default([]),
     servicePreferenceIds: z.array(z.string().min(1).max(128)).max(20).default([]),
-    servicePreferences: z.array(z.string().trim().min(1).max(100)).max(20).default([]),
     tags: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
     unitPreferenceIds: z.array(z.string().min(1).max(128)).max(5).default([]),
   })
@@ -41,7 +40,6 @@ export type ValidClientProfile = Readonly<{
   preferenceNote: string
   professionalPreferenceIds?: readonly string[]
   servicePreferenceIds?: readonly string[]
-  servicePreferences: readonly string[]
   tags: readonly string[]
   unitPreferenceIds?: readonly string[]
 }>
@@ -80,7 +78,6 @@ export function validateClientProfile(input: unknown): ValidClientProfile {
     preferenceNote: result.data.preferenceNote,
     professionalPreferenceIds: uniqueValues(result.data.professionalPreferenceIds),
     servicePreferenceIds: uniqueValues(result.data.servicePreferenceIds),
-    servicePreferences: uniqueValues(result.data.servicePreferences),
     tags: uniqueValues(result.data.tags),
     unitPreferenceIds: uniqueValues(result.data.unitPreferenceIds),
   }

@@ -288,3 +288,7 @@ severity. Audit records expire after 365 days and are deleted by a bounded sched
 This contract implements the design boundary for REQ-001–REQ-003, REQ-005–REQ-018, and
 REQ-027–REQ-049. Runtime behavior and evidence are delivered by TASK-002–TASK-024; this document
 does not by itself satisfy those acceptance criteria.
+
+## Availability and scheduling capabilities
+
+Initiative 22 adds `availability.read`, `availability.manage`, `scheduling.read`, and `scheduling.manage`. Owner/admin manage availability; tenant members read availability and manage appointments when commercially entitled. Identity and active tenant resolution precede all business lookups. See [API scheduling contracts](availability-and-scheduling.md).

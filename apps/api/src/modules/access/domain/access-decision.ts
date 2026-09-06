@@ -1,6 +1,10 @@
 import type { TenantRole } from "../../tenancy/domain/business-context.js"
 
 export const capabilities = [
+  "availability.read",
+  "availability.manage",
+  "scheduling.read",
+  "scheduling.manage",
   "clients.read",
   "clients.manage",
   "catalogs.read",
@@ -17,6 +21,10 @@ export type SubscriptionState = "active" | "expired" | "suspended"
 const roleCapabilities: Readonly<Record<TenantRole, ReadonlySet<Capability>>> = {
   owner: new Set(capabilities),
   admin: new Set([
+    "availability.read",
+    "availability.manage",
+    "scheduling.read",
+    "scheduling.manage",
     "clients.read",
     "clients.manage",
     "catalogs.read",
@@ -25,7 +33,14 @@ const roleCapabilities: Readonly<Record<TenantRole, ReadonlySet<Capability>>> = 
     "members.manage",
     "access_requests.review",
   ]),
-  member: new Set(["clients.read", "clients.manage", "catalogs.read"]),
+  member: new Set([
+    "clients.read",
+    "clients.manage",
+    "catalogs.read",
+    "availability.read",
+    "scheduling.read",
+    "scheduling.manage",
+  ]),
 }
 
 export type AccessDecisionInput = Readonly<{

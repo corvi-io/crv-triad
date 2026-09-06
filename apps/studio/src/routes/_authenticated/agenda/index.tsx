@@ -1,6 +1,7 @@
 import { createSchedulingRepository } from "virtual:studio-scheduling-prototype"
 import { createFileRoute } from "@tanstack/react-router"
 import { validateScheduleSearch } from "@/modules/scheduling/agenda"
+import { ProductionAgenda } from "@/modules/scheduling/production-agenda"
 import { SchedulingRepositoryProvider } from "@/modules/scheduling/repository-context"
 import { SchedulePage, type ScheduleSearch } from "@/modules/scheduling/schedule-page"
 import { formatDateOnly } from "@/modules/shared/components/forms/date-picker"
@@ -8,6 +9,7 @@ import { ModuleLayout } from "@/modules/shared/components/layout/module-layout"
 import { PageHeader } from "@/modules/shared/components/layout/page-header"
 
 const repository = createSchedulingRepository?.()
+const AgendaPage = repository?.source === "http" ? ProductionAgenda : SchedulePage
 
 export const Route = createFileRoute("/_authenticated/agenda/")({
   component: AgendaRoute,
@@ -32,7 +34,7 @@ function AgendaRoute() {
   }
   return (
     <SchedulingRepositoryProvider repository={repository}>
-      <SchedulePage
+      <AgendaPage
         search={search}
         onSearchChange={(next) =>
           navigate({ replace: true, search: (previous) => ({ ...previous, ...next }) })

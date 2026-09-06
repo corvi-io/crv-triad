@@ -267,7 +267,7 @@ test("opens the overview source by default", async ({ page }) => {
   ).toBeVisible()
 })
 
-test("exposes stable required-field errors and allows independent service creation", async ({
+test("exposes stable required-field errors and requires service relationships", async ({
   page,
 }) => {
   await page.goto(setupUrl("new-business", "units"))
@@ -290,6 +290,10 @@ test("exposes stable required-field errors and allows independent service creati
   await page.getByLabel("Descrição").fill("Descrição sintética válida")
   await page.getByLabel("Preço (R$)").fill("40")
   await page.getByRole("button", { name: "Salvar" }).click()
+  await expect(page.getByText("Selecione pelo menos uma unidade.")).toBeVisible()
+  await page.getByRole("checkbox", { name: "Unidade Centro" }).check()
+  await page.getByRole("checkbox", { name: "Profissional Alfa" }).check()
+  await page.getByRole("button", { name: "Salvar" }).click()
 
   await expect(page.getByRole("row", { name: /Serviço novo/ })).toBeVisible()
 })
@@ -310,6 +314,9 @@ test("filters incompatible service professionals and focuses the cleared relatio
   await center.check()
   await riverside.uncheck()
   await expect(bravo).toHaveCount(0)
+  await page.getByRole("button", { name: "Salvar" }).click()
+  await expect(page.getByText("Selecione pelo menos um profissional.")).toBeVisible()
+  await page.getByRole("checkbox", { name: "Profissional Alfa" }).check()
   await page.getByRole("button", { name: "Salvar" }).click()
   await expect(page.getByRole("row", { name: /Serviço por unidade/ })).toBeVisible()
 })

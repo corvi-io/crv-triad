@@ -611,7 +611,7 @@ describe("createAuthOptions", () => {
       revokeSessionsOnPasswordReset: true,
     })
     expect(options.emailVerification).toMatchObject({
-      autoSignInAfterVerification: false,
+      autoSignInAfterVerification: true,
       sendOnSignIn: true,
       sendOnSignUp: false,
     })

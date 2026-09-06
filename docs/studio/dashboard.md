@@ -154,3 +154,7 @@ touch-device review remain manual release follow-ups.
 The workspace navigation preserves one conceptual order across expanded,
 collapsed, and mobile shells: `Dashboard`, `Agenda`, `Clientes`, followed by
 the existing lower administrative block `Barbearia`, `Configurações`.
+
+## HTTP scheduling projection
+
+With the normal HTTP source, Dashboard reads the same unit/date range and paginated appointment list as Agenda and reuses its drawer. It displays supported appointment counts only. The prototype metrics described below remain explicit memory QA behavior. See [Production scheduling](scheduling.md).

@@ -90,9 +90,29 @@ export async function resetPassword(input: { newPassword: string; token: string 
 
 export async function resendVerificationEmail(email: string) {
   return authClient.sendVerificationEmail({
-    callbackURL: getBrowserUrl("/login?verified=true"),
+    callbackURL: getBrowserUrl("/overview"),
     email,
   })
+}
+
+export async function uploadProfileImage(file: File) {
+  const body = new FormData()
+  body.set("file", file)
+  const response = await fetch(getApiUrl("/profile/image"), {
+    body,
+    credentials: "include",
+    method: "PUT",
+  })
+  if (!response.ok) throw new Error("Não foi possível salvar a foto. Tente novamente.")
+  return (await response.json()) as { image: string }
+}
+
+export async function removeProfileImage() {
+  const response = await fetch(getApiUrl("/profile/image"), {
+    credentials: "include",
+    method: "DELETE",
+  })
+  if (!response.ok) throw new Error("Não foi possível remover a foto. Tente novamente.")
 }
 
 export async function signInWithGoogle() {

@@ -66,6 +66,8 @@ def main() -> None:
     api_deployed = optional_env("CICD__API_DEPLOYED")
     api_url = env("CICD__API_URL")
     health_url = env("CICD__API_HEALTH_URL")
+    backstage_deployed = optional_env("CICD__BACKSTAGE_DEPLOYED")
+    backstage_url = optional_env("CICD__BACKSTAGE_URL")
     idp_deployed = optional_env("CICD__IDP_DEPLOYED")
     idp_url = optional_env("CICD__IDP_URL")
     idp_health_url = optional_env("CICD__IDP_HEALTH_URL")
@@ -94,6 +96,10 @@ def main() -> None:
     if studio_url:
         table_rows.append(
             f"| 🖥️ Studio | {status_label(studio_deployed)} | [Open preview]({studio_url}) | Alias preview |"
+        )
+    if backstage_url:
+        table_rows.append(
+            f"| 🛠️ Backstage | {status_label(backstage_deployed)} | [Open preview]({backstage_url}) | Operator access required |"
         )
     table_rows.append(
         f"| 🧾 Logs | Completed | [View workflow run]({run_url}) | Commit `{short_sha}` |"

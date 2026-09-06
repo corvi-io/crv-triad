@@ -17,7 +17,7 @@ export const agendaTemporalScopes = ["day", "week"] as const
 export type AgendaTemporalScope = (typeof agendaTemporalScopes)[number]
 
 export const schedulingUnitIds = ["centro", "artesao"] as const
-export type SchedulingUnitId = (typeof schedulingUnitIds)[number]
+export type SchedulingUnitId = string
 
 export const paymentStatuses = ["pending", "paid"] as const
 export type PaymentStatus = (typeof paymentStatuses)[number]
@@ -45,6 +45,22 @@ export type SchedulePeriod = {
 }
 
 export type Appointment = {
+  version?: number
+  unitName?: string
+  serviceName?: string
+  professionalName?: string
+  timezone?: string
+  startsAt?: string
+  events?: readonly {
+    id: string
+    action: string
+    actorName?: string
+    changedFields?: string[]
+    createdAt: string
+    fromStatus: string | null
+    toStatus: string
+    version: number
+  }[]
   cancellationReason?: CancellationReason
   clientId: string
   customerName: string
@@ -95,6 +111,15 @@ export type ScheduleRangeQuery = {
 }
 
 export type ScheduleRange = {
+  timezone?: string | null
+  availability?: readonly {
+    date: string
+    start: string
+    end: string
+    kind: string
+    professionalId: string
+    unitId: string
+  }[]
   appointments: readonly Appointment[]
   date: string
   endTime: string
@@ -113,6 +138,7 @@ export type ScheduleDay = ScheduleRange
 export type SchedulingScenario = { description: string; id: string; label: string }
 
 export type AppointmentTransitionInput = {
+  version?: number
   cancellationReason?: CancellationReason
   id: string
   paymentStatus?: PaymentStatus
@@ -120,14 +146,25 @@ export type AppointmentTransitionInput = {
 }
 
 export type SchedulingRepository = {
-  cancel(id: string, reason: Exclude<CancellationReason, "no-show">): Promise<Appointment>
+  source?: "http" | "memory"
+  units?(
+    signal?: AbortSignal,
+  ): Promise<readonly { id: string; name: string; timezone: string | null; version: number }[]>
+  detail?(id: string, signal?: AbortSignal): Promise<Appointment>
+  cancel(
+    id: string,
+    reason: Exclude<CancellationReason, "no-show">,
+    version?: number,
+    note?: string,
+  ): Promise<Appointment>
   create(input: AppointmentInput): Promise<Appointment>
-  getRange(query: ScheduleRangeQuery): Promise<ScheduleRange>
+  getRange(query: ScheduleRangeQuery, signal?: AbortSignal): Promise<ScheduleRange>
   reset(): Promise<void>
   scenarios(): readonly SchedulingScenario[]
   selectScenario(id: string): Promise<void>
   transition(input: AppointmentTransitionInput): Promise<Appointment>
   update(id: string, input: AppointmentInput): Promise<Appointment>
+  reschedule?(id: string, input: AppointmentInput): Promise<Appointment>
 }
 
 export class ScheduleConflictError extends Error {

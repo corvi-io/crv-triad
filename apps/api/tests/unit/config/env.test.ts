@@ -35,6 +35,69 @@ describe("parseEnv", () => {
     expect(env.LEAD_EMAIL_TO).toEqual(["contato@example.com"])
     expect(env.POSTHOG_UPSTREAM_URL).toBe("https://us.i.posthog.com")
     expect(env.POSTHOG_PROJECT_KEY).toBe("")
+    expect(env.PROFILE_IMAGE_STORAGE_DRIVER).toBe("local")
+  })
+
+  it("requires R2 and all of its values in deployed environments", () => {
+    expect(() =>
+      parseEnv({ ...validEnv, APP_ENV: "staging", PROFILE_IMAGE_STORAGE_DRIVER: "local" }),
+    ).toThrow("Deployed environments must use R2 profile image storage")
+
+    for (const key of [
+      "PROFILE_IMAGE_R2_ENDPOINT",
+      "PROFILE_IMAGE_R2_ACCESS_KEY_ID",
+      "PROFILE_IMAGE_R2_SECRET_ACCESS_KEY",
+      "PROFILE_IMAGE_R2_BUCKET",
+      "PROFILE_IMAGE_PUBLIC_BASE_URL",
+    ] as const) {
+      expect(() =>
+        parseEnv({
+          ...validEnv,
+          APP_ENV: "staging",
+          PROFILE_IMAGE_STORAGE_DRIVER: "r2",
+          [key]: "",
+        }),
+      ).toThrow(`${key} is required for R2`)
+    }
+
+    expect(
+      parseEnv({
+        ...validEnv,
+        APP_ENV: "staging",
+        PROFILE_IMAGE_STORAGE_DRIVER: "r2",
+        PROFILE_IMAGE_R2_ENDPOINT: "https://account.r2.cloudflarestorage.com",
+        PROFILE_IMAGE_R2_ACCESS_KEY_ID: "access-key",
+        PROFILE_IMAGE_R2_SECRET_ACCESS_KEY: "secret-key",
+        PROFILE_IMAGE_R2_BUCKET: "profile-images",
+        PROFILE_IMAGE_PUBLIC_BASE_URL: "https://images.example.test",
+      }).PROFILE_IMAGE_STORAGE_DRIVER,
+    ).toBe("r2")
+  })
+
+  it("requires lead delivery and protection values in production", () => {
+    const productionEnv = {
+      ...validEnv,
+      APP_ENV: "production",
+      PROFILE_IMAGE_STORAGE_DRIVER: "r2",
+      PROFILE_IMAGE_R2_ENDPOINT: "https://account.r2.cloudflarestorage.com",
+      PROFILE_IMAGE_R2_ACCESS_KEY_ID: "access-key",
+      PROFILE_IMAGE_R2_SECRET_ACCESS_KEY: "secret-key",
+      PROFILE_IMAGE_R2_BUCKET: "profile-images",
+      PROFILE_IMAGE_PUBLIC_BASE_URL: "https://images.example.test",
+      LEAD_RESEND_API_KEY: "resend-key",
+      LEAD_TURNSTILE_SECRET_KEY: "turnstile-key",
+      LEAD_TURNSTILE_HOSTNAMES: "triad.example.test",
+    }
+    expect(parseEnv(productionEnv).APP_ENV).toBe("production")
+    expect(() => parseEnv({ ...productionEnv, LEAD_RESEND_API_KEY: "" })).toThrow(
+      "LEAD_RESEND_API_KEY is required in production",
+    )
+    expect(() => parseEnv({ ...productionEnv, LEAD_TURNSTILE_SECRET_KEY: "" })).toThrow(
+      "LEAD_TURNSTILE_SECRET_KEY is required in production",
+    )
+    expect(() => parseEnv({ ...productionEnv, LEAD_TURNSTILE_HOSTNAMES: "" })).toThrow(
+      "At least one hostname is required in production",
+    )
   })
 
   it("accepts only supported PostHog regional ingestion origins", () => {

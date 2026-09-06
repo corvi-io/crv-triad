@@ -5,7 +5,7 @@ export type DashboardFilters = {
   customStart?: string
   period: DashboardPeriod
   professionalId?: string
-  unitId: "centro" | "artesao"
+  unitId: string
 }
 
 export type DashboardFilterOption = {
@@ -47,6 +47,7 @@ export type DashboardAttention = {
 }
 
 export type DashboardFlowItem = {
+  unavailable?: boolean
   count: number
   id: string
   label: string
@@ -84,6 +85,7 @@ export type DashboardService = {
 }
 
 export type WorkspaceOverviewModel = {
+  integration?: "scheduling"
   attention: readonly DashboardAttention[]
   cancellations: {
     canceledCount: number

@@ -27,4 +27,5 @@ bun --filter api bootstrap:backstage-owner -- --email owner@example.com
 ```
 
 See [`docs/backstage/operations.md`](../../docs/backstage/operations.md) for the runtime and safety
-contract.
+contract. See [`docs/backstage/deployment.md`](../../docs/backstage/deployment.md) for Cloudflare
+Pages provisioning, environment cutover, operator bootstrap, and rollback.

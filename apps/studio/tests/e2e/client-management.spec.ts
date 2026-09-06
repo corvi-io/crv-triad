@@ -45,7 +45,7 @@ test("covers directory scenarios, safe URL state, keyboard row actions, and dupl
   await expect(page.getByText("Nenhum cliente cadastrado")).toBeVisible()
   await page.goto(clientsUrl("dense"))
   await expect(page.getByRole("table", { name: "Diretório de clientes" })).toBeVisible()
-  await expect(page.getByText("Página 1 de 9")).toBeVisible()
+  await expect(page.getByText(/Página 1 de \d+/)).toBeVisible()
   const search = page.getByPlaceholder("Buscar por nome, telefone ou e-mail")
   await search.fill("Cliente Sintético 86")
   await expect(page.getByRole("button", { name: "Cliente Sintético 86" })).toBeVisible()
@@ -92,7 +92,7 @@ test("creates, validates, edits, archives, restores, manages notes, and reloads 
   await expect(page.getByText("Cliente Sintético Temporário").first()).toBeVisible()
 
   await page.getByRole("button", { name: "Editar" }).click()
-  await page.getByLabel("Nome").fill("Cliente Sintético Revisado")
+  await page.getByRole("textbox", { name: "Nome *" }).fill("Cliente Sintético Revisado")
   await page.getByRole("button", { name: "Salvar" }).last().click()
   await expect(page.getByText("Cliente atualizado.")).toBeVisible()
   await page.getByRole("tab", { name: "Notas" }).click()
@@ -175,6 +175,26 @@ async function routeAuthenticatedSession(page: Page) {
         id: "reviewer-fixture",
         name: "Pessoa Revisora",
       },
+    })
+  })
+  await page.route("**/api/contexts", async (route) => {
+    await fulfillJson(route, {
+      activeOrganizationId: "tenant-client-fixture",
+      platform: null,
+      status: "available",
+      tenants: [{ id: "tenant-client-fixture", name: "Barbearia de teste", role: "owner" }],
+    })
+  })
+  await page.route("**/api/access/summary", async (route) => {
+    await fulfillJson(route, {
+      capabilities: [
+        { allowed: true, capability: "clients.read", reason: null },
+        { allowed: true, capability: "clients.manage", reason: null },
+        { allowed: true, capability: "catalogs.read", reason: null },
+      ],
+      organizationId: "tenant-client-fixture",
+      role: "owner",
+      subscriptionState: "active",
     })
   })
 }

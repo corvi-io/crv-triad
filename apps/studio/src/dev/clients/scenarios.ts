@@ -44,7 +44,14 @@ function client(index: number, update: Partial<ClientRecord> = {}): ClientRecord
     ],
     phone: `55819${String(10000000 + index).slice(-8)}`,
     preferenceNote: "Confirmar o acabamento antes de finalizar.",
-    servicePreferences: [services[index % services.length]],
+    preferredServices: [
+      {
+        id: `service-${index % services.length}`,
+        name: services[index % services.length],
+        status: "active",
+      },
+    ],
+    servicePreferenceIds: [`service-${index % services.length}`],
     status: "active",
     tags: [tags[index % tags.length]],
     ...update,

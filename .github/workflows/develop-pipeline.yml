@@ -34,6 +34,8 @@ jobs:
           CICD__API_DEPLOYED: ${{ needs.delivery.outputs.api-deployed == 'true' }}
           CICD__API_HEALTH_URL: https://api-dev.assinetriad.com.br/health
           CICD__API_URL: https://api-dev.assinetriad.com.br
+          CICD__BACKSTAGE_DEPLOYED: ${{ needs.delivery.outputs.backstage-deployed == 'true' }}
+          CICD__BACKSTAGE_URL: https://backstage-dev.assinetriad.com.br
           CICD__COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
           CICD__ENV_CODE: DEV
           CICD__ENV_NAME: DEVELOPMENT

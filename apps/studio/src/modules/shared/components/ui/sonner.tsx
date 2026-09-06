@@ -1,6 +1,6 @@
 "use client"
 
-import type { ComponentProps } from "react"
+import type { ComponentProps, CSSProperties } from "react"
 import { Toaster as Sonner } from "sonner"
 
 type ToasterProps = ComponentProps<typeof Sonner>
@@ -11,6 +11,22 @@ function Toaster({ ...props }: ToasterProps) {
       position="top-right"
       richColors
       closeButton
+      style={
+        {
+          "--success-bg": "var(--feedback-success)",
+          "--success-border": "var(--feedback-success-border)",
+          "--success-text": "var(--feedback-success-foreground)",
+          "--info-bg": "var(--feedback-info)",
+          "--info-border": "var(--feedback-info-border)",
+          "--info-text": "var(--feedback-info-foreground)",
+          "--warning-bg": "var(--feedback-warning)",
+          "--warning-border": "var(--feedback-warning-border)",
+          "--warning-text": "var(--feedback-warning-foreground)",
+          "--error-bg": "var(--feedback-destructive)",
+          "--error-border": "var(--feedback-destructive-border)",
+          "--error-text": "var(--feedback-destructive-foreground)",
+        } as CSSProperties
+      }
       toastOptions={{
         classNames: {
           toast:

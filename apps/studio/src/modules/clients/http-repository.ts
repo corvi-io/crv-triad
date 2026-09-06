@@ -1,4 +1,5 @@
 import { getApiUrl } from "@/modules/auth/services/auth-client"
+import { FormSubmissionError } from "@/modules/shared/forms/form-submission-error"
 
 import {
   type ClientCatalogKind,
@@ -153,8 +154,11 @@ async function request<T>(path: string, options: { body?: unknown; method?: stri
 
   const error = (await response.json().catch(() => ({}))) as ApiError
   if (response.status === 400) throw new ClientValidationError("Revise os dados informados.")
-  if (response.status === 409)
-    throw new ClientValidationError("Os dados mudaram. Recarregue e tente novamente.")
+  if (response.status === 409 && error.code === "version_conflict")
+    throw new FormSubmissionError(
+      "version_conflict",
+      "Outra alteração foi salva depois que você abriu esta tela. Revise a versão mais recente antes de tentar novamente.",
+    )
   if (response.status === 401 || response.status === 403) {
     throw new Error("Você não tem acesso a esta ação.")
   }

@@ -11,6 +11,7 @@ import {
   type DashboardSearch,
   validateDashboardSearch,
 } from "@/modules/scheduling/dashboard-search"
+import { ProductionDashboard } from "@/modules/scheduling/production-dashboard"
 import { SchedulingRepositoryProvider } from "@/modules/scheduling/repository-context"
 import { defaultServiceDeskSearch } from "@/modules/service-desk/search"
 import { formatDateOnly } from "@/modules/shared/components/forms/date-picker"
@@ -37,6 +38,17 @@ function OverviewRoute() {
     repository?.scenarios().map(({ id }) => id),
   )
   const navigate = Route.useNavigate()
+  if (repository?.source === "http")
+    return (
+      <SchedulingRepositoryProvider repository={repository}>
+        <ProductionDashboard
+          search={search}
+          onSearchChange={(next) =>
+            navigate({ replace: true, search: (previous) => ({ ...previous, ...next }) })
+          }
+        />
+      </SchedulingRepositoryProvider>
+    )
   if (!repository) {
     return (
       <WorkspaceOverview
@@ -81,7 +93,7 @@ function OverviewRoute() {
                       search: {
                         availabilityDate: search.date,
                         availabilityView: "week",
-                        scenario: "single-unit",
+                        scenario: "",
                       },
                       to: "/barbershop-setup/$section",
                       params: { section: "services" },
@@ -117,7 +129,7 @@ function OverviewRoute() {
                   search: {
                     availabilityDate: search.date,
                     availabilityView: "week",
-                    scenario: "single-unit",
+                    scenario: "",
                   },
                   to: "/barbershop-setup/$section",
                   params: { section: "services" },
@@ -153,7 +165,7 @@ function OverviewRoute() {
               search: {
                 availabilityDate: search.date,
                 availabilityView: "week",
-                scenario: "single-unit",
+                scenario: "",
               },
               to: "/barbershop-setup/$section",
               params: { section: "services" },

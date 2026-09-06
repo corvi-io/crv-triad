@@ -160,3 +160,7 @@ management for local UX
 work. Remote `dev` builds require `VITE_DEPLOY_TARGET=dev` plus `memory` in the relevant source
 variable. The composition boundary ignores memory for `hml` and `prd`, and production checks reject
 synthetic markers.
+
+## Production scheduling
+
+Agenda, Disponibilidade, Client history, professional upcoming appointments and Dashboard use the same tenant-scoped HTTP scheduling data. See [Production scheduling](../../docs/studio/scheduling.md) for source settings and the isolated local runner.

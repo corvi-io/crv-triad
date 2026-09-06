@@ -9,6 +9,8 @@ import {
 
 export type BarbershopSetupSearch = {
   availabilityDate: string
+  unitId?: string
+  professionalId?: string
   availabilityView: AvailabilityView
   scenario: SetupScenarioId
   section: SetupSection
@@ -39,6 +41,13 @@ export function validateBarbershopSetupSearch(
   resolveScenario: (value: unknown) => SetupScenarioId,
 ): BarbershopSetupSearch {
   return {
+    ...(typeof search.unitId === "string" && /^[a-zA-Z0-9_-]{1,100}$/.test(search.unitId)
+      ? { unitId: search.unitId }
+      : {}),
+    ...(typeof search.professionalId === "string" &&
+    /^[a-zA-Z0-9_-]{1,100}$/.test(search.professionalId)
+      ? { professionalId: search.professionalId }
+      : {}),
     availabilityDate: isCanonicalDate(search.availabilityDate)
       ? search.availabilityDate
       : localToday(),

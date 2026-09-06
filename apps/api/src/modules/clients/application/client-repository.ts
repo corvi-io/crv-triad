@@ -10,6 +10,7 @@ export type ClientNoteRecord = Readonly<{
 }>
 
 export type ClientRecord = Readonly<{
+  nextAppointmentAt?: string | null
   createdAt: Date
   email: string | null
   id: string
@@ -17,7 +18,6 @@ export type ClientRecord = Readonly<{
   phone: string | null
   preferenceNote: string
   professionalPreferences?: readonly CatalogPreference[]
-  servicePreferences: readonly string[]
   preferredServices?: readonly CatalogPreference[]
   unitPreferences?: readonly CatalogPreference[]
   status: "active" | "archived"

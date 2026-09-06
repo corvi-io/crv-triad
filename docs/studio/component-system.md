@@ -265,3 +265,13 @@ ENG-55 composes the existing `Card`, `Field`, `Input`, `Select`, `Switch`, `Togg
 Agenda. The seven-day board and setup completion sections remain module-owned because their
 semantics are product-specific; no shared component, registry item, calendar/layout dependency, or
 design token was added.
+
+## Scheduling parity
+
+Production scheduling reuses PageHeader, DataTable, ActionDrawer, ConfirmationDialog, RHF fields and DatePicker. PageHeader wraps actions at narrow widths. Required DatePicker buttons use `aria-description` instead of unsupported `aria-required`; primary-button hover preserves solid token contrast. Calendar/board overflow stays within its own bounded surface. See [Production scheduling](scheduling.md).
+
+
+The shared Sonner wrapper maps rich success/info/warning/error surfaces to the existing semantic
+feedback background, border and foreground tokens. This keeps transient scheduling messages at the
+same readable contrast in light and dark themes as status feedback; third-party default success
+colors failed the local touch WCAG scan and must not override these tokens.

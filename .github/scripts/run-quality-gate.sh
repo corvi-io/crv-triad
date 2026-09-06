@@ -15,6 +15,7 @@ case "$app" in
     ;;
   studio)
   bun --filter studio check
+  bun --filter studio coverage:check
   bun --filter studio test:e2e:sandbox
   bun --filter studio test:e2e:production
     ;;

@@ -72,3 +72,11 @@ Release preparation, required GitHub configuration, the first-release bootstrap,
 and the release-versus-deploy boundary are documented in
 [`docs/ci-cd/release-process.md`](docs/ci-cd/release-process.md). Use
 `triad-release-workflow` when preparing or publishing a release.
+
+## Isolated scheduling test environment
+
+Run `bun scripts/scheduling-local-qa.ts` to start synthetic scheduling QA on Studio 3102/API 8102/PostgreSQL 55442 without changing normal app ports or the configured database. See [Production scheduling](docs/studio/scheduling.md) for accounts, persistence and browser verification.
+
+
+Studio regression coverage is enforced with `bun --filter studio coverage:check` (80% statements,
+branches, functions and lines). CI and the staged-Studio pre-commit guard use this same command.

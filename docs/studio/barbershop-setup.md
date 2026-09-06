@@ -7,9 +7,10 @@ normal `AuthGate`, `WorkspaceShell`, secondary sidebar, active-navigation behavi
 responsive shell. The secondary label is `Barbearia`; the page title and description identify the
 active section without repeating a second visible content title.
 
-The experience is realistic but not persistent. Local development and a configured deployed `dev`
-build use deterministic session-memory data. `hml` and `prd` resolve the setup source as disabled
-until a separate initiative accepts API, persistence, tenancy, and authorization contracts.
+Units, professionals, and services are production-backed when the configured source is `http`.
+Local development may still use deterministic session-memory data for bounded product evaluation.
+Availability, payment settings, commissions, and the full setup-completion projection remain
+memory-only or disabled and are never mixed into the production catalog source.
 
 ## Experience Contract
 
@@ -41,10 +42,10 @@ silently orphaning records. Unit opening hours use a shadcn Select-based time pi
 multiple periods for disjoint weekday groups. Entity forms use the same
 placeholder and shared-mask conventions as client management; multi-selection relationships use
 the shadcn/Base UI checkbox. Service
-`professionalIds` are the canonical professional/service relationship in the memory adapter;
-professional `serviceIds` are synchronized after create, update, archive, restore, scenario
-selection, and reset. A selected professional must serve at least one active unit selected for the
-service.
+`professionalIds` are the canonical professional/service relationship; professional `serviceIds`
+remain the inverse projection. The HTTP API persists replacements atomically, while the memory
+adapter synchronizes both sides after create, update, archive, restore, scenario selection, and
+reset. A selected professional must serve at least one active unit selected for the service.
 
 Availability uses a real dated calendar filtered by professional and unit. Day and week views use a
 time grid; month uses the complete Monday-to-Sunday grid around the selected month. Users can move
@@ -76,7 +77,7 @@ slide across their full width without fading, the exit transition completes befo
 unmounts, and focus returns to the initiating control. Reduced-motion styles collapse the
 transition to the minimum browser duration.
 
-## Memory Source And Future Adapter
+## Catalog source composition
 
 `src/modules/barbershop-setup` owns view models, repository port, URL validation, query keys/hooks,
 Zod/RHF forms, and UI composition. It does not import `src/dev`.
@@ -96,9 +97,10 @@ deployed `dev` receives the source through `STUDIO__VITE_BARBERSHOP_SETUP_SOURCE
 whitelisting and the `single-unit` default are exported by the memory source, so scenario names and
 definitions are absent when Vite resolves the disabled source.
 
-A future accepted HTTP adapter may implement the same repository port. This document does not
-define API payloads, persistence shape, tenant keys, authorization, indexes, concurrency,
-idempotency, migrations, or observability.
+The HTTP adapter uses the authenticated tenant context, bounded API lists/options, optimistic
+versions, and recoverable error mapping. It never falls back to fixtures after an HTTP,
+authorization, validation, or conflict failure. Durable API, persistence, migration, and rollback
+contracts live in `docs/api/barbershop-catalogs.md`.
 
 ## Deterministic Test Infrastructure
 
@@ -182,3 +184,7 @@ eligible professional/service pair. Clearing it restores the service default. Th
 scheduling coordinator consumes that resolved value when creating or reallocating an appointment.
 Already-paid sale and commission snapshots are copied at completion and never rewritten by later
 setup changes.
+
+## Persisted availability
+
+Initiative 22 supplies the HTTP Disponibilidade surface, explicit unit timezone confirmation, recurring rules and occurrence exceptions with archive/restore. Owner/admin capability controls mutation; members can inspect. See [Production scheduling](scheduling.md). Professional view and edit drawers show the same persisted upcoming appointments.

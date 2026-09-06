@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "mode": "feature",
+  "run": {
+    "date": "2026-09-05",
+    "branch": "feat/backstage-deployment",
+    "commit": "685fa22855fd313b5add072f189bd872b058bee9",
+    "environment": "Local PostgreSQL 16 loopback 55442, API 8102, Studio 3102; isolated from normal app env",
+    "data_mode": "Synthetic QA A/B with real authentication and HTTP persistence",
+    "evaluator": "Codex corrective implementation and visual inspection",
+    "baseline": "Initiative 21 declared complete by user; shared dirty checkout preserved",
+    "limitations": [
+      "Acceptance is for the isolated local version; deployment and release publication were outside the requested scope.",
+      "No deployment or remote database mutation was performed.",
+      "Performance measurements are local fixture observations, not a capacity guarantee.",
+      "Schema uses web to identify the Studio application.",
+      "Touch interaction uses Playwright mobile/touch emulation against the real local stack; no physical device or manual screen-reader certification is claimed."
+    ]
+  },
+  "scope": {
+    "initiative": "22",
+    "apps": ["web", "api"],
+    "modules": ["availability", "scheduling", "clients", "barbershop-setup", "workspace"],
+    "personas": ["owner", "admin", "member"],
+    "tenants": ["QA A", "QA B"],
+    "out_of_scope": [
+      "Public booking",
+      "Reception/fulfillment initiative 23",
+      "Payments/revenue implementation",
+      "Deployment/publication"
+    ]
+  },
+  "journeys": [
+    {
+      "id": "J01",
+      "apps": ["web", "api"],
+      "module": "availability/scheduling",
+      "persona": "owner",
+      "tenant": "QA A",
+      "kind": "happy_path",
+      "name": "Configure timezone and weekly availability; create, refresh, confirm and cancel booking",
+      "result": "passed",
+      "evidence": ["apps/studio/tests/live/scheduling.spec.ts; /tmp/initiative22-live-final.log"]
+    },
+    {
+      "id": "J02",
+      "apps": ["web", "api"],
+      "module": "availability/scheduling",
+      "persona": "owner",
+      "tenant": "QA A",
+      "kind": "happy_path",
+      "name": "Quick client creation preserves parent draft and updates history",
+      "result": "passed",
+      "evidence": ["apps/studio/.artifacts/initiative22/quick-create.mjs"]
+    },
+    {
+      "id": "J03",
+      "apps": ["web", "api"],
+      "module": "availability/scheduling",
+      "persona": "owner",
+      "tenant": "QA A",
+      "kind": "edge_case",
+      "name": "Conflict, offline retry with stable idempotency key, stale-version reload",
+      "result": "passed",
+      "evidence": ["apps/studio/.artifacts/initiative22/recovery.mjs"]
+    },
+    {
+      "id": "J04",
+      "apps": ["web", "api"],
+      "module": "availability/scheduling",
+      "persona": "owner",
+      "tenant": "QA A",
+      "kind": "recheck",
+      "name": "Archive and restore one occurrence; verify after refresh",
+      "result": "passed",
+      "evidence": ["/tmp/initiative22-additional-live.log"]
+    },
+    {
+      "id": "J05",
+      "apps": ["web", "api"],
+      "module": "availability/scheduling",
+      "persona": "owner/admin/member",
+      "tenant": "QA A/B",
+      "kind": "edge_case",
+      "name": "Same-user tenant switch, stale tab and old unit URL",
+      "result": "passed",
+      "evidence": ["/tmp/initiative22-tenant-switch.log"]
+    },
+    {
+      "id": "J06",
+      "apps": ["web", "api"],
+      "module": "availability/scheduling",
+      "persona": "owner",
+      "tenant": "QA A",
+      "kind": "regression",
+      "name": "Responsive themes, invalid fields, reduced motion and forced colors",
+      "result": "passed",
+      "evidence": ["apps/studio/.artifacts/initiative22; /tmp/initiative22-regression-focused.log"]
+    },
+    {
+      "id": "J07",
+      "apps": ["web", "api"],
+      "module": "availability/scheduling",
+      "persona": "owner",
+      "tenant": "QA A",
+      "kind": "recheck",
+      "name": "Real touch recurring save, booking creation, rescheduling and cancellation",
+      "result": "passed",
+      "evidence": ["/tmp/initiative22-touch-journey2.log"]
+    }
+  ],
+  "screenshots": [
+    {
+      "journey_id": "J04",
+      "checkpoint": "availability-restored",
+      "viewport": "1280x900",
+      "artifact": "apps/studio/.artifacts/initiative22/availability-restored.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Restored occurrence visible after refresh"]
+    },
+    {
+      "journey_id": "J04",
+      "checkpoint": "professional-upcoming",
+      "viewport": "1280x900",
+      "artifact": "apps/studio/.artifacts/initiative22/professional-upcoming.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Read-only professional detail exposes canonical upcoming links"]
+    },
+    {
+      "journey_id": "J05",
+      "checkpoint": "tenant-switch-denied-old-unit",
+      "viewport": "1280x900",
+      "artifact": "apps/studio/.artifacts/initiative22/tenant-switch-denied-old-unit.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Old tenant unit URL cannot reveal previous tenant appointments"]
+    },
+    {
+      "journey_id": "J06",
+      "checkpoint": "drawer-320-validation",
+      "viewport": "320x800",
+      "artifact": "apps/studio/.artifacts/initiative22/drawer-320-validation.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Required errors and footer stay usable without page overflow"]
+    },
+    {
+      "journey_id": "J06",
+      "checkpoint": "drawer-forced-colors",
+      "viewport": "320x800",
+      "artifact": "apps/studio/.artifacts/initiative22/drawer-forced-colors.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Fields, borders and actions remain distinguishable in forced colors"]
+    },
+    {
+      "journey_id": "J06",
+      "checkpoint": "drawer-zoom200",
+      "viewport": "640x450 (equivalent 200% reflow)",
+      "artifact": "apps/studio/.artifacts/initiative22/drawer-zoom200.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Drawer body scrolls independently and footer remains visible"]
+    },
+    {
+      "journey_id": "J07",
+      "checkpoint": "touch-rescheduled",
+      "viewport": "375x812, touch/mobile",
+      "artifact": "apps/studio/.artifacts/initiative22/touch-rescheduled.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": [
+        "Rescheduled local time is visible in the horizontally scrollable list.",
+        "Toast uses readable semantic feedback colors; controls fit the page."
+      ]
+    }
+  ],
+  "access_checks": [
+    {
+      "actor": "member QA A",
+      "resource_tenant": "QA A/B",
+      "vector": "Read availability 200; write denied 403",
+      "result": "passed",
+      "evidence": "/tmp/initiative22-live-final.log"
+    },
+    {
+      "actor": "owner QA B",
+      "resource_tenant": "QA A/B",
+      "vector": "Known foreign appointment read 404 and write rejected",
+      "result": "passed",
+      "evidence": "apps/studio/tests/live/scheduling.spec.ts"
+    },
+    {
+      "actor": "admin QA A/B",
+      "resource_tenant": "QA A/B",
+      "vector": "Switch clears tenant query consumers and rejects old unit/client references",
+      "result": "passed",
+      "evidence": "/tmp/initiative22-tenant-switch.log"
+    }
+  ],
+  "findings": [
+    {
+      "id": "QA22-COVERAGE",
+      "type": "test_defect",
+      "severity": "high",
+      "app": "web",
+      "module": "verification",
+      "title": "Aggregate Studio coverage remains below the required threshold",
+      "status": "fixed",
+      "evidence": ["/tmp/initiative22-studio-coverage8.log"],
+      "attempts": 1
+    },
+    {
+      "id": "QA22-TOAST-CONTRAST",
+      "type": "product_defect",
+      "severity": "medium",
+      "app": "web",
+      "module": "shared/feedback",
+      "title": "Success toast contrast was 4.25:1 with third-party defaults",
+      "status": "fixed",
+      "evidence": [
+        "Shared Sonner uses existing semantic feedback tokens for light/dark",
+        "/tmp/initiative22-touch-journey2.log: zero axe violations"
+      ],
+      "attempts": 1
+    }
+  ],
+  "scores": {
+    "product_outcome": 9,
+    "functional_reliability_persistence": 9,
+    "ux_visual_integrity": 9,
+    "access_privacy_tenant_isolation": 9,
+    "accessibility": 9,
+    "operability_regression_protection": 9,
+    "weighted_total": 9
+  },
+  "verification": [
+    {
+      "check": "API coverage",
+      "result": "passed",
+      "evidence": "/tmp/initiative22-api-coverage-latest.log: 89.76 statements / 81.68 branches / 90.22 functions / 91.63 lines"
+    },
+    {
+      "check": "API build",
+      "result": "passed",
+      "evidence": "/tmp/initiative22-api-build-latest.log"
+    },
+    {
+      "check": "PostgreSQL integration",
+      "result": "passed",
+      "evidence": "/tmp/initiative22-postgres-final.log: 4 files / 18 tests"
+    },
+    {
+      "check": "Migration rehearsal",
+      "result": "passed",
+      "evidence": "apps/api/.artifacts/initiative22/migration-rehearsal.json"
+    },
+    {
+      "check": "Performance fixture observations",
+      "result": "passed",
+      "evidence": "apps/api/.artifacts/initiative22/performance.json"
+    },
+    {
+      "check": "Studio coverage >=80 all metrics",
+      "result": "passed",
+      "evidence": "/tmp/initiative22-studio-coverage8.log: threshold-bearing command passed 69 files / 678 tests; 84.62 statements / 80.13 branches / 83.00 functions / 86.06 lines"
+    },
+    {
+      "check": "Production browser boundary",
+      "result": "passed",
+      "evidence": "/tmp/initiative22-production-final-confirmation.log: 11 passed against the final build; /tmp/initiative22-studio-check-final.log: 95-file boundary passed"
+    },
+    {
+      "check": "Real HTTP browser",
+      "result": "passed",
+      "evidence": "/tmp/initiative22-live-latest.log: 2 tests; real API and PostgreSQL"
+    },
+    {
+      "check": "Adjacent browser regression",
+      "result": "passed",
+      "evidence": "/tmp/initiative22-adjacent-final.log: 44 passed; one keyboard activation race corrected and rechecked in /tmp/initiative22-keyboard-final.log (1 passed)"
+    },
+    {
+      "check": "Real touch lifecycle and accessibility",
+      "result": "passed",
+      "evidence": "/tmp/initiative22-touch-journey2.log: recurring rule save, create, reschedule, cancel, zero WCAG 2.2 violations and zero page errors"
+    },
+    {
+      "check": "Final Studio aggregate check",
+      "result": "passed",
+      "evidence": "/tmp/initiative22-studio-check-final.log: Biome, types, 69 files / 678 tests, production build and 95-file boundary passed"
+    }
+  ],
+  "decision": "approved"
+}

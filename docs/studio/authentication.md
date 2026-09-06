@@ -33,7 +33,7 @@ environment variables.
 | Email/password sign-in    | `signIn.email`            | `/overview`                                                |
 | Token-proven first access | `signUp.email`            | Opaque write-only proof; IDP owns email, role, and gate    |
 | Google sign-in            | `signIn.social`           | Google only; `/overview`; safe `/login` error target       |
-| Verification resend       | `sendVerificationEmail`   | `/login?verified=true`                                     |
+| Verification resend       | `sendVerificationEmail`   | Auto-authenticated `/overview` after valid verification    |
 | Forgot password           | `requestPasswordReset`    | `/reset-password`                                          |
 | Complete reset            | `resetPassword`           | Native URL token only                                      |
 | Change password           | `changePassword`          | Current password; revoke other sessions                    |
@@ -90,3 +90,11 @@ interactive foundation. The shared component inventory therefore does not change
 Deployment still depends on the IDP runtime values documented under `docs/idp`, approved public
 Google consent/privacy/support content, and an authorized cookie-session cutover. Studio cannot
 complete those external or operational prerequisites.
+
+## Profile image
+
+The authenticated profile screen uploads PNG, JPEG, or WebP files up to 2 MB through the API and
+refreshes the Better Auth session after persistence. Removal clears the identity record and deletes
+the owned object. Local development uses the API-owned `.data/profile-images` directory; deployed
+environments are required to use Cloudflare R2 through the server-side S3-compatible adapter. The
+browser never receives object-storage credentials.

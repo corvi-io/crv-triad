@@ -1,4 +1,10 @@
 # Studio Agenda Visual Prototype
+## Production successor
+
+Normal Agenda and Dashboard now use the HTTP implementation described in [Production scheduling](scheduling.md). The sections below document the retained deterministic local QA prototype and its shared temporal interaction grammar; they are not the production data/source contract.
+
+## Historical prototype reference
+
 
 ENG-40 refines the existing authenticated `/agenda` route into a visual prototype aligned with the
 approved operational reference. The primary surface is a temporal board: time progresses down the

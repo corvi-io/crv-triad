@@ -55,3 +55,7 @@ project and alias target intact until the Studio smoke checks pass.
 If the Studio deployment or authentication checks fail, stop promotion, point the public alias back
 to the last verified deployment when necessary, and leave the failed deployment available for
 diagnosis. Apply a forward fix and verify it in `dev`, then `hml`, then `prd`.
+
+## Scheduling source cutover
+
+Apply additive scheduling migrations before enabling `VITE_SCHEDULING_SOURCE=http` with HTTP setup/clients. Production artifacts exclude memory scenarios. Roll back to disabled scheduling application behavior while retaining additive schema/data; never use a memory fallback for operational records. See [API rollout](../api/availability-and-scheduling.md).

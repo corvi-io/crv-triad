@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { useAccessSummary } from "@/modules/access/use-access-summary"
 import {
   createDataTablePointAnchor,
   DataTable,
@@ -50,6 +51,7 @@ import { cn } from "@/modules/shared/lib/utils"
 import { AvailabilityCalendar } from "./availability-calendar"
 import { BusinessProfileSection, PaymentsSection } from "./completion-sections"
 import type {
+  PendingProfessionalInvitation,
   SetupEntity,
   SetupEntityInput,
   SetupEntityKind,
@@ -69,8 +71,12 @@ import {
   formatMoney,
   SetupEntityDrawer,
 } from "./entity-drawer"
+import { ProductionAvailability } from "./production-availability"
 import {
   useCreateSetupEntity,
+  usePendingProfessionalInvitations,
+  useResendProfessionalInvitation,
+  useRevokeProfessionalInvitation,
   useSetSetupEntityArchived,
   useSetupAvailability,
   useSetupCompletion,
@@ -136,6 +142,12 @@ export function BarbershopSetupPage({
   onSearchChange: (next: Partial<BarbershopSetupSearch>) => Promise<void> | void
   search: BarbershopSetupSearch
 }) {
+  const setupRepository = useBarbershopSetupRepository()
+  const availabilityAccess = useAccessSummary()
+  const canManageAvailability = availabilityAccess.data?.capabilities.some(
+    (item) => item.capability === "availability.manage" && item.allowed,
+  )
+  const [availabilityCreate, setAvailabilityCreate] = useState(false)
   const header = sectionHeaders[search.section]
   const [createRequest, setCreateRequest] = useState<{
     kind: SetupEntityKind
@@ -159,6 +171,13 @@ export function BarbershopSetupPage({
                 >
                   <PlusIcon aria-hidden="true" />
                   {entityLabels[entityKind].newLabel}
+                </Button>
+              ) : search.section === "availability" &&
+                setupRepository.catalogSource === "http" &&
+                canManageAvailability ? (
+                <Button onClick={() => setAvailabilityCreate(true)}>
+                  <PlusIcon />
+                  Adicionar bloco
                 </Button>
               ) : undefined
             }
@@ -192,6 +211,8 @@ export function BarbershopSetupPage({
       <div key={search.scenario} className="h-full min-h-0">
         <SetupSectionContent
           search={search}
+          availabilityCreate={availabilityCreate}
+          onAvailabilityCreateHandled={() => setAvailabilityCreate(false)}
           createRequest={createRequest}
           onCreateRequestHandled={() => setCreateRequest(null)}
           onSectionChange={(section) => onSearchChange({ section })}
@@ -203,12 +224,16 @@ export function BarbershopSetupPage({
 }
 
 function SetupSectionContent({
+  availabilityCreate,
+  onAvailabilityCreateHandled,
   createRequest,
   onCreateRequestHandled,
   search,
   onSectionChange,
   onSearchChange,
 }: {
+  availabilityCreate: boolean
+  onAvailabilityCreateHandled: () => void
   createRequest: { kind: SetupEntityKind; trigger: HTMLButtonElement } | null
   onCreateRequestHandled: () => void
   search: BarbershopSetupSearch
@@ -267,9 +292,11 @@ function SetupSectionContent({
       )
     case "availability":
       return usesHttpCatalogs ? (
-        <UnavailableSetupSection
-          title="Disponibilidade"
-          description="A agenda de disponibilidade ainda não possui persistência de produção. Configure primeiro os vínculos entre unidades, profissionais e serviços."
+        <ProductionAvailability
+          search={search}
+          onSearchChange={onSearchChange}
+          createRequest={availabilityCreate}
+          onCreateHandled={onAvailabilityCreateHandled}
         />
       ) : (
         <AvailabilityCalendar
@@ -469,6 +496,8 @@ function EntitySection({
   const [drawer, setDrawer] = useState<EntityDrawerState>(null)
   const [rowMenu, setRowMenu] = useState<RowMenuState>(null)
   const [archiveTarget, setArchiveTarget] = useState<SetupEntity | null>(null)
+  const [invitationToRevoke, setInvitationToRevoke] =
+    useState<PendingProfessionalInvitation | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const query = { kind, page, pageSize, scenarioId, search, sort, status } satisfies SetupListQuery
   const entities = useSetupEntities(query)
@@ -476,6 +505,9 @@ function EntitySection({
   const createEntity = useCreateSetupEntity()
   const updateEntity = useUpdateSetupEntity()
   const setArchived = useSetSetupEntityArchived()
+  const pendingInvitations = usePendingProfessionalInvitations(kind === "professional")
+  const resendInvitation = useResendProfessionalInvitation()
+  const revokeInvitation = useRevokeProfessionalInvitation()
 
   useEffect(() => {
     if (createRequest?.kind !== kind) return
@@ -493,26 +525,22 @@ function EntitySection({
   }
 
   async function save(entityKind: SetupEntityKind, input: SetupEntityInput) {
-    try {
-      if (drawer?.kind === "edit")
-        await updateEntity.mutateAsync({
-          id: drawer.entity.id,
-          input,
-          kind: entityKind,
-          version: drawer.entity.version ?? 1,
-        })
-      else await createEntity.mutateAsync({ input, kind: entityKind })
-      toast.success(
-        drawer?.kind === "edit"
-          ? "Registro atualizado."
-          : entityKind === "professional"
-            ? "Convite enviado. O profissional aparecerá após aceitar."
-            : "Registro criado.",
-      )
-      closeDrawer()
-    } catch (error) {
-      toast.error(errorMessage(error))
-    }
+    if (drawer?.kind === "edit")
+      await updateEntity.mutateAsync({
+        id: drawer.entity.id,
+        input,
+        kind: entityKind,
+        version: drawer.entity.version ?? 1,
+      })
+    else await createEntity.mutateAsync({ input, kind: entityKind })
+    toast.success(
+      drawer?.kind === "edit"
+        ? "Registro atualizado."
+        : entityKind === "professional"
+          ? "Convite enviado. O profissional aparecerá após aceitar."
+          : "Registro criado.",
+    )
+    closeDrawer()
   }
 
   async function confirmArchive() {
@@ -588,6 +616,54 @@ function EntitySection({
           }}
         />
       </fieldset>
+      {kind === "professional" && (pendingInvitations.data?.length ?? 0) > 0 ? (
+        <section className="grid gap-2" aria-labelledby="pending-professional-invitations">
+          <div>
+            <h2 className="font-medium" id="pending-professional-invitations">
+              Convites pendentes
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              O profissional aparecerá como ativo depois de aceitar o convite.
+            </p>
+          </div>
+          {pendingInvitations.data?.map((invitation) => (
+            <div
+              className="flex flex-col gap-3 rounded-lg border bg-card p-3 sm:flex-row sm:items-center"
+              key={invitation.id}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{invitation.email}</p>
+                <p className="text-sm text-muted-foreground">{invitation.role}</p>
+              </div>
+              <StatusBadge tone="warning">Pendente</StatusBadge>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  isLoading={resendInvitation.isPending}
+                  onClick={async () => {
+                    try {
+                      await resendInvitation.mutateAsync(invitation.id)
+                      toast.success("Convite reenviado.")
+                    } catch (error) {
+                      toast.error(errorMessage(error))
+                    }
+                  }}
+                >
+                  Reenviar convite
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setInvitationToRevoke(invitation)}
+                >
+                  Cancelar convite
+                </Button>
+              </div>
+            </div>
+          ))}
+        </section>
+      ) : null}
       {entities.isPending ? (
         <LoadingTable />
       ) : entities.isError ? (
@@ -780,6 +856,25 @@ function EntitySection({
         confirmVariant={archiveTarget?.status === "active" ? "destructive" : "default"}
         onCancel={() => setArchiveTarget(null)}
         onConfirm={confirmArchive}
+      />
+      <ConfirmationDialog
+        isOpen={invitationToRevoke !== null}
+        title="Cancelar convite pendente?"
+        description="O link enviado deixará de funcionar. Você poderá enviar um novo convite depois."
+        confirmLabel="Cancelar convite"
+        confirmVariant="destructive"
+        isLoading={revokeInvitation.isPending}
+        onCancel={() => setInvitationToRevoke(null)}
+        onConfirm={async () => {
+          if (!invitationToRevoke) return
+          try {
+            await revokeInvitation.mutateAsync(invitationToRevoke.id)
+            toast.success("Convite cancelado.")
+            setInvitationToRevoke(null)
+          } catch (error) {
+            toast.error(errorMessage(error))
+          }
+        }}
       />
     </section>
   )

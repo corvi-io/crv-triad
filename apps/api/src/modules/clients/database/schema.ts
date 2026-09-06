@@ -29,7 +29,6 @@ export const client = pgTable(
     email: text("email"),
     normalizedEmail: text("normalized_email"),
     preferenceNote: text("preference_note").default("").notNull(),
-    servicePreferences: text("service_preferences").array().default(sql`'{}'::text[]`).notNull(),
     tags: text("tags").array().default(sql`'{}'::text[]`).notNull(),
     status: text("status", { enum: ["active", "archived"] })
       .default("active")

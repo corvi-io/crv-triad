@@ -113,8 +113,7 @@ test("keeps bounded URL filters coherent and drills into existing destinations",
 
   await page.goto("/overview?scenario=normal")
   await page.getByRole("button", { name: "Ver serviços" }).click()
-  await expect(page).toHaveURL(/\/barbershop-setup\?/)
-  await expect(page).toHaveURL(/section=services/)
+  await expect(page).toHaveURL(/\/barbershop-setup\/services/)
 
   await page.goto("/overview?scenario=normal")
   await page.getByRole("button", { name: "Ver clientes" }).click()
@@ -288,6 +287,22 @@ function contrastRatio(foreground: string, background: string) {
 }
 
 async function routeAuthenticatedSession(page: Page) {
+  await page.route("**/api/contexts", (route) =>
+    fulfillJson(route, {
+      activeOrganizationId: "tenant-dashboard-fixture",
+      platform: null,
+      status: "available",
+      tenants: [{ id: "tenant-dashboard-fixture", name: "Barbearia de teste", role: "owner" }],
+    }),
+  )
+  await page.route("**/api/access/summary", (route) =>
+    fulfillJson(route, {
+      capabilities: [{ capability: "clients.read", allowed: true, reason: null }],
+      organizationId: "tenant-dashboard-fixture",
+      role: "owner",
+      subscriptionState: "active",
+    }),
+  )
   await page.route("**/api/auth/**", async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({ headers: corsHeaders(), status: 204 })
