@@ -7,9 +7,14 @@ import { createAnalyticsRoutes } from "../../modules/analytics/http/routes.js"
 import { createPostHogLeadCapture } from "../../modules/analytics/lead-capture.js"
 import { createAvailabilityService } from "../../modules/availability/application/availability-service.js"
 import { createBackstageRoutes } from "../../modules/backstage/http/routes.js"
+import { createBusinessProfileService } from "../../modules/business-profile/application/business-profile-service.js"
+import { createBusinessProfileRoutes } from "../../modules/business-profile/http/routes.js"
+import { createLocalBusinessLogoStorage } from "../../modules/business-profile/infra/logo-storage.js"
 import { createClientService } from "../../modules/clients/application/client-service.js"
 import { createDrizzleClientRepository } from "../../modules/clients/database/client-repository.js"
 import { createClientRoutes } from "../../modules/clients/http/routes.js"
+import { createCommissionService } from "../../modules/commissions/application/commission-service.js"
+import { createCommissionRoutes } from "../../modules/commissions/http/routes.js"
 import type { IdpEnv } from "../../modules/idp/config/env.js"
 import type { IdpDatabase } from "../../modules/idp/database/client.js"
 import { createIdpRoutes } from "../../modules/idp/http/app.js"
@@ -81,6 +86,23 @@ export function createRestApp(input: CreateRestAppInput) {
     .use(createAccessRoutes(input.db, resolveTenantContext, authorizeTenantAction))
     .use(createOwnershipRoutes(input.db, resolveTenantContext))
     .use(createBackstageRoutes(input.auth, input.db, input.authEmailSender))
+    .use(
+      createBusinessProfileRoutes(
+        createBusinessProfileService(
+          input.db,
+          createLocalBusinessLogoStorage(input.env.BUSINESS_MEDIA_LOCAL_DIRECTORY),
+        ),
+        resolveTenantContext,
+        authorizeTenantAction,
+      ),
+    )
+    .use(
+      createCommissionRoutes(
+        createCommissionService(input.db),
+        resolveTenantContext,
+        authorizeTenantAction,
+      ),
+    )
     .use(createClientRoutes(clientService, resolveTenantContext, authorizeTenantAction))
     .use(
       createCatalogRoutes(
