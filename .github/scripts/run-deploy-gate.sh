@@ -68,6 +68,12 @@ should_skip_dev_cloudflare_pages_deploy() {
     }
 }
 
+record_deployment() {
+  if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+    echo "deployed=$1" >> "$GITHUB_OUTPUT"
+  fi
+}
+
 if [[ "$app" == "api" ]]; then
   if [[ -z "${INFRA__FLY_API_TOKEN:-}" ]]; then
     echo "INFRA__FLY_API_TOKEN is required to deploy API to Fly.io."
@@ -77,6 +83,7 @@ if [[ "$app" == "api" ]]; then
   FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" bun .github/scripts/env-management.ts sync-fly --app api --target "$target"
   FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" flyctl deploy . --config "$api_config" --dockerfile apps/api/Dockerfile --remote-only
   wait_for_health "$api_health_url"
+  record_deployment true
   exit 0
 fi
 
@@ -85,6 +92,7 @@ if [[ "$app" == "site" ]]; then
 
   if should_skip_dev_cloudflare_pages_deploy "${INFRA__CLOUDFLARE_SITE_PROJECT_NAME:-}"; then
     echo "Cloudflare Pages deploy is not fully configured for dev. Skipping site deploy."
+    record_deployment false
     exit 0
   fi
 
@@ -112,6 +120,7 @@ if [[ "$app" == "site" ]]; then
     --commit-dirty=true
 
   wait_for_health "$site_health_url"
+  record_deployment true
   exit 0
 fi
 
@@ -120,6 +129,7 @@ if [[ "$app" == "studio" ]]; then
 
   if should_skip_dev_cloudflare_pages_deploy "${INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME:-}"; then
     echo "Cloudflare Pages deploy is not fully configured for dev. Skipping studio deploy."
+    record_deployment false
     exit 0
   fi
 
@@ -147,6 +157,7 @@ if [[ "$app" == "studio" ]]; then
     --commit-dirty=true
 
   wait_for_health "$studio_health_url"
+  record_deployment true
   exit 0
 fi
 
@@ -155,6 +166,7 @@ if [[ "$app" == "backstage" ]]; then
 
   if should_skip_dev_cloudflare_pages_deploy "${INFRA__CLOUDFLARE_BACKSTAGE_PROJECT_NAME:-}"; then
     echo "Cloudflare Pages deploy is not fully configured for dev. Skipping backstage deploy."
+    record_deployment false
     exit 0
   fi
 
@@ -172,6 +184,7 @@ if [[ "$app" == "backstage" ]]; then
     --commit-dirty=true
 
   wait_for_health "$backstage_health_url"
+  record_deployment true
   exit 0
 fi
 

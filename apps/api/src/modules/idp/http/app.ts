@@ -5,12 +5,16 @@ import type { IdpEnv } from "../config/env.js"
 import type { IdpDatabase } from "../database/client.js"
 import type { IdpAuth, InvitationAcceptedObserver } from "../identity/auth.js"
 import { type AuthEmailSender, createAuthEmailSender } from "../identity/transactional-email.js"
+import {
+  createProfileImageStorage,
+  type ProfileImageStorage,
+} from "../profile/profile-image-storage.js"
 import { createCorsMiddleware } from "./middleware/cors.js"
-import { requestContextMiddleware } from "./middleware/request-context.js"
 import { createOpenApiDocument } from "./openapi/app.js"
 import { createAuthRoutes } from "./routes/auth.js"
 import { createHealthRoutes } from "./routes/health.js"
 import { createInvitationRoutes } from "./routes/invitations.js"
+import { createProfileImageRoutes } from "./routes/profile-image.js"
 import { createReadyRoutes } from "./routes/ready.js"
 import { createSessionContextRoutes } from "./routes/session-context.js"
 import { createUserRoutes } from "./routes/users.js"
@@ -21,6 +25,7 @@ export type CreateIdpRoutesInput = {
   authEmailSender?: AuthEmailSender
   db: IdpDatabase
   onInvitationAccepted?: InvitationAcceptedObserver
+  profileImageStorage?: ProfileImageStorage
 }
 
 export function createIdpRoutes({
@@ -29,16 +34,17 @@ export function createIdpRoutes({
   authEmailSender,
   db,
   onInvitationAccepted,
+  profileImageStorage,
 }: CreateIdpRoutesInput) {
   const app = new Elysia({ name: "idp-routes" })
   const emailSender = authEmailSender ?? createAuthEmailSender(env)
 
   app
-    .use(requestContextMiddleware)
     .use(createCorsMiddleware(env))
     .use(createHealthRoutes())
     .use(createReadyRoutes(db))
     .use(createSessionContextRoutes(auth, db))
+    .use(createProfileImageRoutes(auth, db, profileImageStorage ?? createProfileImageStorage(env)))
     .use(createUserRoutes(auth, db))
     .use(createInvitationRoutes(auth, db, emailSender, onInvitationAccepted))
     .use(createAuthRoutes(auth))

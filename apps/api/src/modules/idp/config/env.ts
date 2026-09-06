@@ -78,6 +78,13 @@ const envSchema = z
     IDP_STUDIO_URL: configuredHttpOrigin,
     IDP_RESEND_API_KEY: requiredProviderValue,
     IDP_RESEND_API_URL: configuredHttpsUrl.default("https://api.resend.com"),
+    PROFILE_IMAGE_STORAGE_DRIVER: z.enum(["local", "r2"]).default("local"),
+    PROFILE_IMAGE_LOCAL_DIRECTORY: z.string().min(1).default(".data/profile-images"),
+    PROFILE_IMAGE_R2_ENDPOINT: z.literal("").or(configuredHttpsUrl).default(""),
+    PROFILE_IMAGE_R2_ACCESS_KEY_ID: z.string().default(""),
+    PROFILE_IMAGE_R2_SECRET_ACCESS_KEY: z.string().default(""),
+    PROFILE_IMAGE_R2_BUCKET: z.string().default(""),
+    PROFILE_IMAGE_PUBLIC_BASE_URL: z.literal("").or(configuredHttpsUrl).default(""),
     LEAD_EMAIL_FROM: z.email().default("leads@example.com"),
     LEAD_EMAIL_TO: z
       .string()
@@ -110,6 +117,28 @@ const envSchema = z
     POSTHOG_PROJECT_KEY: z.string().trim().default(""),
   })
   .superRefine((value, context) => {
+    if (
+      ["development", "staging", "production"].includes(value.APP_ENV) &&
+      value.PROFILE_IMAGE_STORAGE_DRIVER !== "r2"
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Deployed environments must use R2 profile image storage.",
+        path: ["PROFILE_IMAGE_STORAGE_DRIVER"],
+      })
+    }
+    if (value.PROFILE_IMAGE_STORAGE_DRIVER === "r2") {
+      for (const key of [
+        "PROFILE_IMAGE_R2_ENDPOINT",
+        "PROFILE_IMAGE_R2_ACCESS_KEY_ID",
+        "PROFILE_IMAGE_R2_SECRET_ACCESS_KEY",
+        "PROFILE_IMAGE_R2_BUCKET",
+        "PROFILE_IMAGE_PUBLIC_BASE_URL",
+      ] as const) {
+        if (!value[key])
+          context.addIssue({ code: "custom", message: `${key} is required for R2.`, path: [key] })
+      }
+    }
     if (!value.AUTH_TRUSTED_ORIGINS.includes(value.IDP_STUDIO_URL)) {
       context.addIssue({
         code: "custom",

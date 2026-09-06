@@ -68,6 +68,7 @@ import {
   professionalPreferenceLabels,
   queuePriorityLabels,
   queueStageLabels,
+  resolveStartProfessionalId,
 } from "./projection"
 import {
   useAddWalkIn,
@@ -160,7 +161,7 @@ export function ServiceDeskPage({
     try {
       await startEntry.mutateAsync({
         entryId: entry.id,
-        professionalId: startAssignments[entry.id],
+        professionalId: resolveStartProfessionalId(entry, startAssignments),
       })
       toast.success("Atendimento iniciado.")
     } catch {

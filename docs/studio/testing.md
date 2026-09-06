@@ -156,3 +156,22 @@ Playwright adds the complete setup/payment surface and a seven-day board-to-list
 focused axe and 320 CSS-pixel overflow assertions. Manual VoiceOver/NVDA, physical coarse pointer,
 native 200% browser zoom, and visual forced-colors inspection remain explicit residual checks unless
 recorded under `docs/studio/evidence/eng-55`.
+
+## Real scheduling acceptance
+
+Start `bun scripts/scheduling-local-qa.ts` from the root, then run `bunx playwright test --config playwright.live.config.ts` in `apps/studio`. These journeys use real synthetic Better Auth accounts, API 8102 and isolated PostgreSQL 55442. Credentials/artifacts stay ignored. Keep PostgreSQL integration-suite data separate from browser QA data. Coverage can be measured with `bunx vitest run --coverage` in Studio; see the initiative evidence for actual global and component results.
+
+
+Initiative 22 adds a Studio coverage command matching the API thresholds:
+`bun --filter studio coverage:check` enforces 80% statements, branches, functions and lines.
+The coverage provider is the installed Vitest V8 provider. Do not remove legacy source coverage or
+weaken thresholds to pass production scheduling acceptance. `test:coverage` is the diagnostic alias.
+
+CI's Studio quality gate and the staged-Studio pre-commit guard execute the same
+`bun --filter studio coverage:check` command. The pre-commit guard runs when staged files include
+`apps/studio` or `bun.lock`; it does not stage files or change the index. The existing Biome hook
+retains its prior formatting behavior.
+
+Coverage instrumentation uses a 20-second per-test timeout for the complete React route graph;
+ordinary unit runs retain their existing defaults. This changes runner timing only, not application
+latency contracts, assertions or coverage thresholds.

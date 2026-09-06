@@ -59,7 +59,7 @@ Check the diff for:
   volume, or peak browser workload. Do not invent capacity numbers; state
   whether each number is measured, estimated with assumptions, or unknown.
 - Architecture drift from Triad boundaries: `apps/site` owns the landing page,
-  `apps/api` owns FastAPI business APIs, and `apps/api/src/modules/idp` owns authentication.
+  `apps/api` owns Bun/Elysia business APIs, and `apps/api/src/modules/idp` owns authentication.
 - Missing or weak tests, stale docs, misleading task checklists, and outdated
   file references.
 - Documentation impact across README files, durable docs, `AGENTS.md`, `triad-*`

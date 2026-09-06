@@ -45,6 +45,8 @@ describe("API deployment contract", () => {
       "CICD__API_DEPLOYED",
       "CICD__API_HEALTH_URL",
       "CICD__API_URL",
+      "CICD__BACKSTAGE_DEPLOYED",
+      "CICD__BACKSTAGE_URL",
       "CICD__COMMIT_SHA",
       "CICD__GITHUB_TOKEN",
       "CICD__PR_NUMBER",
@@ -67,5 +69,31 @@ describe("API deployment contract", () => {
     const workflow = readFileSync(".github/workflows/reusable-delivery.yml", "utf8")
 
     expect(workflow).toContain("run: bun run test:ci")
+  })
+
+  it("deploys Backstage at environment boundaries after affected API delivery", () => {
+    const workflow = readFileSync(".github/workflows/reusable-delivery.yml", "utf8")
+
+    expect(workflow).toContain("needs: [detect, security, api]")
+    expect(workflow).toMatch(/with: \{ app: backstage, deploy: "\$\{\{ inputs\.deploy \}\}"/)
+    expect(workflow).not.toContain("app: backstage, deploy: false")
+  })
+
+  it("does not report skipped development deploys as successful deployments", () => {
+    const workflow = readFileSync(".github/workflows/reusable-app-delivery.yml", "utf8")
+    const deployGate = readFileSync(".github/scripts/run-deploy-gate.sh", "utf8")
+
+    expect(workflow).toContain("steps.deploy-gate.outputs.deployed")
+    expect(workflow).not.toContain('echo "deployed=true" >> "$GITHUB_OUTPUT"')
+    expect(deployGate).toContain("record_deployment false")
+    expect(deployGate).toContain("record_deployment true")
+  })
+
+  it("publishes the Backstage preview in development deployment comments", () => {
+    const script = readFileSync(".github/scripts/comment-pr-api-deploy.py", "utf8")
+
+    expect(script).toContain('optional_env("CICD__BACKSTAGE_DEPLOYED")')
+    expect(script).toContain('optional_env("CICD__BACKSTAGE_URL")')
+    expect(script).toContain("Backstage")
   })
 })

@@ -1,1 +1,0 @@
-CREATE INDEX "lead_rate_limit_buckets_expires_at_idx" ON "lead_rate_limit_buckets" USING btree ("expires_at");

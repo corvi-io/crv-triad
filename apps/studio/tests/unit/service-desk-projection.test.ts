@@ -7,6 +7,7 @@ import {
   isAppointmentActiveAt,
   projectScheduledEntries,
   queueCounts,
+  resolveStartProfessionalId,
   sortQueueEntries,
   waitMinutes,
 } from "@/modules/service-desk/projection"
@@ -45,6 +46,25 @@ function sourceDate(hours: number, minutes: number, seconds = 0) {
 }
 
 describe("service desk pure rules", () => {
+  it("uses the scheduled professional when starting without a manual assignment", () => {
+    const [entry] = projectScheduledEntries({
+      appointments: [appointment],
+      calledAppointmentIds: new Set([appointment.id]),
+      now: sourceDate(10, 5),
+    })
+
+    expect(resolveStartProfessionalId(entry, {})).toBe("professional-carlos")
+    expect(resolveStartProfessionalId(entry, { [entry.id]: "professional-substitute" })).toBe(
+      "professional-substitute",
+    )
+    expect(
+      resolveStartProfessionalId(
+        { ...entry, assignedProfessionalId: "professional-assigned", professionalId: undefined },
+        {},
+      ),
+    ).toBe("professional-assigned")
+  })
+
   it("allows only the explicit waiting-to-called-to-service journey", () => {
     expect(canTransition("waiting", "called")).toBe(true)
     expect(canTransition("called", "in-service")).toBe(true)

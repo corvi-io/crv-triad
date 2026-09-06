@@ -233,7 +233,7 @@ export function createAuthOptions(
       }),
     },
     emailVerification: {
-      autoSignInAfterVerification: false,
+      autoSignInAfterVerification: true,
       expiresIn: 3_600,
       sendOnSignIn: true,
       sendOnSignUp: false,

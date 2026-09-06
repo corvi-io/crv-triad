@@ -19,11 +19,13 @@ and historical references.
 
 Units persist one or more weekly opening periods. Each period assigns one valid start/end range to
 a disjoint set of weekdays, allowing weekday and Saturday hours to differ without an ambiguous day
-belonging to multiple periods. Existing single-period records are backfilled during migration.
+belonging to multiple periods.
 
-Migration `0016_curved_pride.sql` removes legacy professional rows without `global_user_id` before
-making the identity reference mandatory. Those rows represented the rejected standalone-employee
-model and cannot be converted safely by matching personal contact fields.
+The product has no production data yet. Its database history is consolidated in one clean baseline
+migration, and client preferences exist only as tenant-safe catalog-ID relationships. There is no
+legacy preference column, data backfill, or compatibility runtime. Before the first production
+release, rebuilding a development database means dropping its application schema and applying the
+baseline migration again; never apply that reset procedure to a populated production environment.
 
 Current option projections are appropriate for future operational selection. Transaction owners
 must persist the catalog ID plus event-time names, durations, prices, and rules needed for historical

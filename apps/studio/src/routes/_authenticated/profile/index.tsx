@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_authenticated/profile/")({
 })
 
 function ProfileRoute() {
-  const { session } = useAuth()
+  const { refetch, session } = useAuth()
 
   if (!session) {
     return null
@@ -20,7 +20,7 @@ function ProfileRoute() {
       title="Meu perfil"
       description="Gerencie as informações usadas para identificar sua conta no TRIAD Studio."
     >
-      <ProfileScreen session={session} />
+      <ProfileScreen session={session} onSessionChanged={refetch} />
     </AccountPageLayout>
   )
 }

@@ -4,9 +4,9 @@
 
 - Planning state: Ready
 - Approval state: Approved
-- Delivery state: In progress — local testable version available
+- Delivery state: Verification in progress — clean pre-production baseline implemented
 - Owner: CRV Triad
-- Last updated: 2026-09-04
+- Last updated: 2026-09-05
 - Approved by/date: User / 2026-09-04
 
 ## Summary
@@ -119,8 +119,8 @@ Execution plan:
     and a bounded dependency summary. Catalog-to-catalog assignments alone do not block archive;
     they remain historical and become unavailable operationally.
   - Service-search failures in the client form preserve other client fields and provide retry.
-  - Legacy free-text preferences that cannot be linked automatically remain readable as unlinked
-    historical labels during the compatibility period and cannot be newly created.
+  - Because the product has no production data, the database is reset and client preferences start
+    directly with stable catalog references; no legacy compatibility representation is retained.
 
 ## Goals
 
@@ -130,8 +130,7 @@ Execution plan:
 - Persist explicit, tenant-safe relationships without embedding business rules in the IDP.
 - Replace the three setup catalog memory CRUDs with real Studio HTTP behavior while retaining the
   accepted information architecture and interaction quality.
-- Convert client service preferences from free text to stable service references without hiding or
-  corrupting existing values.
+- Store client service preferences exclusively as stable service references from the clean baseline.
 - Let staff record optional client affinities for real units and professionals as well as services,
   without making scheduling decisions automatically.
 - Provide narrow read contracts that later availability, scheduling, checkout, commission, and
@@ -221,10 +220,8 @@ Execution plan:
 - REQ-020: Service rename shall automatically change the displayed label in client preferences;
   service archive shall preserve the link and readable label but prevent a newly selected archived
   preference.
-- REQ-021: The migration shall backfill a legacy client preference only when its normalized label
-  resolves to exactly one service in the same tenant. Unmatched or ambiguous labels shall remain as
-  read-only legacy values during a compatibility period and shall be reported only through
-  metadata counts, never value-bearing logs.
+- REQ-021: The pre-production database shall be reset and rebuilt from one generated baseline
+  migration. No legacy preference column, compatibility read, or backfill command shall remain.
 - REQ-022: API errors shall expose stable English machine codes and a safe request identifier;
   Studio shall map expected failures to recoverable Brazilian Portuguese states.
 
@@ -242,9 +239,9 @@ Execution plan:
 - REQ-027: Studio catalog and client-preference journeys shall preserve keyboard operation, focus
   restoration, semantic names, screen-reader status, 320 CSS-pixel reflow, 200% zoom, light/dark
   themes, reduced motion, and status meaning independent from color.
-- REQ-028: Rollout shall use additive database migration and compatibility reads before Studio begins
-  writing service IDs; rollback shall allow the previous Studio/API version to operate without
-  reverting an applied migration or losing newly created catalog data.
+- REQ-028: Before the first production release, rollout shall apply the single baseline migration to
+  an empty database and deploy API before Studio. Recovery shall recreate that empty baseline or
+  redeploy the matched application set; preserving pre-release data is not required.
 - REQ-029: Catalog mutation audit events shall record actor ID, tenant ID, action, entity type,
   opaque entity ID, request ID, timestamp, result, and changed field names, but never changed values.
 - REQ-030: Durable API, Studio, and Backstage documentation shall replace prototype-only claims for
@@ -497,20 +494,19 @@ capabilities so a source cannot ambiguously mix persistence modes.
 
 ## Delivery And Rollback
 
-- Compatibility strategy:
-  1. Apply additive catalog/association/preference tables while retaining the legacy text array.
-  2. Deploy API compatibility reads/writes and backfill only uniquely matched preference labels.
-  3. Verify tenant isolation and migration counts.
-  4. Deploy Studio catalog HTTP adapters and ID-based preference selector.
-  5. Stop new legacy free-text writes while continuing to present unmatched legacy labels read-only.
+- Pre-production baseline strategy:
+  1. Reset the non-production database and its Drizzle migration journal.
+  2. Apply the single generated baseline migration.
+  3. Verify schema shape, tenant isolation, and baseline table counts.
+  4. Deploy the API and then the Studio catalog HTTP adapters and ID-based preference selectors.
 - Feature flag/rollout: source composition may keep production catalog UI disabled until the API and
   migration are healthy. It must fail closed, never fall back to memory.
-- Migration/backfill: run on empty and representative existing databases; make reruns idempotent;
-  publish only counts by outcome and tenant-independent totals; do not print labels.
-- Rollback: revert Studio first, then API if needed. The previous version continues using the retained
-  legacy column. Do not down-migrate populated catalog tables during emergency rollback.
-- Operational readiness: migration status, API health, error/latency dashboards, safe backfill
-  summary, smoke journeys for two tenants, and a documented compatibility cleanup condition.
+- Migration: rehearse reset plus baseline application on an empty disposable database and verify the
+  resulting schema. There is no data migration or backfill.
+- Rollback: before production, restore the matched application set and recreate the empty database
+  baseline when required. This exception is valid only while the product has no production data.
+- Operational readiness: migration status, API health, error/latency dashboards, and smoke journeys
+  for two tenants.
 
 ## Success Measures
 
@@ -553,8 +549,8 @@ capabilities so a source cannot ambiguously mix persistence modes.
   selections atomically, and no longer permits arbitrary preference labels.
 - [ ] AC-010: Renaming a preferred service updates the client presentation; archiving preserves the
   preference with an archived label and excludes it from new selection.
-- [ ] AC-011: The legacy backfill links only unique same-tenant normalized matches; unmatched and
-  ambiguous values remain readable, reruns are idempotent, and output contains counts but no values.
+- [ ] AC-011: A repository-wide check finds no legacy preference column, compatibility read, or
+  backfill command, and the clean baseline creates stable-ID preference associations directly.
 - [ ] AC-012: Stale base-record, relationship, and client-preference updates return conflict without
   overwriting newer state, and Studio provides a recoverable reload path.
 - [ ] AC-013: Catalog archive preserves catalog associations and client preferences and emits a
@@ -565,14 +561,13 @@ capabilities so a source cannot ambiguously mix persistence modes.
   320 CSS-pixel, 200% zoom, light/dark, reduced-motion, and non-color-only status checks.
 - [ ] AC-016: Logs, traces, metrics, audits, API errors, and migration output pass sensitive-sentinel
   checks and contain the required safe correlation metadata.
-- [ ] AC-017: Empty-schema and representative-existing-schema migration rehearsals pass, the previous
-  application version remains compatible after the additive migration, and rollback does not
-  require destructive down-migration.
+- [ ] AC-017: Empty-schema baseline and reset/reapply rehearsals pass, and the documented recovery
+  process recreates the clean pre-production baseline without any compatibility structures.
 - [ ] AC-018: API and Studio unit/integration/component/E2E suites, coverage gates, type checks,
   formatting/lint checks, production-boundary checks, and builds pass; Backstage checks and its
   focused catalog-count tests pass.
 - [ ] AC-019: Durable API, setup, client, Backstage, and cross-module documentation describes
-  production catalog behavior, preference compatibility, aggregate counts, consumer/snapshot
+  production catalog behavior, stable-ID preferences, aggregate counts, consumer/snapshot
   contracts, permissions, rollout, and the remaining prototype-only capabilities.
 - [ ] AC-020: Client create/edit stores zero to five preferred units and professionals by stable ID,
   validates tenant/lifecycle atomically, and displays rename/archive changes without automatic
@@ -591,13 +586,13 @@ capabilities so a source cannot ambiguously mix persistence modes.
 ## Verification Plan
 
 - Unit tests: validation/normalization, readiness, relationship compatibility, capability matrix,
-  conflict/error mapping, all client catalog preferences, legacy matching, option projections,
+  conflict/error mapping, all client catalog preferences, option projections,
   snapshot-boundary contracts, and Studio form/query behavior.
 - Integration/API tests: PostgreSQL constraints/migrations, two-tenant isolation, CRUD lifecycle,
   atomic associations/preferences, concurrency, option bounds, archive behavior, safe errors,
   query counts/plans, and composed Elysia authorization.
 - UI tests: HTTP adapter parity, route/list/drawer behavior, incomplete readiness, permissions,
-  retry/conflict, async unit/professional/service selection, renamed/archived/legacy preferences,
+  retry/conflict, async unit/professional/service selection, renamed/archived preferences,
   Backstage counts, and tenant switching.
 - Manual/browser checks: owner/admin/member journeys at desktop and 320px, keyboard-only, 200% zoom,
   light/dark, reduced motion, focused screen-reader/axe review, reload persistence, and two-tenant
@@ -621,8 +616,6 @@ capabilities so a source cannot ambiguously mix persistence modes.
 
 ### Non-Blocking
 
-- [ ] Decide the compatibility cleanup date for legacy preference labels after rollout evidence shows
-  no unresolved values — owner: product/engineering release review.
 - [ ] Validate whether real barbershops need split intervals on the same weekday before an
   availability production initiative — owner: product discovery.
 - [x] Professional onboarding is invitation-only and always links an IDP user to a tenant-owned
@@ -645,8 +638,8 @@ capabilities so a source cannot ambiguously mix persistence modes.
   review without using prototype access switches as authorization.
 - Multiple weekly opening periods may assign different hours to disjoint weekday groups; split
   intervals within the same weekday belong to later availability work.
-- Unmatched legacy client preference labels must remain readable until explicitly resolved or
-  retired; they never become services automatically.
+- The product owner authorized destructive reset of the non-production database and a migration
+  squash on 2026-09-05; compatibility with discarded pre-production data is intentionally absent.
 
 ## Definition of Ready
 
@@ -658,6 +651,7 @@ capabilities so a source cannot ambiguously mix persistence modes.
 
 | Date | Decision | Decided by | Notes / requested changes |
 | --- | --- | --- | --- |
+| 2026-09-05 | Approved scope correction | User | Reset pre-production data, squash migrations, and remove all backfill/compatibility structures. |
 | 2026-09-04 | Awaiting approval |  | Initial production catalog and client-preference proposal |
 | 2026-09-04 | Changes requested | User | Expand discovery beyond the client/service example |
 | 2026-09-04 | Awaiting approval |  | Added client unit/professional affinities, Backstage counts, and downstream consumer/snapshot contracts |

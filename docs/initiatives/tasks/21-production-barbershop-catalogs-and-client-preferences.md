@@ -19,7 +19,7 @@
   catch-all setup module or move business rules into the IDP.
 - Keep aggregate existence separate from operational readiness and preserve stable historical
   references when records are archived.
-- Keep all schema changes additive during rollout and never use fixture fallback as recovery.
+- Use the authorized clean pre-production database baseline and never use fixture fallback as recovery.
 
 ## Traceability
 
@@ -74,7 +74,7 @@ before TASK-011–TASK-013 despite its stable identifier.
 - Evidence required before completion: signed-off contract matrix with no unresolved implementation
   decisions and updated traceability if the accepted PRD changes.
 
-### TASK-002 — Add additive catalog and client-preference persistence migration
+### TASK-002 — Create the clean catalog and client-preference baseline migration
 
 - Status: Pending
 - Covers: REQ-002–REQ-005, REQ-007, REQ-010, REQ-018–REQ-021, REQ-023, REQ-025,
@@ -84,16 +84,14 @@ before TASK-011–TASK-013 despite its stable identifier.
 - Relevant skills/docs: `postgres-drizzle`, `triad-api-development`, API persistence references
 - Expected artifacts: Drizzle schemas and generated migration for units, professionals, services,
   three association tables, and client unit/professional/service preferences; tenant-safe compound
-  keys/FKs; indexes; compatibility column retention; idempotent bounded service-label backfill
-  command/report.
+  keys/FKs; indexes; and direct stable-ID preference associations.
 - Implementation notes: use the shared UUIDv7 generator in application creation paths. Store money
   as integer cents and time as validated local-time values without inventing timezone behavior.
   Index every FK and tenant/list/search path. Prevent cross-tenant associations in the database, not
   only application code. Backfill only unique normalized same-tenant matches and never print source
-  labels or other PII. Do not add destructive down-migration or remove the legacy array.
-- Verification: migration on empty and representative existing schema, repeat backfill, unique and
-  check constraints, foreign-tenant insert attempts, index review, previous-version compatibility,
-  and rollback rehearsal that leaves the additive schema in place.
+  labels or other PII. The authorized reset removes the former legacy array and migration history.
+- Verification: migration on an empty schema, reset/reapply rehearsal, unique and check constraints,
+  foreign-tenant insert attempts, and index review.
 - Evidence required before completion: generated SQL review, migration transcripts with safe counts,
   database assertions, and compatibility result.
 
@@ -148,8 +146,7 @@ before TASK-011–TASK-013 despite its stable identifier.
   request/projection; access enforcement; safe errors; request correlation; REST composition and
   OpenAPI output.
 - Implementation notes: preserve `/api` without `/v1`. Client lists do not join preferences; detail
-  bounds projections to 20. Compatibility responses keep unmatched legacy labels read-only and new
-  writes accept only IDs. Validate selected IDs and replace preferences inside the client mutation
+  bounds projections to 20. Writes accept only IDs. Validate selected IDs and replace preferences inside the client mutation
   transaction. Avoid forwarding database exceptions or input values.
 - Verification: in-process route and composed PostgreSQL API tests for success, validation,
   unauthenticated, role/plan denial, foreign IDs, conflict, relationship atomicity, option bounds,
@@ -228,8 +225,8 @@ before TASK-011–TASK-013 despite its stable identifier.
 - Implementation notes: accept zero to 20 service IDs and zero to five professional/unit IDs. Do not
   load complete catalogs, allow arbitrary option creation, imply ordering/exclusivity, or
   automatically choose an appointment allocation. Keep other form values through search/save
-  errors. Existing archived selections remain visible/removable but cannot be newly added; legacy
-  service labels are clearly historical and read-only. Partition all options and clients by tenant.
+  errors. Existing archived selections remain visible/removable but cannot be newly added. Partition
+  all options and clients by tenant.
 - Verification: component/adapter/E2E tests for all three preference types, search bounds, zero/many
   selections, rename, archive, legacy service values, foreign/stale IDs, retry, keyboard/focus/
   screen reader, 320px, zoom, and tenant switching.
@@ -273,21 +270,18 @@ before TASK-011–TASK-013 despite its stable identifier.
 - Evidence required before completion: reviewable performance, concurrency, QA, and accessibility
   artifacts with limitations stated.
 
-### TASK-012 — Rehearse compatible rollout, migration, and rollback
+### TASK-012 — Rehearse clean-baseline rollout and recovery
 
 - Status: Pending
 - Covers: REQ-021, REQ-028, AC-011, AC-014, AC-016–AC-018
 - Depends on: TASK-002, TASK-005–TASK-010, TASK-014
 - Can parallelize with: TASK-011 after integrated API availability
 - Relevant skills/docs: `triad-release-workflow`, API/Studio deployment docs, migration runbook
-- Expected artifacts: ordered deployment checklist, migration/backfill command, safe outcome report,
-  health/smoke checks, source enablement control, previous-version compatibility proof, rollback
-  rehearsal, and cleanup follow-up condition.
-- Implementation notes: database first, compatible API second, Studio last. Roll back Studio before
-  API and leave additive data intact. Do not enable production catalog UI until migration and health
-  evidence pass. Do not remove the legacy column in this initiative.
-- Verification: empty and representative database rehearsal, idempotent rerun, previous/new API and
-  Studio compatibility matrix, two-tenant smoke test, simulated API rollback, and safe logs.
+- Expected artifacts: ordered deployment checklist, baseline migration transcript, health/smoke
+  checks, source enablement control, reset/reapply rehearsal, and safe logs.
+- Implementation notes: reset the non-production database, apply the baseline, deploy API second and
+  Studio last. Do not enable production catalog UI until migration and health evidence pass.
+- Verification: empty database and reset/reapply rehearsal, two-tenant smoke test, and safe logs.
 - Evidence required before completion: timestamped rollout/rollback transcript and decision-ready
   release checklist.
 
@@ -383,10 +377,35 @@ Record evidence as tasks are completed:
 - Result: Passed through `backstage check`
 - Notes: Production Backstage build without tenant catalog records or Studio fixtures.
 
+### PostgreSQL and clean-baseline checkpoint — 2026-09-05
+
+- Removed the legacy preference column and every compatibility/backfill path as explicitly approved
+  for this pre-production product. Squashed the Drizzle history into one generated baseline.
+- Added real PostgreSQL catalog coverage for known foreign IDs, compound tenant foreign keys,
+  concurrent optimistic updates, and atomic relation rollback.
+- Command: `bun --filter api check`
+- Result: Passed — 35 files and 257 tests.
+- Command: `bun --filter api coverage:check`
+- Result: Passed — 89.37% statements, 80.43% branches, 89.35% functions, 90.98% lines.
+- Command: `bun --filter api test:integration:postgres`
+- Result: Passed — 3 files and 8 tests against an isolated disposable PostgreSQL 16 database on
+  loopback port `55439` with a `_test` database name.
+- Command: `bun --filter api build`
+- Result: Passed.
+- Command: `bun --filter studio check`
+- Result: Passed — 53 files, 395 tests, production build, and production-boundary scan. The existing
+  non-blocking Service Desk redundant-fragment info remains.
+- Command: `bun --filter backstage check`
+- Result: Passed — 2 files, 4 tests, production build, and production-boundary scan.
+- Documentation: updated the API command/runbook and corrected durable Studio catalog/client source
+  descriptions to distinguish production HTTP data from remaining synthetic operations.
+- Remaining before Definition of Done: replace the setup adapter's `all=true`/10,000-option path
+  with the accepted bounded search contract; implement and prove metadata-only catalog mutation
+  audits/observability; run high-cardinality query-plan evidence, live browser/accessibility QA, and
+  the protected-environment rollout/rollback rehearsal.
+
 ## Risks And Follow-Ups
 
-- [ ] Resolve unmatched/ambiguous legacy service-preference labels before approving removal of the
-  compatibility column in a later initiative.
 - [x] Persist multiple weekly opening periods for disjoint weekday groups and validate ordering plus
   weekday exclusivity.
 - [ ] Validate split intervals on the same weekday before production availability design.
@@ -403,10 +422,13 @@ Record evidence as tasks are completed:
   Professional onboarding is now mandatory invitation → acceptance → IDP identity linking. Remove
   duplicated name/email/phone ownership from the business relationship. This approved correction
   supersedes the original deferred-linking assumption in REQ-004 and TASK-003.
+- 2026-09-05 — Product owner authorized resetting the non-production database, squashing migrations,
+  and removing all temporary backfill and compatibility structures. This supersedes the original
+  additive rollout and legacy-preference requirements.
 
 ## Definition of Done
 
-- [ ] The implemented PRD version was explicitly approved.
+- [x] The implemented PRD version was explicitly approved.
 - [ ] All applicable gates in
       `.agents/skills/triad-initiative-workflow/references/planning-gates.md` pass.
 - [ ] Every in-scope AC has reviewable evidence.

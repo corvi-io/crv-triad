@@ -1,18 +1,25 @@
 import { CameraIcon, MailIcon, Trash2Icon, UserRoundIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-
+import { removeProfileImage, uploadProfileImage } from "@/modules/auth/services/auth-client"
 import type { AuthSession } from "@/modules/auth/services/auth-provider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/modules/shared/components/ui/avatar"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Input } from "@/modules/shared/components/ui/input"
 
-export function ProfileScreen({ session }: { session: AuthSession }) {
+export function ProfileScreen({
+  session,
+  onSessionChanged,
+}: {
+  session: AuthSession
+  onSessionChanged: () => void
+}) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [avatarPreview, setAvatarPreview] = useState({
     isLocal: false,
     url: session.user.image ?? null,
   })
   const [avatarError, setAvatarError] = useState<string | null>(null)
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false)
   const initial = (
     session.user.name?.trim()[0] ||
     session.user.email?.trim()[0] ||
@@ -25,7 +32,7 @@ export function ProfileScreen({ session }: { session: AuthSession }) {
     return () => URL.revokeObjectURL(objectUrl)
   }, [avatarPreview])
 
-  function previewAvatar(file: File | undefined) {
+  async function saveAvatar(file: File | undefined) {
     if (!file) return
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       setAvatarError("Escolha uma imagem PNG, JPEG ou WebP.")
@@ -36,8 +43,21 @@ export function ProfileScreen({ session }: { session: AuthSession }) {
       return
     }
 
+    const preview = URL.createObjectURL(file)
     setAvatarError(null)
-    setAvatarPreview({ isLocal: true, url: URL.createObjectURL(file) })
+    setAvatarPreview({ isLocal: true, url: preview })
+    setIsSavingAvatar(true)
+    try {
+      const result = await uploadProfileImage(file)
+      URL.revokeObjectURL(preview)
+      setAvatarPreview({ isLocal: false, url: result.image })
+      onSessionChanged()
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : "Não foi possível salvar a foto.")
+      setAvatarPreview({ isLocal: false, url: session.user.image ?? null })
+    } finally {
+      setIsSavingAvatar(false)
+    }
   }
 
   return (
@@ -58,14 +78,19 @@ export function ProfileScreen({ session }: { session: AuthSession }) {
             accept="image/jpeg,image/png,image/webp"
             className="sr-only"
             onChange={(event) => {
-              previewAvatar(event.target.files?.[0])
+              void saveAvatar(event.target.files?.[0])
               event.target.value = ""
             }}
             ref={fileInputRef}
             type="file"
           />
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Button
+              type="button"
+              variant="outline"
+              isLoading={isSavingAvatar}
+              onClick={() => fileInputRef.current?.click()}
+            >
               <CameraIcon data-icon="inline-start" aria-hidden="true" />
               Escolher imagem
             </Button>
@@ -73,9 +98,21 @@ export function ProfileScreen({ session }: { session: AuthSession }) {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => {
-                  setAvatarError(null)
-                  setAvatarPreview({ isLocal: false, url: null })
+                disabled={isSavingAvatar}
+                onClick={async () => {
+                  setIsSavingAvatar(true)
+                  try {
+                    await removeProfileImage()
+                    setAvatarError(null)
+                    setAvatarPreview({ isLocal: false, url: null })
+                    onSessionChanged()
+                  } catch (error) {
+                    setAvatarError(
+                      error instanceof Error ? error.message : "Não foi possível remover a foto.",
+                    )
+                  } finally {
+                    setIsSavingAvatar(false)
+                  }
                 }}
               >
                 <Trash2Icon data-icon="inline-start" aria-hidden="true" />

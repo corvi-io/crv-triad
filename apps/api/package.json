@@ -28,6 +28,7 @@
     "email:preview": "email dev --dir src/modules/idp/identity/emails"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1127.0",
     "@elysiajs/openapi": "^1.4.15",
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.1.0",

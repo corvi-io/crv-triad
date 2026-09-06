@@ -131,7 +131,7 @@ describe("auth client", () => {
     await changePassword({ currentPassword: "old-password-123", newPassword: "New-password-123!" })
 
     expect(authMocks.sendVerificationEmail).toHaveBeenCalledWith({
-      callbackURL: "http://localhost:3000/login?verified=true",
+      callbackURL: "http://localhost:3000/overview",
       email: "test-user@example.invalid",
     })
     expect(authMocks.resetPassword).toHaveBeenCalledWith({

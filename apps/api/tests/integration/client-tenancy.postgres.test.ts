@@ -28,7 +28,6 @@ const profile = {
   normalizedPhone: "5581999999999",
   phone: "+55 81 99999-9999",
   preferenceNote: "",
-  servicePreferences: [],
   tags: [],
 } as const
 
