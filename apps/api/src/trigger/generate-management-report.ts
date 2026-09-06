@@ -35,7 +35,9 @@ export const generateManagementReport = schemaTask({
       bucket: env.R2_REPORT_BUCKET,
     })
     try {
-      return await createReportWorker(db, createReportingService(db), storage).run(payload)
+      return await createReportWorker(db, createReportingService(db), storage, (event) =>
+        console.info(JSON.stringify({ ...event, appEnvironment: env.APP_ENV })),
+      ).run(payload)
     } finally {
       await pool.end()
     }

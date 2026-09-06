@@ -12,6 +12,7 @@ export function createReportExportService(
   db: IdpDatabase,
   dispatcher: ReportDispatcher,
   storage: ArtifactStorage,
+  observe: (event: Record<string, unknown>) => void = () => undefined,
 ) {
   async function dispatch(id: string, organizationId: string, attempt: number) {
     const key = createHash("sha256").update(`${id}:${attempt}`).digest("hex")
@@ -19,6 +20,7 @@ export function createReportExportService(
       { schemaVersion: 1, organizationId, reportRequestId: id },
       key,
     )
+    observe({ event: "report_export_dispatched", reportRequestId: id, attempt })
     await db.transaction(async (tx) => {
       await tx
         .update(reportRequest)
@@ -85,6 +87,7 @@ export function createReportExportService(
       })
     })
     await dispatch(id, actor.organizationId, 1)
+    observe({ event: "report_export_requested", reportRequestId: id, attempt: 1 })
     return status(actor, id)
   }
   async function status(actor: TenantContext, id: string) {
@@ -137,11 +140,13 @@ export function createReportExportService(
     })
     if (!won) return status(actor, id)
     await dispatch(id, actor.organizationId, attempt)
+    observe({ event: "report_export_retried", reportRequestId: id, attempt })
     return status(actor, id)
   }
   async function download(actor: TenantContext, id: string) {
     const current = await status(actor, id)
     if (current?.status !== "ready") return null
+    observe({ event: "report_export_download_granted", reportRequestId: id })
     return storage.downloadUrl(
       `${actor.organizationId}/${id}/${current.activeAttempt}.${current.format}`,
       300,

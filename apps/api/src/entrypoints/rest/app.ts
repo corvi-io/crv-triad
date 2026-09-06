@@ -87,6 +87,8 @@ export function createRestApp(input: CreateRestAppInput) {
   const observeBusinessRequest = (event: object) =>
     console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
   const reportingService = createReportingService(input.db)
+  const observeReportLifecycle = (event: Record<string, unknown>) =>
+    console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
   const businessLogoStorage =
     input.env.PROFILE_IMAGE_STORAGE_DRIVER === "r2"
       ? createR2BusinessLogoStorage({
@@ -105,7 +107,12 @@ export function createRestApp(input: CreateRestAppInput) {
           bucket: input.env.R2_REPORT_BUCKET,
         })
       : createFakeArtifactStorage()
-  const reportWorker = createReportWorker(input.db, reportingService, artifactStorage)
+  const reportWorker = createReportWorker(
+    input.db,
+    reportingService,
+    artifactStorage,
+    observeReportLifecycle,
+  )
   const fakeReportDispatcher = createFakeReportDispatcher()
   const reportDispatcher =
     input.env.REPORT_EXPORT_PROVIDER === "trigger"
@@ -190,7 +197,12 @@ export function createRestApp(input: CreateRestAppInput) {
     .use(
       createReportingRoutes(
         reportingService,
-        createReportExportService(input.db, reportDispatcher, artifactStorage),
+        createReportExportService(
+          input.db,
+          reportDispatcher,
+          artifactStorage,
+          observeReportLifecycle,
+        ),
         resolveTenantContext,
         authorizeTenantAction,
         input.env.REPORT_EXPORT_ENABLED,

@@ -1,18 +1,18 @@
-# TRIAD Studio Basic Reporting Prototype
+# TRIAD Studio Management Reporting
 
-ENG-53 adds the authenticated `/reports` management surface. It is a bounded
-local/configured-`dev` evaluation module for historical criticism, not a
-production analytics or authorization contract. It adds no API, persistence,
-export, polling, realtime behavior, forecasting, or role enforcement.
+The authenticated `/reports` management surface preserves the accepted prototype information
+architecture and now connects to tenant-authorized production aggregates and generated-report
+history. Owners and authorized admins can request PDF/CSV artifacts, observe queued, running,
+ready, failed, and expired states, retry actionable failures, and download through a short-lived
+private grant.
 
 ## Runtime And Source Boundary
 
-`virtual:studio-reporting-source` resolves a deterministic repository only when
-the accepted scheduling and client-management memory sources are enabled for
-`local` or `dev`. The same virtual module resolves disabled for `hml` and
-`prd`; the route then renders an unavailable state and the production bundle
-excludes reporting fixtures and source markers. No reporting environment
-variable is introduced.
+`VITE_REPORTING_SOURCE=http` selects the production HTTP repository. The deterministic repository
+remains limited to explicit local/development evaluation. Production builds exclude reporting
+fixtures and source markers. Export polling runs only while a request is active, the document is
+visible, and the browser is online; terminal rows do not poll. Generated history remains visible
+when the current aggregate is empty or refreshing.
 
 The development coordinator consumes accepted scheduling, paid-sale,
 commission, client, and cash/open-day facts through their public repository

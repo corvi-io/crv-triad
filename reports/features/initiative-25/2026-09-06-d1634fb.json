@@ -1,0 +1,260 @@
+{
+  "version": 1,
+  "mode": "feature",
+  "run": {
+    "date": "2026-09-06",
+    "branch": "feature/initiative-25",
+    "commit": "d1634fb",
+    "environment": "local Studio 3105, API 8105, isolated PostgreSQL 55444/55433",
+    "data_mode": "synthetic isolated tenants and local provider fakes",
+    "evaluator": "Codex Initiative 25 owner",
+    "baseline": "68429fe",
+    "limitations": [
+      "External Trigger.dev and R2 hml resources are not provisioned; external revalidation remains pending."
+    ]
+  },
+  "scope": {
+    "initiative": "25",
+    "apps": ["api", "web", "cross-app"],
+    "modules": ["business-profile", "commissions", "reporting", "report-export", "studio-setup"],
+    "personas": ["owner", "admin", "member"],
+    "tenants": ["synthetic-a", "synthetic-b"],
+    "out_of_scope": ["Agenda", "public invitation projection", "external provider provisioning"]
+  },
+  "journeys": [
+    {
+      "id": "J1",
+      "apps": ["web", "api"],
+      "module": "business-profile-commissions",
+      "persona": "owner",
+      "tenant": "synthetic-a",
+      "kind": "happy_path",
+      "name": "Persist profile, logo and future commission policy through Studio",
+      "result": "passed",
+      "evidence": ["Playwright approved run and owner screenshots"]
+    },
+    {
+      "id": "J2",
+      "apps": ["web", "api"],
+      "module": "report-export",
+      "persona": "admin",
+      "tenant": "synthetic-a",
+      "kind": "happy_path",
+      "name": "Generate, poll and download fake PDF artifact",
+      "result": "passed",
+      "evidence": ["Authenticated application/pdf response and ready screenshot"]
+    },
+    {
+      "id": "J3",
+      "apps": ["web", "api"],
+      "module": "access",
+      "persona": "member",
+      "tenant": "synthetic-a",
+      "kind": "edge_case",
+      "name": "Read profile and deny management mutations",
+      "result": "passed",
+      "evidence": ["Profile visible; both writes returned 403; axe clean"]
+    },
+    {
+      "id": "J4",
+      "apps": ["api"],
+      "module": "tenant-isolation",
+      "persona": "owner",
+      "tenant": "synthetic-b",
+      "kind": "edge_case",
+      "name": "Deny direct access to tenant A generated report",
+      "result": "passed",
+      "evidence": ["Direct identifier returned 403 or 404"]
+    },
+    {
+      "id": "J5",
+      "apps": ["web", "api"],
+      "module": "reporting",
+      "persona": "owner",
+      "tenant": "synthetic-a",
+      "kind": "recheck",
+      "name": "Dark mode and 200 percent zoom reflow",
+      "result": "passed",
+      "evidence": ["No overflow, zero axe violations, inspected screenshot"]
+    }
+  ],
+  "screenshots": [
+    {
+      "journey_id": "J1",
+      "checkpoint": "profile desktop",
+      "viewport": "1440x1000 light",
+      "artifact": "apps/studio/.artifacts/initiative25/playwright-live-approved/.../owner-profile-desktop.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Localized unit label; aligned fields; no technical object key"]
+    },
+    {
+      "journey_id": "J1",
+      "checkpoint": "commission desktop",
+      "viewport": "1440x1000 light",
+      "artifact": "apps/studio/.artifacts/initiative25/playwright-live-approved/.../owner-commission-desktop.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Persisted professional, default rule and percentage labels visible"]
+    },
+    {
+      "journey_id": "J2",
+      "checkpoint": "report ready",
+      "viewport": "1440x1000 light",
+      "artifact": "apps/studio/.artifacts/initiative25/playwright-live-approved/.../admin-reports-ready-desktop.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Empty aggregate does not hide generated history"]
+    },
+    {
+      "journey_id": "J3",
+      "checkpoint": "member profile mobile",
+      "viewport": "320x800 light",
+      "artifact": "apps/studio/.artifacts/initiative25/playwright-live-approved/.../member-profile-mobile.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["No horizontal document overflow; labels remain readable"]
+    },
+    {
+      "journey_id": "J5",
+      "checkpoint": "reports dark zoom",
+      "viewport": "640x900 at 200 percent",
+      "artifact": "apps/studio/.artifacts/initiative25/playwright-live-approved/.../owner-reports-dark-zoom.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["No overflow or axe violation; hierarchy and controls remain visible"]
+    }
+  ],
+  "access_checks": [
+    {
+      "actor": "member synthetic-a",
+      "resource_tenant": "synthetic-a",
+      "vector": "profile read plus profile/export mutations",
+      "result": "passed",
+      "evidence": "Read succeeded and both mutations returned 403."
+    },
+    {
+      "actor": "owner synthetic-b",
+      "resource_tenant": "synthetic-a",
+      "vector": "direct generated-report identifier",
+      "result": "passed",
+      "evidence": "Request was denied with 403/404 and disclosed no report."
+    }
+  ],
+  "findings": [
+    {
+      "id": "I25-QA-01",
+      "type": "product_defect",
+      "severity": "high",
+      "app": "cross-app",
+      "module": "business-profile",
+      "title": "Empty successful profile response broke setup parsing",
+      "status": "fixed",
+      "evidence": ["Owner/member browser recheck passed"],
+      "attempts": 2
+    },
+    {
+      "id": "I25-QA-02",
+      "type": "product_defect",
+      "severity": "high",
+      "app": "web",
+      "module": "business-profile",
+      "title": "Strict update received response-only metadata",
+      "status": "fixed",
+      "evidence": ["Explicit DTO mapping and save/reload passed"],
+      "attempts": 2
+    },
+    {
+      "id": "I25-QA-03",
+      "type": "product_defect",
+      "severity": "high",
+      "app": "cross-app",
+      "module": "report-export",
+      "title": "Local fake artifact download lost authentication",
+      "status": "fixed",
+      "evidence": ["Authenticated PDF response passed"],
+      "attempts": 3
+    },
+    {
+      "id": "I25-QA-04",
+      "type": "product_defect",
+      "severity": "medium",
+      "app": "web",
+      "module": "studio-setup",
+      "title": "Production setup hid profile surface",
+      "status": "fixed",
+      "evidence": ["Real production-source browser route passed"],
+      "attempts": 1
+    },
+    {
+      "id": "I25-QA-05",
+      "type": "product_defect",
+      "severity": "medium",
+      "app": "web",
+      "module": "setup-commission",
+      "title": "Technical IDs remained visible after reload",
+      "status": "fixed",
+      "evidence": ["Inspected final screenshots and component tests"],
+      "attempts": 2
+    },
+    {
+      "id": "I25-QA-06",
+      "type": "product_defect",
+      "severity": "medium",
+      "app": "web",
+      "module": "reporting",
+      "title": "Empty aggregate hid generated history",
+      "status": "fixed",
+      "evidence": ["Ready history remained visible in final browser run"],
+      "attempts": 1
+    },
+    {
+      "id": "I25-QA-EXT",
+      "type": "accepted_deferral",
+      "severity": "low",
+      "app": "cross-app",
+      "module": "providers",
+      "title": "Trigger.dev and R2 hml revalidation awaits provisioning",
+      "status": "accepted",
+      "evidence": ["Local fake and adapter gates pass; no external credentials exist"],
+      "attempts": 0
+    }
+  ],
+  "scores": {
+    "product_outcome": 9.2,
+    "functional_reliability_persistence": 9.4,
+    "ux_visual_integrity": 9.2,
+    "access_privacy_tenant_isolation": 9.5,
+    "accessibility": 9.5,
+    "operability_regression_protection": 9.2,
+    "weighted_total": 9.33
+  },
+  "verification": [
+    {
+      "check": "Fresh disposable PostgreSQL integration",
+      "result": "passed",
+      "evidence": "9 files, 45 tests"
+    },
+    {
+      "check": "API check/build/coverage",
+      "result": "passed",
+      "evidence": "375 tests; 88.96/80.73/88.96/90.93 percent"
+    },
+    {
+      "check": "Studio check/build/coverage",
+      "result": "passed",
+      "evidence": "782 tests; 84.88/80.48/83.60/86.49 percent; production boundary passed"
+    },
+    {
+      "check": "Real local browser matrix",
+      "result": "passed",
+      "evidence": "4 of 4 journeys; five inspected screenshots; zero axe violations"
+    },
+    {
+      "check": "External Trigger.dev/R2 hml revalidation",
+      "result": "blocked",
+      "evidence": "Projects and credentials are not provisioned"
+    }
+  ],
+  "decision": "approved_with_reservations"
+}

@@ -12,6 +12,7 @@ export function createReportWorker(
   db: IdpDatabase,
   reporting: ReportingService,
   storage: ArtifactStorage,
+  observe: (event: Record<string, unknown>) => void = () => undefined,
 ) {
   async function run(payload: { organizationId: string; reportRequestId: string }) {
     const [request] = await db
@@ -28,6 +29,7 @@ export function createReportWorker(
     if (request.status === "ready") return { outcome: "ready" as const }
     if (!["queued", "running"].includes(request.status)) return { outcome: "ignored" as const }
     const attempt = request.activeAttempt
+    observe({ event: "report_export_started", reportRequestId: request.id, attempt })
     let artifactUploaded = false
     await db.transaction(async (tx) => {
       await tx
@@ -134,6 +136,7 @@ export function createReportWorker(
             ),
           )
       })
+      observe({ event: "report_export_ready", reportRequestId: request.id, attempt })
       return { outcome: "ready" as const, objectKey }
     } catch (error) {
       // A task retry must converge on an object that was uploaded before a database outage.
@@ -173,6 +176,12 @@ export function createReportWorker(
             ),
           )
       })
+      observe({
+        event: "report_export_failed",
+        reportRequestId: request.id,
+        attempt,
+        safeFailureCode,
+      })
       throw error
     }
   }
@@ -199,6 +208,11 @@ export function createReportWorker(
               eq(reportRequest.status, "ready"),
             ),
           )
+      })
+      observe({
+        event: "report_export_expired",
+        reportRequestId: artifact.reportRequestId,
+        attempt: artifact.attempt,
       })
     }
     return artifacts.length
