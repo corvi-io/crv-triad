@@ -68,6 +68,7 @@ const emptyFacets: ReportingFacets = {
   paymentMethods: [],
   professionals: [],
   services: [],
+  units: [],
 }
 
 function FilterHarness() {

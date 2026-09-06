@@ -19,15 +19,17 @@ describe("barbershop setup HTTP repository", () => {
                   method,
                   version: 1,
                 }))
-              : String(url).includes("/availability/summary")
-                ? { activeSeries: 0 }
-                : {
-                    items: [],
-                    page: 1,
-                    pageSize: 50,
-                    totalCount: 0,
-                    totalPages: 0,
-                  },
+              : String(url).includes("/business-profile")
+                ? null
+                : String(url).includes("/availability/summary")
+                  ? { activeSeries: 0 }
+                  : {
+                      items: [],
+                      page: 1,
+                      pageSize: 50,
+                      totalCount: 0,
+                      totalPages: 0,
+                    },
           ),
           { headers: { "content-type": "application/json" }, status: 200 },
         ),
@@ -47,7 +49,7 @@ describe("barbershop setup HTTP repository", () => {
     expect(completion.readiness.completedCount).toBe(0)
     expect(completion.readiness.totalCount).toBe(4)
     expect(completion.paymentMethods.filter(({ active }) => active)).toHaveLength(5)
-    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(fetchMock).toHaveBeenCalledTimes(6)
   })
 
   it("explains when the invited email already belongs to the barbershop", async () => {
@@ -77,6 +79,52 @@ describe("barbershop setup HTTP repository", () => {
         "Este usuário já faz parte da barbearia. Use outro e-mail para enviar o convite.",
       ),
     )
+  })
+
+  it("preserves profile drafts on version conflicts and classifies logo and permission failures", async () => {
+    const repository = new BarbershopSetupHttpRepository()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ code: "version_conflict" }), {
+            status: 409,
+            headers: { "content-type": "application/json" },
+          }),
+      ),
+    )
+    await expect(
+      repository.updateProfile({
+        displayName: "Barbearia",
+        email: "oi@example.com",
+        phone: "81999999999",
+        version: 2,
+      }),
+    ).rejects.toMatchObject({ code: "version_conflict" })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ code: "invalid_request" }), {
+            status: 400,
+            headers: { "content-type": "application/json" },
+          }),
+      ),
+    )
+    await expect(repository.uploadBusinessLogo(new File(["bad"], "logo.svg"), 2)).rejects.toThrow(
+      "Revise os dados informados",
+    )
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ code: "forbidden" }), {
+            status: 403,
+            headers: { "content-type": "application/json" },
+          }),
+      ),
+    )
+    await expect(repository.getCommissionPolicies()).rejects.toThrow("Você não tem acesso")
   })
 
   it("maps duplicate service names to the name field", async () => {

@@ -2,6 +2,7 @@ import type { BasisPoints, MoneyCents, TenderMethod } from "@/modules/revenue-op
 import type { AppointmentStatus } from "@/modules/scheduling/contracts"
 
 export type ReportingScenarioId =
+  | "production"
   | "typical"
   | "empty"
   | "edge"
@@ -20,11 +21,22 @@ export type ReportFilters = {
   professionalId?: string
   serviceId?: string
   to: string
+  unitId?: string
 }
 
 export type ReportingQuery = {
   filters: ReportFilters
   scenarioId: ReportingScenarioId
+}
+
+export type GeneratedReport = {
+  activeAttempt: number
+  completedAt?: string | null
+  createdAt: string
+  format: "csv" | "pdf"
+  id: string
+  safeFailureCode?: string | null
+  status: "expired" | "failed" | "queued" | "ready" | "running"
 }
 
 export type ReportFacet = {
@@ -36,6 +48,7 @@ export type ReportingFacets = {
   paymentMethods: readonly { id: TenderMethod; label: string }[]
   professionals: readonly ReportFacet[]
   services: readonly ReportFacet[]
+  units: readonly ReportFacet[]
 }
 
 export type ReportingFactSnapshot = {
@@ -115,7 +128,12 @@ export type ReportingResult = {
 }
 
 export type ReportingRepository = {
+  createExport?(input: { filters: ReportFilters; format: "csv" | "pdf" }): Promise<GeneratedReport>
+  downloadExport?(id: string): Promise<string>
+  getExport?(id: string): Promise<GeneratedReport | null>
+  listExports?(): Promise<readonly GeneratedReport[]>
   getReport(query: ReportingQuery): Promise<ReportingResult>
+  retryExport?(id: string): Promise<GeneratedReport | null>
   reset(): Promise<void>
   retry(): void
   today(): string

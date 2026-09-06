@@ -22,6 +22,7 @@ import {
 import { type ChartConfig, ChartContainer } from "@/modules/shared/components/ui/chart"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import type { RankedMoneyItem, ReportingQuery, ReportingResult } from "./contracts"
+import { GeneratedReports } from "./generated-reports"
 import { useReportingResult } from "./queries"
 import { useReportingRepository } from "./repository-context"
 
@@ -103,6 +104,7 @@ export function ReportingPageContent({
           valueKind="revenue"
         />
       </div>
+      <GeneratedReports filters={result.appliedFilters} />
       <div className="grid min-w-0 gap-4 xl:grid-cols-2">
         <AverageTicketReport result={result} />
         <RankingReport

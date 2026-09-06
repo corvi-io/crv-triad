@@ -1,3 +1,4 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CircleAlertIcon, SaveIcon, Trash2Icon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
@@ -43,6 +44,8 @@ import {
 } from "./queries"
 import { useBarbershopSetupRepository } from "./repository-context"
 
+const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" })
+
 export function BusinessProfileSection({ scenarioId }: { scenarioId: SetupScenarioId }) {
   const completion = useSetupCompletion(scenarioId)
   const relations = useSetupAvailability({ scenarioId })
@@ -68,10 +71,12 @@ function BusinessProfileForm({
   units: readonly { address: string; id: string; name: string }[]
 }) {
   const mutation = useUpdateBarbershopProfile()
+  const repository = useBarbershopSetupRepository()
   const [values, setValues] = useState(initial)
   const [error, setError] = useState("")
   const [attempted, setAttempted] = useState(false)
   const [focusRequest, setFocusRequest] = useState(0)
+  const [logoBusy, setLogoBusy] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
 
   const displayInvalid = values.displayName.trim().length < 2
@@ -110,8 +115,8 @@ function BusinessProfileForm({
             <h3>Dados da barbearia</h3>
           </CardTitle>
           <CardDescription>
-            Identidade de exibição e contato da operação. Dados legais, logotipo e documentos não
-            fazem parte desta etapa.
+            Identidade de exibição, contato e marca da operação. Dados legais e documentos não fazem
+            parte desta etapa.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
@@ -219,6 +224,107 @@ function BusinessProfileForm({
               </FieldError>
             ) : null}
           </Field>
+          <Field>
+            <FieldLabel htmlFor="barbershop-whatsapp">WhatsApp</FieldLabel>
+            <Input
+              id="barbershop-whatsapp"
+              inputMode="tel"
+              value={values.whatsapp ?? ""}
+              onChange={(event) =>
+                setValues((current) => ({
+                  ...current,
+                  whatsapp: event.target.value.replace(/\D/g, "").slice(0, 11),
+                }))
+              }
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="barbershop-website">Site</FieldLabel>
+            <Input
+              id="barbershop-website"
+              type="url"
+              placeholder="https://"
+              value={values.website ?? ""}
+              onChange={(event) =>
+                setValues((current) => ({ ...current, website: event.target.value }))
+              }
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="barbershop-instagram">Instagram</FieldLabel>
+            <Input
+              id="barbershop-instagram"
+              placeholder="@barbearia"
+              value={values.instagram ?? ""}
+              onChange={(event) =>
+                setValues((current) => ({ ...current, instagram: event.target.value }))
+              }
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="barbershop-description">Descrição</FieldLabel>
+            <Input
+              id="barbershop-description"
+              maxLength={500}
+              value={values.description ?? ""}
+              onChange={(event) =>
+                setValues((current) => ({ ...current, description: event.target.value }))
+              }
+            />
+          </Field>
+          {repository.uploadBusinessLogo ? (
+            <Field className="md:col-span-2">
+              <FieldLabel htmlFor="barbershop-logo">Logotipo</FieldLabel>
+              <Input
+                accept="image/jpeg,image/png,image/webp"
+                disabled={logoBusy || !values.version}
+                id="barbershop-logo"
+                type="file"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0]
+                  if (!file || !values.version) return
+                  setLogoBusy(true)
+                  try {
+                    const next = await repository.uploadBusinessLogo?.(file, values.version)
+                    if (next) setValues(next)
+                    toast.success("Logotipo atualizado.")
+                  } catch (cause) {
+                    setError(
+                      cause instanceof Error
+                        ? cause.message
+                        : "Não foi possível enviar o logotipo.",
+                    )
+                  } finally {
+                    setLogoBusy(false)
+                    event.target.value = ""
+                  }
+                }}
+              />
+              <FieldDescription>JPEG, PNG ou WebP, até 5 MB e 4096 × 4096 px.</FieldDescription>
+              {values.logoAvailable ? (
+                <Button
+                  className="w-fit"
+                  disabled={logoBusy}
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    if (!values.version) return
+                    setLogoBusy(true)
+                    try {
+                      const next = await repository.removeBusinessLogo?.(values.version)
+                      if (next) setValues(next)
+                      toast.success("Logotipo removido.")
+                    } finally {
+                      setLogoBusy(false)
+                    }
+                  }}
+                >
+                  <Trash2Icon data-icon="inline-start" />
+                  Remover logotipo
+                </Button>
+              ) : null}
+            </Field>
+          ) : null}
           {error ? (
             <Alert className="md:col-span-2" variant="destructive">
               <CircleAlertIcon />
@@ -243,18 +349,23 @@ export function PaymentsSection({ scenarioId }: { scenarioId: SetupScenarioId })
   const production = repository.catalogSource === "http"
   const completion = useSetupCompletion(scenarioId)
   const relations = useSetupAvailability({ scenarioId })
-  if (completion.isPending || (!production && relations.isPending)) return <CompletionLoading />
-  if (completion.isError || (!production && relations.isError))
+  if (completion.isPending || relations.isPending) return <CompletionLoading />
+  if (completion.isError || relations.isError)
     return (
       <CompletionError onRetry={() => Promise.all([completion.refetch(), relations.refetch()])} />
     )
   return (
     <div className="grid gap-4 pb-4 lg:grid-cols-2">
       <PaymentSettingsForm
-        className={production ? "lg:col-span-2" : undefined}
         key={`${scenarioId}-payments`}
         initial={completion.data.paymentMethods}
       />
+      {production && relations.data ? (
+        <CommissionSettings
+          professionals={relations.data.professionals}
+          services={relations.data.services}
+        />
+      ) : null}
       {!production && relations.data ? (
         <ServiceOverrideForm
           key={`${scenarioId}-overrides`}
@@ -264,6 +375,130 @@ export function PaymentsSection({ scenarioId }: { scenarioId: SetupScenarioId })
         />
       ) : null}
     </div>
+  )
+}
+
+function CommissionSettings({
+  professionals,
+  services,
+}: {
+  professionals: readonly { id: string; name: string }[]
+  services: readonly { id: string; name: string }[]
+}) {
+  const repository = useBarbershopSetupRepository()
+  const client = useQueryClient()
+  const policies = useQuery({
+    enabled: Boolean(repository.getCommissionPolicies),
+    queryKey: ["barbershop-setup", "commission-policies"],
+    queryFn: () => repository.getCommissionPolicies?.() ?? [],
+  })
+  const now = new Date()
+  const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+  const to = now.toISOString().slice(0, 10)
+  const detail = useQuery({
+    enabled: Boolean(repository.getCommissionDetail),
+    queryKey: ["barbershop-setup", "commission-detail", from, to],
+    queryFn: () => repository.getCommissionDetail?.({ from, to }),
+  })
+  const [professionalId, setProfessionalId] = useState("")
+  const [serviceId, setServiceId] = useState("")
+  const [kind, setKind] = useState<"fixed" | "none" | "percentage">("percentage")
+  const [amount, setAmount] = useState("40")
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!repository.saveCommissionPolicy) throw new Error("Configuração indisponível.")
+      const current = policies.data?.find(
+        (item) => item.professionalId === professionalId && (item.serviceId ?? "") === serviceId,
+      )
+      return repository.saveCommissionPolicy({
+        professionalId,
+        serviceId: serviceId || null,
+        kind,
+        basisPoints: kind === "percentage" ? Math.round(Number(amount) * 100) : null,
+        fixedCents: kind === "fixed" ? Math.round(Number(amount.replace(",", ".")) * 100) : null,
+        expectedVersion: current?.version ?? null,
+      })
+    },
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["barbershop-setup", "commission-policies"] })
+      toast.success("Regra de comissão salva para vendas futuras.")
+    },
+    onError: (error) => toast.error(error.message),
+  })
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <h3>Comissões</h3>
+        </CardTitle>
+        <CardDescription>
+          Defina a regra padrão ou uma exceção por serviço. Alterações valem apenas para novas
+          vendas.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <Select value={professionalId} onValueChange={(value) => setProfessionalId(value ?? "")}>
+          <SelectTrigger aria-label="Profissional da comissão">
+            <SelectValue placeholder="Selecione o profissional" />
+          </SelectTrigger>
+          <SelectContent>
+            {professionals.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                {item.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={serviceId || "default"}
+          onValueChange={(value) => setServiceId(value === "default" ? "" : (value ?? ""))}
+        >
+          <SelectTrigger aria-label="Serviço da comissão">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Regra padrão</SelectItem>
+            {services.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                {item.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={kind} onValueChange={(value) => setKind((value ?? "none") as typeof kind)}>
+          <SelectTrigger aria-label="Tipo de comissão">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="percentage">Percentual</SelectItem>
+            <SelectItem value="fixed" disabled={!serviceId}>
+              Valor fixo por serviço
+            </SelectItem>
+            <SelectItem value="none">Sem comissão</SelectItem>
+          </SelectContent>
+        </Select>
+        {kind !== "none" ? (
+          <Input
+            aria-label={kind === "percentage" ? "Percentual da comissão" : "Valor fixo da comissão"}
+            inputMode="decimal"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+        ) : null}
+        <div aria-live="polite" className="rounded-lg bg-muted p-3 text-sm">
+          No mês:{" "}
+          <strong>{currency.format((detail.data?.totals.commissionCents ?? 0) / 100)}</strong> em
+          comissões e {currency.format((detail.data?.totals.barbershopShareCents ?? 0) / 100)} para
+          a barbearia.
+        </div>
+      </CardContent>
+      <CardFooter className="justify-end">
+        <Button disabled={!professionalId} isLoading={save.isPending} onClick={() => save.mutate()}>
+          <SaveIcon data-icon="inline-start" />
+          Salvar regra
+        </Button>
+      </CardFooter>
+    </Card>
   )
 }
 

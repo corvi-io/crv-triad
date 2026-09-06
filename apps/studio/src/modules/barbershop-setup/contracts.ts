@@ -16,10 +16,37 @@ export type SetupEntityStatus = "active" | "archived"
 export type AccountAccessStatus = "connected" | "invited" | "not-configured"
 
 export type BarbershopProfile = {
+  description?: string
   displayName: string
   email: string
+  instagram?: string
+  logoAvailable?: boolean
   phone: string
   primaryUnitId?: string
+  version?: number
+  website?: string
+  whatsapp?: string
+}
+
+export type CommissionPolicy = {
+  basisPoints?: number | null
+  fixedCents?: number | null
+  kind: "fixed" | "none" | "percentage"
+  professionalId: string
+  serviceId?: string | null
+  version: number
+}
+export type CommissionDetail = {
+  items: readonly {
+    id: string
+    kind: "earned" | "reversal"
+    professionalName: string
+    serviceName: string
+    commissionCents: number
+    barbershopShareCents: number
+    localDate: string
+  }[]
+  totals: { commissionCents: number; barbershopShareCents: number }
 }
 
 export const basePaymentMethodIds = ["pix", "cash", "debit", "credit"] as const
@@ -323,4 +350,11 @@ export interface BarbershopSetupRepository {
   ): Promise<readonly SetupAvailability[]>
   updatePaymentMethods(input: UpdatePaymentMethodsInput): Promise<readonly PaymentMethodSetting[]>
   updateProfile(input: BarbershopProfile): Promise<BarbershopProfile>
+  getCommissionPolicies?(): Promise<readonly CommissionPolicy[]>
+  getCommissionDetail?(filters: { from: string; to: string }): Promise<CommissionDetail>
+  saveCommissionPolicy?(
+    input: Omit<CommissionPolicy, "version"> & { expectedVersion: number | null },
+  ): Promise<readonly CommissionPolicy[]>
+  uploadBusinessLogo?(file: File, expectedVersion: number): Promise<BarbershopProfile>
+  removeBusinessLogo?(expectedVersion: number): Promise<BarbershopProfile>
 }
