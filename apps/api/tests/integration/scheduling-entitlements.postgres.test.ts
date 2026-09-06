@@ -44,7 +44,7 @@ it("upgrades existing catalog plans without overriding denials or unrelated plan
       )
     }
     const sql = await readFile(
-      new URL("../../drizzle/0020_scheduling-plan-entitlements.sql", import.meta.url),
+      new URL("../../drizzle/0003_scheduling-plan-entitlements.sql", import.meta.url),
       "utf8",
     )
     await connection.query(sql)
