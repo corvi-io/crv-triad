@@ -260,4 +260,72 @@ describe("production service desk HTTP adapter", () => {
     await expect(repository.completePayment()).rejects.toThrow("etapa separada")
     await expect(repository.reset()).rejects.toThrow("No development source")
   })
+
+  it("consumes queue cursors and every client/history page while forwarding server filters", async () => {
+    const urls: string[] = []
+    const queueVisit = (id: string) => ({
+      id,
+      version: 1,
+      unitId: "unit-real",
+      unitName: "Centro",
+      source: "walk-in",
+      status: "waiting",
+      customerDisplayName: id,
+      priority: "fit-in",
+      requestedServiceId: "service-real",
+      requestedProfessionalId: "professional-real",
+      arrivedAt: "2026-09-05T12:00:00.000Z",
+      notes: "",
+    })
+    const fetch = vi.fn(async (url: string) => {
+      urls.push(url)
+      if (url.includes("/scheduling/units")) return json([{ id: "unit-real", name: "Centro" }])
+      if (url.includes("/service-desk/arrivals")) return json([])
+      if (url.includes("/scheduling/options")) return json({ professionals: [], services: [] })
+      if (url.includes("/api/clients/")) {
+        const page = new URL(url).searchParams.get("page")
+        return page === "1"
+          ? json({ items: [{ id: "client-1", name: "A" }], total: 2 })
+          : json({ items: [{ id: "client-2", name: "Z" }], total: 2 })
+      }
+      if (url.includes("/service-desk/history")) {
+        const page = new URL(url).searchParams.get("page")
+        return page === "1"
+          ? json({
+              items: [{ ...queueVisit("history-1"), status: "completed" }],
+              total: 2,
+              page: 1,
+              pageSize: 50,
+            })
+          : json({
+              items: [{ ...queueVisit("history-2"), status: "canceled" }],
+              total: 2,
+              page: 2,
+              pageSize: 50,
+            })
+      }
+      return url.includes("cursor=next")
+        ? json({ items: [queueVisit("visit-2")], nextCursor: null })
+        : json({ items: [queueVisit("visit-1")], nextCursor: "next" })
+    })
+    vi.stubGlobal("fetch", fetch)
+    const result = await new ServiceDeskHttpRepository().getQueue({
+      unitId: "unit-real",
+      stage: "waiting",
+      search: "Pessoa",
+      priority: "fit-in",
+      preference: "specific",
+      professionalId: "professional-real",
+      scenarioId: "typical",
+    })
+    expect(result.entries).toHaveLength(2)
+    expect(result.clients).toHaveLength(2)
+    expect(result.history).toHaveLength(2)
+    expect(urls.some((url) => url.includes("cursor=next"))).toBe(true)
+    const queueUrl = urls.find((url) => url.includes("/service-desk/visits?")) ?? ""
+    expect(queueUrl).toContain("search=Pessoa")
+    expect(queueUrl).toContain("priority=fit-in")
+    expect(queueUrl).toContain("preference=specific")
+    expect(queueUrl).toContain("professionalId=professional-real")
+  })
 })

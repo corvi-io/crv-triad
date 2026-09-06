@@ -354,7 +354,7 @@ export function createSchedulingService(db: IdpDatabase, fingerprintSecret: stri
     }
   }
   async function syncAppointmentOccupancy(tx: TransactionDatabase, row: Record) {
-    if (["canceled", "no-show", "completed"].includes(row.status)) {
+    if (["canceled", "no-show", "completed", "in-progress"].includes(row.status)) {
       await tx
         .delete(schedulingOccupancy)
         .where(

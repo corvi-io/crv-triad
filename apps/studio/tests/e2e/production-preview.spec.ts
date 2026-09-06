@@ -89,16 +89,14 @@ test("keeps the Dashboard on HTTP and fails closed when its API is unavailable",
   await expect(page.getByText("Carlos Lima")).toHaveCount(0)
 })
 
-test("keeps Atendimentos fail-closed and excludes queue fixtures in production", async ({
-  page,
-}) => {
+test("keeps Atendimentos on HTTP and excludes queue fixtures in production", async ({ page }) => {
   await page.unroute("**/api/auth/**")
   await routeAuthenticatedSession(page)
   await page.goto("/service-desk?scenario=dense")
 
   await expect(page.getByRole("heading", { name: "Atendimentos" })).toBeVisible()
-  await expect(page.getByText("Atendimentos indisponíveis")).toBeVisible()
-  await expect(page.getByRole("button", { name: "Adicionar à fila" })).toHaveCount(0)
+  await expect(page.getByText("Não foi possível carregar os atendimentos")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Adicionar à fila" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Cenários de desenvolvimento" })).toHaveCount(0)
   await expect(page.getByText("Pessoa Sintética 1")).toHaveCount(0)
 })

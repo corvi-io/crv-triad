@@ -45,7 +45,9 @@ type Options = {
   services: readonly Service[]
   unavailableProfessionalIds?: readonly string[]
 }
-type ClientPage = { items: readonly { id: string; name: string }[] }
+type ClientPage = { items: readonly { id: string; name: string }[]; total?: number }
+type QueuePage = { items: Visit[]; nextCursor?: string | null }
+type HistoryPage = { items: Visit[]; total: number; page: number; pageSize: number }
 const stages: Record<Visit["status"], QueueEntry["stage"] | undefined> = {
   waiting: "waiting",
   called: "called",
@@ -94,18 +96,18 @@ export class ServiceDeskHttpRepository implements ServiceDeskRepository {
     const params = new URLSearchParams({ unitId: selected })
     if (query.stage !== "all" && query.stage !== "ready-for-payment")
       params.set("stage", query.stage)
+    if (query.search.trim()) params.set("search", query.search.trim())
+    if (query.priority !== "all") params.set("priority", query.priority)
+    if (query.preference !== "all") params.set("preference", query.preference)
+    if (query.professionalId !== "all") params.set("professionalId", query.professionalId)
     const [result, arrivals, options, clients, history] = await Promise.all([
-      schedulingRequest<{ items: Visit[] }>(`/api/service-desk/visits?${params}`),
+      this.#allQueuePages(params),
       schedulingRequest<NonNullable<ServiceDeskSnapshot["arrivals"]>>(
         `/api/service-desk/arrivals?unitId=${encodeURIComponent(selected)}`,
       ),
       schedulingRequest<Options>(`/api/scheduling/options?unitId=${encodeURIComponent(selected)}`),
-      schedulingRequest<ClientPage>(
-        "/api/clients/?contact=all&duplicate=all&page=1&pageSize=50&search=&sortDirection=asc&sortBy=name&status=active&tag=",
-      ),
-      schedulingRequest<{ items: Visit[] }>(
-        `/api/service-desk/history?unitId=${encodeURIComponent(selected)}&page=1&pageSize=10`,
-      ),
+      this.#allClientPages(),
+      this.#allHistoryPages(selected),
     ])
     const entries = result.items
       .map((visit) => {
@@ -131,6 +133,48 @@ export class ServiceDeskHttpRepository implements ServiceDeskRepository {
       unitName: this.#units.get(selected) ?? "Unidade",
       units,
     }
+  }
+  async #allQueuePages(params: URLSearchParams) {
+    const items: Visit[] = []
+    let cursor: string | null | undefined
+    do {
+      const pageParams = new URLSearchParams(params)
+      if (cursor) pageParams.set("cursor", cursor)
+      const page = await schedulingRequest<QueuePage>(`/api/service-desk/visits?${pageParams}`)
+      items.push(...page.items)
+      cursor = page.nextCursor
+    } while (cursor)
+    return { items }
+  }
+  async #allClientPages() {
+    const items: { id: string; name: string }[] = []
+    let page = 1
+    let total = Number.POSITIVE_INFINITY
+    while (items.length < total) {
+      const result = await schedulingRequest<ClientPage>(
+        `/api/clients/?contact=all&duplicate=all&page=${page}&pageSize=50&search=&sortDirection=asc&sortBy=name&status=active&tag=`,
+      )
+      items.push(...result.items)
+      total = result.total ?? items.length
+      if (result.items.length === 0) break
+      page += 1
+    }
+    return { items }
+  }
+  async #allHistoryPages(unitId: string) {
+    const items: Visit[] = []
+    let page = 1
+    let total = Number.POSITIVE_INFINITY
+    while (items.length < total) {
+      const result = await schedulingRequest<HistoryPage>(
+        `/api/service-desk/history?unitId=${encodeURIComponent(unitId)}&page=${page}&pageSize=50`,
+      )
+      items.push(...result.items)
+      total = result.total
+      if (result.items.length === 0) break
+      page += 1
+    }
+    return { items }
   }
   #entry(visit: Visit): QueueEntry | undefined {
     const stage = stages[visit.status]

@@ -133,9 +133,13 @@ export function createServiceDeskRoutes(
             unitId: z.string().min(1),
             stage: z.enum(["waiting", "called", "in-service"]).optional(),
             cursor: z.string().max(256).optional(),
+            search: z.string().trim().max(100).optional(),
+            priority: z.enum(["normal", "fit-in"]).optional(),
+            preference: z.enum(["specific", "first-available"]).optional(),
+            professionalId: z.string().min(1).optional(),
           })
           .parse(q)
-        return service.queue(actor.organizationId, parsed.unitId, parsed.stage, parsed.cursor)
+        return service.queue(actor.organizationId, parsed.unitId, parsed)
       },
       { query },
     )

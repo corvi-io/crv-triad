@@ -6,7 +6,7 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import react from "@vitejs/plugin-react"
 import { loadEnv } from "vite"
 import { defineConfig } from "vitest/config"
-import { isMemorySourceEnabled } from "./vite-source-boundary.js"
+import { isMemorySourceEnabled, serviceDeskSourceKind } from "./vite-source-boundary.js"
 
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
@@ -24,10 +24,14 @@ export default defineConfig(({ command, mode }) => {
     : publicEnv.VITE_SCHEDULING_SOURCE === "disabled"
       ? "./src/modules/shared/config/scheduling-prototype-disabled.ts"
       : "./src/modules/scheduling/http-entry.ts"
+  const serviceDeskSource = serviceDeskSourceKind(
+    publicEnv.VITE_SERVICE_DESK_SOURCE,
+    publicEnv.VITE_DEPLOY_TARGET,
+  )
   const serviceDeskSourceEntry =
-    schedulingPrototypeEnabled && publicEnv.VITE_SERVICE_DESK_SOURCE === "memory"
+    serviceDeskSource === "memory" && schedulingPrototypeEnabled
       ? "./src/dev/service-desk/entry.ts"
-      : publicEnv.VITE_SERVICE_DESK_SOURCE === "disabled"
+      : serviceDeskSource === "disabled" || serviceDeskSource === "memory"
         ? "./src/modules/shared/config/service-desk-source-disabled.ts"
         : "./src/modules/service-desk/http-entry.ts"
   const revenueOperationsSourceEntry = schedulingPrototypeEnabled

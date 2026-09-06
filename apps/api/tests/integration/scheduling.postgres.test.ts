@@ -458,6 +458,12 @@ describe.sequential("persistent scheduling", () => {
       3,
       crypto.randomUUID(),
     )
+    expect(
+      await db
+        .select()
+        .from(schedulingOccupancy)
+        .where(eq(schedulingOccupancy.sourceId, fulfilled.id)),
+    ).toHaveLength(0)
     const result = await scheduling.transitionFromFulfillment(
       actor,
       fulfilled.id,

@@ -1,5 +1,19 @@
 import { createHmac } from "node:crypto"
-import { and, asc, count, desc, eq, inArray, isNull, lt, ne, sql } from "drizzle-orm"
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm"
 import { z } from "zod"
 import { lockSchedule, readSeries } from "../../availability/application/availability-service.js"
 import type { TransactionDatabase } from "../../availability/database/catalog-context.js"
@@ -1097,7 +1111,19 @@ export function createServiceDeskService(
       .orderBy(asc(serviceDeskItem.sequence))
     return { ...row, items }
   }
-  async function queue(organizationId: string, unitId: string, stage?: string, cursor?: string) {
+  async function queue(
+    organizationId: string,
+    unitId: string,
+    filters: {
+      stage?: string
+      cursor?: string
+      search?: string
+      priority?: "normal" | "fit-in"
+      preference?: "specific" | "first-available"
+      professionalId?: string
+    },
+  ) {
+    const { stage, cursor, search, priority, preference, professionalId } = filters
     const stages = stage ? [stage] : ["waiting", "called", "in-service"]
     const rows = await db
       .select()
@@ -1107,6 +1133,22 @@ export function createServiceDeskService(
           eq(serviceDeskVisit.organizationId, organizationId),
           eq(serviceDeskVisit.unitId, unitId),
           inArray(serviceDeskVisit.status, stages as ("waiting" | "called" | "in-service")[]),
+          search
+            ? or(
+                ilike(
+                  serviceDeskVisit.customerDisplayName,
+                  `%${search.replace(/[\\%_]/g, "\\$&")}%`,
+                ),
+                ilike(serviceDeskVisit.notes, `%${search.replace(/[\\%_]/g, "\\$&")}%`),
+              )
+            : undefined,
+          priority ? eq(serviceDeskVisit.priority, priority) : undefined,
+          professionalId ? eq(serviceDeskVisit.requestedProfessionalId, professionalId) : undefined,
+          preference === "specific"
+            ? isNotNull(serviceDeskVisit.requestedProfessionalId)
+            : preference === "first-available"
+              ? isNull(serviceDeskVisit.requestedProfessionalId)
+              : undefined,
           cursor
             ? sql`(${serviceDeskVisit.arrivedAt}, ${serviceDeskVisit.id}) > (${new Date(cursor.split("|")[0])}, ${cursor.split("|")[1]})`
             : undefined,
