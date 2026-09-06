@@ -13,6 +13,35 @@ export function createReportExportService(
   dispatcher: ReportDispatcher,
   storage: ArtifactStorage,
 ) {
+  async function dispatch(id: string, organizationId: string, attempt: number) {
+    const key = createHash("sha256").update(`${id}:${attempt}`).digest("hex")
+    const run = await dispatcher.dispatch(
+      { schemaVersion: 1, organizationId, reportRequestId: id },
+      key,
+    )
+    await db.transaction(async (tx) => {
+      await tx
+        .update(reportRequest)
+        .set({ providerRunReference: run.runReference, updatedAt: new Date() })
+        .where(
+          and(
+            eq(reportRequest.organizationId, organizationId),
+            eq(reportRequest.id, id),
+            eq(reportRequest.activeAttempt, attempt),
+          ),
+        )
+      await tx
+        .update(reportAttempt)
+        .set({ providerRunReference: run.runReference })
+        .where(
+          and(
+            eq(reportAttempt.organizationId, organizationId),
+            eq(reportAttempt.reportRequestId, id),
+            eq(reportAttempt.attempt, attempt),
+          ),
+        )
+    })
+  }
   async function request(actor: TenantContext, raw: unknown) {
     const input = z
       .object({
@@ -33,7 +62,11 @@ export function createReportExportService(
         ),
       )
       .limit(1)
-    if (existing) return existing
+    if (existing) {
+      if (existing.status === "queued" && !existing.providerRunReference)
+        await dispatch(existing.id, actor.organizationId, existing.activeAttempt)
+      return status(actor, existing.id)
+    }
     const id = createId()
     await db.transaction(async (tx) => {
       await tx.insert(reportRequest).values({
@@ -51,15 +84,7 @@ export function createReportExportService(
         attempt: 1,
       })
     })
-    const key = createHash("sha256").update(id).digest("hex")
-    const run = await dispatcher.dispatch(
-      { schemaVersion: 1, organizationId: actor.organizationId, reportRequestId: id },
-      key,
-    )
-    await db
-      .update(reportRequest)
-      .set({ providerRunReference: run.runReference, updatedAt: new Date() })
-      .where(and(eq(reportRequest.organizationId, actor.organizationId), eq(reportRequest.id, id)))
+    await dispatch(id, actor.organizationId, 1)
     return status(actor, id)
   }
   async function status(actor: TenantContext, id: string) {
@@ -111,11 +136,7 @@ export function createReportExportService(
       return true
     })
     if (!won) return status(actor, id)
-    const key = createHash("sha256").update(`${id}:${attempt}`).digest("hex")
-    await dispatcher.dispatch(
-      { schemaVersion: 1, organizationId: actor.organizationId, reportRequestId: id },
-      key,
-    )
+    await dispatch(id, actor.organizationId, attempt)
     return status(actor, id)
   }
   async function download(actor: TenantContext, id: string) {

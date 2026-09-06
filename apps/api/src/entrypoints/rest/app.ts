@@ -27,8 +27,11 @@ import {
   createFakeReportDispatcher,
 } from "../../modules/reporting/application/export-providers.js"
 import { createReportExportService } from "../../modules/reporting/application/report-export-service.js"
+import { createReportWorker } from "../../modules/reporting/application/report-worker.js"
 import { createReportingService } from "../../modules/reporting/application/reporting-service.js"
 import { createReportingRoutes } from "../../modules/reporting/http/routes.js"
+import { createR2ArtifactStorage } from "../../modules/reporting/infra/r2-artifact-storage.js"
+import { createTriggerReportDispatcher } from "../../modules/reporting/infra/trigger-report-dispatcher.js"
 import {
   createRevenueOperationsService,
   hasOpenRevenueCashDay,
@@ -80,6 +83,31 @@ export function createRestApp(input: CreateRestAppInput) {
   )
   const observeBusinessRequest = (event: object) =>
     console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
+  const reportingService = createReportingService(input.db)
+  const artifactStorage =
+    input.env.REPORT_EXPORT_PROVIDER === "trigger"
+      ? createR2ArtifactStorage({
+          endpoint: input.env.R2_REPORT_ENDPOINT,
+          accessKeyId: input.env.R2_REPORT_ACCESS_KEY_ID,
+          secretAccessKey: input.env.R2_REPORT_SECRET_ACCESS_KEY,
+          bucket: input.env.R2_REPORT_BUCKET,
+        })
+      : createFakeArtifactStorage()
+  const reportWorker = createReportWorker(input.db, reportingService, artifactStorage)
+  const fakeReportDispatcher = createFakeReportDispatcher()
+  const reportDispatcher =
+    input.env.REPORT_EXPORT_PROVIDER === "trigger"
+      ? createTriggerReportDispatcher()
+      : {
+          async dispatch(
+            payload: Parameters<ReturnType<typeof createFakeReportDispatcher>["dispatch"]>[0],
+            idempotencyKey: string,
+          ) {
+            const run = await fakeReportDispatcher.dispatch(payload, idempotencyKey)
+            queueMicrotask(() => void reportWorker.run(payload).catch(() => undefined))
+            return run
+          },
+        }
 
   return new Elysia({ name: "crv-triad-api" })
     .use(requestContextMiddleware)
@@ -152,12 +180,8 @@ export function createRestApp(input: CreateRestAppInput) {
     )
     .use(
       createReportingRoutes(
-        createReportingService(input.db),
-        createReportExportService(
-          input.db,
-          createFakeReportDispatcher(),
-          createFakeArtifactStorage(),
-        ),
+        reportingService,
+        createReportExportService(input.db, reportDispatcher, artifactStorage),
         resolveTenantContext,
         authorizeTenantAction,
       ),
