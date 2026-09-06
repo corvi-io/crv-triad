@@ -29,8 +29,15 @@ closed a documentation-distribution gap without changing the approved contract o
 - API coverage: 88.61% statements, 80.61% branches, 88.83% functions, 90.51% lines.
 - Focused PostgreSQL: migration from scratch and 4 tests passed, including the open-day timezone-change
   guard, exact posting, isolation, reversal and concurrency assertions.
-- Studio focused checkout/cash/HTTP adapter: 3 files, 7 tests passed.
+- Studio focused checkout/cash/HTTP adapter: defensive command, failure, draft and actor-authority
+  branches pass; the complete Studio suite contains 749 tests.
+- Studio coverage: 84.51% statements, 80.29% branches, 83.27% functions and 86.17% lines.
 - Studio production boundary: production build passed and 116 files were verified without a memory fallback.
+- Studio production-preview E2E: 11/11 passed, including the fail-closed cash route.
+- Cash-day summaries use full-set PostgreSQL aggregates while movements, receipts and closing revisions
+  are deterministically capped at 50 rows per response.
+- Cash date-sensitive component tests fix only `Date` at the contractual instant
+  `2026-09-05T14:30:00.000Z`; 7/7 passed under both `TZ=UTC` and `TZ=America/Recife`.
 
 ## Browser acceptance
 
@@ -55,4 +62,13 @@ Observed real-browser journey:
 
 Issues found and corrected during QA: inherited opaque unit IDs were incorrectly constrained as UUIDs; an
 absent cash day produced an empty HTTP body instead of explicit JSON; and checkout mutations invalidated a
-cache key based on checkout ID while the route was keyed by visit ID.
+cache key based on checkout ID while the route was keyed by visit ID. Production cash fail-closed copy was
+also restored after the HTTP source replaced the prototype-disabled adapter.
+
+## Residual manual limits
+
+- The accepted real-browser path covered desktop and 320 CSS pixels, persisted production policy,
+  registration/reversal/closing, server actor attribution, and lifecycle non-mutation. Existing prototype
+  evidence supplies light/dark/forced-color baselines; a new physical coarse-pointer and independent
+  screen-reader session were not repeated for this increment.
+- The internal ledger does not perform external collection or refunds. Those remain explicitly deferred.

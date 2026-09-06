@@ -5,6 +5,7 @@ import { RevenueOperationsMemoryRepository } from "@/dev/revenue-operations/memo
 import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
 import { ServiceDeskMemoryRepository } from "@/dev/service-desk/memory-repository"
 import { CheckoutPage } from "@/modules/revenue-operations/checkout-page"
+import { RevenueOperationsError } from "@/modules/revenue-operations/contracts"
 import { RevenueOperationsRepositoryProvider } from "@/modules/revenue-operations/repository-context"
 
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }))
@@ -62,6 +63,50 @@ describe("checkout page", () => {
     release()
     await waitFor(() => expect(toast.success).toHaveBeenCalled())
   })
+
+  it("renders unavailable and retryable read failures without a synthetic checkout", async () => {
+    const unavailable = createRepository()
+    vi.spyOn(unavailable, "getCheckout").mockRejectedValue(
+      new RevenueOperationsError("Ausente", "not-ready"),
+    )
+    const onBack = vi.fn()
+    renderCheckout(unavailable, "missing", onBack)
+    expect(await screen.findByText("Pagamento indisponível")).toBeVisible()
+    fireEvent.click(screen.getByRole("button", { name: "Voltar para o atendimento" }))
+    expect(onBack).toHaveBeenCalledOnce()
+
+    const retryable = createRepository()
+    const checkout = await retryable.getCheckout("session-walk-in-checkout-pix")
+    vi.spyOn(retryable, "getCheckout")
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue(checkout)
+    renderCheckout(retryable, "retryable")
+    expect(await screen.findByText("Não foi possível carregar o pagamento")).toBeVisible()
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }))
+    expect(await screen.findByRole("heading", { name: "Serviços realizados" })).toBeVisible()
+  })
+
+  it("renders received cash and replaces the tender draft", async () => {
+    const repository = createRepository()
+    const replace = vi.spyOn(repository, "replaceTenders")
+    renderCheckout(repository, "session-walk-in-checkout-cash")
+    await screen.findByRole("heading", { name: "Serviços realizados" })
+    expect(screen.getByText(/Recebido R\$ 45,00/)).toBeVisible()
+    fireEvent.click(screen.getByRole("button", { name: "Limpar pagamentos" }))
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith(expect.objectContaining({ tenders: [] })),
+    )
+
+    fireEvent.change(screen.getByLabelText("Valor aplicado (R$)"), { target: { value: "35" } })
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar pagamento" }))
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenders: [expect.objectContaining({ appliedCents: 3_500, method: "pix" })],
+        }),
+      ),
+    )
+  })
 })
 
 function createRepository() {
@@ -74,14 +119,18 @@ function createRepository() {
   })
 }
 
-function renderCheckout(repository: RevenueOperationsMemoryRepository, sessionId: string) {
+function renderCheckout(
+  repository: RevenueOperationsMemoryRepository,
+  sessionId: string,
+  onBack = vi.fn(),
+) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   })
   return render(
     <QueryClientProvider client={queryClient}>
       <RevenueOperationsRepositoryProvider repository={repository}>
-        <CheckoutPage onBack={vi.fn()} sessionId={sessionId} />
+        <CheckoutPage onBack={onBack} sessionId={sessionId} />
       </RevenueOperationsRepositoryProvider>
     </QueryClientProvider>,
   )

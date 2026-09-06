@@ -108,7 +108,7 @@ export function CashPage({ closingId, onOpenClosing, query }: CashPageProps) {
   if (summaryQuery.isError || historyQuery.isError) {
     return (
       <Alert>
-        <AlertTitle>Não foi possível carregar o caixa</AlertTitle>
+        <AlertTitle>Caixa indisponível</AlertTitle>
         <AlertDescription>
           Revise a unidade e a data ou tente novamente. Nenhum fechamento foi alterado.
         </AlertDescription>

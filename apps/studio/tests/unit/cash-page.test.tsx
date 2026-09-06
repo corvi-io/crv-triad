@@ -1,12 +1,20 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { RevenueOperationsMemoryRepository } from "@/dev/revenue-operations/memory-repository"
 import { SchedulingMemoryRepository } from "@/dev/scheduling/memory-repository"
 import { ServiceDeskMemoryRepository } from "@/dev/service-desk/memory-repository"
 import { AuthStateProvider } from "@/modules/auth/services/auth-provider"
 import { CashPage } from "@/modules/revenue-operations/cash-page"
+import type { OpenDaySummary } from "@/modules/revenue-operations/contracts"
 import { RevenueOperationsRepositoryProvider } from "@/modules/revenue-operations/repository-context"
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] })
+  vi.setSystemTime(new Date("2026-09-05T14:30:00.000Z"))
+})
+
+afterEach(() => vi.useRealTimers())
 
 describe("cash page", () => {
   it("renders exact source-derived totals and focuses an associated mismatch reason error", async () => {
@@ -38,6 +46,94 @@ describe("cash page", () => {
 
     await waitFor(() => expect(screen.getByLabelText("Dinheiro contado")).toHaveValue("R$ 0,00"))
   })
+
+  it("opens an absent current cash day from an explicit counted value", async () => {
+    const repository = createMemoryRepository("2026-09-05")
+    vi.spyOn(repository, "getOpenDaySummary").mockResolvedValue(emptySummary())
+    vi.spyOn(repository, "listDailyClosings").mockResolvedValue([])
+    const openCashDay = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("unknown outcome"))
+      .mockResolvedValue({ ...emptySummary(), id: "cash-day-a", version: 1 })
+    Object.assign(repository, { openCashDay })
+    renderCashRepository(repository, "2026-09-05")
+
+    expect(await screen.findByText("Abrir caixa operacional")).toBeVisible()
+    const input = screen.getByLabelText("Dinheiro inicial")
+    expect(screen.getByRole("button", { name: "Abrir caixa" })).toBeDisabled()
+    fireEvent.change(input, { target: { value: "1000" } })
+    fireEvent.click(screen.getByRole("button", { name: "Abrir caixa" }))
+    expect(await screen.findByText("Caixa não aberto")).toBeVisible()
+    fireEvent.click(screen.getByRole("button", { name: "Abrir caixa" }))
+    await waitFor(() => expect(openCashDay).toHaveBeenCalledTimes(2))
+    expect(openCashDay).toHaveBeenLastCalledWith("centro", 1_000, expect.any(String))
+  })
+
+  it("keeps cash movement drafts until a valid reason and amount are submitted", async () => {
+    const repository = createMemoryRepository("2026-09-05")
+    const current = { ...emptySummary(), id: "cash-day-a", version: 2, openingCashCents: 5_000 }
+    vi.spyOn(repository, "getOpenDaySummary").mockResolvedValue(current)
+    vi.spyOn(repository, "listDailyClosings").mockResolvedValue([])
+    const addCashMovement = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("unknown outcome"))
+      .mockResolvedValue(current)
+    Object.assign(repository, { addCashMovement, reopenDay: vi.fn() })
+    renderCashRepository(repository, "2026-09-05")
+
+    expect(await screen.findByText("Movimento de dinheiro")).toBeVisible()
+    fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: "withdrawal" } })
+    fireEvent.change(screen.getByLabelText("Valor"), { target: { value: "250" } })
+    fireEvent.change(screen.getByLabelText("Motivo"), { target: { value: "x" } })
+    expect(screen.getByText("Use pelo menos 3 caracteres.")).toBeVisible()
+    fireEvent.change(screen.getByLabelText("Motivo"), { target: { value: "Retirada operacional" } })
+    fireEvent.click(screen.getByRole("button", { name: "Registrar retirada" }))
+    expect(await screen.findByText("Movimento não registrado")).toBeVisible()
+    fireEvent.click(screen.getByRole("button", { name: "Registrar retirada" }))
+    await waitFor(() =>
+      expect(addCashMovement).toHaveBeenCalledWith(
+        expect.objectContaining({ amountCents: 250, cashDayId: "cash-day-a", kind: "withdrawal" }),
+      ),
+    )
+  })
+
+  it("reopens a closed current day with a server-attributed immutable revision", async () => {
+    const repository = createMemoryRepository("2026-09-05")
+    const closed = {
+      ...emptySummary(),
+      id: "closing-a",
+      version: 4,
+      status: "closed" as const,
+      countedCashCents: 0,
+      differenceCents: 0,
+      closedAt: "2026-09-05T20:00:00.000Z",
+      responsiblePersonName: "Pessoa Servidora",
+    }
+    vi.spyOn(repository, "getOpenDaySummary").mockResolvedValue(closed)
+    vi.spyOn(repository, "listDailyClosings").mockResolvedValue([closed])
+    const reopenDay = vi.fn().mockResolvedValue({ ...emptySummary(), id: "cash-day-a", version: 5 })
+    Object.assign(repository, { reopenDay })
+    renderCashRepository(repository, "2026-09-05")
+
+    expect(await screen.findByText("Reabrir caixa de hoje")).toBeVisible()
+    const button = screen.getByRole("button", { name: "Reabrir caixa" })
+    expect(button).toBeDisabled()
+    fireEvent.change(screen.getByLabelText("Motivo da reabertura"), {
+      target: { value: "Nova conferência" },
+    })
+    fireEvent.click(button)
+    await waitFor(() =>
+      expect(reopenDay).toHaveBeenCalledWith("closing-a", expect.any(String), "Nova conferência"),
+    )
+  })
+
+  it("fails closed when the production cash source cannot be read", async () => {
+    const repository = createMemoryRepository("2026-09-05")
+    vi.spyOn(repository, "getOpenDaySummary").mockRejectedValue(new Error("offline"))
+    vi.spyOn(repository, "listDailyClosings").mockResolvedValue([])
+    renderCashRepository(repository, "2026-09-05")
+    expect(await screen.findByText("Caixa indisponível")).toBeVisible()
+  })
 })
 
 function renderCash(scenarioId: string) {
@@ -47,6 +143,41 @@ function renderCash(scenarioId: string) {
   const repository = new RevenueOperationsMemoryRepository(serviceDesk, scheduling, {
     now: () => now,
   })
+  return renderCashRepository(repository, "2026-07-24", scenarioId)
+}
+
+function createMemoryRepository(date: string) {
+  const now = new Date(`${date}T11:30:00-03:00`)
+  const scheduling = new SchedulingMemoryRepository(date)
+  const serviceDesk = new ServiceDeskMemoryRepository(scheduling, { now: () => now })
+  return new RevenueOperationsMemoryRepository(serviceDesk, scheduling, { now: () => now })
+}
+
+function emptySummary(): OpenDaySummary {
+  return {
+    barbershopCents: 0,
+    cancellationCount: 0,
+    commissionCents: 0,
+    date: "2026-09-05",
+    discountCents: 0,
+    expectedCashCents: 0,
+    noShowCount: 0,
+    paidSaleCount: 0,
+    paymentMethods: [],
+    professionals: [],
+    receivedCents: 0,
+    status: "open",
+    surchargeCents: 0,
+    unitId: "centro",
+    unitName: "Centro",
+  }
+}
+
+function renderCashRepository(
+  repository: RevenueOperationsMemoryRepository,
+  date: string,
+  scenarioId = "cash-empty",
+) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   })
@@ -63,7 +194,7 @@ function renderCash(scenarioId: string) {
         <RevenueOperationsRepositoryProvider repository={repository}>
           <CashPage
             closingId={null}
-            query={{ date: "2026-07-24", scenarioId: scenario, unitId: "centro" }}
+            query={{ date, scenarioId: scenario, unitId: "centro" }}
             onOpenClosing={vi.fn()}
           />
         </RevenueOperationsRepositoryProvider>
