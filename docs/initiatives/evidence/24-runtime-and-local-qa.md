@@ -34,10 +34,15 @@ closed a documentation-distribution gap without changing the approved contract o
 - Studio coverage: 84.51% statements, 80.29% branches, 83.27% functions and 86.17% lines.
 - Studio production boundary: production build passed and 116 files were verified without a memory fallback.
 - Studio production-preview E2E: 11/11 passed, including the fail-closed cash route.
+- Studio focal Service Desk, checkout, and cash E2E: 26/26 passed with one worker on a
+  parameterized isolated origin; authentication/context helpers derive CORS from `STUDIO_E2E_PORT`.
 - Cash-day summaries use full-set PostgreSQL aggregates while movements, receipts and closing revisions
   are deterministically capped at 50 rows per response.
 - Cash date-sensitive component tests fix only `Date` at the contractual instant
   `2026-09-05T14:30:00.000Z`; 7/7 passed under both `TZ=UTC` and `TZ=America/Recife`.
+- Reviewed query plans use backward tenant/unit/date index scans for 31-day cash history, a backward
+  index-only tenant/day scan for the 50-receipt detail, and the tenant/day receipt index for full-set
+  aggregates.
 
 ## Browser acceptance
 

@@ -98,6 +98,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
         now: now.toISOString(),
         professionals: schedule.professionals,
         services: schedule.services,
+        unitTimezone: schedule.timezone ?? null,
         unavailableProfessionalIds:
           query.scenarioId === "unavailable-professional" ? ["professional-carlos"] : [],
         unitName: schedule.unitName,

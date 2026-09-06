@@ -10,7 +10,20 @@ import { isMemorySourceEnabled, serviceDeskSourceKind } from "./vite-source-boun
 
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
-  const publicEnv = loadEnv(mode, process.cwd(), "VITE_")
+  const fileEnv = loadEnv(mode, process.cwd(), "VITE_")
+  const publicEnv = {
+    ...fileEnv,
+    VITE_BARBERSHOP_SETUP_SOURCE:
+      process.env.VITE_BARBERSHOP_SETUP_SOURCE ?? fileEnv.VITE_BARBERSHOP_SETUP_SOURCE,
+    VITE_CLIENT_MANAGEMENT_SOURCE:
+      process.env.VITE_CLIENT_MANAGEMENT_SOURCE ?? fileEnv.VITE_CLIENT_MANAGEMENT_SOURCE,
+    VITE_DEPLOY_TARGET: process.env.VITE_DEPLOY_TARGET ?? fileEnv.VITE_DEPLOY_TARGET,
+    VITE_REVENUE_OPERATIONS_SOURCE:
+      process.env.VITE_REVENUE_OPERATIONS_SOURCE ?? fileEnv.VITE_REVENUE_OPERATIONS_SOURCE,
+    VITE_SCHEDULING_SOURCE: process.env.VITE_SCHEDULING_SOURCE ?? fileEnv.VITE_SCHEDULING_SOURCE,
+    VITE_SERVICE_DESK_SOURCE:
+      process.env.VITE_SERVICE_DESK_SOURCE ?? fileEnv.VITE_SERVICE_DESK_SOURCE,
+  }
   const developmentSandboxEntry =
     command === "serve"
       ? "./src/dev/sandbox/entry.ts"
