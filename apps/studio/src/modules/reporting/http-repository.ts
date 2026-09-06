@@ -90,6 +90,12 @@ export class ReportingHttpRepository implements ReportingRepository {
       { method: "POST" },
     )
   }
+  retryExportDelivery(id: string) {
+    return request<GeneratedReport | null>(
+      `/api/reports/generated/${encodeURIComponent(id)}/delivery/retry`,
+      { method: "POST" },
+    )
+  }
   async downloadExport(id: string) {
     return (
       await request<{ url: string }>(`/api/reports/generated/${encodeURIComponent(id)}/download`)

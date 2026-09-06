@@ -170,6 +170,7 @@ export type ReportingRepository = {
   listExports?(): Promise<readonly GeneratedReport[]>
   getReport(query: ReportingQuery): Promise<ReportingResult>
   retryExport?(id: string): Promise<GeneratedReport | null>
+  retryExportDelivery?(id: string): Promise<GeneratedReport | null>
   reset(): Promise<void>
   retry(): void
   today(): string

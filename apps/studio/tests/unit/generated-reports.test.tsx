@@ -85,6 +85,23 @@ describe("generated reports", () => {
     await waitFor(() => expect(retryExport).toHaveBeenCalledWith("failed"))
   })
 
+  it("retries only email delivery while keeping the ready artifact downloadable", async () => {
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden")
+    const retryExportDelivery = vi.fn(async () => ({
+      ...reports[2],
+      emailDeliveryStatus: "pending" as const,
+    }))
+    renderReports({
+      ...baseRepository,
+      listExports: async () => [reports[2]],
+      retryExportDelivery,
+      downloadExport: async () => "https://private.invalid/object",
+    })
+    expect(await screen.findByRole("button", { name: "Baixar" })).toBeEnabled()
+    fireEvent.click(screen.getByRole("button", { name: "Reenviar e-mail" }))
+    await waitFor(() => expect(retryExportDelivery).toHaveBeenCalledWith("ready"))
+  })
+
   it("shows an empty history and recovers a failed list query", async () => {
     let failing = true
     renderReports({
@@ -230,6 +247,7 @@ const reports: GeneratedReport[] = [
     createdAt: "2026-09-04T10:00:00Z",
     format: "pdf",
     status: "ready",
+    emailDeliveryStatus: "failed",
   },
   {
     id: "queued",

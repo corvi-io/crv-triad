@@ -255,6 +255,16 @@ export function GeneratedReports({ filters }: { filters: ReportFilters }) {
                       Tentar novamente
                     </Button>
                   ) : null}
+                  {report.status === "ready" && report.emailDeliveryStatus === "failed" ? (
+                    <Button
+                      variant="outline"
+                      isLoading={actions.retryDelivery.isPending}
+                      onClick={() => actions.retryDelivery.mutate(report.id)}
+                    >
+                      <MailCheckIcon data-icon="inline-start" />
+                      Reenviar e-mail
+                    </Button>
+                  ) : null}
                 </div>
               </article>
             ))}

@@ -55,6 +55,7 @@ describe("production reporting HTTP adapter", () => {
     })
     await expect(repository.listExports()).resolves.toEqual([report])
     await expect(repository.retryExport(report.id)).resolves.toEqual(report)
+    await expect(repository.retryExportDelivery(report.id)).resolves.toEqual(report)
     await expect(repository.downloadExport(report.id)).resolves.toBe(
       "https://private.invalid/object",
     )
@@ -65,6 +66,7 @@ describe("production reporting HTTP adapter", () => {
       idempotencyKey: "018e90d8-31f8-7a65-9d01-7dd1876d4400",
       reportType: "sales_revenue",
     })
+    expect(fetch.mock.calls.some(([url]) => String(url).endsWith("/delivery/retry"))).toBe(true)
   })
 
   it("loads the typed catalog and verified masked requester contract", async () => {
