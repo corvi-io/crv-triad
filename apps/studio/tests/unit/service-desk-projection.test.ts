@@ -57,6 +57,12 @@ describe("service desk pure rules", () => {
     expect(resolveStartProfessionalId(entry, { [entry.id]: "professional-substitute" })).toBe(
       "professional-substitute",
     )
+    expect(
+      resolveStartProfessionalId(
+        { ...entry, assignedProfessionalId: "professional-assigned", professionalId: undefined },
+        {},
+      ),
+    ).toBe("professional-assigned")
   })
 
   it("allows only the explicit waiting-to-called-to-service journey", () => {
