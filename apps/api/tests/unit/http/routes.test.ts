@@ -460,6 +460,43 @@ describe("custom routes", () => {
     await expect(request()).resolves.toMatchObject({ status: 429 })
   })
 
+  it("adds business context only after a valid invitation proof resolves", async () => {
+    const secret = createInvitationSecret()
+    const resolutionRow = {
+      id: "invitation-1",
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      role: "member",
+      status: "pending",
+      tokenIssuedAt: new Date("2026-07-01T00:00:00Z"),
+    }
+    const { db } = createInvitationRouteDatabase([[resolutionRow], []])
+    const contextProvider = vi.fn(async () => ({
+      organizationName: "Barbearia Aurora",
+      professionalRole: "Barbeiro sênior",
+      unitNames: ["Boa Viagem"],
+    }))
+    const app = new Elysia().use(
+      createInvitationRoutes({} as never, db as never, undefined, undefined, contextProvider),
+    )
+
+    const response = await app.handle(
+      new Request("http://idp.test/invitations/resolve", {
+        body: JSON.stringify({ token: secret.token }),
+        method: "POST",
+      }),
+    )
+
+    await expect(response.json()).resolves.toMatchObject({
+      context: {
+        organizationName: "Barbearia Aurora",
+        professionalRole: "Barbeiro sênior",
+        unitNames: ["Boa Viagem"],
+      },
+      state: "valid",
+    })
+    expect(contextProvider).toHaveBeenCalledWith("invitation-1")
+  })
+
   it("globally bounds resolve attempts that rotate through distinct well-formed proofs", async () => {
     const resolutionRow = {
       expiresAt: new Date("2099-01-01T00:00:00Z"),

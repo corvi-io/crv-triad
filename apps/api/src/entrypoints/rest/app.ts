@@ -25,6 +25,9 @@ import { requestContextMiddleware } from "../../modules/idp/http/middleware/requ
 import type { IdpAuth, InvitationAcceptedObserver } from "../../modules/idp/identity/auth.js"
 import type { AuthEmailSender } from "../../modules/idp/identity/transactional-email.js"
 import { createLeadRoutes } from "../../modules/leads/http/routes.js"
+import { createActivationReadinessService } from "../../modules/onboarding/application/activation-readiness.js"
+import { createInvitationDisplayContextProvider } from "../../modules/onboarding/application/invitation-display-context.js"
+import { createOnboardingRoutes } from "../../modules/onboarding/http/routes.js"
 import {
   createFakeArtifactStorage,
   createFakeReportDispatcher,
@@ -86,6 +89,7 @@ export function createRestApp(input: CreateRestAppInput) {
   )
   const observeBusinessRequest = (event: object) =>
     console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
+  const invitationDisplayContext = createInvitationDisplayContextProvider(input.db)
   const reportingService = createReportingService(input.db)
   const observeReportLifecycle = (event: Record<string, unknown>) =>
     console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
@@ -130,7 +134,12 @@ export function createRestApp(input: CreateRestAppInput) {
 
   return new Elysia({ name: "crv-triad-api" })
     .use(requestContextMiddleware)
-    .use(createIdpRoutes(input))
+    .use(
+      createIdpRoutes({
+        ...input,
+        invitationDisplayContext,
+      }),
+    )
     .use(
       createContextRoutes(
         createContextDiscovery(input.auth, input.db),
@@ -139,6 +148,13 @@ export function createRestApp(input: CreateRestAppInput) {
     )
     .use(createAccessRoutes(input.db, resolveTenantContext, authorizeTenantAction))
     .use(createOwnershipRoutes(input.db, resolveTenantContext))
+    .use(
+      createOnboardingRoutes(
+        createActivationReadinessService(input.db),
+        resolveTenantContext,
+        observeBusinessRequest,
+      ),
+    )
     .use(createBackstageRoutes(input.auth, input.db, input.authEmailSender))
     .use(
       createBusinessProfileRoutes(
@@ -162,6 +178,7 @@ export function createRestApp(input: CreateRestAppInput) {
         authorizeTenantAction,
         input.authEmailSender,
         createCatalogAuditWriter(input.db),
+        invitationDisplayContext,
       ),
     )
     .use(

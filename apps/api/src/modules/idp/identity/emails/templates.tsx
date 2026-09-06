@@ -1,5 +1,5 @@
 import { Text } from "@react-email/components"
-
+import type { InvitationDisplayContext } from "../invitation-display-context.js"
 import { AuthEmailLayout, authEmailTextStyle } from "./auth-email-layout.js"
 
 export const invitationEmailSubject = "Seu convite para o TRIAD Studio"
@@ -9,23 +9,40 @@ export const passwordResetEmailSubject = "Redefina sua senha do TRIAD"
 export type InvitationEmailTemplateProps = {
   actionUrl: string
   expiresAtLabel: string
+  context?: InvitationDisplayContext | null
 }
 
 export function InvitationEmailTemplate({
   actionUrl,
   expiresAtLabel,
+  context,
 }: InvitationEmailTemplateProps) {
   return (
     <AuthEmailLayout
       actionLabel="Aceitar convite"
       actionUrl={actionUrl}
-      preview="Aceite o convite e comece a organizar a rotina da barbearia no TRIAD Studio."
-      title="A rotina da barbearia começa por aqui."
+      preview={
+        context
+          ? `Aceite o convite para ${context.organizationName} no TRIAD Studio.`
+          : "Aceite o convite e comece a organizar a rotina da barbearia no TRIAD Studio."
+      }
+      title={
+        context
+          ? `Você foi convidado para ${context.organizationName}.`
+          : "A rotina da barbearia começa por aqui."
+      }
     >
       <Text style={authEmailTextStyle}>
-        Você recebeu um convite para acessar o TRIAD Studio, onde a equipe acompanha agenda,
-        atendimento e resultados em um só lugar.
+        {context
+          ? `Confirme o acesso à barbearia ${context.organizationName}${context.professionalRole ? ` como ${context.professionalRole}` : ""}.`
+          : "Você recebeu um convite para acessar o TRIAD Studio, onde a equipe acompanha agenda, atendimento e resultados em um só lugar."}
       </Text>
+      {context?.unitNames?.length ? (
+        <Text style={authEmailTextStyle}>Unidades: {context.unitNames.join(", ")}.</Text>
+      ) : null}
+      {context?.inviterName ? (
+        <Text style={authEmailTextStyle}>Convite enviado por {context.inviterName}.</Text>
+      ) : null}
       <Text style={authEmailTextStyle}>
         Aceite o convite até <strong>{expiresAtLabel}</strong> para criar sua senha e entrar.
       </Text>

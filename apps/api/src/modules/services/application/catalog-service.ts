@@ -845,6 +845,7 @@ export function createCatalogService(db: IdpDatabase) {
     return {
       email: issued.invitation.email,
       expiresAt: issued.invitation.expiresAt,
+      identityInvitationId: issued.invitation.id,
       token: issued.token,
     }
   }

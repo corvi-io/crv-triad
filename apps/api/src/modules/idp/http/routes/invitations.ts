@@ -7,6 +7,7 @@ import { invitation, user } from "../../database/schema.js"
 import type { IdpRole, InvitationStatus } from "../../identity/access-policy.js"
 import { normalizeEmail } from "../../identity/access-policy.js"
 import type { IdpAuth, InvitationAcceptedObserver } from "../../identity/auth.js"
+import type { InvitationDisplayContextProvider } from "../../identity/invitation-display-context.js"
 import {
   acceptInvitationForUser,
   createInvitation,
@@ -46,6 +47,7 @@ export function createInvitationRoutes(
   db: IdpDatabase,
   authEmailSender?: Pick<AuthEmailSender, "sendInvitation">,
   onInvitationAccepted?: InvitationAcceptedObserver,
+  invitationDisplayContext?: InvitationDisplayContextProvider,
 ) {
   const resolveGlobalLimiter = createBoundedRateLimiter(
     RESOLVE_GLOBAL_RATE_LIMIT,
@@ -115,6 +117,7 @@ export function createInvitationRoutes(
               .limit(1)
           )[0],
         ),
+        context: await invitationDisplayContext?.(resolution.invitation.id).catch(() => null),
       }
     })
     .get("/invitations", async ({ request, status }) => {
@@ -202,6 +205,7 @@ export function createInvitationRoutes(
           expiresAt: issued.invitation.expiresAt,
           role: issued.invitation.role,
           token: issued.token,
+          displayContext: await invitationDisplayContext?.(issued.invitation.id),
         })) ?? "skipped"
 
       return status(201, {
@@ -237,6 +241,7 @@ export function createInvitationRoutes(
           expiresAt: issued.invitation.expiresAt,
           role: issued.invitation.role,
           token: issued.token,
+          displayContext: await invitationDisplayContext?.(issued.invitation.id),
         })) ?? "skipped"
 
       return {

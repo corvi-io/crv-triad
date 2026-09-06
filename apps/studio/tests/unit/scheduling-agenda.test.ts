@@ -9,6 +9,10 @@ import {
   validateScheduleSearch,
 } from "@/modules/scheduling/agenda"
 import { resolveAgendaCurrentTimeMarker } from "@/modules/scheduling/agenda-current-time"
+import {
+  clampAgendaScrollTop,
+  resolveAgendaInitialScrollTop,
+} from "@/modules/scheduling/agenda-initial-position"
 
 const professionals = [
   { id: "professional-carlos", name: "Carlos Lima" },
@@ -180,5 +184,30 @@ describe("Agenda current-time marker", () => {
         now: new Date(2026, 6, 22, 8, 0),
       }),
     ).toBeUndefined()
+  })
+})
+
+describe("Agenda initial positioning", () => {
+  it("centers the marker below the sticky header and clamps both boundaries", () => {
+    expect(
+      resolveAgendaInitialScrollTop({
+        clientHeight: 400,
+        markerTop: 900,
+        scrollHeight: 1_400,
+        stickyHeaderHeight: 40,
+      }),
+    ).toBe(680)
+    expect(clampAgendaScrollTop(-10, 1_400, 400)).toBe(0)
+    expect(clampAgendaScrollTop(2_000, 1_400, 400)).toBe(1_000)
+  })
+
+  it("uses the opening boundary when today's marker is outside the range", () => {
+    expect(
+      resolveAgendaInitialScrollTop({
+        clientHeight: 400,
+        scrollHeight: 1_400,
+        stickyHeaderHeight: 40,
+      }),
+    ).toBe(0)
   })
 })
