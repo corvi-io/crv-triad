@@ -3,18 +3,26 @@ import { betterAuth } from "better-auth"
 import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/node-postgres"
 import { migrate } from "drizzle-orm/node-postgres/migrator"
+import { Elysia } from "elysia"
 import { Pool } from "pg"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
   account,
   invitation,
+  member,
+  organization,
+  organizationInvitation,
   session,
   user,
   verification,
 } from "../../src/modules/idp/database/schema.js"
+import { createInvitationRoutes } from "../../src/modules/idp/http/routes/invitations.js"
 import { createAuthOptions } from "../../src/modules/idp/identity/auth.js"
-import { createInvitationSecret } from "../../src/modules/idp/identity/invitations.js"
+import {
+  acceptInvitationForUser,
+  createInvitationSecret,
+} from "../../src/modules/idp/identity/invitations.js"
 import { createId } from "../../src/modules/idp/infra/ids.js"
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL
@@ -43,7 +51,18 @@ if (
 }
 
 const pool = new Pool({ connectionString: testDatabaseUrl, max: 8 })
-const db = drizzle(pool, { schema: { account, invitation, session, user, verification } })
+const db = drizzle(pool, {
+  schema: {
+    account,
+    invitation,
+    member,
+    organization,
+    organizationInvitation,
+    session,
+    user,
+    verification,
+  },
+})
 const baseUrl = "http://127.0.0.1:8000"
 const trustedOrigin = "http://localhost:3000"
 const env = {
@@ -113,6 +132,9 @@ beforeAll(async () => {
 beforeEach(async () => {
   await db.delete(session)
   await db.delete(account)
+  await db.delete(member)
+  await db.delete(organizationInvitation)
+  await db.delete(organization)
   await db.delete(invitation)
   await db.delete(verification)
   await db.delete(user)
@@ -123,6 +145,270 @@ afterAll(async () => {
 })
 
 describe("invitation transaction on PostgreSQL", () => {
+  async function seedOrganizationInvitation(email: string, role: "admin" | "member" | "owner") {
+    const now = new Date()
+    const inviterId = createId()
+    const invitedUserId = createId()
+    const organizationId = createId()
+    await db.insert(user).values([
+      {
+        email: "inviter@example.invalid",
+        emailVerified: true,
+        id: inviterId,
+        name: "Inviter",
+        role: "admin",
+        status: "active",
+      },
+      {
+        email,
+        emailVerified: true,
+        id: invitedUserId,
+        name: "Invited user",
+        role: "member",
+        status: "active",
+      },
+    ])
+    await db.insert(organization).values({
+      id: organizationId,
+      name: "Invited organization",
+      slug: `invited-${organizationId}`,
+    })
+    const seeded = await seedInvitation(email)
+    await db
+      .update(invitation)
+      .set({ invitedByUserId: inviterId })
+      .where(eq(invitation.id, seeded.created.id))
+    await db.insert(organizationInvitation).values({
+      email,
+      expiresAt: new Date(now.getTime() + 60_000),
+      id: createId(),
+      inviterId,
+      organizationId,
+      role,
+      status: "pending",
+    })
+    return { ...seeded, invitedUserId, inviterId, organizationId }
+  }
+
+  it("completes both invitation levels for an existing account and replays safely", async () => {
+    const email = "existing-google-invite@example.invalid"
+    const seeded = await seedOrganizationInvitation(email, "owner")
+
+    const first = await acceptInvitationForUser(
+      db as never,
+      email,
+      seeded.invitedUserId,
+      seeded.created.id,
+    )
+    const replay = await acceptInvitationForUser(
+      db as never,
+      email,
+      seeded.invitedUserId,
+      seeded.created.id,
+    )
+
+    expect(first?.id).toBe(seeded.created.id)
+    expect(replay?.id).toBe(seeded.created.id)
+    expect(await db.select().from(member)).toEqual([
+      expect.objectContaining({
+        organizationId: seeded.organizationId,
+        role: "owner",
+        status: "active",
+        userId: seeded.invitedUserId,
+      }),
+    ])
+    expect(await db.select().from(organizationInvitation)).toEqual([
+      expect.objectContaining({ status: "accepted" }),
+    ])
+    expect(await db.select().from(invitation)).toEqual([
+      expect.objectContaining({
+        acceptedByUserId: seeded.invitedUserId,
+        status: "accepted",
+      }),
+    ])
+  })
+
+  it("reactivates an existing membership without downgrading its role", async () => {
+    const email = "existing-owner@example.invalid"
+    const seeded = await seedOrganizationInvitation(email, "member")
+    await db.insert(member).values({
+      id: createId(),
+      organizationId: seeded.organizationId,
+      role: "owner",
+      status: "disabled",
+      userId: seeded.invitedUserId,
+    })
+
+    await acceptInvitationForUser(db as never, email, seeded.invitedUserId, seeded.created.id)
+
+    expect(await db.select().from(member)).toEqual([
+      expect.objectContaining({ role: "owner", status: "active" }),
+    ])
+  })
+
+  it("does not restore a revoked global admin role during invitation replay", async () => {
+    const email = "revoked-admin@example.invalid"
+    const seeded = await seedOrganizationInvitation(email, "member")
+    await db.update(invitation).set({ role: "admin" }).where(eq(invitation.id, seeded.created.id))
+
+    await acceptInvitationForUser(db as never, email, seeded.invitedUserId, seeded.created.id)
+    await db.update(user).set({ role: "member" }).where(eq(user.id, seeded.invitedUserId))
+    const replay = await acceptInvitationForUser(
+      db as never,
+      email,
+      seeded.invitedUserId,
+      seeded.created.id,
+    )
+
+    expect(replay?.id).toBe(seeded.created.id)
+    expect(
+      await db.select({ role: user.role }).from(user).where(eq(user.id, seeded.invitedUserId)),
+    ).toEqual([{ role: "member" }])
+  })
+
+  it("does not consume organization invitations created after the global invitation was accepted", async () => {
+    const email = "later-organization-invite@example.invalid"
+    const seeded = await seedOrganizationInvitation(email, "member")
+    await acceptInvitationForUser(db as never, email, seeded.invitedUserId, seeded.created.id)
+    const laterInvitationId = createId()
+    await db.insert(organizationInvitation).values({
+      email,
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      id: laterInvitationId,
+      inviterId: seeded.inviterId,
+      organizationId: seeded.organizationId,
+      role: "admin",
+      status: "pending",
+    })
+
+    await acceptInvitationForUser(db as never, email, seeded.invitedUserId, seeded.created.id)
+
+    expect(
+      await db
+        .select({ status: organizationInvitation.status })
+        .from(organizationInvitation)
+        .where(eq(organizationInvitation.id, laterInvitationId)),
+    ).toEqual([{ status: "pending" }])
+  })
+
+  it("rejects an email mismatch without consuming either invitation", async () => {
+    const seeded = await seedOrganizationInvitation("recipient@example.invalid", "owner")
+
+    await expect(
+      acceptInvitationForUser(
+        db as never,
+        "different@example.invalid",
+        seeded.invitedUserId,
+        seeded.created.id,
+      ),
+    ).resolves.toBeNull()
+
+    expect(await db.select().from(invitation)).toEqual([
+      expect.objectContaining({ acceptedByUserId: null, status: "pending" }),
+    ])
+    expect(await db.select().from(organizationInvitation)).toEqual([
+      expect.objectContaining({ status: "pending" }),
+    ])
+    expect(await db.select().from(member)).toHaveLength(0)
+  })
+
+  it("rolls back both invitation levels after an intermediate membership failure and recovers", async () => {
+    const email = "recoverable-google-invite@example.invalid"
+    const seeded = await seedOrganizationInvitation(email, "owner")
+    await db.insert(member).values({
+      id: createId(),
+      organizationId: seeded.organizationId,
+      role: "owner",
+      status: "active",
+      userId: seeded.inviterId,
+    })
+
+    await expect(
+      acceptInvitationForUser(db as never, email, seeded.invitedUserId, seeded.created.id),
+    ).rejects.toMatchObject({ cause: { code: "23505" } })
+    expect(await db.select().from(invitation)).toEqual([
+      expect.objectContaining({ acceptedByUserId: null, status: "pending" }),
+    ])
+    expect(await db.select().from(organizationInvitation)).toEqual([
+      expect.objectContaining({ status: "pending" }),
+    ])
+
+    await db.update(member).set({ status: "disabled" }).where(eq(member.userId, seeded.inviterId))
+    await expect(
+      acceptInvitationForUser(db as never, email, seeded.invitedUserId, seeded.created.id),
+    ).resolves.toMatchObject({ status: "accepted" })
+    expect(await db.select().from(member).where(eq(member.userId, seeded.invitedUserId))).toEqual([
+      expect.objectContaining({ role: "owner", status: "active" }),
+    ])
+  })
+
+  it("recovers an accepted invitation replay after a downstream observer failure", async () => {
+    const email = "observer-recovery@example.invalid"
+    const seeded = await seedOrganizationInvitation(email, "member")
+    const auth = {
+      api: {
+        getSession: async () => ({ user: { email, id: seeded.invitedUserId } }),
+      },
+    }
+    const failingApp = new Elysia().use(
+      createInvitationRoutes(auth as never, db as never, undefined, async () => {
+        throw new Error("Injected observer failure")
+      }),
+    )
+    const request = () =>
+      new Request("http://idp.test/invitations/accept-existing", {
+        body: JSON.stringify({ token: seeded.proof }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      })
+
+    const firstResponse = await failingApp.handle(request())
+    expect(firstResponse.status).toBe(503)
+    await expect(firstResponse.json()).resolves.toEqual({
+      code: "INVITATION_COMPLETION_FAILED",
+    })
+
+    const observer = vi.fn(async () => undefined)
+    const recoveryApp = new Elysia().use(
+      createInvitationRoutes(auth as never, db as never, undefined, observer),
+    )
+    const replayResponse = await recoveryApp.handle(request())
+
+    expect(replayResponse.status).toBe(200)
+    expect(observer).toHaveBeenCalledWith(seeded.created.id, seeded.invitedUserId)
+    expect(await db.select().from(member)).toHaveLength(1)
+  })
+
+  it("returns a safe account mismatch without consuming a valid proof", async () => {
+    const seeded = await seedOrganizationInvitation("proof-owner@example.invalid", "member")
+    const app = new Elysia().use(
+      createInvitationRoutes(
+        {
+          api: {
+            getSession: async () => ({
+              user: { email: "other-account@example.invalid", id: seeded.invitedUserId },
+            }),
+          },
+        } as never,
+        db as never,
+      ),
+    )
+
+    const response = await app.handle(
+      new Request("http://idp.test/invitations/accept-existing", {
+        body: JSON.stringify({ token: seeded.proof }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ code: "INVITATION_ACCOUNT_MISMATCH" })
+    expect(await db.select().from(invitation)).toEqual([
+      expect.objectContaining({ acceptedByUserId: null, status: "pending" }),
+    ])
+  })
+
   it("allows exactly one simultaneous native acceptance", async () => {
     const email = "concurrent-proof@example.invalid"
     const seeded = await seedInvitation(email)

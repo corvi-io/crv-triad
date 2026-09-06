@@ -128,6 +128,31 @@ describe("invitation acceptance", () => {
     expect(screen.queryByLabelText("Seu nome")).not.toBeInTheDocument()
   })
 
+  it.each([
+    [
+      "account_mismatch",
+      "Este convite pertence a outra conta. Saia e entre com o e-mail que recebeu o convite.",
+    ],
+    [
+      "invitation_changed",
+      "Este convite foi alterado ou já foi utilizado. Valide o link novamente.",
+    ],
+    [
+      "completion_failed",
+      "O acesso foi iniciado, mas o vínculo não foi concluído. Tente novamente.",
+    ],
+  ] as const)("shows the safe %s acceptance failure", async (error, copy) => {
+    resolveInvitation.mockResolvedValueOnce({ state: "valid", role: "member", hasAccount: true })
+    acceptExistingInvitation.mockResolvedValueOnce({ error })
+    const user = userEvent.setup()
+    renderAcceptance()
+
+    await user.click(await screen.findByRole("button", { name: "Entrar e aceitar convite" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(copy)
+    expect(document.body).not.toHaveTextContent("synthetic-invitation-proof")
+  })
+
   it("recovers from a validation network failure without exposing the proof", async () => {
     resolveInvitation
       .mockRejectedValueOnce(new Error("offline"))
