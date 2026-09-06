@@ -26,6 +26,36 @@ const summary = {
 afterEach(() => vi.unstubAllGlobals())
 
 describe("production revenue operations HTTP adapter", () => {
+  it("does not retain units or adjustment capabilities across active-tenant changes", async () => {
+    let tenant: "a" | "b" = "a"
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (rawUrl: string | URL | Request) => {
+        const path = new URL(String(rawUrl), "http://studio.local").pathname
+        if (path === "/api/scheduling/units")
+          return json([
+            {
+              id: `unit-${tenant}`,
+              name: `Unidade ${tenant.toUpperCase()}`,
+              timezone: "America/Recife",
+            },
+          ])
+        if (path === "/api/access/summary")
+          return json({
+            capabilities: [{ capability: "revenue.adjust", allowed: tenant === "a" }],
+          })
+        return json(checkoutFixture("checkout-tenant", "receipt-tenant"))
+      }),
+    )
+    const repository = new RevenueOperationsHttpRepository()
+
+    expect(await repository.units()).toEqual([expect.objectContaining({ id: "unit-a" })])
+    expect((await repository.getCheckout("visit-a")).adjustmentAuthorized).toBe(true)
+    tenant = "b"
+    expect(await repository.units()).toEqual([expect.objectContaining({ id: "unit-b" })])
+    expect((await repository.getCheckout("visit-b")).adjustmentAuthorized).toBe(false)
+  })
+
   it("never submits a caller-provided closing actor", async () => {
     const fetch = vi.fn(async (rawUrl: string | URL | Request, _options?: RequestInit) => {
       const url = String(rawUrl)
@@ -68,8 +98,10 @@ describe("production revenue operations HTTP adapter", () => {
     vi.stubGlobal("fetch", fetch)
 
     const result = await new RevenueOperationsHttpRepository().closeDay({
+      cashDayId: dayId,
       countedCashCents: 10_000,
       date: "2026-09-05",
+      expectedVersion: 3,
       operationId,
       unitId,
     })
@@ -78,6 +110,7 @@ describe("production revenue operations HTTP adapter", () => {
       String(url).endsWith(`/cash-days/${dayId}/close`),
     )
     expect(closingCall).toBeDefined()
+    expect(fetch.mock.calls.some(([url]) => String(url).includes("/cash-days?"))).toBe(false)
     const body = JSON.parse(String((closingCall?.[1] as RequestInit | undefined)?.body))
     expect(body).toEqual({
       expectedVersion: 3,
@@ -85,7 +118,41 @@ describe("production revenue operations HTTP adapter", () => {
       idempotencyKey: operationId,
     })
     expect(JSON.stringify(body)).not.toContain("responsiblePersonName")
+    expect(result.cashDayId).toBe(dayId)
     expect(result.responsiblePersonName).toBe("Nome derivado no servidor")
+  })
+
+  it("selects the newest close revision from the descending API history", async () => {
+    const day = {
+      ...cashDayFixture("closing-new"),
+      status: "closed" as const,
+      closings: [
+        cashDayFixture("closing-new").closings[0],
+        cashDayFixture("closing-new").closings[1],
+        {
+          ...cashDayFixture("closing-old").closings[0],
+          actorDisplayName: "Pessoa Antiga",
+          revision: 1,
+          snapshot: { ...summary, countedCashCents: 9_500, differenceCents: -500 },
+        },
+      ],
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (rawUrl: string | URL | Request) => {
+        const path = new URL(String(rawUrl), "http://studio.local").pathname
+        if (path === "/api/scheduling/units")
+          return json([{ id: unitId, name: "Centro", timezone: "America/Recife" }])
+        return json({ day })
+      }),
+    )
+
+    await expect(
+      new RevenueOperationsHttpRepository().getOpenDaySummary({
+        date: "2026-09-05",
+        unitId,
+      }),
+    ).resolves.toMatchObject({ id: "closing-new", responsiblePersonName: "Pessoa Servidora" })
   })
 
   it("maps the complete production command and bounded-history surface", async () => {
@@ -288,7 +355,14 @@ describe("production revenue operations HTTP adapter", () => {
       receivedCents: 0,
     })
     await expect(
-      empty.closeDay({ countedCashCents: 0, date: "2026-09-05", operationId, unitId }),
+      empty.closeDay({
+        cashDayId: "",
+        countedCashCents: 0,
+        date: "2026-09-05",
+        expectedVersion: 0,
+        operationId,
+        unitId,
+      }),
     ).rejects.toMatchObject({ code: "not-ready" })
     await expect(
       empty.addCashMovement({

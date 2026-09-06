@@ -389,7 +389,7 @@ function OpenDay({
         <>
           {summary.id ? <CashMovementForm query={query} summary={summary} /> : null}
           <CashClosingForm
-            key={`${query.scenarioId}:${query.unitId}:${query.date}:${summary.expectedCashCents}`}
+            key={`${query.scenarioId}:${query.unitId}:${query.date}`}
             query={query}
             summary={summary}
           />
@@ -517,11 +517,11 @@ function ReopenCashDay({
   const operationId = useRef("")
 
   async function reopen() {
-    if (!summary.id || reason.trim().length < 3) return
+    if (reason.trim().length < 3) return
     operationId.current ||= crypto.randomUUID()
     try {
       await mutation.mutateAsync({
-        cashDayId: summary.id,
+        cashDayId: summary.cashDayId,
         operationId: operationId.current,
         reason,
       })
@@ -580,6 +580,7 @@ function CashClosingForm({
 }) {
   const closeDay = useCloseDay(query)
   const [confirmationOpen, setConfirmationOpen] = useState(false)
+  const [reviewedVersion, setReviewedVersion] = useState(summary.version)
   const form = useForm<CashFormValues>({
     defaultValues: {
       countedCash:
@@ -596,6 +597,10 @@ function CashClosingForm({
   const differenceCents = countedCashCents - summary.expectedCashCents
   const reasonError = form.formState.errors.reason?.message
   const countedError = form.formState.errors.countedCash?.message
+  const serverChanged =
+    reviewedVersion !== undefined &&
+    summary.version !== undefined &&
+    reviewedVersion !== summary.version
 
   function reviewClose(values: CashFormValues) {
     if (differenceCents !== 0 && values.reason.trim().length < 3) {
@@ -616,8 +621,10 @@ function CashClosingForm({
     }
     try {
       await closeDay.mutateAsync({
+        cashDayId: summary.id ?? "",
         countedCashCents,
         date: query.date,
+        expectedVersion: summary.version ?? 0,
         operationId: crypto.randomUUID(),
         reason: values.reason,
         scenarioId: query.scenarioId,
@@ -646,6 +653,23 @@ function CashClosingForm({
       </CardHeader>
       <CardContent>
         <form noValidate className="space-y-5" onSubmit={form.handleSubmit(reviewClose)}>
+          {serverChanged ? (
+            <Alert role="alert">
+              <AlertTitle>O caixa foi atualizado</AlertTitle>
+              <AlertDescription>
+                Revise os valores mais recentes antes de confirmar. Sua contagem e seu motivo foram
+                preservados.
+              </AlertDescription>
+              <Button
+                className="mt-3"
+                type="button"
+                variant="outline"
+                onClick={() => setReviewedVersion(summary.version)}
+              >
+                Revisar valores atualizados
+              </Button>
+            </Alert>
+          ) : null}
           {form.formState.errors.root?.message ? (
             <Alert role="alert">
               <AlertTitle>Fechamento não realizado</AlertTitle>
@@ -706,7 +730,9 @@ function CashClosingForm({
             </p>
           </FormField>
           <div className="flex justify-end">
-            <Button type="submit">Fechar dia</Button>
+            <Button type="submit" disabled={serverChanged}>
+              Fechar dia
+            </Button>
           </div>
         </form>
       </CardContent>

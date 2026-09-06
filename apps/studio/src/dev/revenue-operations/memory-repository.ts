@@ -308,6 +308,7 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     this.#assertGeneration(generation)
     const snapshot = createClosingSnapshot({
       cashCount,
+      cashDayId: summary.id ?? `cash-day-${input.unitId}-${input.date}`,
       closedAt: this.#clock.now().toISOString(),
       id: `closing-${input.unitId}-${input.date}`,
       responsiblePersonName: "Operador da sessão local",
@@ -441,6 +442,7 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
     if (scenarioId === "cash-already-closed") {
       const snapshot = createClosingSnapshot({
         cashCount: projectCashCount(summary.expectedCashCents, summary.expectedCashCents),
+        cashDayId: summary.id ?? `cash-day-${query.unitId}-${query.date}`,
         closedAt: this.#clock.now().toISOString(),
         id: `closing-${query.unitId}-${query.date}`,
         responsiblePersonName: "Marina Souza",
@@ -470,6 +472,7 @@ export class RevenueOperationsMemoryRepository implements RevenueOperationsRepos
         key,
         createClosingSnapshot({
           cashCount,
+          cashDayId: historicalSummary.id ?? `cash-day-${query.unitId}-${date}`,
           closedAt: `${date}T21:00:00.000Z`,
           id: `closing-${query.unitId}-${date}`,
           responsiblePersonName: index % 2 === 0 ? "Marina Souza" : "Rafael Lima",

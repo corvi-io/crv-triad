@@ -245,6 +245,50 @@ describe.sequential("production revenue operations", () => {
     })
   })
 
+  it("derives the operational date from the timezone committed before the unit lock", async () => {
+    let releaseLock: () => void = () => void 0
+    let lockHeld: () => void = () => void 0
+    const release = new Promise<void>((resolve) => {
+      releaseLock = resolve
+    })
+    const acquired = new Promise<void>((resolve) => {
+      lockHeld = resolve
+    })
+    const timezoneUpdate = db.transaction(async (transaction) => {
+      await transaction.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`revenue:unit-timezone:${otherActor.organizationId}:revenue-unit-b`}, 24))`,
+      )
+      await transaction
+        .update(unit)
+        .set({ timezone: "Pacific/Kiritimati" })
+        .where(eq(unit.id, "revenue-unit-b"))
+      lockHeld()
+      await release
+    })
+    await acquired
+
+    const opening = service.openCashDay(otherActor, {
+      unitId: "revenue-unit-b",
+      openingCashCents: 0,
+      key: crypto.randomUUID(),
+    })
+    await expect
+      .poll(async () => {
+        const result = await pool.query<{ count: string }>(
+          "select count(*) from pg_stat_activity where datname = current_database() and wait_event = 'advisory'",
+        )
+        return Number(result.rows[0]?.count ?? 0)
+      })
+      .toBeGreaterThan(0)
+    releaseLock()
+    await timezoneUpdate
+
+    await expect(opening).resolves.toMatchObject({
+      localDate: "2026-09-06",
+      timezone: "Pacific/Kiritimati",
+    })
+  })
+
   it("posts exact receipt and cash ledger snapshots with reason-free idempotency", async () => {
     let checkout = await service.getCheckoutByVisit(actor, visitIds[0])
     if (!checkout) throw new Error("checkout fixture missing")
@@ -381,7 +425,30 @@ describe.sequential("production revenue operations", () => {
       .where(eq(revenueReceipt.status, "active"))
       .limit(1)
     if (!receipt) return
+    await db
+      .insert(revenueCashDay)
+      .values({
+        id: "revenue-prior-day-a",
+        organizationId: actor.organizationId,
+        unitId: "revenue-unit-a",
+        localDate: "2026-09-04",
+        timezone: "America/Recife",
+        openingCashCents: 0,
+        openedBy: actor.actorUserId,
+        openedByName: "Revenue Owner",
+      })
+      .onConflictDoNothing()
+    await db
+      .update(revenueReceipt)
+      .set({ cashDayId: "revenue-prior-day-a", localDate: "2026-09-04" })
+      .where(eq(revenueReceipt.id, receipt.id))
+    await db
+      .update(revenueCashMovement)
+      .set({ cashDayId: "revenue-prior-day-a" })
+      .where(eq(revenueCashMovement.receiptId, receipt.id))
     const receiptBeforeReversal = await service.loadReceipt(actor, receipt.id)
+    const priorBefore = await service.getCashDayById(actor, "revenue-prior-day-a")
+    const currentBefore = await service.getCashDayById(actor, day.id)
     const checkoutBeforeReversal = await service.getCheckout(
       actor,
       receiptBeforeReversal.checkoutId,
@@ -400,6 +467,24 @@ describe.sequential("production revenue operations", () => {
         totalCents: -receiptBeforeReversal.totalCents,
         lines: [expect.objectContaining({ netCents: -receiptBeforeReversal.lines[0].netCents })],
       },
+    })
+    const priorAfter = await service.getCashDayById(actor, "revenue-prior-day-a")
+    const currentAfter = await service.getCashDayById(actor, day.id)
+    expect(priorAfter.summary).toMatchObject({
+      grossReceiptCents: priorBefore.summary.grossReceiptCents,
+      netReceiptCents: priorBefore.summary.grossReceiptCents,
+      reversalCount: 0,
+      reversedReceiptCents: 0,
+    })
+    expect(currentAfter.summary.reversalCount).toBe(currentBefore.summary.reversalCount + 1)
+    expect(currentAfter.summary.reversedReceiptCents).toBe(
+      currentBefore.summary.reversedReceiptCents + receiptBeforeReversal.totalCents,
+    )
+    const reversedMethod = receiptBeforeReversal.tenders[0]?.method
+    expect(
+      currentAfter.summary.paymentMethods.find(({ method }) => method === reversedMethod),
+    ).toMatchObject({
+      reversedCents: receiptBeforeReversal.tenders[0]?.appliedCents,
     })
     await expect(service.getCheckout(otherActor, reversed.checkoutId)).rejects.toMatchObject({
       code: "not_found",

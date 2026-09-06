@@ -160,6 +160,7 @@ export type CashCount = {
 
 export type DailyClosingSnapshot = Omit<OpenDaySummary, "status"> &
   CashCount & {
+    cashDayId: string
     closedAt: string
     id: string
     responsiblePersonName: string
@@ -167,8 +168,10 @@ export type DailyClosingSnapshot = Omit<OpenDaySummary, "status"> &
   }
 
 export type CloseDayInput = {
+  cashDayId: string
   countedCashCents: MoneyCents
   date: string
+  expectedVersion: number
   operationId: string
   reason?: string
   scenarioId?: string

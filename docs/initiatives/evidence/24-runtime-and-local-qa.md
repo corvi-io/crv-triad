@@ -27,10 +27,10 @@ closed a documentation-distribution gap without changing the approved contract o
 
 - API check: 39 files, 360 tests passed.
 - API coverage: 88.61% statements, 80.61% branches, 88.83% functions, 90.51% lines.
-- Focused PostgreSQL: migration from scratch and 4 tests passed, including the open-day timezone-change
-  guard, exact posting, isolation, reversal and concurrency assertions.
+- Focused PostgreSQL: migration from scratch and 5 tests passed, including a concurrent locked timezone
+  change, historical reversal attribution, exact posting, isolation and closing concurrency assertions.
 - Studio focused checkout/cash/HTTP adapter: defensive command, failure, draft and actor-authority
-  branches pass; the complete Studio suite contains 749 tests.
+  branches pass; the complete Studio suite contains 754 tests.
 - Studio coverage: 84.51% statements, 80.29% branches, 83.27% functions and 86.17% lines.
 - Studio production boundary: production build passed and 116 files were verified without a memory fallback.
 - Studio production-preview E2E: 11/11 passed, including the fail-closed cash route.
@@ -43,6 +43,11 @@ closed a documentation-distribution gap without changing the approved contract o
 - Reviewed query plans use backward tenant/unit/date index scans for 31-day cash history, a backward
   index-only tenant/day scan for the 50-receipt detail, and the tenant/day receipt index for full-set
   aggregates.
+- PR review hardening preserves the owning cash-day ID on closing projections, selects the newest
+  closing revision, attributes historical reversals to their correction day, submits the previewed
+  cash-day version, opens queue checkouts before navigation, re-reads timezone after the unit lock,
+  avoids cross-tenant repository caches, and preserves dirty closing drafts while surfacing polling
+  conflicts.
 
 ## Browser acceptance
 

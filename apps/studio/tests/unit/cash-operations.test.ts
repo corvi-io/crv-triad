@@ -71,6 +71,7 @@ describe("cash operation projections", () => {
     })
     const snapshot = createClosingSnapshot({
       cashCount: projectCashCount(4000, 4000),
+      cashDayId: "cash-day-centro-2026-07-24",
       closedAt: "2026-07-24T21:00:00.000Z",
       id: "closing-centro-2026-07-24",
       responsiblePersonName: "Marina Souza",
@@ -106,8 +107,10 @@ describe("cash memory repository", () => {
     await repository.reset()
     const summary = await repository.getOpenDaySummary(query)
     const input = {
+      cashDayId: summary.id ?? "cash-day-centro-2026-07-24",
       countedCashCents: summary.expectedCashCents,
       date,
+      expectedVersion: summary.version ?? 1,
       operationId: "close-1",
       scenarioId: query.scenarioId,
       unitId: query.unitId,
@@ -124,8 +127,10 @@ describe("cash memory repository", () => {
     await repository.reset()
     const summary = await repository.getOpenDaySummary(query)
     const input = {
+      cashDayId: summary.id ?? "cash-day-centro-2026-07-24",
       countedCashCents: summary.expectedCashCents,
       date,
+      expectedVersion: summary.version ?? 1,
       operationId: "close-concurrent-1",
       scenarioId: query.scenarioId,
       unitId: query.unitId,
@@ -148,8 +153,10 @@ describe("cash memory repository", () => {
     const failureQuery = { ...query, scenarioId: "cash-next-failure" }
     const summary = await repository.getOpenDaySummary(failureQuery)
     const input = {
+      cashDayId: summary.id ?? "cash-day-centro-2026-07-24",
       countedCashCents: summary.expectedCashCents,
       date,
+      expectedVersion: summary.version ?? 1,
       operationId: "close-failure",
       scenarioId: failureQuery.scenarioId,
       unitId: query.unitId,

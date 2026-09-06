@@ -178,12 +178,9 @@ async function request<T>(path: string, options?: { body?: unknown; method?: str
 export class RevenueOperationsHttpRepository implements RevenueOperationsRepository {
   readonly #checkoutVersions = new Map<string, number>()
   readonly #dayVersions = new Map<string, number>()
-  #units?: readonly UnitOption[]
-  #canAdjust?: boolean
 
   async units() {
-    this.#units ??= await request<readonly UnitOption[]>("/api/scheduling/units")
-    return this.#units
+    return request<readonly UnitOption[]>("/api/scheduling/units")
   }
 
   async #unit(requested: string) {
@@ -197,12 +194,11 @@ export class RevenueOperationsHttpRepository implements RevenueOperationsReposit
   }
 
   async #adjustmentAccess() {
-    if (this.#canAdjust !== undefined) return this.#canAdjust
     const access = await request<AccessSummary>("/api/access/summary")
-    this.#canAdjust =
+    return (
       access.capabilities.find(({ capability }) => capability === "revenue.adjust")?.allowed ??
       false
-    return this.#canAdjust
+    )
   }
 
   async openCheckout(sessionId: string, operationId: string) {
@@ -469,22 +465,21 @@ export class RevenueOperationsHttpRepository implements RevenueOperationsReposit
   }
 
   async closeDay(input: CloseDayInput) {
-    const current = await this.getOpenDaySummary(input)
-    if (!current?.id || current.version === undefined)
+    if (!input.cashDayId || input.expectedVersion < 1)
       throw new RevenueOperationsError("O caixa não está aberto.", "not-ready")
     const day = await request<ApiCashDay>(
-      `/api/revenue-operations/cash-days/${encodeURIComponent(current.id)}/close`,
+      `/api/revenue-operations/cash-days/${encodeURIComponent(input.cashDayId)}/close`,
       {
         method: "POST",
         body: {
-          expectedVersion: current.version,
+          expectedVersion: input.expectedVersion,
           countedCashCents: input.countedCashCents,
           reason: input.reason,
           idempotencyKey: input.operationId,
         },
       },
     )
-    const closing = [...day.closings].reverse().find(({ kind }) => kind === "close")
+    const closing = day.closings.find(({ kind }) => kind === "close")
     if (!closing) throw new RevenueOperationsError("Fechamento não encontrado.", "not-found")
     return this.#closing(day, closing, await this.#unit(day.unitId))
   }
@@ -531,7 +526,7 @@ export class RevenueOperationsHttpRepository implements RevenueOperationsReposit
   #cashDay(day: ApiCashDay, selected: UnitOption): OpenDaySummary | DailyClosingSnapshot {
     this.#dayVersions.set(day.id, day.version)
     if (day.status === "closed") {
-      const closing = [...day.closings].reverse().find(({ kind }) => kind === "close")
+      const closing = day.closings.find(({ kind }) => kind === "close")
       if (closing) return this.#closing(day, closing, selected)
     }
     return {
@@ -581,6 +576,7 @@ export class RevenueOperationsHttpRepository implements RevenueOperationsReposit
       throw new RevenueOperationsError("Fechamento inválido.", "not-found")
     return {
       ...summary,
+      cashDayId: day.id,
       id: closing.id,
       status: "closed",
       countedCashCents: closing.snapshot.countedCashCents,

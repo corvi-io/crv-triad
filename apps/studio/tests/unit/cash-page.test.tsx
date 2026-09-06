@@ -7,6 +7,7 @@ import { ServiceDeskMemoryRepository } from "@/dev/service-desk/memory-repositor
 import { AuthStateProvider } from "@/modules/auth/services/auth-provider"
 import { CashPage } from "@/modules/revenue-operations/cash-page"
 import type { OpenDaySummary } from "@/modules/revenue-operations/contracts"
+import { revenueOperationsQueryKeys } from "@/modules/revenue-operations/queries"
 import { RevenueOperationsRepositoryProvider } from "@/modules/revenue-operations/repository-context"
 
 beforeEach(() => {
@@ -97,10 +98,37 @@ describe("cash page", () => {
     )
   })
 
+  it("preserves a dirty cash count and requires review when polling changes the day version", async () => {
+    const repository = createMemoryRepository("2026-09-05")
+    const current = { ...emptySummary(), id: "cash-day-a", version: 2, expectedCashCents: 5_000 }
+    vi.spyOn(repository, "getOpenDaySummary").mockResolvedValue(current)
+    vi.spyOn(repository, "listDailyClosings").mockResolvedValue([])
+    const view = renderCashRepository(repository, "2026-09-05")
+
+    const counted = await screen.findByLabelText("Dinheiro contado")
+    fireEvent.change(counted, { target: { value: "6000" } })
+    fireEvent.change(screen.getByLabelText("Motivo da diferença"), {
+      target: { value: "Contagem física preservada" },
+    })
+    view.queryClient.setQueryData(revenueOperationsQueryKeys.cash(view.query), {
+      ...current,
+      expectedCashCents: 5_500,
+      version: 3,
+    })
+
+    expect(await screen.findByText("O caixa foi atualizado")).toBeVisible()
+    expect(counted).toHaveValue("R$ 6.000,00")
+    expect(screen.getByLabelText("Motivo da diferença")).toHaveValue("Contagem física preservada")
+    expect(screen.getByRole("button", { name: "Fechar dia" })).toBeDisabled()
+    fireEvent.click(screen.getByRole("button", { name: "Revisar valores atualizados" }))
+    expect(screen.getByRole("button", { name: "Fechar dia" })).toBeEnabled()
+  })
+
   it("reopens a closed current day with a server-attributed immutable revision", async () => {
     const repository = createMemoryRepository("2026-09-05")
     const closed = {
       ...emptySummary(),
+      cashDayId: "cash-day-a",
       id: "closing-a",
       version: 4,
       status: "closed" as const,
@@ -123,7 +151,7 @@ describe("cash page", () => {
     })
     fireEvent.click(button)
     await waitFor(() =>
-      expect(reopenDay).toHaveBeenCalledWith("closing-a", expect.any(String), "Nova conferência"),
+      expect(reopenDay).toHaveBeenCalledWith("cash-day-a", expect.any(String), "Nova conferência"),
     )
   })
 
@@ -178,6 +206,7 @@ function renderCashRepository(
   date: string,
   scenarioId = "cash-empty",
 ) {
+  const query = { date, scenarioId, unitId: "centro" as const }
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   })
@@ -194,7 +223,7 @@ function renderCashRepository(
         <RevenueOperationsRepositoryProvider repository={repository}>
           <CashPage
             closingId={null}
-            query={{ date, scenarioId: scenario, unitId: "centro" }}
+            query={{ ...query, scenarioId: scenario }}
             onOpenClosing={vi.fn()}
           />
         </RevenueOperationsRepositoryProvider>
@@ -202,5 +231,10 @@ function renderCashRepository(
     </AuthStateProvider>
   )
   const result = render(view(scenarioId))
-  return { ...result, rerenderCash: (scenario: string) => result.rerender(view(scenario)) }
+  return {
+    ...result,
+    query,
+    queryClient,
+    rerenderCash: (scenario: string) => result.rerender(view(scenario)),
+  }
 }

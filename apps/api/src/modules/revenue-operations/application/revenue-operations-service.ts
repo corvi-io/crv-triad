@@ -692,19 +692,10 @@ export function createRevenueOperationsService(
     input: { unitId: string; openingCashCents: number; key: string },
   ) {
     const opening = cents(input.openingCashCents, "openingCashCents")
-    const [selectedUnit] = await db
-      .select({ timezone: unit.timezone })
-      .from(unit)
-      .where(and(eq(unit.organizationId, actor.organizationId), eq(unit.id, input.unitId)))
-      .limit(1)
-    if (!selectedUnit) throw new RevenueOperationsError("not_found")
-    if (!selectedUnit.timezone) throw new RevenueOperationsError("invalid_request", "timezone")
-    const timezone = selectedUnit.timezone
-    const date = localDate(clock(), timezone)
     return transact(actor, {
       action: "open-cash-day",
       key: input.key,
-      structuralInput: { unitId: input.unitId, openingCashCents: opening, localDate: date },
+      structuralInput: { unitId: input.unitId, openingCashCents: opening },
       locks: [
         `revenue:policy:${actor.organizationId}`,
         `revenue:unit-timezone:${actor.organizationId}:${input.unitId}`,
@@ -714,6 +705,15 @@ export function createRevenueOperationsService(
       replay: (tx, id) => loadCashDay(tx, actor.organizationId, id),
       run: async (tx, name) => {
         await ensureMethods(tx, actor)
+        const [selectedUnit] = await tx
+          .select({ timezone: unit.timezone })
+          .from(unit)
+          .where(and(eq(unit.organizationId, actor.organizationId), eq(unit.id, input.unitId)))
+          .limit(1)
+        if (!selectedUnit) throw new RevenueOperationsError("not_found")
+        if (!selectedUnit.timezone) throw new RevenueOperationsError("invalid_request", "timezone")
+        const timezone = selectedUnit.timezone
+        const date = localDate(clock(), timezone)
         const [existing] = await tx
           .select({ id: revenueCashDay.id })
           .from(revenueCashDay)
@@ -753,42 +753,46 @@ export function createRevenueOperationsService(
       .where(and(eq(revenueCashDay.organizationId, organizationId), eq(revenueCashDay.id, id)))
       .limit(1)
     if (!day) throw new RevenueOperationsError("not_found")
-    const [movements, receipts, closings, movementTotalsResult, receiptTotalsResult, tenderTotals] =
-      await Promise.all([
-        tx
-          .select()
-          .from(revenueCashMovement)
-          .where(
-            and(
-              eq(revenueCashMovement.organizationId, organizationId),
-              eq(revenueCashMovement.cashDayId, id),
-            ),
-          )
-          .orderBy(desc(revenueCashMovement.createdAt), desc(revenueCashMovement.id))
-          .limit(CASH_DAY_DETAIL_LIMIT),
-        tx
-          .select()
-          .from(revenueReceipt)
-          .where(
-            and(
-              eq(revenueReceipt.organizationId, organizationId),
-              eq(revenueReceipt.cashDayId, id),
-            ),
-          )
-          .orderBy(desc(revenueReceipt.registeredAt), desc(revenueReceipt.id))
-          .limit(CASH_DAY_DETAIL_LIMIT),
-        tx
-          .select()
-          .from(revenueClosingRevision)
-          .where(
-            and(
-              eq(revenueClosingRevision.organizationId, organizationId),
-              eq(revenueClosingRevision.cashDayId, id),
-            ),
-          )
-          .orderBy(desc(revenueClosingRevision.revision))
-          .limit(CASH_DAY_DETAIL_LIMIT),
-        tx.execute(sql`
+    const [
+      movements,
+      receipts,
+      closings,
+      movementTotalsResult,
+      receiptTotalsResult,
+      tenderTotals,
+      tenderReversalTotalsResult,
+    ] = await Promise.all([
+      tx
+        .select()
+        .from(revenueCashMovement)
+        .where(
+          and(
+            eq(revenueCashMovement.organizationId, organizationId),
+            eq(revenueCashMovement.cashDayId, id),
+          ),
+        )
+        .orderBy(desc(revenueCashMovement.createdAt), desc(revenueCashMovement.id))
+        .limit(CASH_DAY_DETAIL_LIMIT),
+      tx
+        .select()
+        .from(revenueReceipt)
+        .where(
+          and(eq(revenueReceipt.organizationId, organizationId), eq(revenueReceipt.cashDayId, id)),
+        )
+        .orderBy(desc(revenueReceipt.registeredAt), desc(revenueReceipt.id))
+        .limit(CASH_DAY_DETAIL_LIMIT),
+      tx
+        .select()
+        .from(revenueClosingRevision)
+        .where(
+          and(
+            eq(revenueClosingRevision.organizationId, organizationId),
+            eq(revenueClosingRevision.cashDayId, id),
+          ),
+        )
+        .orderBy(desc(revenueClosingRevision.revision))
+        .limit(CASH_DAY_DETAIL_LIMIT),
+      tx.execute(sql`
         select
           coalesce(sum(case
             when movement.kind = 'supply' then movement.amount_cents
@@ -808,41 +812,51 @@ export function createRevenueOperationsService(
           and original.id = movement.original_movement_id
         where movement.organization_id = ${organizationId} and movement.cash_day_id = ${id}
       `),
-        tx.execute(sql`
+      tx.execute(sql`
         select
           coalesce(sum(total_cents), 0) as gross_receipt_cents,
-          coalesce(sum(total_cents) filter (where status = 'reversed'), 0)
-            as reversed_receipt_cents,
+          (select coalesce(sum(-((reversal.snapshot->>'totalCents')::bigint)), 0)
+            from revenue_receipt_reversals reversal
+            where reversal.organization_id = ${organizationId}
+              and reversal.cash_day_id = ${id}) as reversed_receipt_cents,
           count(*)::integer as receipt_count,
-          count(*) filter (where status = 'reversed')::integer as reversal_count,
-          count(*) filter (where status = 'active' and total_cents = 0)::integer as no_charge_count,
-          coalesce(sum(discount_cents) filter (where status = 'active'), 0) as discount_cents,
-          coalesce(sum(surcharge_cents) filter (where status = 'active'), 0) as surcharge_cents
+          (select count(*)::integer from revenue_receipt_reversals reversal
+            where reversal.organization_id = ${organizationId}
+              and reversal.cash_day_id = ${id}) as reversal_count,
+          count(*) filter (where total_cents = 0)::integer as no_charge_count,
+          coalesce(sum(discount_cents), 0) as discount_cents,
+          coalesce(sum(surcharge_cents), 0) as surcharge_cents
         from revenue_receipts
         where organization_id = ${organizationId} and cash_day_id = ${id}
       `),
-        tx
-          .select({
-            method: revenueReceiptTender.method,
-            grossCents: sql<string>`coalesce(sum(${revenueReceiptTender.appliedCents}), 0)`,
-            reversedCents: sql<string>`coalesce(sum(${revenueReceiptTender.appliedCents}) filter (where ${revenueReceipt.status} = 'reversed'), 0)`,
-          })
-          .from(revenueReceiptTender)
-          .innerJoin(
-            revenueReceipt,
-            and(
-              eq(revenueReceipt.organizationId, revenueReceiptTender.organizationId),
-              eq(revenueReceipt.id, revenueReceiptTender.receiptId),
-            ),
-          )
-          .where(
-            and(
-              eq(revenueReceipt.organizationId, organizationId),
-              eq(revenueReceipt.cashDayId, id),
-            ),
-          )
-          .groupBy(revenueReceiptTender.method),
-      ])
+      tx
+        .select({
+          method: revenueReceiptTender.method,
+          grossCents: sql<string>`coalesce(sum(${revenueReceiptTender.appliedCents}), 0)`,
+        })
+        .from(revenueReceiptTender)
+        .innerJoin(
+          revenueReceipt,
+          and(
+            eq(revenueReceipt.organizationId, revenueReceiptTender.organizationId),
+            eq(revenueReceipt.id, revenueReceiptTender.receiptId),
+          ),
+        )
+        .where(
+          and(eq(revenueReceipt.organizationId, organizationId), eq(revenueReceipt.cashDayId, id)),
+        )
+        .groupBy(revenueReceiptTender.method),
+      tx.execute(sql`
+          select
+            tender->>'method' as method,
+            coalesce(sum(-((tender->>'appliedCents')::bigint)), 0) as reversed_cents
+          from revenue_receipt_reversals reversal,
+            jsonb_array_elements(reversal.snapshot->'tenders') tender
+          where reversal.organization_id = ${organizationId}
+            and reversal.cash_day_id = ${id}
+          group by tender->>'method'
+        `),
+    ])
     const movementTotals = movementTotalsResult.rows[0] as Record<string, string | number>
     const receiptTotals = receiptTotalsResult.rows[0] as Record<string, string | number>
     const aggregateCents = (value: string | number, field: string) => cents(Number(value), field)
@@ -876,8 +890,14 @@ export function createRevenueOperationsService(
       )
     const paymentMethods = tenderMethods.map((method) => {
       const entry = tenderTotals.find((tender) => tender.method === method)
+      const reversalEntry = tenderReversalTotalsResult.rows.find(
+        (tender) => tender.method === method,
+      ) as Record<string, string | number> | undefined
       const grossCents = aggregateCents(entry?.grossCents ?? 0, `${method}GrossCents`)
-      const reversedCents = aggregateCents(entry?.reversedCents ?? 0, `${method}ReversedCents`)
+      const reversedCents = aggregateCents(
+        reversalEntry?.reversed_cents ?? 0,
+        `${method}ReversedCents`,
+      )
       return { method, grossCents, reversedCents, netCents: grossCents - reversedCents }
     })
     return {
