@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "mode": "feature",
+  "run": {
+    "date": "2026-09-05",
+    "branch": "feature/initiative-23-service-fulfillment",
+    "environment": "Local PostgreSQL 16 loopback 55443, API 8103, Studio 3103",
+    "data_mode": "Synthetic QA A/B with real authentication and HTTP persistence",
+    "evaluator": "Codex corrective implementation and visual inspection",
+    "limitations": [
+      "Local acceptance only; no deployment or remote database mutation.",
+      "Mobile and reduced-motion evidence uses browser emulation; no physical-device or manual screen-reader certification."
+    ]
+  },
+  "scope": {
+    "initiative": "23",
+    "apps": ["web", "api"],
+    "modules": ["service-desk", "scheduling", "clients"],
+    "personas": ["owner", "admin", "member"],
+    "tenants": ["QA A", "QA B"],
+    "out_of_scope": ["Payments", "Revenue", "Commission", "Deployment"]
+  },
+  "journeys": [
+    {
+      "id": "J01",
+      "apps": ["web", "api"],
+      "module": "service-desk",
+      "persona": "owner",
+      "tenant": "QA A",
+      "kind": "happy_path",
+      "name": "Guest admission through completed read-only history",
+      "result": "passed",
+      "evidence": ["Real local browser against API 8103 and Studio 3103"]
+    },
+    {
+      "id": "J02",
+      "apps": ["web"],
+      "module": "service-desk/shared-overlays",
+      "persona": "owner",
+      "tenant": "synthetic",
+      "kind": "regression",
+      "name": "Sheet and Select open/close on desktop, mobile and reduced motion",
+      "result": "passed",
+      "evidence": ["apps/studio/tests/e2e/service-desk.spec.ts"]
+    },
+    {
+      "id": "J03",
+      "apps": ["api"],
+      "module": "service-desk",
+      "persona": "owner/admin/member",
+      "tenant": "QA A/B",
+      "kind": "edge_case",
+      "name": "Transactional handoff, replay, guest/client and tenant isolation",
+      "result": "passed",
+      "evidence": ["apps/api/tests/integration/service-desk.postgres.test.ts"]
+    }
+  ],
+  "screenshots": [],
+  "findings": {
+    "open": [],
+    "corrected": [
+      "Sheet starting-style persistence",
+      "Select closing-style persistence",
+      "Fixed-port E2E mock origin"
+    ]
+  },
+  "decision": "approved_for_local_testing"
+}

@@ -9,11 +9,9 @@ export const walkInFormSchema = z
       .string()
       .min(1, "Informe o horário de chegada.")
       .regex(timePattern, "Informe um horário válido entre 00:00 e 23:59."),
-    customerName: z
-      .string()
-      .trim()
-      .min(2, "Informe o nome do cliente com pelo menos 2 caracteres.")
-      .max(100, "Use no máximo 100 caracteres no nome."),
+    identityKind: z.enum(["client", "guest"]),
+    clientId: z.string(),
+    customerName: z.string().trim().max(100, "Use no máximo 100 caracteres no nome."),
     customerPhone: z
       .string()
       .max(13, "Informe um telefone com no máximo 13 dígitos.")
@@ -30,6 +28,20 @@ export const walkInFormSchema = z
     serviceId: z.string().min(1, "Escolha um serviço."),
   })
   .superRefine((values, context) => {
+    if (values.identityKind === "client" && !values.clientId) {
+      context.addIssue({
+        code: "custom",
+        message: "Escolha um cliente cadastrado.",
+        path: ["clientId"],
+      })
+    }
+    if (values.identityKind === "guest" && values.customerName.trim().length < 2) {
+      context.addIssue({
+        code: "custom",
+        message: "Informe o nome do cliente com pelo menos 2 caracteres.",
+        path: ["customerName"],
+      })
+    }
     if (values.preferenceKind === "specific" && !values.professionalId) {
       context.addIssue({
         code: "custom",
@@ -41,9 +53,47 @@ export const walkInFormSchema = z
 
 export type WalkInFormValues = z.infer<typeof walkInFormSchema>
 
-export function createWalkInFormDefaults(now: Date): WalkInFormValues {
+function localParts(now: Date, timezone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now)
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? ""
   return {
-    arrivalTime: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+    date: `${get("year")}-${get("month")}-${get("day")}`,
+    time: `${get("hour")}:${get("minute")}`,
+  }
+}
+
+function toInstant(date: string, time: string, timezone: string) {
+  const naive = Date.parse(`${date}T${time}:00Z`)
+  const offsets = new Set<number>()
+  for (let hour = -48; hour <= 48; hour += 6) {
+    const sample = naive + hour * 3_600_000
+    const parts = localParts(new Date(sample), timezone)
+    offsets.add(Date.parse(`${parts.date}T${parts.time}:00Z`) - sample)
+  }
+  const matches = [...offsets]
+    .map((offset) => new Date(naive - offset))
+    .filter((instant) => {
+      const parts = localParts(instant, timezone)
+      return parts.date === date && parts.time === time
+    })
+  if (matches.length !== 1) throw new Error("Horário de chegada inválido para o fuso da unidade.")
+  return matches[0]
+}
+
+export function createWalkInFormDefaults(now: Date, timezone = "UTC"): WalkInFormValues {
+  const parts = localParts(now, timezone)
+  return {
+    arrivalTime: parts.time,
+    identityKind: "guest",
+    clientId: "",
     customerName: "",
     customerPhone: "",
     notes: "",
@@ -57,15 +107,20 @@ export function createWalkInFormDefaults(now: Date): WalkInFormValues {
 export function walkInFormValuesToInput(
   values: WalkInFormValues,
   now: Date,
-  unitId: "centro" | "artesao",
+  unitId: string,
+  timezone = "UTC",
 ): WalkInInput {
   const [hours, minutes] = values.arrivalTime.split(":").map(Number)
-  const arrival = new Date(now)
-  arrival.setHours(hours, minutes, 0, 0)
+  const arrival = toInstant(
+    localParts(now, timezone).date,
+    `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
+    timezone,
+  )
   return {
     arrivalAt: arrival.toISOString(),
-    customerName: values.customerName.trim(),
-    customerPhone: values.customerPhone || undefined,
+    clientId: values.identityKind === "client" ? values.clientId : undefined,
+    customerName: values.identityKind === "guest" ? values.customerName.trim() : undefined,
+    customerPhone: values.identityKind === "guest" ? values.customerPhone || undefined : undefined,
     notes: values.notes.trim() || undefined,
     preferenceKind: values.preferenceKind,
     priority: values.priority,

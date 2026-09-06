@@ -37,6 +37,7 @@ export const client = pgTable(
     version: integer("version").default(1).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    lastVisitAt: timestamp("last_visit_at", { withTimezone: true }),
   },
   (table) => [
     check(
@@ -64,6 +65,7 @@ export const client = pgTable(
       table.normalizedEmail,
     ),
     index("clients_global_user_id_idx").on(table.globalUserId),
+    index("clients_organization_last_visit_idx").on(table.organizationId, table.lastVisitAt),
     uniqueIndex("clients_organization_id_unique").on(table.organizationId, table.id),
   ],
 )

@@ -37,6 +37,7 @@ const clientProjection = {
   createdAt: client.createdAt,
   email: client.email,
   id: client.id,
+  lastVisitAt: client.lastVisitAt,
   name: client.name,
   phone: client.phone,
   preferenceNote: client.preferenceNote,
@@ -572,6 +573,7 @@ function createListOrder(query: ClientListQuery) {
   const direction = query.sortDirection === "asc" ? asc : desc
   if (query.sortBy === "name") return [direction(client.name), direction(client.id)]
   if (query.sortBy === "createdAt") return [direction(client.createdAt), direction(client.id)]
+  if (query.sortBy === "lastVisitAt") return [direction(client.lastVisitAt), direction(client.id)]
   return [direction(client.id)]
 }
 

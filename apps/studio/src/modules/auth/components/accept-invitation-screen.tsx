@@ -121,7 +121,15 @@ export function AcceptInvitationScreen({ token }: AcceptInvitationScreenProps) {
           await navigate({ search: { invitationToken }, to: "/login" })
           return
         }
-        setSubmitError("Não foi possível aceitar o convite agora. Tente novamente.")
+        setSubmitError(
+          result.error === "account_mismatch"
+            ? "Este convite pertence a outra conta. Saia e entre com o e-mail que recebeu o convite."
+            : result.error === "invitation_changed"
+              ? "Este convite foi alterado ou já foi utilizado. Valide o link novamente."
+              : result.error === "completion_failed"
+                ? "O acesso foi iniciado, mas o vínculo não foi concluído. Tente novamente."
+                : "Não foi possível aceitar o convite agora. Tente novamente.",
+        )
         return
       }
       await navigate({

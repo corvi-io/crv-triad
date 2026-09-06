@@ -663,10 +663,15 @@ describe("createAuthOptions", () => {
       user: [],
       verification: [],
     }
+    const hookRows = [[{ id: "invitation-id" }]]
+    let hookQueryIndex = 0
     const sessionHookDb = {
+      execute: async () => [],
+      transaction: async <T>(callback: (transaction: unknown) => Promise<T>) =>
+        callback(sessionHookDb),
       select: () => ({
         from: () => ({
-          where: () => ({ limit: async () => memoryDb.user.slice(0, 1) }),
+          where: () => ({ limit: async () => hookRows[hookQueryIndex++] ?? [] }),
         }),
       }),
     }
@@ -802,7 +807,7 @@ describe("createAuthOptions", () => {
           emailVerified: false,
           name: "Test identity",
         } as never,
-        { path: "/callback/google" } as never,
+        { params: { id: "google" }, path: "/callback/:id" } as never,
       ),
     ).rejects.toMatchObject({ status: "FORBIDDEN" })
   })
@@ -913,6 +918,41 @@ describe("createAuthOptions", () => {
     expect(memoryDb.session).toHaveLength(0)
     expect(session.status).toBe(200)
     expect(session.session).toEqual({ authenticated: false })
+  })
+
+  it("creates a persisted session for a verified invited Google identity", async () => {
+    const email = "invited-verified-google@example.invalid"
+    const pendingInvitation = {
+      email,
+      expiresAt: new Date(Date.now() + 60_000),
+      id: "pending-verified-google-invitation-id",
+      role: "member",
+      status: "pending",
+    }
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email,
+        emailVerified: true,
+        id: "invited-verified-google-account-id",
+        name: "Invited verified Google user",
+      },
+      hookSelectRows: [[], [pendingInvitation], [{ emailVerified: true, status: "active" }]],
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "invited-verified-google-token" }, provider: "google" },
+    })
+    const sessionResponse = await client.request("/get-session")
+
+    expect(response.status).toBe(200)
+    expect(memoryDb.user).toEqual([
+      expect.objectContaining({ email, emailVerified: true, status: "active" }),
+    ])
+    expect(memoryDb.account).toEqual([
+      expect.objectContaining({ providerId: "google", userId: memoryDb.user[0]?.id }),
+    ])
+    expect(memoryDb.session).toHaveLength(1)
+    expect(sessionResponse.session).toEqual({ authenticated: true, email })
   })
 
   it("rejects an unverified Google identity for an existing same-email user", async () => {

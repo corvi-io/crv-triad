@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  acceptInvitationForUser,
   createInvitation,
   createInvitationSecret,
   digestInvitationToken,
@@ -66,6 +67,47 @@ function createFakeDatabase(rows: unknown[] = []) {
 }
 
 describe("invitations", () => {
+  it("does not reapply an admin role while replaying an accepted invitation", async () => {
+    let selectCount = 0
+    let updateCount = 0
+    const accepted = {
+      acceptedByUserId: "user-1",
+      email: "invite@example.com",
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      id: "invitation-1",
+      role: "admin",
+      status: "accepted",
+      tokenDigest: "digest",
+      tokenIssuedAt: now,
+    }
+    const transaction = {
+      execute: async () => [],
+      select: () => {
+        const rows = selectCount++ === 0 ? [accepted] : []
+        const query = {
+          from: () => query,
+          limit: async () => rows,
+          where: () => query,
+        }
+        return query
+      },
+      update: () => {
+        updateCount += 1
+        throw new Error("Replay must not update the global user role.")
+      },
+    }
+    const db = {
+      transaction: async <T>(callback: (tx: typeof transaction) => Promise<T>) =>
+        callback(transaction),
+    }
+
+    await expect(
+      acceptInvitationForUser(db as never, "Invite@Example.com", "user-1", "invitation-1"),
+    ).resolves.toMatchObject({ id: "invitation-1", status: "accepted" })
+    expect(selectCount).toBe(1)
+    expect(updateCount).toBe(0)
+  })
+
   it("uses a deterministic lookup for pending invitations", async () => {
     const { calls, db } = createFakeDatabase([{ id: "invitation-1" }])
 

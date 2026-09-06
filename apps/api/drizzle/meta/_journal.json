@@ -155,6 +155,27 @@
       "when": 1788644324025,
       "tag": "0021_access-audit-catalog-fields",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788647431354,
+      "tag": "0022_magenta_sinister_six",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788647582854,
+      "tag": "0023_tiresome_hardball",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788656400000,
+      "tag": "0024_release_completed_appointments",
+      "breakpoints": true
     }
   ]
 }

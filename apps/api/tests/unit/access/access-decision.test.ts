@@ -50,6 +50,8 @@ describe("access decision", () => {
       "availability.read",
       "scheduling.read",
       "scheduling.manage",
+      "service_desk.read",
+      "service_desk.manage",
       "clients.read",
       "clients.manage",
       "catalogs.read",
