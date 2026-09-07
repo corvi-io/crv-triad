@@ -37,6 +37,7 @@ esac
 
 wait_for_health() {
   local url="$1"
+  local accepted_status="${2:-}"
 
   if [[ -z "$url" ]]; then
     echo "Health check URL not configured. Skipping smoke check."
@@ -44,9 +45,12 @@ wait_for_health() {
   fi
 
   for attempt in {1..12}; do
-    if curl --fail --silent --show-error "$url" >/dev/null; then
-      echo "Health check passed: $url"
-      return 0
+    local status
+    if status="$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" "$url")"; then
+      if [[ "$status" =~ ^[23][0-9][0-9]$ || "$status" == "$accepted_status" ]]; then
+        echo "Health check passed: $url (HTTP $status)"
+        return 0
+      fi
     fi
 
     echo "Health check not ready yet: $url (attempt $attempt/12)"
@@ -219,7 +223,9 @@ if [[ "$app" == "backstage" ]]; then
     --branch "$pages_branch" \
     --commit-dirty=true
 
-  wait_for_health "$backstage_health_url"
+  # Backstage is protected by Cloudflare Access; an anonymous 403 proves the
+  # deployed edge route is reachable without weakening operator access.
+  wait_for_health "$backstage_health_url" "403"
   record_deployment true
   exit 0
 fi
