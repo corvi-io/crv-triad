@@ -44,8 +44,22 @@ not with an undifferentiated PDF/CSV action.
 5. Totals must reconcile with immutable paid-sale, reversal, and commission facts.
 6. Percentages always expose numerator, denominator, exclusions, and comparison period.
 7. Owner-wide and professional-self views use explicit capabilities and tenant-qualified queries.
-8. PDF communicates a readable conclusion; CSV provides auditable detail. They are not identical
-   byte representations of a generic summary.
+8. V1 delivers auditable CSV detail only. A presentation-oriented format can be reconsidered after
+   usage validates that customer need.
+
+## V1 Catalog Decision Review
+
+| Catalog item | Customer pain and decision | Authoritative inputs | Decision |
+| --- | --- | --- | --- |
+| Sales and revenue | Understand recorded sales, reversals, and revenue composition to investigate changes | immutable receipts, receipt lines, tenders, and reversals | Keep |
+| Professional performance | Compare completed work, service revenue, and average ticket to guide staffing and coaching | appointments and active receipt-line snapshots | Keep, without utilization or productivity claims |
+| Commissions by professional | Determine accrued commission and explain reversals | immutable commission facts | Keep |
+| New and returning customers | Understand acquisition/return mix | stable customer identity on active receipts | Keep, without retention-cadence claims |
+| Cancellations and no-shows | Locate schedule loss and affected booked value | tenant-qualified appointment outcomes and price snapshots | Keep, without SLA claims |
+| Receipts by payment method | Reconcile recorded receipts and reversals by tender | receipt tenders and reversals | Keep under the narrower name; do not imply cash-drawer closing or accounting reconciliation |
+
+Schedule utilization, SLA, reactivation, full cash closing, margin, and profitability remain deferred
+until their authoritative facts and definitions are approved.
 
 ## Recommended V1 Catalog
 

@@ -4,7 +4,7 @@ import type { IdpDatabase } from "../../idp/database/client.js"
 import { user } from "../../idp/database/schema.js"
 import { createId } from "../../shared/infra/ids.js"
 import type { TenantContext } from "../../tenancy/domain/business-context.js"
-import { reportAttempt, reportRequest } from "../database/schema.js"
+import { reportArtifact, reportAttempt, reportRequest } from "../database/schema.js"
 import type { ArtifactStorage, ReportDispatcher } from "./export-providers.js"
 import { createReportRequestSchema, reportCatalog } from "./report-catalog.js"
 
@@ -255,11 +255,21 @@ export function createReportExportService(
   async function download(actor: TenantContext, id: string) {
     const current = await statusRow(actor, id)
     if (current?.status !== "ready") return null
+    const [artifact] = await db
+      .select({ objectKey: reportArtifact.objectKey })
+      .from(reportArtifact)
+      .where(
+        and(
+          eq(reportArtifact.organizationId, actor.organizationId),
+          eq(reportArtifact.reportRequestId, id),
+          eq(reportArtifact.attempt, current.activeAttempt),
+          sql`${reportArtifact.deletedAt} is null`,
+        ),
+      )
+      .limit(1)
+    if (!artifact) return null
     observe({ event: "report_export_download_granted", reportRequestId: id })
-    return storage.downloadUrl(
-      `${actor.organizationId}/${id}/${current.activeAttempt}.${current.format}`,
-      300,
-    )
+    return storage.downloadUrl(artifact.objectKey, 300)
   }
   async function readLocalArtifact(key: string) {
     return storage.read?.(key) ?? null

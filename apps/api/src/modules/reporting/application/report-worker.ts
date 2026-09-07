@@ -9,13 +9,28 @@ import type { ReportingService } from "./reporting-service.js"
 
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 const DELIVERY_CLAIM_TIMEOUT_MS = 5 * 60 * 1000
+const DOWNLOAD_URL_TTL_SECONDS = 7 * 24 * 60 * 60
+
+export function createReportObjectKey(input: {
+  organizationId: string
+  reportType: ReportType
+  createdAt: Date
+  reportRequestId: string
+  attempt: number
+  format: "csv" | "pdf"
+}) {
+  const year = input.createdAt.getUTCFullYear()
+  const month = String(input.createdAt.getUTCMonth() + 1).padStart(2, "0")
+  const reportType = input.reportType.replaceAll("_", "-")
+  return `tenants/${input.organizationId}/reports/${reportType}/${year}/${month}/${input.reportRequestId}/attempt-${input.attempt}.${input.format}`
+}
 
 export function createReportWorker(
   db: IdpDatabase,
   reporting: ReportingService,
   storage: ArtifactStorage,
   emailSender?: ReportEmailSender,
-  studioUrl = "http://localhost:3000",
+  _studioUrl = "http://localhost:3000",
   observe: (event: Record<string, unknown>) => void = () => undefined,
 ) {
   async function deliverReadyEmail(request: typeof reportRequest.$inferSelect) {
@@ -58,14 +73,26 @@ export function createReportWorker(
       )
       .returning({ id: reportRequest.id })
     if (claimed.length !== 1) return "claim_active" as const
-    const authenticatedReportUrl = new URL("/reports", studioUrl)
-    authenticatedReportUrl.searchParams.set("reportId", request.id)
     try {
+      const [artifact] = await db
+        .select({ objectKey: reportArtifact.objectKey })
+        .from(reportArtifact)
+        .where(
+          and(
+            eq(reportArtifact.organizationId, request.organizationId),
+            eq(reportArtifact.reportRequestId, request.id),
+            eq(reportArtifact.attempt, request.activeAttempt),
+            sql`${reportArtifact.deletedAt} is null`,
+          ),
+        )
+        .limit(1)
+      if (!artifact) throw new Error("report_artifact_missing")
+      const downloadUrl = await storage.downloadUrl(artifact.objectKey, DOWNLOAD_URL_TTL_SECONDS)
       await emailSender.send({
         recipient: request.requesterEmail,
         reportRequestId: request.id,
         reportTitle: reportCatalogItem(request.reportType).title,
-        authenticatedReportUrl: authenticatedReportUrl.toString(),
+        downloadUrl,
       })
     } catch {
       await db
@@ -183,7 +210,14 @@ export function createReportWorker(
       const body = request.format === "pdf" ? renderReportPdf(document) : renderReportCsv(document)
       const contentType =
         request.format === "pdf" ? ("application/pdf" as const) : ("text/csv" as const)
-      const objectKey = `${payload.organizationId}/${request.id}/${attempt}.${request.format}`
+      const objectKey = createReportObjectKey({
+        organizationId: payload.organizationId,
+        reportType: request.reportType,
+        createdAt: request.createdAt,
+        reportRequestId: request.id,
+        attempt,
+        format: request.format,
+      })
       const uploaded = await storage.put(objectKey, body, contentType)
       artifactUploaded = true
       const confirmed = await storage.head(objectKey)
@@ -290,6 +324,22 @@ export function createReportWorker(
         attempt,
         safeFailureCode,
       })
+      if (request.requesterEmail && emailSender?.sendFailure) {
+        try {
+          await emailSender.sendFailure({
+            recipient: request.requesterEmail,
+            reportRequestId: request.id,
+            reportTitle: reportCatalogItem(request.reportType).title,
+          })
+          observe({ event: "report_failure_email_delivered", reportRequestId: request.id })
+        } catch {
+          observe({
+            event: "report_failure_email_failed",
+            reportRequestId: request.id,
+            safeFailureCode: "delivery_failed",
+          })
+        }
+      }
       throw error
     }
   }

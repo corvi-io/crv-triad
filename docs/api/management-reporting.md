@@ -2,7 +2,7 @@
 
 Initiative 25 adds tenant-owned business profile and logo data, future-only commission policies,
 immutable commission facts at receipt registration, bounded management summaries, and asynchronous
-PDF/CSV exports. The backend report catalog extends that lifecycle with six typed report contracts.
+CSV exports. The backend report catalog extends that lifecycle with six typed report contracts.
 
 ## Runtime Boundaries
 
@@ -10,16 +10,17 @@ PDF/CSV exports. The backend report catalog extends that lifecycle with six type
   `/api/business-profile` and `/api/commissions`.
 - Logos use the local filesystem only in `local`; deployed environments use the private R2 adapter
   selected by `PRIVATE_STORAGE_DRIVER=r2`. Business media keys are tenant-scoped under
-  `tenants/{tenantId}/business-profile/logo/`; legacy root keys remain readable until replaced or
+  `tenants/{tenantId}/branding/logo/`; legacy keys remain readable until replaced or
   removed. Business logos use only `R2_PRIVATE_*`; they are read through authenticated API routes
   and never receive a public object URL.
 - User profile images use the separate identity-owned namespace
-  `users/{userId}/profile/image/`, because one user may belong to multiple tenants. Existing root
+  `users/{userId}/profile/avatar/`, because one user may belong to multiple tenants. Existing root
   image keys remain readable until the user replaces or removes the image. New images share the
   private R2 bucket and are served only through the authenticated, owner-scoped profile image route;
   the persisted URL never exposes R2 directly.
 - Interactive summaries are bounded to 365 days at `/api/reports/summary`.
-- Export request/history/status/retry/download routes live under `/api/reports/generated`.
+- Export lifecycle routes remain under `/api/reports/generated` for internal compatibility and
+  support, but Studio does not expose history, status, retry, or download controls.
 - `GET /api/reports/catalog` returns the six authenticated catalog entries: sales and revenue,
   professional performance, commissions, new/returning customers, cancellations/no-shows, and
   cash/payments. `POST /api/reports/generated` accepts `reportType` and its type-specific `config`;
@@ -29,7 +30,8 @@ PDF/CSV exports. The backend report catalog extends that lifecycle with six type
 - Generation state and email-delivery state are independent. A ready artifact remains ready when
   email delivery fails; Trigger.dev retries the idempotent delivery separately on the same task.
 - Trigger.dev payloads contain only schema version, tenant ID, and opaque report request ID. The
-  worker reloads authorized server state, writes a deterministic private R2 key, verifies it with
+  worker reloads authorized server state, writes a deterministic private R2 key under
+  `tenants/{tenantId}/reports/{reportType}/{year}/{month}/{requestId}/attempt-{attempt}.csv`, verifies it with
   `HEAD`, then persists checksum, size, content type, retention, and terminal state.
 - Lifecycle logs contain event name, opaque request ID, attempt/failure code, and environment only;
   they omit filters, amounts, contacts, artifact URLs, credentials, and private headers.
@@ -102,10 +104,13 @@ are complete. `hml` must remain disabled until the external project, task versio
 least-privilege credentials, lifecycle rule, put/head/get/delete behavior, and rollback drill are
 revalidated.
 
-The notification contains only a Studio route. The requester must authenticate and retain tenant
-access before the API issues the private R2 URL, which expires after 300 seconds. R2 object keys and
-presigned URLs are never placed in email or lifecycle logs. Report email delivery reuses the verified
-IDP identity contract and the configured Resend sender.
+The success notification contains a private R2 signed URL that expires after seven days. The failure
+notification contains no download link. R2 object keys and presigned URLs are never placed in
+lifecycle logs. Report email delivery reuses the verified IDP identity contract and the configured
+Resend sender.
+
+The cross-domain object ownership and deletion rules are documented in
+`docs/api/object-storage.md`.
 
 Rollback is additive: disable `REPORT_EXPORT_ENABLED` to stop new requests while preserving history,
 artifacts, profile data, policies, and immutable receipt facts. Do not roll back by deleting facts or

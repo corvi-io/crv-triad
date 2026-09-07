@@ -17,49 +17,49 @@ export const reportCatalog = [
     type: "sales_revenue",
     title: "Vendas e faturamento",
     description: "Acompanhe vendas, receita líquida, estornos e ticket médio do período.",
-    formats: ["pdf", "csv"],
+    formats: ["csv"],
     supportedFilters: ["dateRange", "unit", "professional", "service", "paymentMethod"],
   },
   {
     type: "professional_performance",
     title: "Desempenho por profissional",
     description: "Compare atendimentos concluídos, receita, ticket médio e ocorrências da equipe.",
-    formats: ["pdf", "csv"],
+    formats: ["csv"],
     supportedFilters: ["dateRange", "unit", "professional", "service"],
   },
   {
     type: "commissions",
     title: "Comissões por profissional",
     description: "Consulte comissões, estornos e a participação líquida da barbearia.",
-    formats: ["pdf", "csv"],
+    formats: ["csv"],
     supportedFilters: ["dateRange", "unit", "professional"],
   },
   {
     type: "new_returning_customers",
     title: "Clientes novos e recorrentes",
     description: "Entenda quantos clientes chegaram e quantos voltaram no período.",
-    formats: ["pdf", "csv"],
+    formats: ["csv"],
     supportedFilters: ["dateRange", "unit", "professional", "service"],
   },
   {
     type: "cancellations_no_shows",
     title: "Cancelamentos e ausências",
     description: "Identifique cancelamentos, faltas e perdas de agenda no período.",
-    formats: ["pdf", "csv"],
+    formats: ["csv"],
     supportedFilters: ["dateRange", "unit", "professional", "service"],
   },
   {
     type: "cash_payments",
-    title: "Caixa e formas de pagamento",
-    description: "Veja recebimentos, estornos e totais por forma de pagamento.",
-    formats: ["pdf", "csv"],
+    title: "Recebimentos por forma de pagamento",
+    description: "Concilie recebimentos e estornos por Pix, dinheiro, débito e crédito.",
+    formats: ["csv"],
     supportedFilters: ["dateRange", "unit", "paymentMethod"],
   },
 ] as const satisfies ReadonlyArray<{
   type: ReportType
   title: string
   description: string
-  formats: readonly ["pdf", "csv"]
+  formats: readonly ["csv"]
   supportedFilters: readonly string[]
 }>
 
@@ -104,7 +104,7 @@ export type ReportConfigSnapshot = z.infer<typeof reportConfigSnapshotSchema>
 
 export const createReportRequestSchema = z
   .object({
-    format: z.enum(["pdf", "csv"]),
+    format: z.literal("csv"),
     filters: reportFilterSchema,
     timezone: z.string().min(1).max(100),
     idempotencyKey: z.string().uuid(),

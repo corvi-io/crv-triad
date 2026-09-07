@@ -68,7 +68,7 @@ export type ReportCatalog = {
 
 export type CreateReportExportInput = {
   filters: ReportFilters
-  format: "csv" | "pdf"
+  format: "csv"
   idempotencyKey: string
   reportType: ReportDefinitionId
 }

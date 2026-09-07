@@ -17,6 +17,10 @@ barbershop workspace.
   subscription, ownership intent, and audit state are created atomically.
 - Barbershop detail exposes bounded counts, owner identity, plan, subscription state, client quota,
   organization status, and version. It does not expose tenant business payloads.
+- System owners and operations operators may change the capability set from the tenant detail.
+  Each change requires a reason, creates a new immutable plan version, moves only that tenant's
+  current subscription, and records `tenant.access_updated` in the access audit. Support and billing
+  operators remain read-only for this action.
 - Support access is explicit, reason-bound, time-limited, revocable, audited, and read-only.
 
 ## Local workflow

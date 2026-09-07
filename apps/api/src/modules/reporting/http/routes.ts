@@ -89,7 +89,7 @@ export function createReportingRoutes(
     .get("/local-artifacts/*", async ({ request, params, set }) => {
       const current = await actor(request.headers, "reports.export")
       const key = decodeURIComponent(params["*"])
-      if (!key.startsWith(`${current.organizationId}/`) || !exports.readLocalArtifact) {
+      if (!key.startsWith(`tenants/${current.organizationId}/`) || !exports.readLocalArtifact) {
         set.status = 404
         return { code: "not_found" }
       }

@@ -158,6 +158,7 @@
   /* Primitive tokens: raw values from the accepted design anchors and project scales. */
   --primitive-transparent: transparent;
   --primitive-layer-modal: 60;
+  --primitive-layer-floating: 70;
   --primitive-white: #ffffff;
   --primitive-neutral-50: #fafafa;
   --primitive-neutral-100: #f5f5f5;
@@ -281,6 +282,7 @@
   --popover: var(--primitive-white);
   --popover-foreground: var(--primitive-navy-950);
   --layer-modal: var(--primitive-layer-modal);
+  --layer-floating: var(--primitive-layer-floating);
   --primary: var(--primitive-gold-700);
   --primary-foreground: var(--primitive-white);
   --secondary: var(--primitive-navy-100);

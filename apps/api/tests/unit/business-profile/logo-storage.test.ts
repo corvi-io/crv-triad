@@ -19,7 +19,7 @@ afterEach(async () => {
 describe("business logo storage", () => {
   it("names new objects inside the owning tenant namespace", () => {
     expect(createBusinessLogoKey("tenant-1", "webp")).toMatch(
-      /^tenants\/tenant-1\/business-profile\/logo\/[0-9a-f-]+\.webp$/,
+      /^tenants\/tenant-1\/branding\/logo\/[0-9a-f-]+\.webp$/,
     )
   })
 

@@ -5,7 +5,7 @@
 - PRD: `docs/initiatives/prds/27-typed-report-catalog-and-email-delivery.md`
 - Related issue/PR:
 - Approval state: Approved
-- Approved PRD version/date: 2026-09-06
+- Approved PRD version/date: Revised scope approved 2026-09-07
 
 ## Implementation Principles
 
@@ -26,10 +26,13 @@
 | REQ-017–018, REQ-020 / AC-012, AC-014 | TASK-002, TASK-003, TASK-006 | large-fixture queries, logs/traces assertions |
 | REQ-019 / AC-013 | TASK-005, TASK-008 | automated and real-browser accessibility QA |
 | REQ-021 / AC-015–016 | TASK-007, TASK-008, TASK-009 | repository gates and evidence report |
+| REQ-001–006, REQ-009, REQ-013, REQ-019 / AC-001–005, AC-008, AC-013 | TASK-010, TASK-011 | Studio/API contract tests and browser flow |
+| REQ-010–012, REQ-018, REQ-023 / AC-006–008, AC-014 | TASK-012 | storage-key and terminal-email failure matrix |
+| REQ-022 / AC-001, AC-005, AC-012 | TASK-013 | reviewed report decision/column matrix and query tests |
 
 ## Dependency Order
 
-TASK-001 freezes the typed contract and additive schema first. TASK-002 and TASK-005 may then proceed in parallel against that contract, provided they do not overlap shared contract files. TASK-003 depends on typed aggregations; TASK-004 depends on the lifecycle contract and provider composition. TASK-006 validates backend convergence throughout. TASK-007 completes real local infrastructure once the user supplies provider data. TASK-008 runs integrated product QA, then TASK-009 closes documentation and release evidence. Staging remains blocked until the dependency security gate and dev/hml provider smoke tests pass.
+The completed original implementation remains historical evidence. For the revised scope, TASK-013 freezes the accepted report catalog and CSV contracts first. TASK-010 and TASK-012 may then proceed in parallel because they primarily affect Studio and API/worker/storage boundaries respectively. TASK-011 depends on the revised request contract from TASK-012. TASK-008 resumes integrated product QA after TASK-010–013, and TASK-009 closes documentation and release evidence. Trigger.dev provider smoke remains blocked until its project and environment keys are provisioned.
 
 ## Tasks
 
@@ -131,7 +134,7 @@ TASK-001 freezes the typed contract and additive schema first. TASK-002 and TASK
 
 ### TASK-009 — Close gates, documentation, and staging handoff
 
-- Status: Pending
+- Status: Done
 - Covers: REQ-016, REQ-018, REQ-021; AC-010, AC-014–016
 - Depends on: TASK-008
 - Can parallelize with: None
@@ -140,6 +143,54 @@ TASK-001 freezes the typed contract and additive schema first. TASK-002 and TASK
 - Implementation notes: resolve the known Trigger dependency security findings before staging; do not treat local success as hml provider validation.
 - Verification: full monorepo check/build/test/coverage/security/production-boundary gates, clean worktree, real dev smoke, then hml smoke after deployment.
 - Evidence required before completion: final SHA, clean status, gate outputs, documentation links, and redacted dev/hml provider evidence.
+
+### TASK-010 — Replace analytics page with the system-standard catalog wizard
+
+- Status: Pending
+- Covers: REQ-001–006, REQ-013, REQ-019; AC-001–004, AC-008, AC-013
+- Depends on: Revised PRD approval; TASK-013 for final catalog membership
+- Can parallelize with: TASK-012
+- Relevant skills/docs: `triad-studio-development`, `impeccable`, `accessibility`, `ux-copy`
+- Expected artifacts: catalog-only route; no global analytics/filters; two-step dialog matching the workspace context-switcher composition; contextual Portuguese aggregate labels; CSV-only confirmation; no report history/status/download UI.
+- Implementation notes: preserve focus trap/restore, draft state on back navigation, stable button labels, 320px reflow, themes, and duplicate-submit prevention.
+- Verification: focused Studio component/route tests, design detector, responsive/theme/accessibility browser journeys.
+- Evidence required before completion: screenshots and tests proving catalog-only layout, both wizard stages, “Todos” labels, and absence of history/direct download.
+
+### TASK-011 — Enforce the CSV-only request contract
+
+- Status: Done
+- Covers: REQ-005, REQ-007, REQ-009, REQ-017; AC-003–005, AC-009, AC-012
+- Depends on: TASK-013; TASK-012 lifecycle contract
+- Can parallelize with: Late TASK-010
+- Relevant skills/docs: `triad-api-development`, `triad-testing`
+- Expected artifacts: CSV-only API schema and catalog, CSV-only worker renderer path for new requests, legacy PDF compatibility limited to already-persisted requests, updated Studio contracts.
+- Implementation notes: reject new `pdf` input with a safe validation error; do not destructively rewrite legacy request rows or artifacts.
+- Verification: schema, route, worker, compatibility, and Studio request tests.
+- Evidence required before completion: new CSV requests succeed, PDF requests fail safely, and legacy rows remain convergent until expiry.
+
+### TASK-012 — Standardize R2 ownership namespaces and terminal emails
+
+- Status: In progress
+- Covers: REQ-010–012, REQ-018, REQ-023; AC-006–008, AC-014
+- Depends on: Revised PRD approval
+- Can parallelize with: TASK-010
+- Relevant skills/docs: `triad-architecture`, `triad-idp-development`, `triad-api-development`, `cloudflare-r2`, `trigger-tasks`, `triad-testing`
+- Expected artifacts: shared documented object-key grammar; identity avatar keys under `users/{userId}/profile/avatar/`; tenant logo keys under `tenants/{tenantId}/branding/logo/`; report keys under `tenants/{tenantId}/reports/{reportType}/{year}/{month}/{requestId}/attempt-{attempt}.csv`; success and terminal-generation-failure email templates/use cases.
+- Implementation notes: user-owned identity assets survive tenant deletion; tenant cleanup must be prefix-bounded to `tenants/{tenantId}/`; keys contain no PII; email-provider failure remains an independently retried operational state.
+- Verification: key-builder unit tests, tenant-cleanup boundary negatives, worker generation-failure and email-failure matrices, privacy-safe observability assertions.
+- Evidence required before completion: exact key outputs, proof tenant cleanup cannot address `users/`, and one terminal email per idempotent outcome.
+
+### TASK-013 — Revalidate the customer value of every catalog report
+
+- Status: Done
+- Covers: REQ-001, REQ-004, REQ-009, REQ-022; AC-001–005, AC-012
+- Depends on: Revised PRD approval
+- Can parallelize with: None
+- Relevant skills/docs: `requirements-analysis`, `triad-architecture`, `triad-api-development`
+- Expected artifacts: decision matrix for each candidate report covering pain, business question, supported action, authoritative facts, formulas/denominators, CSV columns, filters, overlap, limitations, and readiness; catalog/schema updates for any rename, merge, defer, or removal.
+- Implementation notes: do not claim profit, utilization, SLA, opportunity loss, retention, or accounting reconciliation beyond persisted authoritative facts.
+- Verification: product review against repository query evidence and deterministic per-report fixtures.
+- Evidence required before completion: every shipped card maps to a distinct customer decision and a tested CSV contract.
 
 ## Verification Evidence
 
@@ -169,6 +220,8 @@ Record evidence as tasks are completed:
 ## Scope Changes
 
 - 2026-09-06: normal local development changed from a fake export provider to real Trigger.dev and R2; doubles are test-only. PRD requirements and TASK-007 added accordingly.
+- 2026-09-07: requested a catalog-only route, Studio-standard two-step dialog, CSV-only output, email-only terminal outcomes, report-value revalidation, and ownership-aware R2 paths that keep user identity assets independent of tenant deletion. Added TASK-010–013 and returned approval to `Awaiting approval`.
+- 2026-09-07: product owner approved the revised direction as intentionally evolvable; implementation resumed.
 
 ## Definition of Done
 

@@ -52,7 +52,7 @@ function SelectContent({
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Positioner
-        className="isolate z-50 outline-none select-none"
+        className="isolate z-(--layer-floating) outline-none select-none"
         alignItemWithTrigger={false}
         align={align}
         alignOffset={alignOffset}

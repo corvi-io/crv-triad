@@ -48,7 +48,7 @@ describe("production reporting HTTP adapter", () => {
     vi.stubGlobal("fetch", fetch)
     const repository = new ReportingHttpRepository()
     await repository.createExport({
-      format: "pdf",
+      format: "csv",
       filters: { from: "2026-09-01", to: "2026-09-06" },
       idempotencyKey: "018e90d8-31f8-7a65-9d01-7dd1876d4400",
       reportType: "sales_revenue",
@@ -61,7 +61,7 @@ describe("production reporting HTTP adapter", () => {
     )
     const createBody = JSON.parse(String((fetch.mock.calls[0][1] as RequestInit).body))
     expect(createBody).toMatchObject({
-      format: "pdf",
+      format: "csv",
       timezone: expect.any(String),
       idempotencyKey: "018e90d8-31f8-7a65-9d01-7dd1876d4400",
       reportType: "sales_revenue",

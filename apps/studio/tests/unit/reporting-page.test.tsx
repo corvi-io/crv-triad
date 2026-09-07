@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { type ReactNode, StrictMode, useState } from "react"
 import { beforeEach, describe, expect, it } from "vitest"
@@ -18,40 +18,19 @@ describe("ReportingPage", () => {
     await repository.reset()
   })
 
-  it("renders all seven truthful reports with textual and table equivalents", async () => {
+  it("renders the report catalog without analytics or global filters", async () => {
     renderReport("typical")
-
-    expect((await screen.findAllByText("Faturamento por período"))[0]).toBeInTheDocument()
-    for (const title of [
-      "Atendimentos por profissional",
-      "Serviços mais vendidos",
-      "Ticket médio",
-      "Comissões por profissional",
-      "Cancelamentos e ausências",
-      "Clientes novos e recorrentes",
-    ]) {
-      expect(screen.getAllByText(title)[0]).toBeInTheDocument()
-    }
-    expect(
-      screen.getByText(
-        "Resultado: 1 cancelamento(s) (12,5%) e 1 ausência(s) (12,5%). Denominador: 8 agendamento(s) no recorte.",
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/sem chave estável ficam fora das proporções/)).toBeInTheDocument()
-    expect(screen.getAllByRole("table").length).toBeGreaterThanOrEqual(6)
-    expect(screen.getAllByRole("img").length).toBeGreaterThanOrEqual(5)
+    expect(await screen.findByRole("heading", { name: "Escolha um relatório" })).toBeVisible()
+    expect(screen.getAllByRole("button", { name: "Configurar relatório" })).toHaveLength(6)
+    expect(screen.queryByRole("table")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Hoje" })).not.toBeInTheDocument()
   })
 
-  it("keeps labels stable and recovers from the deterministic fail-next state", async () => {
-    const user = userEvent.setup()
+  it("shows a recoverable error when the catalog data query fails", async () => {
     renderReport("next-failure")
-
-    expect(await screen.findByText("Não foi possível carregar os relatórios")).toBeInTheDocument()
-    const retry = screen.getByRole("button", { name: "Tentar novamente" })
-    await user.click(retry)
-    await waitFor(() =>
-      expect(screen.getAllByText("Faturamento por período")[0]).toBeInTheDocument(),
-    )
+    expect(await screen.findByText("Não foi possível carregar os relatórios")).toBeVisible()
+    expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeEnabled()
+    expect(screen.queryByRole("heading", { name: "Escolha um relatório" })).not.toBeInTheDocument()
   })
 
   it("opens Personalizado from a preset without changing the canonical range", async () => {

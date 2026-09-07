@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   type BackstageClientError,
   createTenant,
+  getTenantAccess,
   getTenants,
+  updateTenantAccess,
 } from "@/modules/backstage/backstage-client"
 
 describe("Backstage API client", () => {
@@ -66,6 +68,37 @@ describe("Backstage API client", () => {
       expect.objectContaining({
         body: JSON.stringify({ name: "Barbearia Aurora", ownerEmail: "owner@example.com" }),
         method: "POST",
+      }),
+    )
+  })
+
+  it("loads and updates tenant capabilities through the governed access contract", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        capabilities: [{ enabled: true, key: "revenue.read_checkout" }],
+        subscriptionVersion: 2,
+      }),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await getTenantAccess("tenant-a")
+    await updateTenantAccess({
+      enabledCapabilities: ["revenue.read_checkout"],
+      id: "tenant-a",
+      reason: "Habilitação solicitada pela operação",
+      subscriptionVersion: 2,
+    })
+
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.stringContaining("/api/backstage/tenants/tenant-a/access"),
+      expect.objectContaining({
+        credentials: "include",
+        method: "PUT",
+        body: JSON.stringify({
+          enabledCapabilities: ["revenue.read_checkout"],
+          reason: "Habilitação solicitada pela operação",
+          subscriptionVersion: 2,
+        }),
       }),
     )
   })
