@@ -327,6 +327,7 @@ export function createBackstageRoutes(
             planVersionId: nextVersionId,
             startsAt: now,
             state: current.state,
+            version: current.version + 1,
           })
           await tx.insert(accessAudit).values({
             action: "tenant.access_updated",
@@ -343,7 +344,7 @@ export function createBackstageRoutes(
               enabled: requestedCapabilities.includes(capability),
               key: capability,
             })),
-            subscriptionVersion: 1,
+            subscriptionVersion: current.version + 1,
           }
         })
       },

@@ -92,9 +92,9 @@ describe("generated reports catalog", () => {
     renderReports(baseRepository)
     await user.click((await screen.findAllByRole("button", { name: "Configurar relatório" }))[0])
     await user.click(screen.getByLabelText("Unidade"))
-    await user.click(screen.getByRole("option", { name: "Centro" }))
+    await user.click(await screen.findByRole("option", { name: "Centro" }))
     await user.click(screen.getByLabelText("Profissional"))
-    await user.click(screen.getByRole("option", { name: "Ana" }))
+    await user.click(await screen.findByRole("option", { name: "Ana" }))
     await user.click(screen.getByRole("button", { name: "Revisar relatório" }))
 
     expect(screen.getByText("Centro", { exact: true })).toBeVisible()

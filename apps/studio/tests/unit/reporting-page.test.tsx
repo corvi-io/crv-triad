@@ -26,10 +26,11 @@ describe("ReportingPage", () => {
     expect(screen.queryByRole("button", { name: "Hoje" })).not.toBeInTheDocument()
   })
 
-  it("keeps the catalog available when the hidden analytics query fails", async () => {
+  it("shows a recoverable error when the catalog data query fails", async () => {
     renderReport("next-failure")
-    expect(await screen.findByRole("heading", { name: "Escolha um relatório" })).toBeVisible()
-    expect(screen.queryByText("Não foi possível carregar os relatórios")).not.toBeInTheDocument()
+    expect(await screen.findByText("Não foi possível carregar os relatórios")).toBeVisible()
+    expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeEnabled()
+    expect(screen.queryByRole("heading", { name: "Escolha um relatório" })).not.toBeInTheDocument()
   })
 
   it("opens Personalizado from a preset without changing the canonical range", async () => {
