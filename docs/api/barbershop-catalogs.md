@@ -19,7 +19,9 @@ and historical references.
 
 Units persist one or more weekly opening periods. Each period assigns one valid start/end range to
 a disjoint set of weekdays, allowing weekday and Saturday hours to differ without an ambiguous day
-belonging to multiple periods.
+belonging to multiple periods. Unit create and update accept an optional validated IANA timezone;
+the first-run Studio flow always supplies it with the initial unit so onboarding readiness does not
+require a second write. Existing callers that omit it preserve the current timezone on update.
 
 The product has no production data yet. Its database history is consolidated in one clean baseline
 migration, and client preferences exist only as tenant-safe catalog-ID relationships. There is no

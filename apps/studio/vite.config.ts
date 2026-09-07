@@ -20,6 +20,7 @@ export default defineConfig(({ command, mode }) => {
     VITE_DEPLOY_TARGET: process.env.VITE_DEPLOY_TARGET ?? fileEnv.VITE_DEPLOY_TARGET,
     VITE_REVENUE_OPERATIONS_SOURCE:
       process.env.VITE_REVENUE_OPERATIONS_SOURCE ?? fileEnv.VITE_REVENUE_OPERATIONS_SOURCE,
+    VITE_REPORTING_SOURCE: process.env.VITE_REPORTING_SOURCE ?? fileEnv.VITE_REPORTING_SOURCE,
     VITE_SCHEDULING_SOURCE: process.env.VITE_SCHEDULING_SOURCE ?? fileEnv.VITE_SCHEDULING_SOURCE,
     VITE_SERVICE_DESK_SOURCE:
       process.env.VITE_SERVICE_DESK_SOURCE ?? fileEnv.VITE_SERVICE_DESK_SOURCE,
@@ -76,9 +77,11 @@ export default defineConfig(({ command, mode }) => {
       ? "./src/modules/clients/http-entry.ts"
       : "./src/modules/shared/config/client-management-source-disabled.ts"
   const reportingSourceEntry =
-    schedulingPrototypeEnabled && clientManagementMemoryEnabled
-      ? "./src/dev/reporting/entry.ts"
-      : "./src/modules/shared/config/reporting-source-disabled.ts"
+    publicEnv.VITE_REPORTING_SOURCE === "http"
+      ? "./src/modules/reporting/http-entry.ts"
+      : schedulingPrototypeEnabled && clientManagementMemoryEnabled
+        ? "./src/dev/reporting/entry.ts"
+        : "./src/modules/shared/config/reporting-source-disabled.ts"
   const operationalNotificationsSourceEntry = schedulingPrototypeEnabled
     ? "./src/dev/operational-notifications/entry.ts"
     : "./src/modules/shared/config/operational-notifications-source-disabled.ts"

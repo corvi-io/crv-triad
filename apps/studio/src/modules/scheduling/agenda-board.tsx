@@ -19,7 +19,7 @@ import {
   useSensors,
 } from "@dnd-kit/core"
 import { GripVerticalIcon, MoreHorizontalIcon } from "lucide-react"
-import { useMemo, useRef, useState, useSyncExternalStore } from "react"
+import { type Ref, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 
 import { StatusBadge } from "@/modules/shared/components/feedback/status-badge"
 import { Button } from "@/modules/shared/components/ui/button"
@@ -34,7 +34,12 @@ import {
 import { cn } from "@/modules/shared/lib/utils"
 import type { AgendaColumnId } from "./agenda"
 import { AgendaAvatar } from "./agenda-avatar"
-import { type AgendaCurrentTimeMarker, resolveAgendaCurrentTimeMarker } from "./agenda-current-time"
+import {
+  type AgendaCurrentTimeMarker,
+  resolveAgendaCurrentTimeMarker,
+  resolveAgendaDate,
+} from "./agenda-current-time"
+import { resolveAgendaInitialScrollTop } from "./agenda-initial-position"
 import type { Appointment, Professional, ScheduleDay, Service } from "./contracts"
 import { appointmentStatusPresentation, isTerminalAppointmentStatus } from "./status"
 
@@ -71,6 +76,7 @@ export function AgendaBoard({
   onReschedule,
   onSlot,
   onTransitionRequest,
+  unitId,
 }: {
   day: ScheduleDay
   isReschedulePending: boolean
@@ -79,6 +85,7 @@ export function AgendaBoard({
   onReschedule: (appointment: Appointment, destination: AgendaDropDestination) => void
   onSlot: (slot: AgendaDropDestination) => void
   onTransitionRequest: (appointment: Appointment, column?: AgendaColumnId) => void
+  unitId: string
 }) {
   const slots = useMemo(() => makeSlots(day.startTime, day.endTime), [day.endTime, day.startTime])
   const services = useMemo(
@@ -93,8 +100,13 @@ export function AgendaBoard({
     now: new Date(currentMinute),
     selectedDate: day.date,
     startTime: day.startTime,
+    timezone: day.timezone,
   })
   const keyboardCursorRef = useRef<AgendaKeyboardCursor | null>(null)
+  const scrollerRef = useRef<HTMLDivElement | null>(null)
+  const markerRef = useRef<HTMLSpanElement | null>(null)
+  const positionedKeyRef = useRef<string | null>(null)
+  const positioningKey = `${day.date}:${unitId}`
   const keyboardCoordinateGetter = useMemo(
     () => createAgendaKeyboardCoordinates(keyboardCursorRef),
     [],
@@ -143,6 +155,32 @@ export function AgendaBoard({
     [],
   )
 
+  useLayoutEffect(() => {
+    if (positionedKeyRef.current === positioningKey) return
+    const scroller = scrollerRef.current
+    if (!scroller) return
+    const today = resolveAgendaDate(new Date(currentMinute), day.timezone)
+    if (day.date !== today) {
+      positionedKeyRef.current = null
+      return
+    }
+    const horizontalPosition = scroller.scrollLeft
+    const markerTop = markerRef.current
+      ? markerRef.current.getBoundingClientRect().top -
+        scroller.getBoundingClientRect().top +
+        scroller.scrollTop
+      : undefined
+    const headerHeight = scroller.querySelector("thead")?.getBoundingClientRect().height ?? 0
+    scroller.scrollTop = resolveAgendaInitialScrollTop({
+      clientHeight: scroller.clientHeight,
+      markerTop,
+      scrollHeight: scroller.scrollHeight,
+      stickyHeaderHeight: headerHeight,
+    })
+    scroller.scrollLeft = horizontalPosition
+    positionedKeyRef.current = positioningKey
+  }, [currentMinute, day.date, day.timezone, positioningKey])
+
   return (
     <DndContext
       accessibility={{
@@ -189,7 +227,10 @@ export function AgendaBoard({
         className="agenda-board min-h-0 flex-1 overflow-hidden rounded-lg border"
         data-testid="agenda-board"
       >
-        <div className="agenda-grid-scroll h-full max-h-[calc(100vh-13rem)] overflow-auto">
+        <div
+          className="agenda-grid-scroll h-full max-h-[calc(100vh-13rem)] overflow-auto"
+          ref={scrollerRef}
+        >
           <div
             className="agenda-grid-container relative min-w-full"
             style={{ minWidth: `${80 + day.professionals.length * 196}px` }}
@@ -233,7 +274,7 @@ export function AgendaBoard({
                     >
                       {slot}
                       {currentTimeMarker?.rowIndex === slotIndex ? (
-                        <CurrentTimeMarker marker={currentTimeMarker} />
+                        <CurrentTimeMarker marker={currentTimeMarker} ref={markerRef} />
                       ) : null}
                     </th>
                     {day.professionals.map((professional, professionalIndex) => (
@@ -272,7 +313,13 @@ export function AgendaBoard({
   )
 }
 
-function CurrentTimeMarker({ marker }: { marker: AgendaCurrentTimeMarker }) {
+function CurrentTimeMarker({
+  marker,
+  ref,
+}: {
+  marker: AgendaCurrentTimeMarker
+  ref?: Ref<HTMLSpanElement>
+}) {
   return (
     <span
       aria-hidden="true"
@@ -281,6 +328,7 @@ function CurrentTimeMarker({ marker }: { marker: AgendaCurrentTimeMarker }) {
         marker.rowProgress < 0.3 ? "after" : marker.rowProgress > 0.7 ? "before" : "center"
       }
       data-testid="agenda-current-time-marker"
+      ref={ref}
       style={{ top: `${marker.rowProgress * 100}%` }}
     >
       <span className="agenda-current-time-label">{marker.label}</span>

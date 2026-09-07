@@ -25,8 +25,14 @@
       "skillPath": "better-auth/best-practices/SKILL.md",
       "computedHash": "a4c830509e85557b59339d8d93a4e243e9e59c686e7678854d39230e12c2a6dc"
     },
+    "cloudflare-r2": {
+      "source": "secondsky/claude-skills",
+      "sourceType": "github",
+      "skillPath": "plugins/cloudflare-r2/skills/cloudflare-r2/SKILL.md",
+      "computedHash": "0b85d438ef70a9f8009a44e867999cc94cbc96d970ccb71b75f8f066d79e09ff"
+    },
     "elysia": {
-      "source": "local",
+      "source": "./local",
       "sourceType": "local",
       "skillPath": ".agents/skills/elysia/SKILL.md",
       "computedHash": ""
@@ -54,6 +60,18 @@
       "sourceType": "github",
       "skillPath": "plugins/frontend-mobile-development/skills/tailwind-design-system/SKILL.md",
       "computedHash": "cd61afd28f594e8b6712b61749209cbb4466e3eec4e4223793bbd97fc85c1b63"
+    },
+    "trigger-setup": {
+      "source": "triggerdotdev/skills",
+      "sourceType": "github",
+      "skillPath": "trigger-setup/SKILL.md",
+      "computedHash": "d05b406ad44a0190208e6258525fd78c931cbcbb4ead4a5ec6fb82114fae7724"
+    },
+    "trigger-tasks": {
+      "source": "triggerdotdev/skills",
+      "sourceType": "github",
+      "skillPath": "trigger-tasks/SKILL.md",
+      "computedHash": "fc5371f0356358a13a07b8d5f72f7e537002d4b0c50f3d2dacd57d10a2163cfa"
     },
     "ux-copy": {
       "source": "anthropics/knowledge-work-plugins",

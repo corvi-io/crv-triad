@@ -134,7 +134,7 @@ test("accepts one invitation, creates a session, and rejects its replay", async 
 
   await page.goto("/accept-invitation?token=opaque-test-proof")
   await expect(page).toHaveURL(/\/accept-invitation$/)
-  await expect(page.getByText(/Convite válido para o perfil de membro/)).toBeVisible()
+  await expect(page.getByText("Crie seu acesso para confirmar o convite.")).toBeVisible()
   await page.getByLabel("Seu nome").fill("Pessoa Convidada")
   await page.getByLabel("Nova senha", { exact: true }).fill("Senha válida 1!")
   await page.getByLabel("Confirmar nova senha").fill("Senha válida 1!")

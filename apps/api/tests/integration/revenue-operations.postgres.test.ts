@@ -5,6 +5,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator"
 import { Pool } from "pg"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { createAvailabilityService } from "../../src/modules/availability/application/availability-service.js"
+import { commissionFact } from "../../src/modules/commissions/database/schema.js"
 import { member, organization, user } from "../../src/modules/idp/database/schema.js"
 import {
   createRevenueOperationsService,
@@ -193,6 +194,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   for (const table of [
+    commissionFact,
     revenueReceiptReversal,
     revenueReceiptTender,
     revenueReceiptLine,

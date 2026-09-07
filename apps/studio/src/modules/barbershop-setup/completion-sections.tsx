@@ -1,6 +1,8 @@
-import { CircleAlertIcon, SaveIcon, Trash2Icon } from "lucide-react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { CameraIcon, CircleAlertIcon, ImageIcon, SaveIcon, Trash2Icon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { MaskedInput } from "@/modules/shared/components/forms/masked-input"
 import { Alert, AlertDescription, AlertTitle } from "@/modules/shared/components/ui/alert"
 import { Button } from "@/modules/shared/components/ui/button"
 import {
@@ -43,46 +45,102 @@ import {
 } from "./queries"
 import { useBarbershopSetupRepository } from "./repository-context"
 
-export function BusinessProfileSection({ scenarioId }: { scenarioId: SetupScenarioId }) {
-  const completion = useSetupCompletion(scenarioId)
-  const relations = useSetupAvailability({ scenarioId })
-  if (completion.isPending || relations.isPending) return <CompletionLoading />
-  if (completion.isError || relations.isError)
-    return (
-      <CompletionError onRetry={() => Promise.all([completion.refetch(), relations.refetch()])} />
-    )
+const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" })
+
+export function BusinessProfileSection({
+  scenarioId,
+  onCompleted,
+}: {
+  scenarioId: SetupScenarioId
+  onCompleted?: () => Promise<void> | void
+}) {
+  const repository = useBarbershopSetupRepository()
+  const profile = useQuery({
+    queryKey: ["barbershop-setup", "business-profile", scenarioId],
+    queryFn: async () =>
+      repository.getBusinessProfile?.() ?? (await repository.getCompletion(scenarioId)).profile,
+  })
+  const units = useQuery({
+    queryKey: ["barbershop-setup", "business-profile-units", scenarioId],
+    queryFn: async () =>
+      repository.getBusinessUnits?.() ?? (await repository.getAvailability({ scenarioId })).units,
+  })
+  if (profile.isPending || units.isPending) return <CompletionLoading />
+  if (profile.isError || units.isError)
+    return <CompletionError onRetry={() => Promise.all([profile.refetch(), units.refetch()])} />
   return (
     <BusinessProfileForm
-      key={`${scenarioId}-${completion.data.profile.displayName}`}
-      initial={completion.data.profile}
-      units={relations.data.units}
+      key={`${scenarioId}-${profile.data.displayName}`}
+      initial={profile.data}
+      units={units.data}
+      onCompleted={onCompleted}
+      onboardingMode={Boolean(onCompleted)}
     />
   )
 }
 
 function BusinessProfileForm({
   initial,
+  onCompleted,
+  onboardingMode,
   units,
 }: {
   initial: BarbershopProfile
+  onCompleted?: () => Promise<void> | void
+  onboardingMode: boolean
   units: readonly { address: string; id: string; name: string }[]
 }) {
   const mutation = useUpdateBarbershopProfile()
+  const repository = useBarbershopSetupRepository()
   const [values, setValues] = useState(initial)
   const [error, setError] = useState("")
   const [attempted, setAttempted] = useState(false)
   const [focusRequest, setFocusRequest] = useState(0)
+  const [logoBusy, setLogoBusy] = useState(false)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [pendingLogo, setPendingLogo] = useState<File | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   const displayInvalid = values.displayName.trim().length < 2
   const phoneInvalid = !/^\d{10,11}$/.test(values.phone.replace(/\D/g, ""))
   const emailInvalid = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)
-  const unitInvalid = !values.primaryUnitId || !units.some(({ id }) => id === values.primaryUnitId)
+  const unitInvalid =
+    !onboardingMode &&
+    (!values.primaryUnitId || !units.some(({ id }) => id === values.primaryUnitId))
 
   useEffect(() => {
     if (focusRequest === 0) return
     formRef.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus()
   }, [focusRequest])
+
+  useEffect(
+    () => () => {
+      if (logoPreview) URL.revokeObjectURL(logoPreview)
+    },
+    [logoPreview],
+  )
+
+  useEffect(() => {
+    if (!values.logoAvailable || !repository.getBusinessLogo) {
+      setLogoPreview(null)
+      return
+    }
+    let active = true
+    let objectUrl: string | null = null
+    void repository
+      .getBusinessLogo()
+      .then((logo) => {
+        if (!active || !logo) return
+        objectUrl = URL.createObjectURL(logo)
+        setLogoPreview(objectUrl)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [repository, values.logoAvailable])
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -94,11 +152,20 @@ function BusinessProfileForm({
       return
     }
     try {
-      await mutation.mutateAsync(values)
+      let saved = await mutation.mutateAsync(values)
+      if (pendingLogo && saved.version && repository.uploadBusinessLogo) {
+        setLogoBusy(true)
+        saved = await repository.uploadBusinessLogo(pendingLogo, saved.version)
+        setPendingLogo(null)
+      }
+      setValues(saved)
       toast.success("Dados da barbearia atualizados.")
+      await onCompleted?.()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar os dados.")
       setFocusRequest((current) => current + 1)
+    } finally {
+      setLogoBusy(false)
     }
   }
 
@@ -110,11 +177,122 @@ function BusinessProfileForm({
             <h3>Dados da barbearia</h3>
           </CardTitle>
           <CardDescription>
-            Identidade de exibição e contato da operação. Dados legais, logotipo e documentos não
-            fazem parte desta etapa.
+            Identidade de exibição, contato e marca da operação. Dados legais e documentos não fazem
+            parte desta etapa.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
+          {repository.uploadBusinessLogo ? (
+            <section
+              className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-4 sm:flex-row sm:items-center md:col-span-2"
+              aria-labelledby="business-logo-title"
+            >
+              <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-card text-muted-foreground">
+                {logoPreview ? (
+                  <img
+                    alt="Prévia do logotipo da barbearia"
+                    className="size-full object-cover"
+                    src={logoPreview}
+                  />
+                ) : (
+                  <ImageIcon aria-hidden="true" className="size-8" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-3">
+                <div>
+                  <h4 className="font-medium" id="business-logo-title">
+                    Logotipo da barbearia
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    JPEG, PNG ou WebP, até 5 MB e 4096 × 4096 px.
+                  </p>
+                </div>
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  disabled={logoBusy}
+                  id="barbershop-logo"
+                  ref={logoInputRef}
+                  type="file"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0]
+                    if (!file) return
+                    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+                      setError("Escolha uma imagem JPEG, PNG ou WebP.")
+                      event.target.value = ""
+                      return
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                      setError("Escolha uma imagem de até 5 MB.")
+                      event.target.value = ""
+                      return
+                    }
+                    const preview = URL.createObjectURL(file)
+                    setError("")
+                    setLogoPreview(preview)
+                    if (!values.version) {
+                      setPendingLogo(file)
+                      event.target.value = ""
+                      return
+                    }
+                    setLogoBusy(true)
+                    try {
+                      const next = await repository.uploadBusinessLogo?.(file, values.version)
+                      if (next) setValues(next)
+                      toast.success("Logotipo atualizado.")
+                    } catch (cause) {
+                      URL.revokeObjectURL(preview)
+                      setLogoPreview(null)
+                      setError(
+                        cause instanceof Error
+                          ? cause.message
+                          : "Não foi possível enviar o logotipo.",
+                      )
+                    } finally {
+                      setLogoBusy(false)
+                      event.target.value = ""
+                    }
+                  }}
+                />
+                <label className="sr-only" htmlFor="barbershop-logo">
+                  Logotipo
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    isLoading={logoBusy}
+                    onClick={() => logoInputRef.current?.click()}
+                  >
+                    <CameraIcon aria-hidden="true" data-icon="inline-start" />
+                    {values.logoAvailable ? "Trocar imagem" : "Escolher imagem"}
+                  </Button>
+                  {values.logoAvailable ? (
+                    <Button
+                      disabled={logoBusy}
+                      type="button"
+                      variant="ghost"
+                      onClick={async () => {
+                        if (!values.version) return
+                        setLogoBusy(true)
+                        try {
+                          const next = await repository.removeBusinessLogo?.(values.version)
+                          if (next) setValues(next)
+                          setLogoPreview(null)
+                          toast.success("Logotipo removido.")
+                        } finally {
+                          setLogoBusy(false)
+                        }
+                      }}
+                    >
+                      <Trash2Icon aria-hidden="true" data-icon="inline-start" />
+                      Remover logotipo
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+          ) : null}
           <Field data-invalid={(attempted && displayInvalid) || undefined}>
             <FieldLabel htmlFor="barbershop-display-name" required>
               Nome de exibição
@@ -140,18 +318,13 @@ function BusinessProfileForm({
             <FieldLabel htmlFor="barbershop-phone" required>
               Telefone
             </FieldLabel>
-            <Input
+            <MaskedInput
               id="barbershop-phone"
-              inputMode="tel"
+              mask="brPhone"
               value={values.phone}
               aria-invalid={attempted && phoneInvalid}
               aria-describedby={attempted && phoneInvalid ? "barbershop-phone-error" : undefined}
-              onChange={(event) =>
-                setValues((current) => ({
-                  ...current,
-                  phone: event.target.value.replace(/\D/g, "").slice(0, 11),
-                }))
-              }
+              onValueChange={(phone) => setValues((current) => ({ ...current, phone }))}
             />
             {attempted && phoneInvalid ? (
               <FieldError id="barbershop-phone-error">Informe um telefone válido.</FieldError>
@@ -176,7 +349,7 @@ function BusinessProfileForm({
             ) : null}
           </Field>
           <Field data-invalid={(attempted && unitInvalid) || undefined}>
-            <FieldLabel htmlFor="barbershop-primary-unit" required>
+            <FieldLabel htmlFor="barbershop-primary-unit" required={!onboardingMode}>
               Unidade principal
             </FieldLabel>
             <Select
@@ -197,7 +370,10 @@ function BusinessProfileForm({
                     : "barbershop-primary-unit-description"
                 }
               >
-                <SelectValue />
+                <SelectValue>
+                  {units.find(({ id }) => id === values.primaryUnitId)?.name ??
+                    "Selecione uma unidade"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -211,13 +387,58 @@ function BusinessProfileForm({
             </Select>
             <FieldDescription id="barbershop-primary-unit-description">
               {units.find(({ id }) => id === values.primaryUnitId)?.address ??
-                "Cadastre uma unidade para definir o endereço."}
+                (values.primaryUnitId
+                  ? "Endereço não informado para esta unidade."
+                  : "Cadastre uma unidade para definir o endereço.")}
             </FieldDescription>
             {attempted && unitInvalid ? (
               <FieldError id="barbershop-primary-unit-error">
                 Selecione uma unidade principal válida.
               </FieldError>
             ) : null}
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="barbershop-whatsapp">WhatsApp</FieldLabel>
+            <MaskedInput
+              id="barbershop-whatsapp"
+              mask="brPhone"
+              value={values.whatsapp ?? ""}
+              onValueChange={(whatsapp) => setValues((current) => ({ ...current, whatsapp }))}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="barbershop-website">Site</FieldLabel>
+            <Input
+              id="barbershop-website"
+              type="url"
+              placeholder="https://"
+              value={values.website ?? ""}
+              onChange={(event) =>
+                setValues((current) => ({ ...current, website: event.target.value }))
+              }
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="barbershop-instagram">Instagram</FieldLabel>
+            <Input
+              id="barbershop-instagram"
+              placeholder="@barbearia"
+              value={values.instagram ?? ""}
+              onChange={(event) =>
+                setValues((current) => ({ ...current, instagram: event.target.value }))
+              }
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="barbershop-description">Descrição</FieldLabel>
+            <Input
+              id="barbershop-description"
+              maxLength={500}
+              value={values.description ?? ""}
+              onChange={(event) =>
+                setValues((current) => ({ ...current, description: event.target.value }))
+              }
+            />
           </Field>
           {error ? (
             <Alert className="md:col-span-2" variant="destructive">
@@ -243,18 +464,23 @@ export function PaymentsSection({ scenarioId }: { scenarioId: SetupScenarioId })
   const production = repository.catalogSource === "http"
   const completion = useSetupCompletion(scenarioId)
   const relations = useSetupAvailability({ scenarioId })
-  if (completion.isPending || (!production && relations.isPending)) return <CompletionLoading />
-  if (completion.isError || (!production && relations.isError))
+  if (completion.isPending || relations.isPending) return <CompletionLoading />
+  if (completion.isError || relations.isError)
     return (
       <CompletionError onRetry={() => Promise.all([completion.refetch(), relations.refetch()])} />
     )
   return (
     <div className="grid gap-4 pb-4 lg:grid-cols-2">
       <PaymentSettingsForm
-        className={production ? "lg:col-span-2" : undefined}
         key={`${scenarioId}-payments`}
         initial={completion.data.paymentMethods}
       />
+      {production && relations.data ? (
+        <CommissionSettings
+          professionals={relations.data.professionals}
+          services={relations.data.services}
+        />
+      ) : null}
       {!production && relations.data ? (
         <ServiceOverrideForm
           key={`${scenarioId}-overrides`}
@@ -264,6 +490,154 @@ export function PaymentsSection({ scenarioId }: { scenarioId: SetupScenarioId })
         />
       ) : null}
     </div>
+  )
+}
+
+function CommissionSettings({
+  professionals,
+  services,
+}: {
+  professionals: readonly { id: string; name: string }[]
+  services: readonly { id: string; name: string }[]
+}) {
+  const repository = useBarbershopSetupRepository()
+  const client = useQueryClient()
+  const policies = useQuery({
+    enabled: Boolean(repository.getCommissionPolicies),
+    queryKey: ["barbershop-setup", "commission-policies"],
+    queryFn: () => repository.getCommissionPolicies?.() ?? [],
+  })
+  const now = new Date()
+  const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+  const to = now.toISOString().slice(0, 10)
+  const detail = useQuery({
+    enabled: Boolean(repository.getCommissionDetail),
+    queryKey: ["barbershop-setup", "commission-detail", from, to],
+    queryFn: () => repository.getCommissionDetail?.({ from, to }),
+  })
+  const [professionalId, setProfessionalId] = useState(professionals[0]?.id ?? "")
+  const [serviceId, setServiceId] = useState("")
+  const [kind, setKind] = useState<"fixed" | "none" | "percentage">("percentage")
+  const [amount, setAmount] = useState("40")
+  useEffect(() => {
+    const current = policies.data?.find(
+      (item) => item.professionalId === professionalId && (item.serviceId ?? "") === serviceId,
+    )
+    if (!current) return
+    setKind(current.kind)
+    setAmount(
+      current.kind === "percentage"
+        ? String((current.basisPoints ?? 0) / 100)
+        : String((current.fixedCents ?? 0) / 100).replace(".", ","),
+    )
+  }, [policies.data, professionalId, serviceId])
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!repository.saveCommissionPolicy) throw new Error("Configuração indisponível.")
+      const current = policies.data?.find(
+        (item) => item.professionalId === professionalId && (item.serviceId ?? "") === serviceId,
+      )
+      return repository.saveCommissionPolicy({
+        professionalId,
+        serviceId: serviceId || null,
+        kind,
+        basisPoints: kind === "percentage" ? Math.round(Number(amount) * 100) : null,
+        fixedCents: kind === "fixed" ? Math.round(Number(amount.replace(",", ".")) * 100) : null,
+        expectedVersion: current?.version ?? null,
+      })
+    },
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["barbershop-setup", "commission-policies"] })
+      toast.success("Regra de comissão salva para vendas futuras.")
+    },
+    onError: (error) => toast.error(error.message),
+  })
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <h3>Comissões</h3>
+        </CardTitle>
+        <CardDescription>
+          Defina a regra padrão ou uma exceção por serviço. Alterações valem apenas para novas
+          vendas.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <Select value={professionalId} onValueChange={(value) => setProfessionalId(value ?? "")}>
+          <SelectTrigger aria-label="Profissional da comissão">
+            <SelectValue placeholder="Selecione o profissional">
+              {professionals.find(({ id }) => id === professionalId)?.name}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {professionals.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                {item.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={serviceId || "default"}
+          onValueChange={(value) => setServiceId(value === "default" ? "" : (value ?? ""))}
+        >
+          <SelectTrigger aria-label="Serviço da comissão">
+            <SelectValue>
+              {serviceId
+                ? (services.find(({ id }) => id === serviceId)?.name ?? "Selecione um serviço")
+                : "Regra padrão"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Regra padrão</SelectItem>
+            {services.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                {item.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={kind} onValueChange={(value) => setKind((value ?? "none") as typeof kind)}>
+          <SelectTrigger aria-label="Tipo de comissão">
+            <SelectValue>
+              {kind === "percentage"
+                ? "Percentual"
+                : kind === "fixed"
+                  ? "Valor fixo por serviço"
+                  : "Sem comissão"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="percentage">Percentual</SelectItem>
+            <SelectItem value="fixed" disabled={!serviceId}>
+              Valor fixo por serviço
+            </SelectItem>
+            <SelectItem value="none">Sem comissão</SelectItem>
+          </SelectContent>
+        </Select>
+        {kind !== "none" ? (
+          <Input
+            aria-label={kind === "percentage" ? "Percentual da comissão" : "Valor fixo da comissão"}
+            inputMode="decimal"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+        ) : null}
+        <div aria-live="polite" className="rounded-lg bg-muted p-3 text-sm">
+          No mês:{" "}
+          <strong>{currency.format((detail.data?.totals.commissionCents ?? 0) / 100)}</strong> em
+          comissões e {currency.format((detail.data?.totals.barbershopShareCents ?? 0) / 100)} para
+          a barbearia.
+        </div>
+      </CardContent>
+      <CardFooter className="justify-end">
+        <Button disabled={!professionalId} isLoading={save.isPending} onClick={() => save.mutate()}>
+          <SaveIcon data-icon="inline-start" />
+          Salvar regra
+        </Button>
+      </CardFooter>
+    </Card>
   )
 }
 

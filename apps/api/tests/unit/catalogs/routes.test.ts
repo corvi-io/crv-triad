@@ -134,6 +134,34 @@ describe("catalog routes", () => {
     )
   })
 
+  it("falls back to a generic professional invitation when display context fails", async () => {
+    const sendInvitation = vi.fn(async () => "sent" as const)
+    const app = createCatalogRoutes(
+      {
+        inviteProfessional: vi.fn(async () => ({
+          email: "professional@example.com",
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+          identityInvitationId: "invitation-a",
+          mode: "invited" as const,
+          token: "opaque-token",
+        })),
+      } as never,
+      resolve as never,
+      authorize as never,
+      { sendInvitation },
+      undefined,
+      vi.fn(async () => Promise.reject(new Error("context unavailable"))),
+    )
+    const response = await app.handle(
+      request("/api/professionals/invite", {
+        body: JSON.stringify({ email: "professional@example.com" }),
+        method: "POST",
+      }),
+    )
+    expect(response.status).toBe(201)
+    expect(sendInvitation).toHaveBeenCalledWith(expect.objectContaining({ displayContext: null }))
+  })
+
   it("lists, resends, and revokes tenant-scoped pending professional invitations", async () => {
     const service = {
       listPendingProfessionalInvitations: vi.fn(async () => [
@@ -346,7 +374,7 @@ describe("catalog routes", () => {
     expect(writeAudit).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "update",
-        changedFields: ["address", "businessHours", "code", "name"],
+        changedFields: ["address", "businessHours", "code", "name", "timezone"],
         entityId: "unit-a",
         entityType: "unit",
         requestId: "request-a",

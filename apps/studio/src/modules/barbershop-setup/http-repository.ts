@@ -6,6 +6,8 @@ import type {
   AvailabilityResult,
   BarbershopProfile,
   BarbershopSetupRepository,
+  CommissionDetail,
+  CommissionPolicy,
   CopyAvailabilityToWeekdaysInput,
   PaymentMethodSetting,
   PendingProfessionalInvitation,
@@ -169,9 +171,10 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
     throw new SetupValidationError("Este recurso ainda não está disponível em produção.")
   }
   async getCompletion(_scenarioId: string): Promise<SetupCompletion> {
-    const [overview, paymentMethods] = await Promise.all([
+    const [overview, paymentMethods, profile] = await Promise.all([
       this.getOverview(),
       this.#paymentMethods(),
+      request<ApiBusinessProfile | null>("/api/business-profile"),
     ])
     const steps = overview.items.map((item) => ({
       complete: item.complete,
@@ -189,7 +192,7 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
     }))
     return {
       paymentMethods,
-      profile: { displayName: "", email: "", phone: "" },
+      profile: profile ? mapProfile(profile) : { displayName: "", email: "", phone: "" },
       readiness: {
         completedCount: overview.completedCount,
         nextStepId: steps.find((step) => !step.complete)?.id ?? "review",
@@ -198,6 +201,13 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
       },
       serviceOverrides: [],
     }
+  }
+  async getBusinessProfile(): Promise<BarbershopProfile> {
+    const profile = await request<ApiBusinessProfile | null>("/api/business-profile")
+    return profile ? mapProfile(profile) : { displayName: "", email: "", phone: "" }
+  }
+  getBusinessUnits(): Promise<readonly SetupUnit[]> {
+    return this.options<SetupUnit>("unit")
   }
   getProfessionalOperationalSummary(
     _professionalId: string,
@@ -257,8 +267,72 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
     )
     return this.#mapPaymentMethods(rows)
   }
-  updateProfile(_input: BarbershopProfile): Promise<BarbershopProfile> {
-    return Promise.reject(this.unsupported())
+  async updateProfile(input: BarbershopProfile): Promise<BarbershopProfile> {
+    return mapProfile(
+      await request<ApiBusinessProfile>("/api/business-profile", {
+        method: "PUT",
+        body: {
+          displayName: input.displayName,
+          email: input.email,
+          phone: normalizeBrazilPhone(input.phone),
+          whatsapp: input.whatsapp ? normalizeBrazilPhone(input.whatsapp) : null,
+          primaryUnitId: input.primaryUnitId ?? null,
+          description: input.description || null,
+          website: input.website || null,
+          instagram: input.instagram || null,
+          expectedVersion: input.version ?? null,
+        },
+      }),
+    )
+  }
+  getCommissionPolicies() {
+    return request<readonly CommissionPolicy[]>("/api/commissions/policies")
+  }
+  getCommissionDetail(filters: { from: string; to: string }) {
+    return request<CommissionDetail>(`/api/commissions/detail?${new URLSearchParams(filters)}`)
+  }
+  saveCommissionPolicy(
+    input: Omit<CommissionPolicy, "version"> & { expectedVersion: number | null },
+  ) {
+    const rule =
+      input.kind === "percentage"
+        ? { kind: input.kind, basisPoints: input.basisPoints }
+        : input.kind === "fixed"
+          ? { kind: input.kind, fixedCents: input.fixedCents }
+          : { kind: input.kind }
+    return request<readonly CommissionPolicy[]>("/api/commissions/policies", {
+      method: "PUT",
+      body: {
+        professionalId: input.professionalId,
+        serviceId: input.serviceId ?? null,
+        expectedVersion: input.expectedVersion,
+        rule,
+      },
+    })
+  }
+  async uploadBusinessLogo(file: File, expectedVersion: number) {
+    const body = new FormData()
+    body.set("file", file)
+    body.set("expectedVersion", String(expectedVersion))
+    return mapProfile(
+      await request<ApiBusinessProfile>("/api/business-profile/logo", { method: "POST", body }),
+    )
+  }
+  async getBusinessLogo() {
+    const response = await fetch(getApiUrl("/api/business-profile/logo"), {
+      credentials: "include",
+    })
+    if (response.status === 404) return null
+    if (!response.ok) throw new Error("Não foi possível carregar o logotipo.")
+    return response.blob()
+  }
+  async removeBusinessLogo(expectedVersion: number) {
+    return mapProfile(
+      await request<ApiBusinessProfile>(
+        `/api/business-profile/logo?expectedVersion=${expectedVersion}`,
+        { method: "DELETE" },
+      ),
+    )
   }
 
   async #paymentMethods() {
@@ -280,18 +354,40 @@ type ApiPaymentMethod = {
   method: "pix" | "cash" | "debit" | "credit"
   version: number
 }
+type ApiBusinessProfile = BarbershopProfile & { primaryUnitId: string | null; version: number }
+function mapProfile(value: ApiBusinessProfile): BarbershopProfile {
+  return {
+    ...value,
+    description: value.description ?? undefined,
+    instagram: value.instagram ?? undefined,
+    primaryUnitId: value.primaryUnitId ?? undefined,
+    website: value.website ?? undefined,
+    whatsapp: value.whatsapp ?? undefined,
+  }
+}
+function normalizeBrazilPhone(value: string) {
+  const digits = value.replace(/\D/g, "")
+  return digits.startsWith("55") ? `+${digits}` : `+55${digits}`
+}
 
 function plural(kind: SetupEntityKind) {
   return kind === "unit" ? "units" : kind === "professional" ? "professionals" : "services"
 }
 async function request<T>(path: string, options: { body?: unknown; method?: string } = {}) {
+  const isForm = options.body instanceof FormData
+  const body =
+    options.body === undefined ? undefined : isForm ? options.body : JSON.stringify(options.body)
   const response = await fetch(getApiUrl(path), {
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body: body as BodyInit | undefined,
     credentials: "include",
-    headers: options.body === undefined ? undefined : { "content-type": "application/json" },
+    headers:
+      options.body === undefined || isForm ? undefined : { "content-type": "application/json" },
     method: options.method ?? "GET",
   })
-  if (response.ok) return response.json() as Promise<T>
+  if (response.ok) {
+    const payload = await response.text()
+    return (payload ? JSON.parse(payload) : null) as T
+  }
   const error = (await response.json().catch(() => ({}))) as ApiError
   if (response.status === 503 && error.code === "invitation_delivery_failed")
     throw new SetupValidationError(

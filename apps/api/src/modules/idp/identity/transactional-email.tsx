@@ -10,6 +10,7 @@ import {
   VerificationEmailTemplate,
   verificationEmailSubject,
 } from "./emails/templates.js"
+import type { InvitationDisplayContext } from "./invitation-display-context.js"
 
 export type AuthEmailDelivery = "failed" | "sent" | "skipped"
 
@@ -18,6 +19,7 @@ export type InvitationEmailInput = {
   expiresAt: Date
   role: IdpRole
   token: string
+  displayContext?: InvitationDisplayContext | null
 }
 
 export type VerificationEmailInput = {
@@ -128,9 +130,16 @@ export async function buildInvitationMessage(
     timeStyle: "short",
     timeZone: "America/Recife",
   }).format(input.expiresAt)
+  const subject = input.displayContext?.organizationName
+    ? `Convite para ${input.displayContext.organizationName} no TRIAD Studio`
+    : invitationEmailSubject
   const rendered = await renderAuthEmail(
-    <InvitationEmailTemplate actionUrl={actionUrl.toString()} expiresAtLabel={expiresAt} />,
-    invitationEmailSubject,
+    <InvitationEmailTemplate
+      actionUrl={actionUrl.toString()}
+      context={input.displayContext}
+      expiresAtLabel={expiresAt}
+    />,
+    subject,
     actionUrl.toString(),
     [new URL(env.IDP_STUDIO_URL).origin],
   )

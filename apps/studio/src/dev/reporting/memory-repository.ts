@@ -1,5 +1,8 @@
 import type { ClientRepository } from "@/modules/clients/contracts"
 import type {
+  CreateReportExportInput,
+  GeneratedReport,
+  ReportCatalog,
   ReportingFactSnapshot,
   ReportingQuery,
   ReportingRepository,
@@ -25,6 +28,8 @@ export class ReportingMemoryRepository implements ReportingRepository {
   private facts?: readonly ReportingFactSnapshot[]
   private failedNext = false
   private generation = 0
+  private generatedReports: GeneratedReport[] = []
+  private readonly generatedByIdempotency = new Map<string, GeneratedReport>()
 
   constructor(
     scheduling: SchedulingRepository,
@@ -38,6 +43,35 @@ export class ReportingMemoryRepository implements ReportingRepository {
 
   today() {
     return REPORTING_SOURCE_DATE
+  }
+
+  async getExportCatalog(): Promise<ReportCatalog> {
+    return {
+      items: [],
+      requester: { maskedEmail: "re••••••@example.invalid", verified: true },
+      schemaVersion: 1,
+    }
+  }
+
+  async listExports() {
+    return this.generatedReports
+  }
+
+  async createExport(input: CreateReportExportInput) {
+    const duplicate = this.generatedByIdempotency.get(input.idempotencyKey)
+    if (duplicate) return duplicate
+    const report: GeneratedReport = {
+      activeAttempt: 1,
+      createdAt: new Date().toISOString(),
+      emailDeliveryStatus: "pending",
+      format: input.format,
+      id: crypto.randomUUID(),
+      reportType: input.reportType,
+      status: "queued",
+    }
+    this.generatedReports = [report, ...this.generatedReports]
+    this.generatedByIdempotency.set(input.idempotencyKey, report)
+    return report
   }
 
   async getReport(query: ReportingQuery) {
@@ -69,6 +103,8 @@ export class ReportingMemoryRepository implements ReportingRepository {
     this.generation += 1
     this.facts = undefined
     this.failedNext = false
+    this.generatedReports = []
+    this.generatedByIdempotency.clear()
     await Promise.all([this.revenue.reset(), this.scheduling.reset()])
   }
 

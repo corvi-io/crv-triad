@@ -17,6 +17,13 @@ export async function signInWithEmail(input: { email: string; password: string }
 }
 
 export type InvitationResolution = {
+  context?: {
+    inviterName?: string
+    logoAvailable?: boolean
+    organizationName: string
+    professionalRole?: string
+    unitNames?: readonly string[]
+  } | null
   expiresAt?: string
   hasAccount?: boolean
   role?: "admin" | "member"
@@ -34,6 +41,18 @@ export async function resolveInvitation(token: string, signal?: AbortSignal) {
   })
   if (!response.ok) throw new Error("Invitation resolution unavailable.")
   return (await response.json()) as InvitationResolution
+}
+
+export async function resolveInvitationLogo(token: string, signal?: AbortSignal) {
+  const response = await fetch(getIdpUrl("/invitations/logo"), {
+    body: JSON.stringify({ token }),
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+    referrerPolicy: "no-referrer",
+    signal,
+  })
+  return response.ok ? response.blob() : null
 }
 
 export async function acceptInvitation(input: { name: string; password: string; token: string }) {

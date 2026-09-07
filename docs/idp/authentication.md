@@ -42,6 +42,10 @@ verification, and reset delivery.
 - `POST /invitations/resolve` accepts the proof in a no-store request body and returns only a
   lifecycle category plus valid-role presentation data. Malformed, expired, revoked, accepted,
   superseded, and unknown values cannot reach the password form as valid proof.
+- `POST /invitations/logo` shares the global and per-proof resolve budgets, validates the same live
+  proof before calling the injected business provider, and returns only private no-store image
+  bytes with `nosniff`. IDP never imports business persistence or exposes an object key/permanent
+  URL; terminal proofs never call the provider.
 - Native `/api/auth/sign-up/email` accepts the proof as a request-only extension. Better Auth's
   `user.create.before` hook resolves it through the public current transaction adapter. The native
   credential `account.create.before` hook performs one conditional update over digest, pending

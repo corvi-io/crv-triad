@@ -48,6 +48,30 @@ describe("authentication email templates", () => {
     ).toThrow("Authentication email action URL is not trusted.")
   })
 
+  it("keeps contextual invitation facts aligned across subject, HTML and text", async () => {
+    const message = await buildInvitationMessage(env, {
+      displayContext: {
+        inviterName: "Ana",
+        logoDataUrl: "data:image/png;base64,c3ludGhldGlj",
+        organizationName: "Barbearia Aurora",
+        professionalRole: "Barbeiro sênior",
+        unitNames: ["Boa Viagem", "Centro"],
+      },
+      email: "recipient@example.invalid",
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      role: "member",
+      token: "synthetic-invitation-proof",
+    })
+
+    expect(message.subject).toBe("Convite para Barbearia Aurora no TRIAD Studio")
+    for (const expected of ["Barbearia Aurora", "Barbeiro sênior", "Boa Viagem", "Ana"]) {
+      expect(message.html).toContain(expected)
+      expect(message.text).toContain(expected)
+    }
+    expect(message.html).toContain("data:image/png;base64,c3ludGhldGlj")
+    expect(message.html).toContain("Logo de Barbearia Aurora")
+  })
+
   it("escapes untrusted presentation text through React rendering", async () => {
     const actionUrl = "https://studio.example.test/accept-invitation"
     const message = await renderAuthEmail(

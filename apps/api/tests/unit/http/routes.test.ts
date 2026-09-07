@@ -426,6 +426,34 @@ describe("custom routes", () => {
     expect(calls.transactionCount).toBe(1)
   })
 
+  it("sends a generic invitation when display context resolution fails", async () => {
+    const auth = { api: { getSession: async () => ({ user: { id: "admin-1" } }) } }
+    const { db } = createInvitationRouteDatabase([
+      [{ id: "admin-1", status: "active", role: "admin" }],
+      [],
+    ])
+    const sendInvitation = vi.fn(async () => "sent" as const)
+    const app = new Elysia().use(
+      createInvitationRoutes(
+        auth as never,
+        db as never,
+        { sendInvitation },
+        undefined,
+        undefined,
+        undefined,
+        vi.fn(async () => Promise.reject(new Error("context unavailable"))),
+      ),
+    )
+    const response = await app.handle(
+      new Request("http://idp.test/invitations", {
+        body: JSON.stringify({ email: "invite@example.com", role: "member" }),
+        method: "POST",
+      }),
+    )
+    expect(response.status).toBe(201)
+    expect(sendInvitation).toHaveBeenCalledWith(expect.objectContaining({ displayContext: null }))
+  })
+
   it("resolves only minimal invitation state with privacy headers and a bounded rate limit", async () => {
     const secret = createInvitationSecret()
     const resolutionRow = {
@@ -458,6 +486,215 @@ describe("custom routes", () => {
     expect(JSON.stringify(payload)).not.toContain(secret.token)
     for (let index = 1; index < 10; index += 1) expect((await request()).status).toBe(200)
     await expect(request()).resolves.toMatchObject({ status: 429 })
+  })
+
+  it("adds business context only after a valid invitation proof resolves", async () => {
+    const secret = createInvitationSecret()
+    const resolutionRow = {
+      id: "invitation-1",
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      role: "member",
+      status: "pending",
+      tokenIssuedAt: new Date("2026-07-01T00:00:00Z"),
+    }
+    const { db } = createInvitationRouteDatabase([[resolutionRow], []])
+    const contextProvider = vi.fn(async () => ({
+      logoAvailable: true,
+      logoDataUrl: "data:image/png;base64,cHJpdmF0ZQ==",
+      organizationName: "Barbearia Aurora",
+      professionalRole: "Barbeiro sênior",
+      unitNames: ["Boa Viagem"],
+    }))
+    const app = new Elysia().use(
+      createInvitationRoutes({} as never, db as never, undefined, undefined, contextProvider),
+    )
+
+    const response = await app.handle(
+      new Request("http://idp.test/invitations/resolve", {
+        body: JSON.stringify({ token: secret.token }),
+        method: "POST",
+      }),
+    )
+
+    const payload = await response.json()
+    expect(payload).toMatchObject({
+      context: {
+        organizationName: "Barbearia Aurora",
+        professionalRole: "Barbeiro sênior",
+        unitNames: ["Boa Viagem"],
+      },
+      state: "valid",
+    })
+    expect(JSON.stringify(payload)).not.toContain("cHJpdmF0ZQ")
+    expect(contextProvider).toHaveBeenCalledWith("invitation-1")
+  })
+
+  it.each([
+    "accepted",
+    "expired",
+    "revoked",
+    "superseded",
+  ] as const)("does not resolve business context for a %s invitation", async (invitationStatus) => {
+    const secret = createInvitationSecret()
+    const { db } = createInvitationRouteDatabase([
+      [
+        {
+          id: "invitation-1",
+          expiresAt: new Date("2099-01-01T00:00:00Z"),
+          role: "member",
+          status: invitationStatus,
+          tokenIssuedAt: new Date("2026-07-01T00:00:00Z"),
+        },
+      ],
+    ])
+    const contextProvider = vi.fn()
+    const app = new Elysia().use(
+      createInvitationRoutes({} as never, db as never, undefined, undefined, contextProvider),
+    )
+
+    const response = await app.handle(
+      new Request("http://idp.test/invitations/resolve", {
+        body: JSON.stringify({ token: secret.token }),
+        method: "POST",
+      }),
+    )
+
+    await expect(response.json()).resolves.toEqual({ state: invitationStatus })
+    expect(contextProvider).not.toHaveBeenCalled()
+  })
+
+  it("does not resolve business context for malformed invitation proof", async () => {
+    const { db } = createInvitationRouteDatabase([])
+    const contextProvider = vi.fn()
+    const app = new Elysia().use(
+      createInvitationRoutes({} as never, db as never, undefined, undefined, contextProvider),
+    )
+    const response = await app.handle(
+      new Request("http://idp.test/invitations/resolve", {
+        body: JSON.stringify({ token: "malformed" }),
+        method: "POST",
+      }),
+    )
+    await expect(response.json()).resolves.toEqual({ state: "invalid" })
+    expect(contextProvider).not.toHaveBeenCalled()
+  })
+
+  it("serves invitation logos only after valid proof without exposing storage identity", async () => {
+    const secret = createInvitationSecret()
+    const resolutionRow = {
+      id: "invitation-1",
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      role: "member",
+      status: "pending",
+      tokenIssuedAt: new Date("2026-07-01T00:00:00Z"),
+    }
+    const { db } = createInvitationRouteDatabase([[resolutionRow]])
+    const logoProvider = vi.fn(async () => ({
+      body: new Uint8Array([137, 80, 78, 71]),
+      contentType: "image/png",
+    }))
+    const app = new Elysia().use(
+      createInvitationRoutes(
+        {} as never,
+        db as never,
+        undefined,
+        undefined,
+        undefined,
+        logoProvider,
+      ),
+    )
+    const response = await app.handle(
+      new Request("http://idp.test/invitations/logo", {
+        body: JSON.stringify({ token: secret.token }),
+        method: "POST",
+      }),
+    )
+    expect(response.status).toBe(200)
+    expect(response.headers.get("cache-control")).toBe("no-store")
+    expect(response.headers.get("content-type")).toBe("image/png")
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff")
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([137, 80, 78, 71]))
+    expect(logoProvider).toHaveBeenCalledWith("invitation-1")
+  })
+
+  it("rate limits invitation logo proof attempts before repeated storage reads", async () => {
+    const secret = createInvitationSecret()
+    const resolutionRow = {
+      id: "invitation-1",
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      role: "member",
+      status: "pending",
+      tokenIssuedAt: new Date("2026-07-01T00:00:00Z"),
+    }
+    const { db } = createInvitationRouteDatabase(Array.from({ length: 10 }, () => [resolutionRow]))
+    const logoProvider = vi.fn(async () => ({
+      body: new Uint8Array([1]),
+      contentType: "image/png",
+    }))
+    const app = new Elysia().use(
+      createInvitationRoutes(
+        {} as never,
+        db as never,
+        undefined,
+        undefined,
+        undefined,
+        logoProvider,
+      ),
+    )
+    const request = () =>
+      app.handle(
+        new Request("http://idp.test/invitations/logo", {
+          body: JSON.stringify({ token: secret.token }),
+          method: "POST",
+        }),
+      )
+    for (let index = 0; index < 10; index += 1) expect((await request()).status).toBe(200)
+    expect((await request()).status).toBe(429)
+    expect(logoProvider).toHaveBeenCalledTimes(10)
+  })
+
+  it.each([
+    "accepted",
+    "expired",
+    "revoked",
+    "superseded",
+    "malformed",
+  ] as const)("does not read an invitation logo for %s proof", async (state) => {
+    const secret = createInvitationSecret()
+    const { db } = createInvitationRouteDatabase(
+      state === "malformed"
+        ? []
+        : [
+            [
+              {
+                id: "invitation-1",
+                expiresAt: new Date("2099-01-01T00:00:00Z"),
+                role: "member",
+                status: state,
+                tokenIssuedAt: new Date("2026-07-01T00:00:00Z"),
+              },
+            ],
+          ],
+    )
+    const logoProvider = vi.fn()
+    const app = new Elysia().use(
+      createInvitationRoutes(
+        {} as never,
+        db as never,
+        undefined,
+        undefined,
+        undefined,
+        logoProvider,
+      ),
+    )
+    const response = await app.handle(
+      new Request("http://idp.test/invitations/logo", {
+        body: JSON.stringify({ token: state === "malformed" ? "malformed" : secret.token }),
+        method: "POST",
+      }),
+    )
+    expect(response.status).toBe(404)
+    expect(logoProvider).not.toHaveBeenCalled()
   })
 
   it("globally bounds resolve attempts that rotate through distinct well-formed proofs", async () => {

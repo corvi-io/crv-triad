@@ -3,6 +3,7 @@ import { Elysia, t } from "elysia"
 import type { TenantActionAuthorizer } from "../../access/application/authorize-tenant-action.js"
 import type { AccessDenialReason } from "../../access/domain/access-decision.js"
 import { resolveRequestId } from "../../idp/http/middleware/request-context.js"
+import type { InvitationDisplayContextProvider } from "../../idp/identity/invitation-display-context.js"
 import type { AuthEmailSender } from "../../idp/identity/transactional-email.js"
 import type { TenantContextResolver } from "../../tenancy/application/create-tenant-context-resolver.js"
 import type { CatalogAuditWriter } from "../application/catalog-audit.js"
@@ -17,6 +18,7 @@ export function createCatalogRoutes(
   authorizeAction: TenantActionAuthorizer,
   authEmailSender?: Pick<AuthEmailSender, "sendInvitation">,
   writeAudit?: CatalogAuditWriter,
+  invitationDisplayContext?: InvitationDisplayContextProvider,
 ) {
   const root = new Elysia({ name: "catalog-routes" })
   for (const [kind, path] of [
@@ -33,6 +35,7 @@ export function createCatalogRoutes(
         authorizeAction,
         authEmailSender,
         writeAudit,
+        invitationDisplayContext,
       ),
     )
   }
@@ -47,6 +50,7 @@ function createRoutesForKind(
   authorizeAction: TenantActionAuthorizer,
   authEmailSender?: Pick<AuthEmailSender, "sendInvitation">,
   writeAudit?: CatalogAuditWriter,
+  invitationDisplayContext?: InvitationDisplayContextProvider,
 ) {
   async function authorize(headers: Headers, manage = false) {
     const decision = await resolveContext(headers)
@@ -174,6 +178,9 @@ function createRoutesForKind(
                 expiresAt: issued.expiresAt,
                 role: "member",
                 token: issued.token,
+                displayContext: invitationDisplayContext
+                  ? await invitationDisplayContext(issued.identityInvitationId).catch(() => null)
+                  : null,
               })) ?? "skipped"
             if (emailDelivery !== "sent") {
               await service.revokeUndeliveredProfessionalInvitation(
@@ -217,6 +224,9 @@ function createRoutesForKind(
             expiresAt: issued.expiresAt,
             role: "member",
             token: issued.token,
+            displayContext: invitationDisplayContext
+              ? await invitationDisplayContext(issued.identityInvitationId).catch(() => null)
+              : null,
           })) ?? "skipped"
         if (emailDelivery !== "sent") throw new InvitationDeliveryError()
         return { emailDelivery, status: "pending" as const }
@@ -293,7 +303,7 @@ function entityIdFrom(value: unknown) {
 }
 
 function changedFieldsFor(kind: CatalogKind) {
-  if (kind === "unit") return ["address", "businessHours", "code", "name"] as const
+  if (kind === "unit") return ["address", "businessHours", "code", "name", "timezone"] as const
   if (kind === "professional")
     return ["commissionBasisPoints", "role", "serviceIds", "specialties", "unitIds"] as const
   return [

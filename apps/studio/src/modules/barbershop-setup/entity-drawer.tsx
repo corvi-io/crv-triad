@@ -48,6 +48,7 @@ import type {
   Weekday,
 } from "./contracts"
 import { useBarbershopSetupRepository } from "./repository-context"
+import { brazilianTimezones } from "./unit-timezone-onboarding"
 
 const baseSchema = {
   name: z.string().trim().min(2, "Informe um nome com pelo menos 2 caracteres."),
@@ -57,6 +58,7 @@ export const unitFormSchema = z.object({
   kind: z.literal("unit"),
   ...baseSchema,
   code: z.string().trim().min(2, "Informe um código curto."),
+  timezone: z.string().trim().min(1, "Escolha a cidade ou região da unidade."),
   address: z.string().trim().min(5, "Informe um endereço válido."),
   businessHours: z
     .object({
@@ -148,7 +150,7 @@ export const setupEntityFormSchema = z.discriminatedUnion("kind", [
 export type SetupEntityFormValues = z.input<typeof setupEntityFormSchema>
 type SetupEntityFormOutput = z.output<typeof setupEntityFormSchema>
 
-type EntityDrawerState =
+export type EntityDrawerState =
   | { kind: "create"; entityKind: SetupEntityKind }
   | { kind: "edit" | "view"; entity: SetupEntity }
   | null
@@ -229,6 +231,41 @@ export function SetupEntityDrawer({
   )
 }
 
+export function SetupEntityOnboardingForm({
+  entity,
+  entityKind,
+  isSaving,
+  onSave,
+  professionals,
+  services,
+  units,
+}: {
+  entity?: SetupEntity
+  entityKind: SetupEntityKind
+  isSaving: boolean
+  onSave: (kind: SetupEntityKind, input: SetupEntityInput) => Promise<void>
+  professionals: readonly SetupProfessional[]
+  services: readonly SetupService[]
+  units: readonly SetupUnit[]
+}) {
+  return (
+    <EntityForm
+      entity={entity}
+      key={entity?.id ?? `new-${entityKind}`}
+      entityKind={entityKind}
+      isOpen
+      isSaving={isSaving}
+      onClose={() => undefined}
+      onOpenChangeComplete={() => undefined}
+      onSave={onSave}
+      presentation="inline"
+      professionals={professionals}
+      services={services}
+      units={units}
+    />
+  )
+}
+
 function EntityForm({
   entity,
   entityKind,
@@ -237,6 +274,7 @@ function EntityForm({
   onClose,
   onOpenChangeComplete,
   onSave,
+  presentation = "drawer",
   professionals,
   services,
   units,
@@ -248,6 +286,7 @@ function EntityForm({
   onClose: () => void
   onOpenChangeComplete: (isOpen: boolean) => void
   onSave: (kind: SetupEntityKind, input: SetupEntityInput) => Promise<void>
+  presentation?: "drawer" | "inline"
   professionals: readonly SetupProfessional[]
   services: readonly SetupService[]
   units: readonly SetupUnit[]
@@ -335,6 +374,111 @@ function EntityForm({
     }
   }
 
+  const content = (
+    <form
+      id={formId}
+      noValidate
+      className="flex flex-col gap-4"
+      onSubmit={form.handleSubmit(submit, () => toast.error("Revise os campos destacados."))}
+    >
+      <FormSection title="Identificação">
+        {entityKind !== "professional" ? (
+          <FormField
+            id={`${formId}-name`}
+            label="Nome"
+            icon={entityKind === "unit" ? Building2Icon : ScissorsIcon}
+            required
+            error={fieldMessage(form.formState.errors, "name")}
+          >
+            <Input
+              id={`${formId}-name`}
+              autoFocus
+              placeholder={entityPlaceholders[entityKind].name}
+              aria-invalid={Boolean(fieldMessage(form.formState.errors, "name"))}
+              aria-describedby={getFieldDescriptionIds(
+                `${formId}-name`,
+                false,
+                Boolean(fieldMessage(form.formState.errors, "name")),
+              )}
+              {...form.register("name")}
+            />
+          </FormField>
+        ) : entity?.kind === "professional" ? (
+          <div className="grid gap-1">
+            <span className="text-sm font-medium">Identidade</span>
+            <span className="text-sm text-muted-foreground">{entity.name}</span>
+          </div>
+        ) : null}
+        {entityKind === "unit" ? <UnitFields formId={formId} form={form} /> : null}
+        {entityKind === "professional" ? (
+          <ProfessionalFields formId={formId} form={form} isCreate={!entity} />
+        ) : null}
+        {entityKind === "service" ? <ServiceFields formId={formId} form={form} /> : null}
+      </FormSection>
+      {entityKind === "professional" ? (
+        <FormSection title="Vínculos">
+          <RelationField
+            control={form.control}
+            formId={formId}
+            name="unitIds"
+            label="Unidades"
+            options={units}
+          />
+          <RelationField
+            control={form.control}
+            formId={formId}
+            name="serviceIds"
+            label="Serviços oferecidos"
+            options={services}
+          />
+        </FormSection>
+      ) : null}
+      {entityKind === "service" ? (
+        <FormSection title="Disponibilidade do catálogo">
+          <RelationField
+            control={form.control}
+            formId={formId}
+            name="unitIds"
+            label="Unidades"
+            options={units}
+            onValuesChange={handleServiceUnitsChange}
+          />
+          <RelationField
+            control={form.control}
+            formId={formId}
+            name="professionalIds"
+            label="Profissionais elegíveis"
+            description="Mostramos somente profissionais que atendem a pelo menos uma unidade selecionada."
+            options={eligibleProfessionals}
+          />
+        </FormSection>
+      ) : null}
+      {entity?.kind === "professional" && setupRepository.catalogSource === "http" ? (
+        <ProfessionalSchedule professionalId={entity.id} />
+      ) : null}
+    </form>
+  )
+
+  if (presentation === "inline")
+    return (
+      <section className="grid gap-5" aria-labelledby={`${formId}-title`}>
+        <div>
+          <h2 className="font-heading text-lg font-semibold" id={`${formId}-title`}>
+            {entityLabels[entityKind].newLabel}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Preencha somente o necessário para continuar.
+          </p>
+        </div>
+        {content}
+        <div className="flex justify-end border-t pt-4">
+          <Button type="submit" form={formId} isLoading={isSaving}>
+            Salvar e continuar
+          </Button>
+        </div>
+      </section>
+    )
+
   return (
     <ActionDrawer
       isOpen={isOpen}
@@ -357,88 +501,7 @@ function EntityForm({
         </Button>
       }
     >
-      <form
-        id={formId}
-        noValidate
-        className="flex flex-col gap-4"
-        onSubmit={form.handleSubmit(submit, () => toast.error("Revise os campos destacados."))}
-      >
-        <FormSection title="Identificação">
-          {entityKind !== "professional" ? (
-            <FormField
-              id={`${formId}-name`}
-              label="Nome"
-              icon={entityKind === "unit" ? Building2Icon : ScissorsIcon}
-              required
-              error={fieldMessage(form.formState.errors, "name")}
-            >
-              <Input
-                id={`${formId}-name`}
-                autoFocus
-                placeholder={entityPlaceholders[entityKind].name}
-                aria-invalid={Boolean(fieldMessage(form.formState.errors, "name"))}
-                aria-describedby={getFieldDescriptionIds(
-                  `${formId}-name`,
-                  false,
-                  Boolean(fieldMessage(form.formState.errors, "name")),
-                )}
-                {...form.register("name")}
-              />
-            </FormField>
-          ) : entity?.kind === "professional" ? (
-            <div className="grid gap-1">
-              <span className="text-sm font-medium">Identidade</span>
-              <span className="text-sm text-muted-foreground">{entity.name}</span>
-            </div>
-          ) : null}
-          {entityKind === "unit" ? <UnitFields formId={formId} form={form} /> : null}
-          {entityKind === "professional" ? (
-            <ProfessionalFields formId={formId} form={form} isCreate={!entity} />
-          ) : null}
-          {entityKind === "service" ? <ServiceFields formId={formId} form={form} /> : null}
-        </FormSection>
-        {entityKind === "professional" ? (
-          <FormSection title="Vínculos">
-            <RelationField
-              control={form.control}
-              formId={formId}
-              name="unitIds"
-              label="Unidades"
-              options={units}
-            />
-            <RelationField
-              control={form.control}
-              formId={formId}
-              name="serviceIds"
-              label="Serviços oferecidos"
-              options={services}
-            />
-          </FormSection>
-        ) : null}
-        {entityKind === "service" ? (
-          <FormSection title="Disponibilidade do catálogo">
-            <RelationField
-              control={form.control}
-              formId={formId}
-              name="unitIds"
-              label="Unidades"
-              options={units}
-              onValuesChange={handleServiceUnitsChange}
-            />
-            <RelationField
-              control={form.control}
-              formId={formId}
-              name="professionalIds"
-              label="Profissionais elegíveis"
-              description="Mostramos somente profissionais que atendem a pelo menos uma unidade selecionada."
-              options={eligibleProfessionals}
-            />
-          </FormSection>
-        ) : null}
-        {entity?.kind === "professional" && setupRepository.catalogSource === "http" ? (
-          <ProfessionalSchedule professionalId={entity.id} />
-        ) : null}
-      </form>
+      {content}
     </ActionDrawer>
   )
 }
@@ -530,6 +593,47 @@ function UnitFields({ formId, form }: FormFieldsProps) {
             Boolean(fieldMessage(form.formState.errors, "address")),
           )}
           {...form.register("address")}
+        />
+      </FormField>
+      <FormField
+        id={`${formId}-timezone`}
+        label="Cidade ou região"
+        icon={Clock3Icon}
+        required
+        error={fieldMessage(form.formState.errors, "timezone")}
+      >
+        <Controller
+          control={form.control}
+          name="timezone"
+          render={({ field }) => (
+            <Select
+              items={brazilianTimezones}
+              value={field.value || null}
+              onValueChange={(value) => field.onChange(value ?? "")}
+            >
+              <SelectTrigger
+                id={`${formId}-timezone`}
+                aria-required="true"
+                aria-invalid={Boolean(fieldMessage(form.formState.errors, "timezone"))}
+                aria-describedby={getFieldDescriptionIds(
+                  `${formId}-timezone`,
+                  false,
+                  Boolean(fieldMessage(form.formState.errors, "timezone")),
+                )}
+              >
+                <SelectValue placeholder="Selecione uma cidade ou região" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {brazilianTimezones.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          )}
         />
       </FormField>
       <FieldSet data-invalid={Boolean(businessHoursError)}>
@@ -1061,6 +1165,13 @@ function getDefaultValues(kind: SetupEntityKind, entity?: SetupEntity): SetupEnt
       kind,
       name: unit?.name ?? "",
       code: unit?.code ?? "",
+      timezone:
+        unit?.timezone ??
+        (brazilianTimezones.some(
+          ({ value }) => value === Intl.DateTimeFormat().resolvedOptions().timeZone,
+        )
+          ? Intl.DateTimeFormat().resolvedOptions().timeZone
+          : "America/Sao_Paulo"),
       address: unit?.address ?? "",
       businessHours: unit
         ? {
@@ -1178,5 +1289,3 @@ export const entityLabels = {
     singular: "serviço",
   },
 } as const
-
-export type { EntityDrawerState }

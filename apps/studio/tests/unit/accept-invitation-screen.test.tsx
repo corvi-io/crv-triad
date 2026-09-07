@@ -9,11 +9,14 @@ import { routeTree } from "@/routeTree.gen"
 const acceptInvitation = vi.fn()
 const acceptExistingInvitation = vi.fn()
 const resolveInvitation = vi.fn()
+const resolveInvitationLogo = vi.fn()
 
 vi.mock("@/modules/auth/services/auth-client", () => ({
   acceptExistingInvitation: (token: string) => acceptExistingInvitation(token),
   acceptInvitation: (input: unknown) => acceptInvitation(input),
   resolveInvitation: (token: string, signal?: AbortSignal) => resolveInvitation(token, signal),
+  resolveInvitationLogo: (token: string, signal?: AbortSignal) =>
+    resolveInvitationLogo(token, signal),
 }))
 
 function renderAcceptance(path = "/accept-invitation?token=synthetic-invitation-proof") {
@@ -37,12 +40,14 @@ describe("invitation acceptance", () => {
     acceptExistingInvitation.mockResolvedValue({ status: true })
     resolveInvitation.mockReset()
     resolveInvitation.mockResolvedValue({ state: "valid", role: "member" })
+    resolveInvitationLogo.mockReset()
+    resolveInvitationLogo.mockResolvedValue(null)
   })
 
   it("validates, removes the query proof, and exposes accessible password guidance", async () => {
     renderAcceptance()
 
-    expect(await screen.findByText(/Convite válido para o perfil de membro/)).toBeInTheDocument()
+    expect(await screen.findByText("Crie seu acesso para confirmar o convite.")).toBeInTheDocument()
     expect(screen.getByLabelText("Seu nome")).toHaveAttribute("autocomplete", "name")
     await waitFor(() => expect(window.location.search).toBe(""))
     const password = screen.getByLabelText("Nova senha")
@@ -119,13 +124,116 @@ describe("invitation acceptance", () => {
     const user = userEvent.setup()
     const router = renderAcceptance()
 
-    expect(await screen.findByText(/conta existente/)).toBeInTheDocument()
+    expect(
+      await screen.findByText("Entre com seu acesso para confirmar o convite."),
+    ).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Entrar e aceitar convite" }))
     expect(acceptExistingInvitation).toHaveBeenCalledWith("synthetic-invitation-proof")
-    await waitFor(() =>
-      expect(router.state.location.pathname).toBe("/barbershop-setup/professionals"),
-    )
+    await waitFor(() => expect(router.state.location.pathname).toBe("/overview"))
     expect(screen.queryByLabelText("Seu nome")).not.toBeInTheDocument()
+  })
+
+  it("shows trusted business context and lands a professional on the Agenda", async () => {
+    resolveInvitation.mockResolvedValueOnce({
+      context: {
+        inviterName: "Ana",
+        organizationName: "Barbearia Aurora",
+        professionalRole: "Barbeiro sênior",
+        unitNames: ["Boa Viagem"],
+      },
+      hasAccount: true,
+      role: "member",
+      state: "valid",
+    })
+    const user = userEvent.setup()
+    const router = renderAcceptance()
+
+    expect(await screen.findByRole("heading", { name: "Barbearia Aurora" })).toBeInTheDocument()
+    expect(screen.getByText("Barbeiro sênior")).toBeInTheDocument()
+    expect(screen.getByText(/Unidade: Boa Viagem/)).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Entrar e aceitar convite" }))
+    await waitFor(() => expect(router.state.location.pathname).toBe("/agenda"))
+  })
+
+  it("loads safe logo bytes and renders multiple ordered units", async () => {
+    vi.stubGlobal(
+      "URL",
+      Object.assign(URL, {
+        createObjectURL: vi.fn(() => "blob:invitation-logo"),
+        revokeObjectURL: vi.fn(),
+      }),
+    )
+    resolveInvitation.mockResolvedValueOnce({
+      context: {
+        logoAvailable: true,
+        organizationName: "Barbearia Aurora",
+        unitNames: ["Boa Viagem", "Centro"],
+      },
+      hasAccount: true,
+      role: "member",
+      state: "valid",
+    })
+    resolveInvitationLogo.mockResolvedValueOnce(new Blob(["logo"], { type: "image/png" }))
+    renderAcceptance()
+
+    expect(await screen.findByText("Unidades: Boa Viagem, Centro")).toBeVisible()
+    await waitFor(() =>
+      expect(document.querySelector('img[src="blob:invitation-logo"]')).not.toBeNull(),
+    )
+  })
+
+  it.each([
+    ["invalid_invitation", "é inválido"],
+    ["unavailable", "Não foi possível criar sua senha agora"],
+  ] as const)("handles safe new-account failure %s", async (error, copy) => {
+    acceptInvitation.mockResolvedValueOnce({ error })
+    const user = userEvent.setup()
+    renderAcceptance()
+    await user.type(await screen.findByLabelText("Seu nome"), "Pessoa Convidada")
+    await user.type(screen.getByLabelText("Nova senha"), "Senha válida 1!")
+    await user.type(screen.getByLabelText("Confirmar nova senha"), "Senha válida 1!")
+    await user.click(screen.getByRole("button", { name: "Criar senha" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(copy)
+  })
+
+  it("recovers safely when new-account acceptance rejects", async () => {
+    acceptInvitation.mockRejectedValueOnce(new Error("offline"))
+    const user = userEvent.setup()
+    renderAcceptance()
+    await user.type(await screen.findByLabelText("Seu nome"), "Pessoa Convidada")
+    await user.type(screen.getByLabelText("Nova senha"), "Senha válida 1!")
+    await user.type(screen.getByLabelText("Confirmar nova senha"), "Senha válida 1!")
+    await user.click(screen.getByRole("button", { name: "Criar senha" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível criar sua senha agora",
+    )
+  })
+
+  it("redirects an unauthenticated existing identity to login with the opaque proof", async () => {
+    resolveInvitation.mockResolvedValueOnce({ state: "valid", role: "member", hasAccount: true })
+    acceptExistingInvitation.mockResolvedValueOnce({ error: "unauthenticated" })
+    const user = userEvent.setup()
+    const router = renderAcceptance()
+
+    await user.click(await screen.findByRole("button", { name: "Entrar e aceitar convite" }))
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"))
+    expect(router.state.location.search).toEqual({
+      invitationToken: "synthetic-invitation-proof",
+    })
+  })
+
+  it("recovers safely when existing-account acceptance rejects", async () => {
+    resolveInvitation.mockResolvedValueOnce({ state: "valid", role: "member", hasAccount: true })
+    acceptExistingInvitation.mockRejectedValueOnce(new Error("offline"))
+    const user = userEvent.setup()
+    renderAcceptance()
+
+    await user.click(await screen.findByRole("button", { name: "Entrar e aceitar convite" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível aceitar o convite agora",
+    )
   })
 
   it.each([

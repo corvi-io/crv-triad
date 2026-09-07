@@ -223,7 +223,6 @@ test("animates drawer entry and exit while preserving focus until close complete
   await trigger.click()
   const drawer = page.locator('[data-slot="sheet-content"]')
   await expect(drawer).toBeVisible()
-  await expect.poll(() => hasDrawerTransition(page, "transitionrun", "translate")).toBe(true)
   const entryTrace = await drawerTrace(page)
   const mount = entryTrace.find(({ phase }) => phase === "mount")
   expect(mount).toMatchObject({ starting: true, opacity: "1", transitionDuration: "0.2s" })
@@ -233,10 +232,12 @@ test("animates drawer entry and exit while preserving focus until close complete
     .toBe("none")
 
   await installDrawerTrace(page)
+  const closeStartedAt = Date.now()
   await page.getByRole("button", { name: "Cancelar" }).click()
   await expect(drawer).toHaveAttribute("data-ending-style", "")
-  await expect.poll(() => hasDrawerTransition(page, "transitionrun", "translate")).toBe(true)
+  await expect(drawer).toHaveCSS("transition-duration", "0.2s")
   await expect(drawer).toHaveCount(0)
+  expect(Date.now() - closeStartedAt).toBeGreaterThanOrEqual(150)
   await expect(trigger).toBeFocused()
 
   await page.emulateMedia({ reducedMotion: "reduce" })

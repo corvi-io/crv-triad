@@ -17,6 +17,9 @@ import {
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useAccessSummary } from "@/modules/access/use-access-summary"
+import { dismissOnboarding, isOnboardingDismissed } from "@/modules/onboarding/dismissal"
+import { PersistentOnboardingDialog } from "@/modules/onboarding/persistent-onboarding-dialog"
+import { useActivationReadiness } from "@/modules/onboarding/readiness"
 import {
   createDataTablePointAnchor,
   DataTable,
@@ -48,6 +51,7 @@ import {
 } from "@/modules/shared/components/ui/card"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import { cn } from "@/modules/shared/lib/utils"
+import { useWorkspaceTenantId } from "@/modules/workspace/context-provider"
 import { AvailabilityCalendar } from "./availability-calendar"
 import { BusinessProfileSection, PaymentsSection } from "./completion-sections"
 import type {
@@ -70,9 +74,12 @@ import {
   entityLabels,
   formatMoney,
   SetupEntityDrawer,
+  SetupEntityOnboardingForm,
 } from "./entity-drawer"
+import { OnboardingAvailabilityStep } from "./onboarding-availability-step"
 import { ProductionAvailability } from "./production-availability"
 import {
+  useBusinessProfile,
   useCreateSetupEntity,
   usePendingProfessionalInvitations,
   useResendProfessionalInvitation,
@@ -81,6 +88,7 @@ import {
   useSetupAvailability,
   useSetupCompletion,
   useSetupEntities,
+  useUpdateBarbershopProfile,
   useUpdateSetupEntity,
 } from "./queries"
 import { useBarbershopSetupRepository } from "./repository-context"
@@ -135,6 +143,127 @@ function sectionToEntityKind(section: SetupSection): SetupEntityKind | undefined
   return undefined
 }
 
+function OnboardingEntityStep({
+  kind,
+  scenarioId,
+  onCompleted,
+}: {
+  kind: SetupEntityKind
+  scenarioId: SetupScenarioId
+  onCompleted: (section: SetupSection) => void
+}) {
+  const repository = useBarbershopSetupRepository()
+  const query = (entityKind: SetupEntityKind): SetupListQuery => ({
+    kind: entityKind,
+    page: 1,
+    pageSize: 50,
+    scenarioId,
+    search: "",
+    sort: { direction: "asc", field: "name" },
+    status: "active",
+  })
+  const units = useSetupEntities(query("unit"))
+  const professionals = useSetupEntities(query("professional"))
+  const services = useSetupEntities(query("service"))
+  const createEntity = useCreateSetupEntity()
+  const updateEntity = useUpdateSetupEntity()
+  const updateProfile = useUpdateBarbershopProfile()
+  const profile = useBusinessProfile(kind === "unit")
+
+  if (
+    units.isPending ||
+    professionals.isPending ||
+    services.isPending ||
+    (kind === "unit" && profile.isPending)
+  )
+    return (
+      <div className="grid gap-3" role="status" aria-label="Preparando formulário">
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-44 w-full" />
+      </div>
+    )
+  if (
+    units.isError ||
+    professionals.isError ||
+    services.isError ||
+    (kind === "unit" && profile.isError)
+  )
+    return (
+      <ErrorState
+        title="Não foi possível preparar esta etapa"
+        onRetry={() => {
+          void Promise.all([
+            units.refetch(),
+            professionals.refetch(),
+            services.refetch(),
+            profile.refetch(),
+          ])
+        }}
+      />
+    )
+
+  return (
+    <SetupEntityOnboardingForm
+      entity={
+        kind === "unit"
+          ? units.data.items.find(
+              (item) => item.kind === "unit" && item.id === profile.data?.primaryUnitId,
+            )
+          : undefined
+      }
+      entityKind={kind}
+      isSaving={createEntity.isPending || updateEntity.isPending || updateProfile.isPending}
+      units={units.data.items.filter(
+        (item): item is Extract<SetupEntity, { kind: "unit" }> => item.kind === "unit",
+      )}
+      professionals={professionals.data.items.filter(
+        (item): item is Extract<SetupEntity, { kind: "professional" }> =>
+          item.kind === "professional",
+      )}
+      services={services.data.items.filter(
+        (item): item is Extract<SetupEntity, { kind: "service" }> => item.kind === "service",
+      )}
+      onSave={async (entityKind, input) => {
+        const existingUnit =
+          entityKind === "unit"
+            ? units.data.items.find(
+                (item) => item.kind === "unit" && item.id === profile.data?.primaryUnitId,
+              )
+            : undefined
+        const created = existingUnit
+          ? await updateEntity.mutateAsync({
+              id: existingUnit.id,
+              input,
+              kind: entityKind,
+              version: existingUnit.version ?? 1,
+            })
+          : await createEntity.mutateAsync({ kind: entityKind, input })
+        if (entityKind === "unit" && created?.kind === "unit") {
+          const currentProfile =
+            (await repository.getBusinessProfile?.()) ??
+            (await repository.getCompletion(scenarioId)).profile
+          if (currentProfile.primaryUnitId !== created.id)
+            await updateProfile.mutateAsync({ ...currentProfile, primaryUnitId: created.id })
+        }
+        toast.success(
+          entityKind === "professional"
+            ? "Convite enviado."
+            : existingUnit
+              ? "Unidade atualizada."
+              : "Registro criado.",
+        )
+        await onCompleted(
+          entityKind === "unit"
+            ? "professionals"
+            : entityKind === "professional"
+              ? "services"
+              : "availability",
+        )
+      }}
+    />
+  )
+}
+
 export function BarbershopSetupPage({
   onSearchChange,
   search,
@@ -143,6 +272,11 @@ export function BarbershopSetupPage({
   search: BarbershopSetupSearch
 }) {
   const setupRepository = useBarbershopSetupRepository()
+  const activationReadiness = useActivationReadiness()
+  const activeTenantId = useWorkspaceTenantId()
+  const onboardingTenantScope = activeTenantId ?? "isolated"
+  const [dismissedTenantId, setDismissedTenantId] = useState<string | null>(null)
+  const onboardingWasRequired = useRef(false)
   const availabilityAccess = useAccessSummary()
   const canManageAvailability = availabilityAccess.data?.capabilities.some(
     (item) => item.capability === "availability.manage" && item.allowed,
@@ -154,72 +288,173 @@ export function BarbershopSetupPage({
     trigger: HTMLButtonElement
   } | null>(null)
   const entityKind = sectionToEntityKind(search.section)
-  return (
-    <ModuleLayout
-      head={
-        <div className="flex flex-col gap-3">
-          <PageHeader
-            title={header.title}
-            description={header.description}
-            actions={
-              entityKind ? (
-                <Button
-                  type="button"
-                  onClick={(event) =>
-                    setCreateRequest({ kind: entityKind, trigger: event.currentTarget })
-                  }
-                >
-                  <PlusIcon aria-hidden="true" />
-                  {entityLabels[entityKind].newLabel}
-                </Button>
-              ) : search.section === "availability" &&
-                setupRepository.catalogSource === "http" &&
-                canManageAvailability ? (
-                <Button onClick={() => setAvailabilityCreate(true)}>
-                  <PlusIcon />
-                  Adicionar bloco
-                </Button>
-              ) : undefined
-            }
-          />
-          <nav aria-label="Seções da configuração" className="overflow-x-auto">
-            <ul className="flex min-w-max gap-1 border-b">
-              {sectionItems.map(({ icon: Icon, id, label }) => (
-                <li key={id}>
-                  <button
-                    type="button"
-                    aria-current={search.section === id ? "page" : undefined}
-                    className={cn(
-                      "inline-flex h-10 cursor-pointer items-center gap-2 border-b-2 px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      search.section === id
-                        ? "border-primary text-foreground"
-                        : "border-transparent text-muted-foreground hover:text-foreground",
-                    )}
-                    onClick={() => onSearchChange({ section: id })}
-                  >
-                    <Icon aria-hidden="true" className="size-4" />
-                    {label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
-      }
-      bodyViewportClassName="h-full min-h-0"
+  if (activationReadiness.data?.outcome === "setup_required") onboardingWasRequired.current = true
+  const showOnboarding =
+    activationReadiness.data?.canManage === true &&
+    (activationReadiness.data.outcome === "setup_required" || onboardingWasRequired.current) &&
+    dismissedTenantId !== onboardingTenantScope &&
+    !isOnboardingDismissed(onboardingTenantScope)
+  const nextOnboardingSection = activationReadiness.data?.steps.find(
+    (step) => step.id === activationReadiness.data?.nextStepId,
+  )?.section as SetupSection | undefined
+  const requestedOnboardingStep = activationReadiness.data?.steps.find(
+    (step) => step.section === search.section,
+  )
+  const onboardingSection: SetupSection =
+    activationReadiness.data?.outcome === "schedule_ready"
+      ? search.section
+      : requestedOnboardingStep?.complete || search.section === nextOnboardingSection
+        ? search.section
+        : (nextOnboardingSection ?? "business")
+  const onboardingEntityKind = sectionToEntityKind(onboardingSection)
+
+  useEffect(() => {
+    if (!showOnboarding || search.section === onboardingSection) return
+    void onSearchChange({ section: onboardingSection })
+  }, [onSearchChange, onboardingSection, search.section, showOnboarding])
+
+  useEffect(() => {
+    if (
+      !showOnboarding ||
+      activationReadiness.data?.outcome !== "schedule_ready" ||
+      search.section === "overview"
+    )
+      return
+    void onSearchChange({ section: "overview" })
+  }, [activationReadiness.data?.outcome, onSearchChange, search.section, showOnboarding])
+  const headerActions = entityKind ? (
+    <Button
+      type="button"
+      onClick={(event) => setCreateRequest({ kind: entityKind, trigger: event.currentTarget })}
     >
-      <div key={search.scenario} className="h-full min-h-0">
-        <SetupSectionContent
-          search={search}
-          availabilityCreate={availabilityCreate}
-          onAvailabilityCreateHandled={() => setAvailabilityCreate(false)}
-          createRequest={createRequest}
-          onCreateRequestHandled={() => setCreateRequest(null)}
+      <PlusIcon aria-hidden="true" />
+      {entityLabels[entityKind].newLabel}
+    </Button>
+  ) : search.section === "availability" &&
+    setupRepository.catalogSource === "http" &&
+    canManageAvailability ? (
+    <Button onClick={() => setAvailabilityCreate(true)}>
+      <PlusIcon aria-hidden="true" />
+      Adicionar bloco
+    </Button>
+  ) : undefined
+  const sectionContent = (
+    <SetupSectionContent
+      search={search}
+      availabilityCreate={availabilityCreate}
+      onAvailabilityCreateHandled={() => setAvailabilityCreate(false)}
+      createRequest={createRequest}
+      onCreateRequestHandled={() => setCreateRequest(null)}
+      onSectionChange={(section) => onSearchChange({ section })}
+      onSearchChange={onSearchChange}
+    />
+  )
+  const onboardingContent =
+    onboardingSection === "business" ? (
+      <BusinessProfileSection
+        scenarioId={search.scenario}
+        onCompleted={async () => {
+          const refreshed = await activationReadiness.refetch()
+          const next = refreshed.data?.steps.find((step) => step.id === refreshed.data.nextStepId)
+          await onSearchChange({
+            section: (next?.section as SetupSection | undefined) ?? "overview",
+          })
+        }}
+      />
+    ) : onboardingEntityKind ? (
+      <OnboardingEntityStep
+        kind={onboardingEntityKind}
+        scenarioId={search.scenario}
+        onCompleted={async () => {
+          const refreshed = await activationReadiness.refetch()
+          const next = refreshed.data?.steps.find((step) => step.id === refreshed.data.nextStepId)
+          await onSearchChange({
+            section: (next?.section as SetupSection | undefined) ?? "overview",
+          })
+        }}
+      />
+    ) : onboardingSection === "availability" ? (
+      <OnboardingAvailabilityStep
+        scenarioId={search.scenario}
+        onCompleted={async () => {
+          const refreshed = await activationReadiness.refetch()
+          await onSearchChange({
+            section: refreshed.data?.outcome === "schedule_ready" ? "overview" : "availability",
+          })
+        }}
+      />
+    ) : (
+      sectionContent
+    )
+  return (
+    <>
+      <ModuleLayout
+        head={
+          <div className="flex flex-col gap-3">
+            <PageHeader
+              title={header.title}
+              description={header.description}
+              actions={headerActions}
+            />
+            <nav aria-label="Seções da configuração" className="overflow-x-auto">
+              <ul className="flex min-w-max gap-1 border-b">
+                {sectionItems.map(({ icon: Icon, id, label }) => (
+                  <li key={id}>
+                    <button
+                      type="button"
+                      aria-current={search.section === id ? "page" : undefined}
+                      className={cn(
+                        "inline-flex h-10 cursor-pointer items-center gap-2 border-b-2 px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        search.section === id
+                          ? "border-primary text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground",
+                      )}
+                      onClick={() => onSearchChange({ section: id })}
+                    >
+                      <Icon aria-hidden="true" className="size-4" />
+                      {label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
+        }
+        bodyViewportClassName="h-full min-h-0"
+      >
+        <div key={search.scenario} className="h-full min-h-0">
+          {showOnboarding ? (
+            <div
+              aria-hidden="true"
+              className="grid min-h-80 place-items-center rounded-xl border border-dashed bg-muted/20"
+            >
+              <div className="max-w-md text-center opacity-50">
+                <h2 className="font-heading text-lg font-semibold">Configuração inicial</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Conclua as etapas para liberar a operação da sua barbearia.
+                </p>
+              </div>
+            </div>
+          ) : (
+            sectionContent
+          )}
+        </div>
+      </ModuleLayout>
+
+      {showOnboarding && activationReadiness.data ? (
+        <PersistentOnboardingDialog
+          currentSection={onboardingSection}
+          readiness={activationReadiness.data}
           onSectionChange={(section) => onSearchChange({ section })}
-          onSearchChange={onSearchChange}
-        />
-      </div>
-    </ModuleLayout>
+          onDismiss={() => {
+            dismissOnboarding(onboardingTenantScope)
+            setDismissedTenantId(onboardingTenantScope)
+          }}
+        >
+          {onboardingContent}
+        </PersistentOnboardingDialog>
+      ) : null}
+    </>
   )
 }
 
@@ -246,14 +481,7 @@ function SetupSectionContent({
     case "overview":
       return <OverviewSection scenarioId={search.scenario} onSectionChange={onSectionChange} />
     case "business":
-      return usesHttpCatalogs ? (
-        <UnavailableSetupSection
-          title="Dados da barbearia"
-          description="A edição dos dados gerais ainda não possui persistência de produção. Unidades, profissionais e serviços continuam disponíveis nas respectivas abas."
-        />
-      ) : (
-        <BusinessProfileSection scenarioId={search.scenario} />
-      )
+      return <BusinessProfileSection scenarioId={search.scenario} />
     case "units":
       return (
         <EntitySection
@@ -302,26 +530,6 @@ function SetupSectionContent({
   }
 }
 
-function UnavailableSetupSection({ description, title }: { description: string; title: string }) {
-  return (
-    <section
-      aria-labelledby="unavailable-setup-section-title"
-      className="rounded-lg border border-dashed bg-card p-6"
-    >
-      <div className="flex max-w-2xl items-start gap-3">
-        <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
-        <div className="grid gap-1">
-          <h2 id="unavailable-setup-section-title" className="font-heading text-lg font-medium">
-            {title}
-          </h2>
-          <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
-          <StatusBadge tone="info">Disponível em uma próxima etapa</StatusBadge>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function OverviewSection({
   scenarioId,
   onSectionChange,
@@ -351,16 +559,28 @@ function OverviewSection({
   )
   return (
     <section aria-labelledby="overview-title" className="grid gap-5 pb-4">
-      <Card className="overflow-hidden border-primary/20 bg-linear-to-br from-primary/8 via-card to-card">
-        <CardHeader className="gap-3">
-          <div className="grid gap-1">
-            <h2 id="overview-title" className="font-heading text-xl font-medium leading-snug">
-              Prepare a barbearia para operar
-            </h2>
-            <CardDescription className="max-w-2xl">
-              Cadastre unidades, equipe e serviços. Recursos operacionais que ainda não possuem
-              persistência aparecem como etapas futuras.
-            </CardDescription>
+      <Card className="overflow-hidden ring-primary/25">
+        <CardHeader className="gap-4 border-b pb-5">
+          <div className="flex items-start gap-4">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-primary/50 bg-primary/10 text-primary">
+              {progress === 100 ? (
+                <CheckCircle2Icon aria-hidden="true" className="size-5" />
+              ) : (
+                <SlidersHorizontalIcon aria-hidden="true" className="size-5" />
+              )}
+            </span>
+            <div className="grid gap-1">
+              <h2 id="overview-title" className="font-heading text-xl font-semibold leading-snug">
+                {progress === 100
+                  ? "Sua barbearia está pronta para operar"
+                  : "Vamos preparar sua barbearia"}
+              </h2>
+              <CardDescription className="max-w-2xl">
+                {progress === 100
+                  ? "Os elementos essenciais estão configurados. Você pode revisar qualquer etapa antes de abrir a Agenda."
+                  : "Complete os dados essenciais abaixo. Tudo o que você salvar continuará disponível para revisar depois."}
+              </CardDescription>
+            </div>
           </div>
           <CardAction>
             <StatusBadge tone={progress === 100 ? "success" : "info"}>
@@ -368,7 +588,7 @@ function OverviewSection({
             </StatusBadge>
           </CardAction>
         </CardHeader>
-        <CardContent className="grid gap-2">
+        <CardContent className="grid gap-3">
           <div
             aria-label={`${progress}% da configuração concluída`}
             aria-valuemax={100}
@@ -384,8 +604,8 @@ function OverviewSection({
           </div>
           <p className="text-sm text-muted-foreground">
             {progress === 100
-              ? "A configuração principal está completa. Continue revisando sempre que a operação mudar."
-              : `Próxima etapa recomendada: ${nextItem.title}.`}
+              ? "Configuração essencial concluída."
+              : `Agora configure: ${nextItem.title}. ${nextItem.description}`}
           </p>
         </CardContent>
         <CardFooter className="justify-end">
@@ -397,7 +617,7 @@ function OverviewSection({
       </Card>
 
       <div>
-        <h3 className="text-base font-semibold">Etapas da configuração</h3>
+        <h3 className="text-base font-semibold">Revise cada etapa</h3>
         <p className="text-sm text-muted-foreground">
           Cada etapa explica o que será habilitado na operação.
         </p>
@@ -405,7 +625,12 @@ function OverviewSection({
       <ol className="grid gap-3 md:grid-cols-2">
         {completion.data.readiness.steps.map((item, index) => (
           <li key={item.id}>
-            <Card className="h-full">
+            <Card
+              className={cn(
+                "h-full transition-colors",
+                item.complete ? "ring-primary/20" : "hover:bg-muted/25",
+              )}
+            >
               <CardHeader>
                 <div className="flex size-9 items-center justify-center rounded-full border bg-muted text-sm font-semibold">
                   {item.complete ? (
@@ -445,7 +670,7 @@ function OverviewSection({
         ))}
       </ol>
       {progress === 100 ? (
-        <Card>
+        <Card className="ring-primary/25">
           <CardHeader>
             <h3 className="font-heading text-base font-medium">Configuração pronta para operar</h3>
             <CardDescription>
@@ -454,8 +679,9 @@ function OverviewSection({
             </CardDescription>
           </CardHeader>
           <CardFooter className="justify-end">
-            <Button nativeButton={false} render={<a href="/overview" />}>
-              Entrar no espaço de trabalho
+            <Button nativeButton={false} render={<a href="/agenda" />}>
+              Abrir agenda
+              <ArrowRightIcon aria-hidden="true" />
             </Button>
           </CardFooter>
         </Card>

@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "mode": "feature",
+  "run": {
+    "date": "2026-09-06",
+    "branch": "feature/initiative-26",
+    "commit": "5cd6209",
+    "environment": "local Studio Playwright 3100, API in-process, PostgreSQL loopback 55433",
+    "data_mode": "synthetic browser fixtures and isolated idp26_test database",
+    "evaluator": "Codex Initiative 26 owner",
+    "baseline": "3fd7568",
+    "limitations": [
+      "External Trigger.dev, R2, and Resend hml revalidation awaits provider provisioning.",
+      "Manual assistive-technology and email-client rendering remain release checks."
+    ]
+  },
+  "scope": {
+    "initiative": "26",
+    "apps": ["api", "web", "cross-app"],
+    "modules": ["onboarding-readiness", "invitations", "studio-activation", "agenda"],
+    "personas": ["owner", "admin", "member"],
+    "tenants": ["synthetic-a", "synthetic-b"],
+    "out_of_scope": [
+      "external provider provisioning",
+      "client analytics without consent governance"
+    ]
+  },
+  "journeys": [
+    {
+      "id": "J1",
+      "apps": ["web", "api"],
+      "module": "studio-activation",
+      "persona": "owner",
+      "tenant": "synthetic-a",
+      "kind": "happy_path",
+      "name": "Resume the next truthful setup dependency and open a ready Agenda",
+      "result": "passed",
+      "evidence": ["Focused component tests and full 101-case Playwright sweep"]
+    },
+    {
+      "id": "J2",
+      "apps": ["web", "api"],
+      "module": "invitations",
+      "persona": "member",
+      "tenant": "synthetic-a",
+      "kind": "edge_case",
+      "name": "Resolve contextual invitation and fetch optional logo through opaque proof",
+      "result": "passed",
+      "evidence": ["Terminal proofs call neither provider; logo route is limited and no-store"]
+    },
+    {
+      "id": "J3",
+      "apps": ["api"],
+      "module": "onboarding-readiness",
+      "persona": "admin",
+      "tenant": "synthetic-b",
+      "kind": "regression",
+      "name": "Prove a real schedulable slot without catalog-size false negatives",
+      "result": "passed",
+      "evidence": ["58 focused API tests and 45 isolated PostgreSQL tests"]
+    },
+    {
+      "id": "J4",
+      "apps": ["web"],
+      "module": "agenda",
+      "persona": "member",
+      "tenant": "synthetic-a",
+      "kind": "recheck",
+      "name": "Position once in unit timezone while preserving focus and horizontal scroll",
+      "result": "passed",
+      "evidence": ["Agenda unit tests and Playwright responsive/accessibility sweep"]
+    }
+  ],
+  "screenshots": [
+    {
+      "journey_id": "J4",
+      "checkpoint": "Agenda weekly board",
+      "viewport": "1440px light",
+      "artifact": "docs/studio/evidence/eng-55/agenda-week-light-1440.png",
+      "inspected": true,
+      "result": "passed",
+      "observations": ["Time axis, appointments, and horizontal board remain bounded and legible."]
+    }
+  ],
+  "access_checks": [
+    {
+      "actor": "member synthetic-a",
+      "resource_tenant": "synthetic-a",
+      "vector": "owner-only activation setup",
+      "result": "passed",
+      "evidence": "Incomplete member receives no owner setup task; ready member can open Agenda."
+    },
+    {
+      "actor": "terminal or malformed invitation proof",
+      "resource_tenant": null,
+      "vector": "public invitation context and logo",
+      "result": "passed",
+      "evidence": "404 with zero context/logo provider calls; shared rate limits return 429."
+    }
+  ],
+  "findings": [
+    {
+      "id": "I26-QA-01",
+      "type": "test_defect",
+      "severity": "medium",
+      "app": "web",
+      "module": "legacy-e2e-harnesses",
+      "title": "Legacy harnesses lacked Initiative 25 context and access mocks",
+      "status": "fixed",
+      "evidence": ["Final Playwright sweep passed 101/101 with four workers."],
+      "attempts": 2
+    },
+    {
+      "id": "I26-QA-02",
+      "type": "product_defect",
+      "severity": "medium",
+      "app": "web",
+      "module": "sheet",
+      "title": "Drawer directional states had no transition duration",
+      "status": "fixed",
+      "evidence": ["Computed 200 ms transition and repeated focused Playwright runs passed."],
+      "attempts": 1
+    }
+  ],
+  "scores": {
+    "product_outcome": 9.3,
+    "functional_reliability_persistence": 9.4,
+    "ux_visual_integrity": 9.2,
+    "access_privacy_tenant_isolation": 9.6,
+    "accessibility": 9.4,
+    "operability_regression_protection": 9.4,
+    "weighted_total": 9.39
+  },
+  "verification": [
+    { "check": "API unit/check/build", "result": "passed", "evidence": "45 files, 397 tests" },
+    { "check": "Isolated PostgreSQL", "result": "passed", "evidence": "9 files, 45 tests" },
+    {
+      "check": "Studio unit/build/production boundary",
+      "result": "passed",
+      "evidence": "80 files, 804 tests; 4,372 modules built"
+    },
+    {
+      "check": "Studio coverage",
+      "result": "passed",
+      "evidence": "84.52% statements, 80.20% branches, 82.66% functions, 86.22% lines"
+    },
+    {
+      "check": "Playwright full sweep",
+      "result": "passed",
+      "evidence": "101/101 with four workers"
+    },
+    {
+      "check": "Aureo boundary review",
+      "result": "passed",
+      "evidence": "No blockers after readiness and logo recheck"
+    }
+  ],
+  "decision": "approved_with_reservations"
+}

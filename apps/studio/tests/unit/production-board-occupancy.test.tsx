@@ -158,6 +158,7 @@ describe("production temporal occupancy", () => {
         onReschedule={vi.fn()}
         onSlot={vi.fn()}
         onTransitionRequest={vi.fn()}
+        unitId="centro"
       />,
     )
     expect(screen.getByText("Ocupado · 09:00–09:30")).toBeVisible()
@@ -182,6 +183,7 @@ describe("production temporal occupancy", () => {
         onReschedule={vi.fn()}
         onSlot={slot}
         onTransitionRequest={transition}
+        unitId="centro"
       />,
     )
     expect(screen.queryByText("Serviço sintético")).not.toBeInTheDocument()
@@ -203,6 +205,7 @@ describe("production temporal occupancy", () => {
         onReschedule={vi.fn()}
         onSlot={vi.fn()}
         onTransitionRequest={vi.fn()}
+        unitId="centro"
       />,
     )
     expect(

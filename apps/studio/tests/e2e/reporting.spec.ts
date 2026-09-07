@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright"
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, type Route, test } from "@playwright/test"
 
 const reportsUrl = (scenario = "typical") =>
   `/reports?from=2026-07-01&to=2026-07-31&scenario=${scenario}`
@@ -37,7 +37,7 @@ test("renders all seven reports and keeps canonical combined filters across relo
     "Cancelamentos e ausências",
     "Clientes novos e recorrentes",
   ]) {
-    await expect(page.getByText(title, { exact: true })).toBeVisible()
+    await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
   }
   await expect(page.getByText(/Denominador:/)).toBeVisible()
   await expect(page.getByText(/sem chave estável ficam fora das proporções/)).toBeVisible()
@@ -94,7 +94,7 @@ test("normalizes invalid URL state and distinguishes loading, empty, fail-next, 
 
   await page.goto(reportsUrl("slow"))
   await expect(page.getByRole("status")).toContainText("Carregando relatórios")
-  await expect(page.getByText("Faturamento por período", { exact: true })).toBeVisible()
+  await expect(page.getByText("Faturamento por período", { exact: true }).first()).toBeVisible()
 
   await page.goto(reportsUrl("empty"))
   await expect(page.getByRole("heading", { name: "Nenhum dado encontrado" })).toBeVisible()
@@ -115,7 +115,7 @@ test("normalizes invalid URL state and distinguishes loading, empty, fail-next, 
   await page.goto(reportsUrl("next-failure"))
   await expect(page.getByRole("alert")).toContainText("Não foi possível carregar os relatórios")
   await page.getByRole("button", { name: "Tentar novamente" }).click()
-  await expect(page.getByText("Faturamento por período", { exact: true })).toBeVisible()
+  await expect(page.getByText("Faturamento por período", { exact: true }).first()).toBeVisible()
 
   await page.goto(reportsUrl("persistent-error"))
   await expect(page.getByRole("alert")).toContainText("não puderam ser carregados")
@@ -128,7 +128,7 @@ test("passes axe and captures light, dark, 320px, 200%-zoom, keyboard, and scree
 }) => {
   await page.setViewportSize({ height: 900, width: 1440 })
   await page.goto(reportsUrl("edge"))
-  await expect(page.getByText("Faturamento por período", { exact: true })).toBeVisible()
+  await expect(page.getByText("Faturamento por período", { exact: true }).first()).toBeVisible()
   await hideDevtools(page)
   await page.screenshot({
     fullPage: true,
@@ -159,7 +159,7 @@ test("passes axe and captures light, dark, 320px, 200%-zoom, keyboard, and scree
   await page.setViewportSize({ height: 720, width: 320 })
   await page.reload()
   await expect(page.locator("html")).toHaveClass(/dark/)
-  await expect(page.getByText("Faturamento por período", { exact: true })).toBeVisible()
+  await expect(page.getByText("Faturamento por período", { exact: true }).first()).toBeVisible()
   await expectNoDocumentOverflow(page)
   await expectMinimumTargets(page)
   await hideDevtools(page)
@@ -186,7 +186,7 @@ test("passes axe and captures light, dark, 320px, 200%-zoom, keyboard, and scree
   await page.emulateMedia({ forcedColors: "active", reducedMotion: "reduce" })
   await page.setViewportSize({ height: 720, width: 320 })
   await page.reload()
-  await expect(page.getByText("Faturamento por período", { exact: true })).toBeVisible()
+  await expect(page.getByText("Faturamento por período", { exact: true }).first()).toBeVisible()
   await expectNoDocumentOverflow(page)
 })
 
@@ -252,6 +252,22 @@ async function hideDevtools(page: Page) {
 }
 
 async function routeAuthenticatedSession(page: Page) {
+  await page.route("**/api/contexts", (route) =>
+    fulfillJson(route, {
+      activeOrganizationId: "tenant-reporting-fixture",
+      platform: null,
+      status: "available",
+      tenants: [{ id: "tenant-reporting-fixture", name: "Barbearia de teste", role: "owner" }],
+    }),
+  )
+  await page.route("**/api/access/summary", (route) =>
+    fulfillJson(route, {
+      capabilities: [{ capability: "clients.read", allowed: true, reason: null }],
+      organizationId: "tenant-reporting-fixture",
+      role: "owner",
+      subscriptionState: "active",
+    }),
+  )
   await page.route("**/api/auth/**", async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({ headers: corsHeaders(), status: 204 })
@@ -270,6 +286,15 @@ async function routeAuthenticatedSession(page: Page) {
       headers: corsHeaders(),
       status: 200,
     })
+  })
+}
+
+async function fulfillJson(route: Route, body: unknown) {
+  await route.fulfill({
+    body: JSON.stringify(body),
+    contentType: "application/json",
+    headers: corsHeaders(),
+    status: 200,
   })
 }
 
