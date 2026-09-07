@@ -120,8 +120,8 @@ Evidence and exact commands: [Initiative 22 execution plan](../initiatives/tasks
 
 Client next-appointment projections return persisted local date/time without a UTC offset so
 client cards retain the unit's calendar date across browser timezones. Professional upcoming lists
-exclude already-started appointments before applying their limit. Legacy client preference text
-remains readable until explicitly migrated to canonical services.
+exclude already-started appointments before applying their limit. Client preferences use only
+canonical service relationships.
 
 Catalog audit persistence is best effort after the catalog transaction: a failed audit emits the
 metadata-only `catalog_audit_failed` event and does not change a committed mutation into a failed

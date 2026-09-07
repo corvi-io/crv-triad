@@ -72,9 +72,13 @@ for (const suffix of ["a", "b"]) {
       code: "QA",
       normalizedCode: "qa",
       address: "Endereço de teste",
-      openingDays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
-      openingStart: "08:00",
-      openingEnd: "20:00",
+      openingPeriods: [
+        {
+          days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+          start: "08:00",
+          end: "20:00",
+        },
+      ],
     })
     .onConflictDoNothing()
   await db

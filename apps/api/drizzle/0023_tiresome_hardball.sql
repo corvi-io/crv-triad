@@ -1,2 +1,0 @@
-ALTER TABLE "clients" ADD COLUMN "last_visit_at" timestamp with time zone;--> statement-breakpoint
-CREATE INDEX "clients_organization_last_visit_idx" ON "clients" USING btree ("organization_id","last_visit_at");

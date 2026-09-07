@@ -20,15 +20,12 @@ export function createProfileImageRoutes(
   return new Elysia({ name: "profile-image-routes" })
     .get("/profile-images/*", async ({ params, request, status }) => {
       const key = params["*"]
-      const isLegacyKey = /^[a-zA-Z0-9-]+\.(jpg|png|webp)$/.test(key)
       const isNamespacedKey =
-        /^users\/[a-zA-Z0-9-]+\/profile\/image\/[a-f0-9-]+\.(jpg|png|webp)$/.test(key)
-      if (!storage.get || (!isLegacyKey && !isNamespacedKey)) return status(404)
+        /^users\/[a-zA-Z0-9-]+\/profile\/avatar\/[a-f0-9-]+\.(jpg|png|webp)$/.test(key)
+      if (!storage.get || !isNamespacedKey) return status(404)
       const session = await auth.api.getSession({ headers: request.headers })
       if (!session?.user.id) return status(401)
-      const belongsToUser = isNamespacedKey
-        ? key.startsWith(`users/${session.user.id}/profile/image/`)
-        : key.startsWith(`${session.user.id}-`)
+      const belongsToUser = key.startsWith(`users/${session.user.id}/profile/avatar/`)
       if (!belongsToUser) return status(404)
       const image = await storage.get(key)
       if (!image) return status(404)

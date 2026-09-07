@@ -68,7 +68,7 @@ export const appointmentFormSchema = z.object({
 
 type AppointmentFormValues = z.infer<typeof appointmentFormSchema>
 
-function LegacyAppointmentDrawer({
+function MemoryAppointmentDrawer({
   appointment,
   initialSlot,
   isOpen,
@@ -511,11 +511,11 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function AppointmentDrawer(props: React.ComponentProps<typeof LegacyAppointmentDrawer>) {
+export function AppointmentDrawer(props: React.ComponentProps<typeof MemoryAppointmentDrawer>) {
   const repository = useSchedulingRepository()
   return repository.source === "http" ? (
     <ProductionAppointmentDrawer {...props} />
   ) : (
-    <LegacyAppointmentDrawer {...props} />
+    <MemoryAppointmentDrawer {...props} />
   )
 }

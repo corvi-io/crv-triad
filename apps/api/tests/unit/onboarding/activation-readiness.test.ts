@@ -61,9 +61,6 @@ describe("activation readiness slot detection", () => {
       id: "unit-1",
       timezone: "America/Recife",
       openingPeriods: [{ days: ["monday"], start: "09:00", end: "18:00" }],
-      openingDays: [],
-      openingStart: "00:00",
-      openingEnd: "00:00",
     }
     const series = {
       id: "series-1",
@@ -100,14 +97,11 @@ describe("activation readiness slot detection", () => {
     })
   })
 
-  it("supports legacy unit hours and nullable service durations", async () => {
+  it("does not treat a service with no usable duration as schedule-ready", async () => {
     const location = {
       id: "unit-1",
       timezone: "America/Recife",
-      openingPeriods: [],
-      openingDays: ["monday"],
-      openingStart: "09:00",
-      openingEnd: "18:00",
+      openingPeriods: [{ days: ["monday"], start: "09:00", end: "18:00" }],
     }
     const series = {
       id: "series-1",

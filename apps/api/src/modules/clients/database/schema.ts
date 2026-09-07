@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core"
 
@@ -29,7 +30,6 @@ export const client = pgTable(
     email: text("email"),
     normalizedEmail: text("normalized_email"),
     preferenceNote: text("preference_note").default("").notNull(),
-    servicePreferences: text("service_preferences").array().default(sql`'{}'::text[]`).notNull(),
     tags: text("tags").array().default(sql`'{}'::text[]`).notNull(),
     status: text("status", { enum: ["active", "archived"] })
       .default("active")
@@ -66,7 +66,7 @@ export const client = pgTable(
     ),
     index("clients_global_user_id_idx").on(table.globalUserId),
     index("clients_organization_last_visit_idx").on(table.organizationId, table.lastVisitAt),
-    uniqueIndex("clients_organization_id_unique").on(table.organizationId, table.id),
+    unique("clients_organization_id_unique").on(table.organizationId, table.id),
   ],
 )
 

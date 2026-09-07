@@ -19,5 +19,4 @@ data. Keys use opaque IDs and never include names, email addresses, or other PII
 
 Reports and authenticated media remain in the private bucket. Public assets may use the same
 ownership roots in the public bucket, but bucket visibility does not change ownership or deletion
-semantics. Legacy keys remain readable until the owning record is replaced or its existing retention
-rule expires; no broad migration or deletion should be inferred from the new convention.
+semantics.

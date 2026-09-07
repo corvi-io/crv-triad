@@ -7,7 +7,7 @@ export function createTriggerReportDispatcher(): ReportDispatcher {
       const key = await idempotencyKeys.create(idempotencyKey, { scope: "global" })
       const handle = await tasks.trigger("generate-management-report-v1", payload, {
         idempotencyKey: key,
-        queue: `management-report-${payload.organizationId}`,
+        concurrencyKey: payload.organizationId,
       })
       return { runReference: handle.id }
     },
@@ -15,7 +15,7 @@ export function createTriggerReportDispatcher(): ReportDispatcher {
       const key = await idempotencyKeys.create(idempotencyKey, { scope: "global" })
       const handle = await tasks.trigger("deliver-management-report-email-v1", payload, {
         idempotencyKey: key,
-        queue: `management-report-email-${payload.organizationId}`,
+        concurrencyKey: payload.organizationId,
       })
       return { runReference: handle.id }
     },

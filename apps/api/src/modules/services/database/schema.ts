@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core"
 
@@ -42,7 +43,7 @@ export const service = pgTable(
       table.organizationId,
       table.normalizedName,
     ),
-    uniqueIndex("services_organization_id_unique").on(table.organizationId, table.id),
+    unique("services_organization_id_unique").on(table.organizationId, table.id),
     index("services_organization_status_name_id_idx").on(
       table.organizationId,
       table.status,

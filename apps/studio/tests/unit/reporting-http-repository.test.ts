@@ -106,7 +106,7 @@ describe("production reporting HTTP adapter", () => {
 
 const report = {
   id: "report-a",
-  format: "pdf" as const,
+  format: "csv" as const,
   status: "failed" as const,
   activeAttempt: 1,
   createdAt: "2026-09-06T10:00:00Z",

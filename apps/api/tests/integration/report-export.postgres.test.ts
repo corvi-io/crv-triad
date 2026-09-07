@@ -619,7 +619,7 @@ describe.sequential("report export lifecycle", () => {
     expect(acknowledgements.size).toBe(1)
   })
 
-  it("terminates legacy null-email delivery and denies cross-tenant status and retry actions", async () => {
+  it("denies cross-tenant status and retry actions", async () => {
     const storage = createFakeArtifactStorage()
     let dispatches = 0
     const dispatcher = {
@@ -635,19 +635,6 @@ describe.sequential("report export lifecycle", () => {
     const requested = await service.request(actor, {
       ...baseInput,
       idempotencyKey: crypto.randomUUID(),
-    })
-    await db
-      .update(reportRequest)
-      .set({ status: "ready", requesterEmail: null, emailDeliveryStatus: "pending" })
-      .where(eq(reportRequest.id, requested?.id ?? ""))
-    const worker = createReportWorker(db as never, createReportingService(db as never), storage)
-    await worker.deliver({
-      organizationId: actor.organizationId,
-      reportRequestId: requested?.id ?? "",
-    })
-    expect(await service.status(actor, requested?.id ?? "")).toMatchObject({
-      status: "ready",
-      emailDeliveryStatus: "not_applicable",
     })
     expect(await service.status(otherActor, requested?.id ?? "")).toBeNull()
     expect(await service.retry(otherActor, requested?.id ?? "")).toBeNull()

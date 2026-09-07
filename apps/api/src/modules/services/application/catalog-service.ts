@@ -655,17 +655,17 @@ export function createCatalogService(db: IdpDatabase) {
           professionalIds: links?.professionalIds ?? [],
           unitIds: links?.unitIds ?? [],
         }
+      const periods = openingPeriods(data.openingPeriods)
+      const primaryPeriod = periods[0]
       return {
         id: row.id,
         name: row.name,
         status: row.status,
         businessHours: {
-          days: data.openingDays,
-          start: data.openingStart,
-          end: data.openingEnd,
-          periods: openingPeriods(data.openingPeriods).length
-            ? openingPeriods(data.openingPeriods)
-            : [{ days: data.openingDays, start: data.openingStart, end: data.openingEnd }],
+          days: primaryPeriod?.days ?? [],
+          start: primaryPeriod?.start ?? "00:00",
+          end: primaryPeriod?.end ?? "00:00",
+          periods,
         },
       }
     })
@@ -897,9 +897,6 @@ export function createCatalogService(db: IdpDatabase) {
           code: input.code,
           normalizedCode: normalize(input.code),
           name: input.name,
-          openingDays: input.businessHours.days,
-          openingStart: input.businessHours.start,
-          openingEnd: input.businessHours.end,
           openingPeriods: input.businessHours.periods ?? [input.businessHours],
           timezone: input.timezone,
         })
@@ -948,9 +945,6 @@ export function createCatalogService(db: IdpDatabase) {
               code: input.code,
               normalizedCode: normalize(input.code),
               name: input.name,
-              openingDays: input.businessHours.days,
-              openingStart: input.businessHours.start,
-              openingEnd: input.businessHours.end,
               openingPeriods: input.businessHours.periods ?? [input.businessHours],
               ...(input.timezone ? { timezone: input.timezone } : {}),
               updatedAt: new Date(),
@@ -1088,22 +1082,20 @@ function present(
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
   }
-  if (kind === "unit")
+  if (kind === "unit") {
+    const periods = openingPeriods(item.openingPeriods)
+    const primaryPeriod = periods[0]
     return {
       ...base,
       businessHours: {
-        days: item.openingDays,
-        start: item.openingStart,
-        end: item.openingEnd,
-        periods: openingPeriods(item.openingPeriods).length
-          ? openingPeriods(item.openingPeriods)
-          : [{ days: item.openingDays, start: item.openingStart, end: item.openingEnd }],
+        days: primaryPeriod?.days ?? [],
+        start: primaryPeriod?.start ?? "00:00",
+        end: primaryPeriod?.end ?? "00:00",
+        periods,
       },
-      openingDays: undefined,
-      openingStart: undefined,
-      openingEnd: undefined,
       openingPeriods: undefined,
     }
+  }
   if (kind === "professional")
     return {
       ...base,

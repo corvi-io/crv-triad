@@ -178,9 +178,6 @@ export const approvedBoardFixtures: readonly Appointment[] = professionalFixture
     }),
 )
 
-// Retained as a compatibility export for focused tests and old development links.
-export const approvedKanbanFixtures = approvedBoardFixtures
-
 const priorNormalFixtures: readonly Appointment[] = approvedBoardFixtures
   .slice(0, 30)
   .map((source, index) => ({

@@ -50,8 +50,6 @@ export async function resolveAvailabilityCatalog(
   return {
     location,
     person,
-    periods: location.openingPeriods.length
-      ? location.openingPeriods
-      : [{ days: location.openingDays, start: location.openingStart, end: location.openingEnd }],
+    periods: location.openingPeriods,
   }
 }

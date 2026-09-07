@@ -41,9 +41,6 @@ const location = {
   timezone: "America/Recife",
   version: 2,
   openingPeriods: [{ days: ["monday"], start: "09:00", end: "18:00" }],
-  openingDays: [],
-  openingStart: "00:00",
-  openingEnd: "00:00",
 }
 
 const series = {

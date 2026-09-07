@@ -287,13 +287,12 @@ describe("production appointment flows", { timeout: 20000 }, () => {
     await select("appointment-client", customer.name)
     expect(screen.getByLabelText("Cliente", { exact: true })).toHaveValue(customer.name)
   })
-  it("shows legacy preferences when no canonical service preference exists", async () => {
+  it("shows canonical service preferences in the client profile", async () => {
     httpFixture((request) =>
       request.path === `/api/clients/${customer.id}`
         ? respond({
             ...customer,
-            preferredServices: [],
-            servicePreferences: ["Preferência antiga preservada"],
+            preferredServices: [offering],
           })
         : undefined,
     )
@@ -308,7 +307,39 @@ describe("production appointment flows", { timeout: 20000 }, () => {
         />
       </ClientRepositoryProvider>,
     )
-    expect(await screen.findByText("Preferência antiga preservada")).toBeVisible()
+    expect(await screen.findByText(offering.name)).toBeVisible()
+  })
+  it("shows the canonical empty and archived client profile states", async () => {
+    httpFixture((request) =>
+      request.path === `/api/clients/${customer.id}`
+        ? respond({
+            ...customer,
+            appointments: [],
+            email: "",
+            lastVisitAt: null,
+            nextAppointmentAt: null,
+            phone: "",
+            preferenceNote: "",
+            preferredServices: [{ ...offering, status: "archived" }],
+            status: "archived",
+            tags: [],
+          })
+        : undefined,
+    )
+    renderProduction(
+      <ClientRepositoryProvider repository={new ClientHttpRepository()}>
+        <ClientProfileDrawer
+          clientId={customer.id}
+          scenarioId="typical"
+          onEditClient={vi.fn()}
+          onInspectClient={vi.fn()}
+          onOpenChange={vi.fn()}
+        />
+      </ClientRepositoryProvider>,
+    )
+    expect(await screen.findByText("Arquivado", { selector: "dd" })).toBeVisible()
+    expect(screen.getByText(`${offering.name} (arquivado)`)).toBeVisible()
+    expect(screen.getByRole("button", { name: "Restaurar" })).toBeVisible()
   })
   it("uses bounded remote searches for large canonical catalogs", async () => {
     const requests = httpFixture()

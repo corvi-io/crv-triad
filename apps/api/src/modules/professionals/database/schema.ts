@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core"
 
@@ -40,7 +41,7 @@ export const professional = pgTable(
       "professionals_commission_basis_points_check",
       sql`${table.commissionBasisPoints} between 0 and 10000`,
     ),
-    uniqueIndex("professionals_organization_id_unique").on(table.organizationId, table.id),
+    unique("professionals_organization_id_unique").on(table.organizationId, table.id),
     uniqueIndex("professionals_organization_user_unique").on(
       table.organizationId,
       table.globalUserId,

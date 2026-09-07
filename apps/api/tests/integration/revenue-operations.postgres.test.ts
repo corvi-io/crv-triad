@@ -113,9 +113,7 @@ beforeAll(async () => {
       code: "RA",
       normalizedCode: "ra",
       address: "Synthetic",
-      openingDays: ["monday"],
-      openingStart: "08:00",
-      openingEnd: "18:00",
+      openingPeriods: [{ days: ["monday"], start: "08:00", end: "18:00" }],
       timezone: "America/Recife",
     },
     {
@@ -125,9 +123,7 @@ beforeAll(async () => {
       code: "RB",
       normalizedCode: "rb",
       address: "Synthetic",
-      openingDays: ["monday"],
-      openingStart: "08:00",
-      openingEnd: "18:00",
+      openingPeriods: [{ days: ["monday"], start: "08:00", end: "18:00" }],
       timezone: "America/Recife",
     },
   ])
