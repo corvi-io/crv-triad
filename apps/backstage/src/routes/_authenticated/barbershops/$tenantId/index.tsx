@@ -1,14 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { ArrowLeftIcon, Building2Icon, UsersIcon } from "lucide-react"
+import { ArrowLeftIcon, Building2Icon, Settings2Icon, UsersIcon } from "lucide-react"
 import { type FormEvent, useState } from "react"
 import { toast } from "sonner"
-import { createSupportContext, getTenant, updateTenant } from "@/modules/backstage/backstage-client"
+import {
+  createSupportContext,
+  getTenant,
+  getTenantAccess,
+  updateTenant,
+  updateTenantAccess,
+} from "@/modules/backstage/backstage-client"
 import { useOperator } from "@/modules/backstage/operator-gate"
 import { useSupportSession } from "@/modules/backstage/support-session"
 import { Button } from "@/modules/shared/components/ui/button"
 import { Input } from "@/modules/shared/components/ui/input"
 import { Label } from "@/modules/shared/components/ui/label"
+import { Switch } from "@/modules/shared/components/ui/switch"
+import { Textarea } from "@/modules/shared/components/ui/textarea"
 
 export const Route = createFileRoute("/_authenticated/barbershops/$tenantId/")({
   component: BarbershopPage,
@@ -17,6 +25,8 @@ export const Route = createFileRoute("/_authenticated/barbershops/$tenantId/")({
 function BarbershopPage() {
   const { tenantId } = Route.useParams()
   const [reason, setReason] = useState("")
+  const [accessReason, setAccessReason] = useState("")
+  const [accessDraft, setAccessDraft] = useState<Set<string> | null>(null)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const support = useSupportSession()
@@ -27,6 +37,10 @@ function BarbershopPage() {
   const tenant = useQuery({
     queryKey: ["tenant", tenantId],
     queryFn: ({ signal }) => getTenant(tenantId, signal),
+  })
+  const access = useQuery({
+    queryKey: ["tenant", tenantId, "access"],
+    queryFn: ({ signal }) => getTenantAccess(tenantId, signal),
   })
   const changeStatus = useMutation({
     mutationFn: updateTenant,
@@ -51,6 +65,18 @@ function BarbershopPage() {
         organizationName: tenant.data.name,
       })
       await navigate({ to: "/support/$contextId", params: { contextId: created.id } })
+    },
+  })
+  const changeAccess = useMutation({
+    mutationFn: updateTenantAccess,
+    onSuccess: async () => {
+      setAccessDraft(null)
+      setAccessReason("")
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["tenant", tenantId, "access"] }),
+        queryClient.invalidateQueries({ queryKey: ["tenant", tenantId] }),
+      ])
+      toast.success("Recursos do plano atualizados.")
     },
   })
   function submit(event: FormEvent) {
@@ -137,6 +163,127 @@ function BarbershopPage() {
                   }
                 />
               </dl>
+              <section className="mt-8 border-t pt-7" aria-labelledby="access-title">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-semibold" id="access-title">
+                      Recursos do plano
+                    </h2>
+                    <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                      Controle quais operações esta barbearia pode usar. A alteração cria uma nova
+                      versão do plano somente para este tenant.
+                    </p>
+                  </div>
+                  {canManageTenant && access.data && accessDraft === null ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        setAccessDraft(
+                          new Set(
+                            access.data.capabilities
+                              .filter(({ enabled }) => enabled)
+                              .map(({ key }) => key),
+                          ),
+                        )
+                      }
+                    >
+                      <Settings2Icon /> Alterar recursos
+                    </Button>
+                  ) : null}
+                </div>
+                {access.isPending ? (
+                  <p className="mt-5 text-sm text-muted-foreground" role="status">
+                    Carregando recursos…
+                  </p>
+                ) : null}
+                {access.isError ? (
+                  <p className="mt-5 text-sm text-destructive" role="alert">
+                    Não foi possível carregar os recursos do plano.
+                  </p>
+                ) : null}
+                {access.data ? (
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    {access.data.capabilities.map((capability) => {
+                      const checked = accessDraft?.has(capability.key) ?? capability.enabled
+                      const id = `capability-${capability.key.replaceAll(".", "-")}`
+                      return (
+                        <div
+                          className="flex min-h-12 items-center justify-between gap-4 rounded-lg border px-3 py-2"
+                          key={capability.key}
+                        >
+                          <Label className="min-w-0" htmlFor={id}>
+                            {capabilityLabel(capability.key)}
+                          </Label>
+                          <Switch
+                            id={id}
+                            checked={checked}
+                            disabled={accessDraft === null || changeAccess.isPending}
+                            onCheckedChange={(enabled) =>
+                              setAccessDraft((current) => {
+                                const next = new Set(current)
+                                if (enabled) next.add(capability.key)
+                                else next.delete(capability.key)
+                                return next
+                              })
+                            }
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : null}
+                {accessDraft !== null && access.data ? (
+                  <div className="mt-5 grid gap-3 rounded-xl border p-4">
+                    <Label htmlFor="access-reason">Motivo da alteração</Label>
+                    <Textarea
+                      id="access-reason"
+                      minLength={10}
+                      maxLength={500}
+                      value={accessReason}
+                      onChange={(event) => setAccessReason(event.target.value)}
+                      placeholder="Explique por que os recursos serão alterados"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      O motivo ficará registrado na auditoria.
+                    </p>
+                    {changeAccess.isError ? (
+                      <p className="text-sm text-destructive" role="alert">
+                        Não foi possível atualizar os recursos. Recarregue os dados e tente
+                        novamente.
+                      </p>
+                    ) : null}
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={changeAccess.isPending}
+                        onClick={() => {
+                          setAccessDraft(null)
+                          setAccessReason("")
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="button"
+                        isLoading={changeAccess.isPending}
+                        disabled={accessReason.trim().length < 10}
+                        onClick={() =>
+                          changeAccess.mutate({
+                            id: tenantId,
+                            enabledCapabilities: [...accessDraft],
+                            reason: accessReason,
+                            subscriptionVersion: access.data.subscriptionVersion,
+                          })
+                        }
+                      >
+                        Salvar recursos
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
               <h2 className="mt-10 text-xl font-semibold">Proprietário</h2>
               <div className="mt-5 flex items-center gap-3 border-y py-4">
                 <span className="grid size-10 place-items-center rounded-full bg-muted">
@@ -223,4 +370,39 @@ function Info({ label, value }: { label: string; value: string }) {
       <dd className="mt-2 font-semibold">{value}</dd>
     </div>
   )
+}
+
+const capabilityLabels: Record<string, string> = {
+  "availability.read": "Consultar disponibilidade",
+  "availability.manage": "Gerenciar disponibilidade",
+  "scheduling.read": "Consultar agenda",
+  "scheduling.manage": "Gerenciar agenda",
+  "service_desk.read": "Consultar atendimentos",
+  "service_desk.manage": "Gerenciar atendimentos",
+  "service_desk.correct": "Corrigir atendimentos",
+  "revenue.read_checkout": "Consultar pagamentos e checkout",
+  "revenue.register": "Registrar pagamentos",
+  "revenue.adjust": "Ajustar pagamentos",
+  "revenue.correct": "Corrigir pagamentos",
+  "revenue.configure": "Configurar formas de pagamento",
+  "cash.read": "Consultar caixa",
+  "cash.manage": "Gerenciar caixa",
+  "clients.read": "Consultar clientes",
+  "clients.manage": "Gerenciar clientes",
+  "catalogs.read": "Consultar catálogos",
+  "catalogs.manage": "Gerenciar catálogos",
+  "business_profile.read": "Consultar dados da barbearia",
+  "business_profile.manage": "Gerenciar dados da barbearia",
+  "commissions.read": "Consultar comissões",
+  "commissions.manage": "Gerenciar comissões",
+  "reports.read": "Consultar relatórios",
+  "reports.export": "Gerar relatórios",
+  "members.read": "Consultar membros",
+  "members.manage": "Gerenciar membros",
+  "ownership.transfer": "Transferir propriedade",
+  "access_requests.review": "Revisar solicitações de acesso",
+}
+
+function capabilityLabel(key: string) {
+  return capabilityLabels[key] ?? key
 }

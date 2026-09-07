@@ -73,16 +73,14 @@ describe("barbershop setup module", () => {
     ).toBeVisible()
   })
 
-  it("renders the six-step journey and editable business and payment facts", async () => {
+  it("renders the operational overview and keeps business and payment tabs available", async () => {
     const user = userEvent.setup()
     renderSetup("single-unit")
     for (const step of [
-      "Dados da barbearia",
-      "Horários",
-      "Profissionais",
-      "Serviços",
-      "Pagamentos e comissões",
-      "Revisão",
+      "Cadastrar a operação",
+      "Conectar profissionais",
+      "Definir serviços",
+      "Configurar disponibilidade",
     ]) {
       expect((await screen.findAllByText(step)).length).toBeGreaterThan(0)
     }

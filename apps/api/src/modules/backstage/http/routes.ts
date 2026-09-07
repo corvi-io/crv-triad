@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto"
-import { and, count, desc, eq, gt, ilike, isNull, sql } from "drizzle-orm"
+import { and, count, desc, eq, gt, ilike, isNull, max, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { Elysia, t } from "elysia"
 import {
@@ -206,6 +206,155 @@ export function createBackstageRoutes(
       if (!tenant) throw new BackstageError("not_found")
       return tenant
     })
+    .get("/tenants/:tenantId/access", async ({ params, request }) => {
+      await operator(request.headers)
+      const [subscription] = await db
+        .select({
+          planKey: plan.key,
+          planVersionId: planVersion.id,
+          subscriptionVersion: tenantSubscription.version,
+        })
+        .from(tenantSubscription)
+        .innerJoin(planVersion, eq(planVersion.id, tenantSubscription.planVersionId))
+        .innerJoin(plan, eq(plan.id, planVersion.planId))
+        .where(
+          and(
+            eq(tenantSubscription.organizationId, params.tenantId),
+            eq(tenantSubscription.isCurrent, true),
+          ),
+        )
+        .limit(1)
+      if (!subscription) throw new BackstageError("not_found")
+      const entitlements = await db
+        .select({ capability: planEntitlement.capabilityKey, enabled: planEntitlement.enabled })
+        .from(planEntitlement)
+        .where(eq(planEntitlement.planVersionId, subscription.planVersionId))
+      const enabled = new Set(
+        entitlements.filter((item) => item.enabled).map((item) => item.capability),
+      )
+      return {
+        capabilities: capabilities.map((capability) => ({
+          enabled: enabled.has(capability),
+          key: capability,
+        })),
+        planKey: subscription.planKey,
+        subscriptionVersion: subscription.subscriptionVersion,
+      }
+    })
+    .put(
+      "/tenants/:tenantId/access",
+      async ({ body, params, request }) => {
+        await operator(request.headers, ["system_owner", "operations"])
+        const session = await auth.api.getSession({ headers: request.headers })
+        if (!session) throw new BackstageError("unauthenticated")
+        const reason = normalizedReason(body.reason)
+        const requestedCapabilities = [...new Set(body.enabledCapabilities)]
+        if (
+          requestedCapabilities.some(
+            (capability) => !capabilities.includes(capability as (typeof capabilities)[number]),
+          )
+        )
+          throw new BackstageError("invalid_request")
+        return db.transaction(async (tx) => {
+          await tx.execute(
+            sql`select pg_advisory_xact_lock(hashtextextended(${`backstage-access:${params.tenantId}`}, 0))`,
+          )
+          const [current] = await tx
+            .select({
+              id: tenantSubscription.id,
+              planId: planVersion.planId,
+              planVersionId: planVersion.id,
+              state: tenantSubscription.state,
+              version: tenantSubscription.version,
+            })
+            .from(tenantSubscription)
+            .innerJoin(planVersion, eq(planVersion.id, tenantSubscription.planVersionId))
+            .where(
+              and(
+                eq(tenantSubscription.organizationId, params.tenantId),
+                eq(tenantSubscription.isCurrent, true),
+              ),
+            )
+            .limit(1)
+          if (!current) throw new BackstageError("not_found")
+          if (current.version !== body.subscriptionVersion) throw new BackstageError("conflict")
+          await tx.execute(
+            sql`select pg_advisory_xact_lock(hashtextextended(${`backstage-plan:${current.planId}`}, 0))`,
+          )
+          const [latest] = await tx
+            .select({ version: max(planVersion.version) })
+            .from(planVersion)
+            .where(eq(planVersion.planId, current.planId))
+          const currentEntitlements = await tx
+            .select()
+            .from(planEntitlement)
+            .where(eq(planEntitlement.planVersionId, current.planVersionId))
+          const nextVersionId = createId()
+          await tx.insert(planVersion).values({
+            id: nextVersionId,
+            planId: current.planId,
+            version: (latest?.version ?? 0) + 1,
+          })
+          await tx.insert(planEntitlement).values(
+            capabilities.map((capability) => {
+              const previous = currentEntitlements.find((item) => item.capabilityKey === capability)
+              return {
+                capabilityKey: capability,
+                enabled: requestedCapabilities.includes(capability),
+                id: createId(),
+                planVersionId: nextVersionId,
+                quotaKey: previous?.quotaKey ?? null,
+                quotaLimit: previous?.quotaLimit ?? null,
+              }
+            }),
+          )
+          const now = new Date()
+          const [closed] = await tx
+            .update(tenantSubscription)
+            .set({ endsAt: now, isCurrent: false, updatedAt: now, version: current.version + 1 })
+            .where(
+              and(
+                eq(tenantSubscription.id, current.id),
+                eq(tenantSubscription.version, body.subscriptionVersion),
+                eq(tenantSubscription.isCurrent, true),
+              ),
+            )
+            .returning({ id: tenantSubscription.id })
+          if (!closed) throw new BackstageError("conflict")
+          await tx.insert(tenantSubscription).values({
+            id: createId(),
+            organizationId: params.tenantId,
+            planVersionId: nextVersionId,
+            startsAt: now,
+            state: current.state,
+          })
+          await tx.insert(accessAudit).values({
+            action: "tenant.access_updated",
+            actorUserId: session.user.id,
+            id: createId(),
+            organizationId: params.tenantId,
+            outcome: "allowed",
+            reason,
+            requestId: request.headers.get("x-request-id") ?? crypto.randomUUID(),
+            targetId: params.tenantId,
+          })
+          return {
+            capabilities: capabilities.map((capability) => ({
+              enabled: requestedCapabilities.includes(capability),
+              key: capability,
+            })),
+            subscriptionVersion: 1,
+          }
+        })
+      },
+      {
+        body: t.Object({
+          enabledCapabilities: t.Array(t.String({ maxLength: 100 }), { maxItems: 100 }),
+          reason: t.String({ minLength: 10, maxLength: 500 }),
+          subscriptionVersion: t.Integer({ minimum: 1 }),
+        }),
+      },
+    )
     .post(
       "/tenants",
       async ({ body, request, status }) => {

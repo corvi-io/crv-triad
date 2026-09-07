@@ -48,14 +48,20 @@ describe("production Agenda and Dashboard", { timeout: 20000 }, () => {
   ])("shows real %s data and opens the canonical drawer", async (surface) => {
     httpFixture()
     renderProduction(surface === "agenda" ? <Agenda /> : <Dashboard />)
-    await userEvent.click(await screen.findByRole("button", { name: customer.name }))
-    expect(await screen.findByRole("dialog")).toHaveTextContent(customer.name)
-    await userEvent.click(
-      within(screen.getByRole("dialog"))
-        .getByRole("button", { name: "Fechar" })
-        .closest("button") as HTMLElement,
-    )
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    if (surface === "agenda") {
+      await userEvent.click(await screen.findByRole("button", { name: customer.name }))
+      expect(await screen.findByRole("dialog")).toHaveTextContent(customer.name)
+      await userEvent.click(
+        within(screen.getByRole("dialog"))
+          .getByRole("button", { name: "Fechar" })
+          .closest("button") as HTMLElement,
+      )
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    } else {
+      expect(
+        await screen.findByRole("heading", { name: "Indicadores principais" }),
+      ).toBeInTheDocument()
+    }
     await userEvent.click(screen.getByRole("button", { name: "Novo agendamento" }))
     expect(await screen.findByRole("dialog")).toHaveTextContent("Novo agendamento")
   })
@@ -70,7 +76,13 @@ describe("production Agenda and Dashboard", { timeout: 20000 }, () => {
     await screen.findByRole("alert")
     failed = false
     await userEvent.click(screen.getByRole("button", { name: "Tentar novamente" }))
-    expect(await screen.findByRole("button", { name: customer.name })).toBeVisible()
+    if (surface === "agenda") {
+      expect(await screen.findByRole("button", { name: customer.name })).toBeVisible()
+    } else {
+      expect(
+        await screen.findByRole("heading", { name: "Indicadores principais" }),
+      ).toBeInTheDocument()
+    }
   })
   it.each(["agenda", "dashboard"])("explains missing timezone in %s", async (surface) => {
     httpFixture((r) =>

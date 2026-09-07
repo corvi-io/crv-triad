@@ -43,6 +43,30 @@ test.beforeEach(async ({ page }) => {
     if (path === "/api/backstage/inventory") {
       return route.fulfill({ json: { items: tenants, page: 1, pageSize: 20, totalCount: 2 } })
     }
+    if (path === "/api/backstage/tenants/tenant-aurora") {
+      return route.fulfill({
+        json: {
+          ...tenants[0],
+          activeClientCount: 32,
+          archivedClientCount: 2,
+          ownerEmail: "owner@example.invalid",
+          ownerName: "Pessoa Proprietária",
+          slug: "barbearia-aurora",
+          updatedAt: "2026-09-07T12:00:00.000Z",
+          version: 1,
+        },
+      })
+    }
+    if (path === "/api/backstage/tenants/tenant-aurora/access") {
+      const capabilities = [
+        { enabled: true, key: "reports.read" },
+        { enabled: false, key: "revenue.read_checkout" },
+      ]
+      if (route.request().method() === "PUT") {
+        return route.fulfill({ json: { capabilities, planKey: "pro", subscriptionVersion: 1 } })
+      }
+      return route.fulfill({ json: { capabilities, planKey: "pro", subscriptionVersion: 1 } })
+    }
     if (path === "/api/backstage/tenants" && route.request().method() === "POST") {
       return route.fulfill({
         json: {
@@ -105,4 +129,27 @@ test("renders the system barbershop inventory accessibly at desktop and mobile w
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   )
+})
+
+test("allows an authorized operator to configure tenant capabilities with an audit reason", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 1000, width: 1440 })
+  await page.goto("/barbershops/tenant-aurora")
+
+  await expect(page.getByRole("heading", { name: "Recursos do plano" })).toBeVisible()
+  await page.getByRole("button", { name: "Alterar recursos" }).click()
+  await page.getByLabel("Consultar pagamentos e checkout").click()
+  await page
+    .getByLabel("Motivo da alteração", { exact: true })
+    .fill("Liberação validada em homologação")
+  await expect(page.getByRole("button", { name: "Salvar recursos" })).toBeEnabled()
+  await page.getByRole("button", { name: "Salvar recursos" }).click()
+  await expect(page.getByText("Recursos do plano atualizados.")).toBeVisible()
+
+  expect((await new AxeBuilder({ page }).include("#main-content").analyze()).violations).toEqual([])
+  await page.screenshot({
+    fullPage: true,
+    path: "../../.artifacts/product-qa/backstage/tenant-capabilities.png",
+  })
 })

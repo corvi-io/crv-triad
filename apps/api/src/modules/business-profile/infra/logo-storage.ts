@@ -14,7 +14,7 @@ export type BusinessLogoStorage = {
 }
 
 export function createBusinessLogoKey(organizationId: string, extension: "jpg" | "png" | "webp") {
-  return `tenants/${organizationId}/business-profile/logo/${crypto.randomUUID()}.${extension}`
+  return `tenants/${organizationId}/branding/logo/${crypto.randomUUID()}.${extension}`
 }
 
 export function createLocalBusinessLogoStorage(directory: string): BusinessLogoStorage {

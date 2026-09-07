@@ -34,6 +34,12 @@ export type TenantDetail = TenantSummary & {
   ownerEmail: string | null
 }
 
+export type TenantAccess = {
+  capabilities: readonly { enabled: boolean; key: string }[]
+  planKey?: string
+  subscriptionVersion: number
+}
+
 export class BackstageClientError extends Error {
   readonly code: string
   readonly status: number
@@ -100,6 +106,28 @@ export function updateTenant(input: {
       version: input.version,
     }),
     method: "PATCH",
+  })
+}
+
+export function getTenantAccess(id: string, signal?: AbortSignal) {
+  return request<TenantAccess>(`/api/backstage/tenants/${encodeURIComponent(id)}/access`, {
+    signal,
+  })
+}
+
+export function updateTenantAccess(input: {
+  id: string
+  enabledCapabilities: readonly string[]
+  reason: string
+  subscriptionVersion: number
+}) {
+  return request<TenantAccess>(`/api/backstage/tenants/${encodeURIComponent(input.id)}/access`, {
+    body: JSON.stringify({
+      enabledCapabilities: input.enabledCapabilities,
+      reason: input.reason,
+      subscriptionVersion: input.subscriptionVersion,
+    }),
+    method: "PUT",
   })
 }
 

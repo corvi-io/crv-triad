@@ -244,6 +244,30 @@ describe("Backstage route authority", () => {
     })
   })
 
+  it("rejects tenant access changes from read-only Backstage operators", async () => {
+    const app = createBackstageRoutes(
+      auth("user-a") as never,
+      databaseQueue([[{ ...activeOperator, role: "support" }]]) as never,
+    )
+    const response = await app.handle(
+      new Request("http://localhost/api/backstage/tenants/tenant-a/access", {
+        body: JSON.stringify({
+          enabledCapabilities: ["revenue.read_checkout"],
+          reason: "Tentativa sem autoridade suficiente",
+          subscriptionVersion: 1,
+        }),
+        headers: { "content-type": "application/json", "x-request-id": "request-access" },
+        method: "PUT",
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toEqual({
+      code: "backstage_forbidden",
+      requestId: "request-access",
+    })
+  })
+
   it("requires a valid support credential before exposing tenant data", async () => {
     const missingCredential = createBackstageRoutes(
       auth("user-a") as never,

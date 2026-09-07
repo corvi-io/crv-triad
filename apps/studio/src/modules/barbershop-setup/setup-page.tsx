@@ -86,8 +86,8 @@ import {
   useRevokeProfessionalInvitation,
   useSetSetupEntityArchived,
   useSetupAvailability,
-  useSetupCompletion,
   useSetupEntities,
+  useSetupOverview,
   useUpdateBarbershopProfile,
   useUpdateSetupEntity,
 } from "./queries"
@@ -537,26 +537,24 @@ function OverviewSection({
   scenarioId: SetupScenarioId
   onSectionChange: (section: SetupSection) => void
 }) {
-  const completion = useSetupCompletion(scenarioId)
-  if (completion.isPending) return <LoadingCards label="Carregando visão geral…" />
-  if (completion.isError)
+  const overview = useSetupOverview(scenarioId)
+  if (overview.isPending) return <LoadingCards label="Carregando visão geral…" />
+  if (overview.isError)
     return (
       <ErrorState
         title="Não foi possível carregar a visão geral"
-        onRetry={() => completion.refetch()}
+        onRetry={() => overview.refetch()}
       />
     )
-  const nextItem = completion.data.readiness.steps.find(({ complete }) => !complete) ??
-    completion.data.readiness.steps.at(-1) ?? {
+  const nextItem = overview.data.items.find(({ complete }) => !complete) ??
+    overview.data.items.at(-1) ?? {
       complete: false,
       description: "Revise os dados da configuração.",
       id: "review",
       section: "overview",
       title: "Revisão",
     }
-  const progress = Math.round(
-    (completion.data.readiness.completedCount / completion.data.readiness.totalCount) * 100,
-  )
+  const progress = Math.round((overview.data.completedCount / overview.data.totalCount) * 100)
   return (
     <section aria-labelledby="overview-title" className="grid gap-5 pb-4">
       <Card className="overflow-hidden ring-primary/25">
@@ -584,7 +582,7 @@ function OverviewSection({
           </div>
           <CardAction>
             <StatusBadge tone={progress === 100 ? "success" : "info"}>
-              {`${completion.data.readiness.completedCount} de ${completion.data.readiness.totalCount}`}
+              {`${overview.data.completedCount} de ${overview.data.totalCount}`}
             </StatusBadge>
           </CardAction>
         </CardHeader>
@@ -623,8 +621,8 @@ function OverviewSection({
         </p>
       </div>
       <ol className="grid gap-3 md:grid-cols-2">
-        {completion.data.readiness.steps.map((item, index) => (
-          <li key={item.id}>
+        {overview.data.items.map((item, index) => (
+          <li key={item.section}>
             <Card
               className={cn(
                 "h-full transition-colors",

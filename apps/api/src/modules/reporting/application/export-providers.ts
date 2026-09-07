@@ -24,7 +24,12 @@ export type ReportEmailSender = {
     recipient: string
     reportRequestId: string
     reportTitle: string
-    authenticatedReportUrl: string
+    downloadUrl: string
+  }): Promise<{ deliveryReference?: string }>
+  sendFailure?(input: {
+    recipient: string
+    reportRequestId: string
+    reportTitle: string
   }): Promise<{ deliveryReference?: string }>
 }
 export function createFakeReportEmailSender(): ReportEmailSender {
@@ -33,6 +38,10 @@ export function createFakeReportEmailSender(): ReportEmailSender {
     async send(input) {
       delivered.add(input.reportRequestId)
       return { deliveryReference: `fake-email-${input.reportRequestId}` }
+    },
+    async sendFailure(input) {
+      delivered.add(`failed:${input.reportRequestId}`)
+      return { deliveryReference: `fake-failure-email-${input.reportRequestId}` }
     },
   }
 }

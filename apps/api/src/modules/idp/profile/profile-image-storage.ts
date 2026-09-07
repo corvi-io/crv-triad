@@ -26,7 +26,7 @@ const extensions: Record<(typeof PROFILE_IMAGE_CONTENT_TYPES)[number], string> =
 }
 
 export function createProfileImageKey(userId: string, contentType: keyof typeof extensions) {
-  return `users/${userId}/profile/image/${crypto.randomUUID()}${extensions[contentType]}`
+  return `users/${userId}/profile/avatar/${crypto.randomUUID()}${extensions[contentType]}`
 }
 
 export function createProfileImageStorage(env: IdpEnv): ProfileImageStorage {

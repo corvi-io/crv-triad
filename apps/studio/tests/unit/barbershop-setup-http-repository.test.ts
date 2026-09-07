@@ -52,6 +52,32 @@ describe("barbershop setup HTTP repository", () => {
     expect(fetchMock).toHaveBeenCalledTimes(6)
   })
 
+  it("loads the overview without requesting payment configuration", async () => {
+    const fetchMock = vi.fn(async (url: unknown) => {
+      if (String(url).includes("/revenue-operations/payment-methods"))
+        return new Response(JSON.stringify({ code: "capability_forbidden" }), { status: 403 })
+      return new Response(
+        JSON.stringify(
+          String(url).includes("/availability/summary")
+            ? { activeSeries: 0 }
+            : { items: [], page: 1, pageSize: 50, totalCount: 0, totalPages: 0 },
+        ),
+        { headers: { "content-type": "application/json" }, status: 200 },
+      )
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(new BarbershopSetupHttpRepository().getOverview()).resolves.toMatchObject({
+      completedCount: 0,
+      totalCount: 4,
+    })
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).includes("/revenue-operations/payment-methods"),
+      ),
+    ).toBe(false)
+  })
+
   it("explains when the invited email already belongs to the barbershop", async () => {
     vi.stubGlobal(
       "fetch",

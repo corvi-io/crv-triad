@@ -34,7 +34,7 @@ describe("local profile image storage", () => {
 
     await storage.put({ body, contentType: "image/png", key })
 
-    expect(key).toMatch(/^users\/user-1\/profile\/image\/[0-9a-f-]+\.png$/)
+    expect(key).toMatch(/^users\/user-1\/profile\/avatar\/[0-9a-f-]+\.png$/)
     expect(await storage.get?.(key)).toEqual({ body, contentType: "image/png" })
     expect(profileImageKeyFromUrl(storage, storage.publicUrl(key))).toBe(key)
     expect(profileImageKeyFromUrl(storage, null)).toBeNull()

@@ -1,13 +1,8 @@
 import { createReportingRepository, reportingScenarioIds } from "virtual:studio-reporting-source"
 import { createFileRoute } from "@tanstack/react-router"
-import type { ReportingFacets, ReportingQuery } from "@/modules/reporting/contracts"
-import {
-  filtersFromSearch,
-  normalizeReportSearch,
-  type ReportSearch,
-} from "@/modules/reporting/filters"
+import type { ReportingQuery } from "@/modules/reporting/contracts"
+import { filtersFromSearch, normalizeReportSearch } from "@/modules/reporting/filters"
 import { useReportingResult } from "@/modules/reporting/queries"
-import { ReportFiltersBar } from "@/modules/reporting/report-filters"
 import { ReportingPageContent } from "@/modules/reporting/reporting-page"
 import { ReportingRepositoryProvider } from "@/modules/reporting/repository-context"
 import { formatDateOnly } from "@/modules/shared/components/forms/date-picker"
@@ -17,13 +12,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/modules/shared/components
 
 const repository = createReportingRepository?.()
 const sourceDate = repository?.today() ?? formatDateOnly(new Date())
-const emptyFacets: ReportingFacets = {
-  paymentMethods: [],
-  professionals: [],
-  services: [],
-  units: [],
-}
-
 export const Route = createFileRoute("/_authenticated/reports/")({
   component: ReportsRoute,
   validateSearch: (search: Record<string, unknown>) =>
@@ -32,7 +20,6 @@ export const Route = createFileRoute("/_authenticated/reports/")({
 
 function ReportsRoute() {
   const search = Route.useSearch()
-  const navigate = Route.useNavigate()
   if (!repository) {
     return (
       <ModuleLayout
@@ -56,48 +43,22 @@ function ReportsRoute() {
   }
   return (
     <ReportingRepositoryProvider repository={repository}>
-      <ReportsExperience
-        query={query}
-        search={search}
-        onSearchChange={(next) =>
-          navigate({
-            replace: true,
-            search: (previous) => ({ ...previous, ...next }),
-            to: "/reports",
-          })
-        }
-      />
+      <ReportsExperience query={query} />
     </ReportingRepositoryProvider>
   )
 }
 
-function ReportsExperience({
-  onSearchChange,
-  query,
-  search,
-}: {
-  onSearchChange: (next: Partial<ReportSearch>) => void
-  query: ReportingQuery
-  search: ReportSearch
-}) {
+function ReportsExperience({ query }: { query: ReportingQuery }) {
   const report = useReportingResult(query)
   return (
     <ModuleLayout
       bodyMaskHeight={0}
       bodyViewportClassName="p-px"
       head={
-        <>
-          <PageHeader
-            description="Analise resultados históricos com um recorte único e rastreável."
-            title="Relatórios"
-          />
-          <ReportFiltersBar
-            facets={report.data?.facets ?? emptyFacets}
-            search={search}
-            sourceDate={sourceDate}
-            onChange={onSearchChange}
-          />
-        </>
+        <PageHeader
+          description="Escolha e configure os relatórios da sua barbearia."
+          title="Relatórios"
+        />
       }
     >
       <ReportingPageContent report={report} />
