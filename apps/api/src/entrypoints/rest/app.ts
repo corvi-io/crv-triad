@@ -99,12 +99,12 @@ export function createRestApp(input: CreateRestAppInput) {
   const observeReportLifecycle = (event: Record<string, unknown>) =>
     console.info(JSON.stringify({ ...event, appEnvironment: input.env.APP_ENV }))
   const businessLogoStorage =
-    input.env.PROFILE_IMAGE_STORAGE_DRIVER === "r2"
+    input.env.PRIVATE_STORAGE_DRIVER === "r2"
       ? createR2BusinessLogoStorage({
-          endpoint: input.env.PROFILE_IMAGE_R2_ENDPOINT,
-          accessKeyId: input.env.PROFILE_IMAGE_R2_ACCESS_KEY_ID,
-          secretAccessKey: input.env.PROFILE_IMAGE_R2_SECRET_ACCESS_KEY,
-          bucket: input.env.PROFILE_IMAGE_R2_BUCKET,
+          endpoint: input.env.R2_PRIVATE_ENDPOINT,
+          accessKeyId: input.env.R2_PRIVATE_ACCESS_KEY_ID,
+          secretAccessKey: input.env.R2_PRIVATE_SECRET_ACCESS_KEY,
+          bucket: input.env.R2_PRIVATE_BUCKET,
         })
       : createLocalBusinessLogoStorage(input.env.BUSINESS_MEDIA_LOCAL_DIRECTORY)
   const invitationDisplayContext = createInvitationDisplayContextProvider(input.db)
@@ -116,10 +116,10 @@ export function createRestApp(input: CreateRestAppInput) {
   const artifactStorage =
     input.env.REPORT_EXPORT_PROVIDER === "trigger"
       ? createR2ArtifactStorage({
-          endpoint: input.env.R2_REPORT_ENDPOINT,
-          accessKeyId: input.env.R2_REPORT_ACCESS_KEY_ID,
-          secretAccessKey: input.env.R2_REPORT_SECRET_ACCESS_KEY,
-          bucket: input.env.R2_REPORT_BUCKET,
+          endpoint: input.env.R2_PRIVATE_ENDPOINT,
+          accessKeyId: input.env.R2_PRIVATE_ACCESS_KEY_ID,
+          secretAccessKey: input.env.R2_PRIVATE_SECRET_ACCESS_KEY,
+          bucket: input.env.R2_PRIVATE_BUCKET,
         })
       : createFakeArtifactStorage()
   const reportWorker = createReportWorker(

@@ -35,6 +35,19 @@ const openingPeriod = z
     end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   })
   .refine((value) => value.start < value.end)
+const timezone = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .refine((value) => {
+    try {
+      new Intl.DateTimeFormat("pt-BR", { timeZone: value }).format()
+      return true
+    } catch {
+      return false
+    }
+  })
 const unitInput = z.object({
   address: z.string().trim().min(5).max(500),
   businessHours: z
@@ -51,6 +64,7 @@ const unitInput = z.object({
     }),
   code: z.string().trim().min(2).max(40),
   name: z.string().trim().min(2).max(160),
+  timezone: timezone.optional(),
 })
 const professionalInput = z.object({
   commissionBasisPoints: z.number().int().min(0).max(10_000).default(0),
@@ -887,6 +901,7 @@ export function createCatalogService(db: IdpDatabase) {
           openingStart: input.businessHours.start,
           openingEnd: input.businessHours.end,
           openingPeriods: input.businessHours.periods ?? [input.businessHours],
+          timezone: input.timezone,
         })
         return get(organizationId, kind, id)
       }
@@ -937,6 +952,7 @@ export function createCatalogService(db: IdpDatabase) {
               openingStart: input.businessHours.start,
               openingEnd: input.businessHours.end,
               openingPeriods: input.businessHours.periods ?? [input.businessHours],
+              ...(input.timezone ? { timezone: input.timezone } : {}),
               updatedAt: new Date(),
               version: sql`${unit.version} + 1`,
             })

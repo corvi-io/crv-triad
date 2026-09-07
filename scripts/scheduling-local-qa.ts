@@ -74,7 +74,7 @@ const api = Bun.spawn(["bun", "--watch", "src/server.ts"], {
     AUTH_GOOGLE_CLIENT_SECRET: "qa-local",
     IDP_EMAIL_FROM: "qa@example.invalid",
     IDP_RESEND_API_KEY: "qa-local",
-    PROFILE_IMAGE_STORAGE_DRIVER: "local",
+    PRIVATE_STORAGE_DRIVER: "local",
   },
   stdout: "inherit",
   stderr: "inherit",

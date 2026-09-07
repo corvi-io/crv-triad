@@ -2,14 +2,32 @@
 
 ## Role-aware activation
 
-The production overview consumes server-derived readiness. Owners and administrators see one
-optional `Comece por aqui` card pointing at the next real setup surface; members do not receive
-owner configuration as their primary task. Setup mutations invalidate readiness, and completion may
-regress when authoritative facts change.
+The authenticated workspace consumes server-derived readiness. Owners and administrators whose
+tenant is not yet `schedule_ready` are routed to the existing setup module and receive one
+persistent configuration dialog. The dialog reuses the real profile, catalog, and availability
+surfaces; its step navigation and review use the same authoritative readiness projection. Managers
+may dismiss it for the current browser session and tenant. Dismissal does not mark setup as complete,
+and server readiness remains authoritative when a later session resumes the flow. Members do not
+receive owner configuration as their primary task. Setup mutations invalidate readiness, and
+completion may regress when authoritative facts change.
 
-The earned `schedule_ready` state uses one restrained gold thread and `Abrir agenda`. Content remains
-visible without animation, reduced motion disables the reveal, and navigation never waits. The
-designer handoff was evidence only; no modal, session-storage, route, CSS, or memory source was reused.
+The wizard presents the five readiness conditions followed by a sixth review position. Completed
+conditions replace their icon with a check, and an onboarding session that reaches
+`schedule_ready` remains open long enough for the manager to review the result or dismiss it.
+Unit, professional, and service onboarding steps render their existing validated forms inline and
+advance after a successful creation. Unit creation confirms its Brazilian timezone together with
+address and opening periods so the authoritative readiness state can advance atomically. An
+existing primary unit that predates this requirement is resumed inline and completed instead of
+creating a duplicate. The availability step likewise uses a focused inline first-schedule form and
+advances directly to review; its calendar and editor drawer remain maintenance tools outside the
+wizard. List search, filters, tables, pagination, and maintenance
+drawers remain exclusive to the normal post-onboarding CRUD surfaces. Short progress and content
+transitions acknowledge advancement and become non-spatial under reduced-motion preferences.
+
+The dialog follows the designer reference's strong navy/gold hierarchy, horizontal progress,
+focused stage content, and explicit review while retaining production identity, authorization, API,
+and persistence boundaries. It never treats browser storage as completion proof and does not copy
+the reference implementation or its public account-creation behavior.
 
 ENG-41 integrates `/barbershop-setup` into the authenticated Studio workspace. Each configuration
 section has its own route under `/barbershop-setup/{section}`; the base route redirects to the
@@ -38,9 +56,10 @@ The normal page does not expose preview/prototype terminology, scenario controls
 fixture counts, latency, or failure modes. Loading, errors, retry, validation, confirmation, success,
 and empty states use Brazilian Portuguese product language.
 
-The overview is an ongoing setup guide rather than a disposable wizard. It explains why each step
-matters, reports visual progress, recommends the next incomplete dependency, and remains available
-for later review after the operation is complete.
+The overview remains the ongoing maintenance and review guide after onboarding. During first run,
+the persistent dialog owns the focused sequence and leaves the underlying setup page inert. It
+explains why each server-derived step matters, reports visual progress, recommends the next
+incomplete dependency, and provides direct access to each existing setup surface.
 
 Catalog sections use the same compact search and icon/menu filter language as Agenda. Units,
 professionals, and services fill the remaining module body with a shared data table: the header and

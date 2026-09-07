@@ -1,117 +1,167 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, describe, expect, it, vi } from "vitest"
-import { ActivationCard } from "@/modules/onboarding/activation-card"
+import { describe, expect, it, vi } from "vitest"
+import { PersistentOnboardingDialog } from "@/modules/onboarding/persistent-onboarding-dialog"
 
-describe("role-aware activation", () => {
-  afterEach(() => vi.unstubAllGlobals())
+const readiness = {
+  canManage: true,
+  completedCount: 2,
+  nextStepId: "professional",
+  outcome: "setup_required" as const,
+  totalCount: 5,
+  steps: [
+    {
+      complete: true,
+      description: "Confirme os dados da barbearia.",
+      id: "business",
+      section: "business",
+      title: "Dados",
+    },
+    {
+      complete: false,
+      description: "Vincule um profissional ativo.",
+      id: "professional",
+      section: "professionals",
+      title: "Profissional",
+    },
+  ],
+}
 
-  it("guides a manager to the next real setup surface", async () => {
-    vi.stubGlobal("fetch", async () =>
-      Response.json({
-        canManage: true,
-        completedCount: 2,
-        nextStepId: "professional",
-        outcome: "setup_required",
-        totalCount: 5,
-        steps: [
-          {
-            complete: false,
-            description: "Vincule um profissional ativo à unidade principal.",
-            id: "professional",
-            section: "professionals",
-            title: "Profissional ativo",
-          },
-        ],
-      }),
+describe("persistent onboarding", () => {
+  it("presents server-derived progress and the real setup content", () => {
+    render(
+      <PersistentOnboardingDialog
+        currentSection="business"
+        readiness={readiness}
+        onSectionChange={vi.fn()}
+        onDismiss={vi.fn()}
+      >
+        <p>Formulário real da etapa</p>
+      </PersistentOnboardingDialog>,
     )
-    renderCard()
-    expect(await screen.findByText("Prepare o primeiro agendamento")).toBeInTheDocument()
+
+    expect(screen.getByRole("dialog", { name: "Configure sua barbearia" })).toBeVisible()
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "2")
-    expect(screen.getByRole("link", { name: /Continuar configuração/ })).toHaveAttribute(
-      "href",
-      "/barbershop-setup/professionals",
-    )
+    expect(screen.getByText("Formulário real da etapa")).toBeVisible()
+    expect(screen.getByRole("button", { name: "Revisão" })).toBeVisible()
+    expect(screen.getByRole("button", { name: /Dados/ })).toHaveAttribute("aria-current", "step")
   })
 
-  it("does not present owner setup as a member's primary task", async () => {
-    vi.stubGlobal("fetch", async () =>
-      Response.json({
-        canManage: false,
-        completedCount: 1,
-        nextStepId: "primary_unit",
-        outcome: "setup_required",
-        steps: [],
-        totalCount: 5,
-      }),
-    )
-    renderCard()
-    await waitFor(() => expect(screen.getByTestId("onboarding-settled")).toBeEmptyDOMElement())
-  })
-
-  it("shows a bounded loading state while readiness is pending", () => {
-    vi.stubGlobal("fetch", () => new Promise(() => undefined))
-    renderCard()
-
-    expect(screen.getByRole("status", { name: "Carregando próximos passos" })).toBeVisible()
-  })
-
-  it("recovers from a readiness failure through the visible retry", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockRejectedValueOnce(new Error("offline"))
-        .mockResolvedValueOnce(
-          Response.json({
-            canManage: true,
-            completedCount: 5,
-            nextStepId: null,
-            outcome: "schedule_ready",
-            steps: [],
-            totalCount: 5,
-          }),
-        ),
-    )
+  it("navigates between the existing setup sections", async () => {
+    const onSectionChange = vi.fn()
     const user = userEvent.setup()
-    renderCard()
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Não foi possível carregar os próximos passos.",
+    render(
+      <PersistentOnboardingDialog
+        currentSection="business"
+        readiness={readiness}
+        onSectionChange={onSectionChange}
+        onDismiss={vi.fn()}
+      >
+        <p>Conteúdo</p>
+      </PersistentOnboardingDialog>,
     )
-    await user.click(screen.getByRole("button", { name: "Tentar novamente" }))
-    expect(await screen.findByText("Sua agenda está pronta")).toBeVisible()
-    expect(screen.getByRole("link", { name: /Abrir agenda/ })).toHaveAttribute("href", "/agenda")
+
+    await user.click(screen.getByRole("button", { name: /Profissional/ }))
+    expect(onSectionChange).toHaveBeenCalledWith("professionals")
   })
 
-  it("falls back to the setup overview when the next step is unavailable", async () => {
-    vi.stubGlobal("fetch", async () =>
-      Response.json({
-        canManage: true,
-        completedCount: 0,
-        nextStepId: "unknown",
-        outcome: "setup_required",
-        steps: [],
-        totalCount: 5,
-      }),
+  it("keeps future dependencies locked until the current step is complete", () => {
+    render(
+      <PersistentOnboardingDialog
+        currentSection="professionals"
+        readiness={{
+          ...readiness,
+          steps: [
+            ...readiness.steps,
+            {
+              complete: false,
+              description: "Cadastre um serviço elegível.",
+              id: "service",
+              section: "services",
+              title: "Serviço",
+            },
+          ],
+          totalCount: 3,
+        }}
+        onSectionChange={vi.fn()}
+        onDismiss={vi.fn()}
+      >
+        <p>Conteúdo</p>
+      </PersistentOnboardingDialog>,
     )
-    renderCard()
 
-    expect(await screen.findByRole("link", { name: /Continuar configuração/ })).toHaveAttribute(
-      "href",
-      "/barbershop-setup/overview",
+    expect(screen.getByRole("button", { name: /Dados/ })).toBeEnabled()
+    expect(screen.getByRole("button", { name: /Profissional/ })).toBeEnabled()
+    expect(screen.getByRole("button", { name: /Serviço/ })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Revisão" })).toBeDisabled()
+  })
+
+  it("lets the manager dismiss the onboarding without changing readiness", async () => {
+    const onDismiss = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <PersistentOnboardingDialog
+        currentSection="business"
+        readiness={readiness}
+        onSectionChange={vi.fn()}
+        onDismiss={onDismiss}
+      >
+        <p>Conteúdo</p>
+      </PersistentOnboardingDialog>,
     )
+
+    await user.click(screen.getByRole("button", { name: "Fechar configuração inicial" }))
+    expect(onDismiss).toHaveBeenCalledOnce()
+  })
+
+  it("shows the completed review and lets the manager revisit every step", async () => {
+    const onSectionChange = vi.fn()
+    const user = userEvent.setup()
+    const completed = {
+      ...readiness,
+      completedCount: 2,
+      nextStepId: null,
+      outcome: "schedule_ready" as const,
+      steps: readiness.steps.map((step) => ({ ...step, complete: true })),
+    }
+    render(
+      <PersistentOnboardingDialog
+        actions={<button type="button">Ação contextual</button>}
+        currentSection="overview"
+        readiness={completed}
+        onSectionChange={onSectionChange}
+        onDismiss={vi.fn()}
+      >
+        <p>Conteúdo oculto durante a revisão</p>
+      </PersistentOnboardingDialog>,
+    )
+
+    expect(screen.getByText("Sua barbearia está quase pronta")).toBeVisible()
+    expect(screen.getByText("Ação contextual")).toBeVisible()
+    expect(screen.getAllByText("Completa")).toHaveLength(2)
+    expect(screen.queryByText("Conteúdo oculto durante a revisão")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Revisão" })).toBeEnabled()
+
+    await user.click(screen.getAllByRole("button", { name: /Revisar/ })[0])
+    expect(onSectionChange).toHaveBeenCalledWith("business")
+  })
+
+  it("offers the next dependency when review is opened before completion", async () => {
+    const onSectionChange = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <PersistentOnboardingDialog
+        currentSection="overview"
+        readiness={readiness}
+        onSectionChange={onSectionChange}
+        onDismiss={vi.fn()}
+      >
+        <p>Conteúdo</p>
+      </PersistentOnboardingDialog>,
+    )
+
+    expect(screen.getAllByText("Vincule um profissional ativo.")).toHaveLength(2)
+    await user.click(screen.getByRole("button", { name: /Continuar configuração/ }))
+    expect(onSectionChange).toHaveBeenCalledWith("professionals")
   })
 })
-
-function renderCard() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
-    <QueryClientProvider client={client}>
-      <div data-testid="onboarding-settled">
-        <ActivationCard />
-      </div>
-    </QueryClientProvider>,
-  )
-}

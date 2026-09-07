@@ -303,7 +303,7 @@ function entityIdFrom(value: unknown) {
 }
 
 function changedFieldsFor(kind: CatalogKind) {
-  if (kind === "unit") return ["address", "businessHours", "code", "name"] as const
+  if (kind === "unit") return ["address", "businessHours", "code", "name", "timezone"] as const
   if (kind === "professional")
     return ["commissionBasisPoints", "role", "serviceIds", "specialties", "unitIds"] as const
   return [

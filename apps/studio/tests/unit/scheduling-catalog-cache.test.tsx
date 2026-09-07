@@ -9,11 +9,13 @@ import {
   useCopySetupAvailabilityToWeekdays,
   useCreateSetupEntity,
   useSetSetupEntityArchived,
+  useUpdateBarbershopProfile,
   useUpdateSetupAvailability,
   useUpdateSetupAvailabilityBatch,
   useUpdateSetupEntity,
 } from "@/modules/barbershop-setup/queries"
 import { BarbershopSetupRepositoryProvider } from "@/modules/barbershop-setup/repository-context"
+import { activationReadinessKey } from "@/modules/onboarding/readiness"
 
 function deferred<T>() {
   let resolve!: (v: T) => void, reject!: (e: Error) => void
@@ -226,6 +228,7 @@ describe("catalog cache boundaries consumed by scheduling", () => {
       record = page.items[0]
     if (record.kind !== "service") throw new Error("Expected service fixture")
     cache.setQueryData(["barbershop-setup", "overview"], {})
+    cache.setQueryData(activationReadinessKey, { completedCount: 0 })
     const { result } = renderHook(
       () => ({ create: useCreateSetupEntity(), update: useUpdateSetupEntity() }),
       { wrapper },
@@ -237,6 +240,7 @@ describe("catalog cache boundaries consumed by scheduling", () => {
       }),
     )
     expect(cache.getQueryState(["barbershop-setup", "overview"])?.isInvalidated).toBe(true)
+    expect(cache.getQueryState(activationReadinessKey)?.isInvalidated).toBe(true)
     await act(() =>
       result.current.update.mutateAsync({
         kind: "service",
@@ -258,5 +262,17 @@ describe("catalog cache boundaries consumed by scheduling", () => {
         })
       ).items,
     ).toHaveLength(1)
+  })
+
+  it("refreshes onboarding readiness after saving the business profile", async () => {
+    const repository = new BarbershopSetupMemoryRepository()
+    const { cache, wrapper } = harness(repository)
+    const profile = (await repository.getCompletion("single-unit")).profile
+    cache.setQueryData(activationReadinessKey, { completedCount: 0 })
+    const { result } = renderHook(useUpdateBarbershopProfile, { wrapper })
+
+    await act(() => result.current.mutateAsync({ ...profile, displayName: "Barbearia atualizada" }))
+
+    expect(cache.getQueryState(activationReadinessKey)?.isInvalidated).toBe(true)
   })
 })

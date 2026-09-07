@@ -30,10 +30,10 @@ export const generateManagementReport = schemaTask({
     const env = loadEnv()
     const { db, pool } = createDatabase(env)
     const storage = createR2ArtifactStorage({
-      endpoint: env.R2_REPORT_ENDPOINT,
-      accessKeyId: env.R2_REPORT_ACCESS_KEY_ID,
-      secretAccessKey: env.R2_REPORT_SECRET_ACCESS_KEY,
-      bucket: env.R2_REPORT_BUCKET,
+      endpoint: env.R2_PRIVATE_ENDPOINT,
+      accessKeyId: env.R2_PRIVATE_ACCESS_KEY_ID,
+      secretAccessKey: env.R2_PRIVATE_SECRET_ACCESS_KEY,
+      bucket: env.R2_PRIVATE_BUCKET,
     })
     try {
       return await createReportWorker(
@@ -66,10 +66,10 @@ export const deliverManagementReportEmail = schemaTask({
     const env = loadEnv()
     const { db, pool } = createDatabase(env)
     const storage = createR2ArtifactStorage({
-      endpoint: env.R2_REPORT_ENDPOINT,
-      accessKeyId: env.R2_REPORT_ACCESS_KEY_ID,
-      secretAccessKey: env.R2_REPORT_SECRET_ACCESS_KEY,
-      bucket: env.R2_REPORT_BUCKET,
+      endpoint: env.R2_PRIVATE_ENDPOINT,
+      accessKeyId: env.R2_PRIVATE_ACCESS_KEY_ID,
+      secretAccessKey: env.R2_PRIVATE_SECRET_ACCESS_KEY,
+      bucket: env.R2_PRIVATE_BUCKET,
     })
     try {
       return await createReportWorker(

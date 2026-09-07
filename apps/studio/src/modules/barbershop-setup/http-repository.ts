@@ -202,6 +202,13 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
       serviceOverrides: [],
     }
   }
+  async getBusinessProfile(): Promise<BarbershopProfile> {
+    const profile = await request<ApiBusinessProfile | null>("/api/business-profile")
+    return profile ? mapProfile(profile) : { displayName: "", email: "", phone: "" }
+  }
+  getBusinessUnits(): Promise<readonly SetupUnit[]> {
+    return this.options<SetupUnit>("unit")
+  }
   getProfessionalOperationalSummary(
     _professionalId: string,
     _date: string,
@@ -310,6 +317,14 @@ export class BarbershopSetupHttpRepository implements BarbershopSetupRepository 
     return mapProfile(
       await request<ApiBusinessProfile>("/api/business-profile/logo", { method: "POST", body }),
     )
+  }
+  async getBusinessLogo() {
+    const response = await fetch(getApiUrl("/api/business-profile/logo"), {
+      credentials: "include",
+    })
+    if (response.status === 404) return null
+    if (!response.ok) throw new Error("Não foi possível carregar o logotipo.")
+    return response.blob()
   }
   async removeBusinessLogo(expectedVersion: number) {
     return mapProfile(

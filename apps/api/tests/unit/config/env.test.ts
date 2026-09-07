@@ -22,6 +22,13 @@ const validEnv = {
   IDP_RESEND_API_KEY: "test-resend-api-key",
 }
 
+const privateR2Env = {
+  R2_PRIVATE_ENDPOINT: "https://account.r2.cloudflarestorage.com",
+  R2_PRIVATE_ACCESS_KEY_ID: "private-access-key",
+  R2_PRIVATE_SECRET_ACCESS_KEY: "private-secret-key",
+  R2_PRIVATE_BUCKET: "business-media",
+}
+
 describe("parseEnv", () => {
   it("parses and coerces a valid environment", () => {
     const env = parseEnv(validEnv)
@@ -35,43 +42,39 @@ describe("parseEnv", () => {
     expect(env.LEAD_EMAIL_TO).toEqual(["contato@example.com"])
     expect(env.POSTHOG_UPSTREAM_URL).toBe("https://us.i.posthog.com")
     expect(env.POSTHOG_PROJECT_KEY).toBe("")
-    expect(env.PROFILE_IMAGE_STORAGE_DRIVER).toBe("local")
+    expect(env.PRIVATE_STORAGE_DRIVER).toBe("local")
     expect(env.REPORT_EXPORT_PROVIDER).toBe("trigger")
   })
 
   it("requires R2 and all of its values in deployed environments", () => {
     expect(() =>
-      parseEnv({ ...validEnv, APP_ENV: "staging", PROFILE_IMAGE_STORAGE_DRIVER: "local" }),
+      parseEnv({ ...validEnv, APP_ENV: "staging", PRIVATE_STORAGE_DRIVER: "local" }),
     ).toThrow("Deployed environments must use R2 profile image storage")
 
     for (const key of [
-      "PROFILE_IMAGE_R2_ENDPOINT",
-      "PROFILE_IMAGE_R2_ACCESS_KEY_ID",
-      "PROFILE_IMAGE_R2_SECRET_ACCESS_KEY",
-      "PROFILE_IMAGE_R2_BUCKET",
-      "PROFILE_IMAGE_PUBLIC_BASE_URL",
+      "R2_PRIVATE_ENDPOINT",
+      "R2_PRIVATE_ACCESS_KEY_ID",
+      "R2_PRIVATE_SECRET_ACCESS_KEY",
+      "R2_PRIVATE_BUCKET",
     ] as const) {
       expect(() =>
         parseEnv({
           ...validEnv,
           APP_ENV: "staging",
-          PROFILE_IMAGE_STORAGE_DRIVER: "r2",
+          PRIVATE_STORAGE_DRIVER: "r2",
+          ...privateR2Env,
           [key]: "",
         }),
-      ).toThrow(`${key} is required for R2`)
+      ).toThrow(`${key} is required for private business media storage`)
     }
 
     expect(
       parseEnv({
         ...validEnv,
         APP_ENV: "staging",
-        PROFILE_IMAGE_STORAGE_DRIVER: "r2",
-        PROFILE_IMAGE_R2_ENDPOINT: "https://account.r2.cloudflarestorage.com",
-        PROFILE_IMAGE_R2_ACCESS_KEY_ID: "access-key",
-        PROFILE_IMAGE_R2_SECRET_ACCESS_KEY: "secret-key",
-        PROFILE_IMAGE_R2_BUCKET: "profile-images",
-        PROFILE_IMAGE_PUBLIC_BASE_URL: "https://images.example.test",
-      }).PROFILE_IMAGE_STORAGE_DRIVER,
+        PRIVATE_STORAGE_DRIVER: "r2",
+        ...privateR2Env,
+      }).PRIVATE_STORAGE_DRIVER,
     ).toBe("r2")
   })
 
@@ -79,12 +82,8 @@ describe("parseEnv", () => {
     const productionEnv = {
       ...validEnv,
       APP_ENV: "production",
-      PROFILE_IMAGE_STORAGE_DRIVER: "r2",
-      PROFILE_IMAGE_R2_ENDPOINT: "https://account.r2.cloudflarestorage.com",
-      PROFILE_IMAGE_R2_ACCESS_KEY_ID: "access-key",
-      PROFILE_IMAGE_R2_SECRET_ACCESS_KEY: "secret-key",
-      PROFILE_IMAGE_R2_BUCKET: "profile-images",
-      PROFILE_IMAGE_PUBLIC_BASE_URL: "https://images.example.test",
+      PRIVATE_STORAGE_DRIVER: "r2",
+      ...privateR2Env,
       LEAD_RESEND_API_KEY: "resend-key",
       LEAD_TURNSTILE_SECRET_KEY: "turnstile-key",
       LEAD_TURNSTILE_HOSTNAMES: "triad.example.test",

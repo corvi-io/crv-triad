@@ -7,7 +7,7 @@ import { createId } from "../../shared/infra/ids.js"
 import type { TenantContext } from "../../tenancy/domain/business-context.js"
 import { unit } from "../../units/database/schema.js"
 import { businessLogoCleanup, businessProfile } from "../database/schema.js"
-import type { BusinessLogoStorage } from "../infra/logo-storage.js"
+import { type BusinessLogoStorage, createBusinessLogoKey } from "../infra/logo-storage.js"
 
 export class BusinessProfileError extends Error {
   constructor(readonly code: "invalid_request" | "primary_unit_invalid" | "version_conflict") {
@@ -124,7 +124,7 @@ export function createBusinessProfileService(db: IdpDatabase, storage?: Business
       throw new BusinessProfileError("invalid_request")
     const format = metadata.format === "jpeg" ? "jpeg" : metadata.format === "png" ? "png" : "webp"
     const normalized = new Uint8Array(await image.toFormat(format).toBuffer())
-    const key = `${actor.organizationId}-${crypto.randomUUID()}.${format === "jpeg" ? "jpg" : format}`
+    const key = createBusinessLogoKey(actor.organizationId, format === "jpeg" ? "jpg" : format)
     await storage.put(key, normalized, `image/${format}`)
     const checksum = createHash("sha256").update(normalized).digest("hex")
     const result = await db.transaction(async (tx) => {

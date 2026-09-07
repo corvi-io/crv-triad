@@ -160,6 +160,7 @@ export type SetupUnit = SetupEntityBase & {
   code: string
   kind: "unit"
   name: string
+  timezone?: string
 }
 
 export type SetupProfessional = SetupEntityBase & {
@@ -320,6 +321,8 @@ export interface BarbershopSetupRepository {
   getActivePaymentMethodIds(): Promise<readonly BasePaymentMethodId[]>
   getAvailability(query: AvailabilityQuery): Promise<AvailabilityResult>
   getCompletion(scenarioId: SetupScenarioId): Promise<SetupCompletion>
+  getBusinessProfile?(): Promise<BarbershopProfile>
+  getBusinessUnits?(): Promise<readonly SetupUnit[]>
   getOverview(scenarioId: SetupScenarioId): Promise<SetupOverview>
   getProfessionalOperationalSummary(
     professionalId: string,
@@ -355,6 +358,7 @@ export interface BarbershopSetupRepository {
   saveCommissionPolicy?(
     input: Omit<CommissionPolicy, "version"> & { expectedVersion: number | null },
   ): Promise<readonly CommissionPolicy[]>
+  getBusinessLogo?(): Promise<Blob | null>
   uploadBusinessLogo?(file: File, expectedVersion: number): Promise<BarbershopProfile>
   removeBusinessLogo?(expectedVersion: number): Promise<BarbershopProfile>
 }

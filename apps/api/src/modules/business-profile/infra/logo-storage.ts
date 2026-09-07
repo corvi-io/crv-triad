@@ -1,5 +1,5 @@
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises"
-import { basename, join } from "node:path"
+import { dirname, resolve, sep } from "node:path"
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -12,12 +12,24 @@ export type BusinessLogoStorage = {
   get(key: string): Promise<{ body: Uint8Array; contentType: string } | null>
   delete(key: string): Promise<void>
 }
+
+export function createBusinessLogoKey(organizationId: string, extension: "jpg" | "png" | "webp") {
+  return `tenants/${organizationId}/business-profile/logo/${crypto.randomUUID()}.${extension}`
+}
+
 export function createLocalBusinessLogoStorage(directory: string): BusinessLogoStorage {
-  const path = (key: string) => join(directory, basename(key))
+  const root = resolve(directory)
+  const path = (key: string) => {
+    const objectPath = resolve(root, key)
+    if (objectPath !== root && !objectPath.startsWith(`${root}${sep}`))
+      throw new Error("Invalid business logo object key.")
+    return objectPath
+  }
   return {
     async put(key, body) {
-      await mkdir(directory, { recursive: true })
-      await writeFile(path(key), body)
+      const objectPath = path(key)
+      await mkdir(dirname(objectPath), { recursive: true })
+      await writeFile(objectPath, body)
     },
     async get(key) {
       const body = await readFile(path(key)).catch((error: NodeJS.ErrnoException) =>

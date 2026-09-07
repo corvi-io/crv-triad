@@ -27,7 +27,7 @@ const stepPresentation = {
   business_identity: [
     "Identidade da barbearia",
     "Informe os dados essenciais da barbearia.",
-    "profile",
+    "business",
   ],
   primary_unit: [
     "Unidade principal",

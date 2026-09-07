@@ -60,7 +60,7 @@ describe("barbershop setup module", () => {
     const user = userEvent.setup()
     renderSetup("single-unit")
     expect(
-      await screen.findByRole("heading", { name: "Prepare a barbearia para operar" }),
+      await screen.findByRole("heading", { name: "Sua barbearia está pronta para operar" }),
     ).toBeVisible()
     expect(
       screen.getByRole("progressbar", { name: "100% da configuração concluída" }),

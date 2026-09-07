@@ -1,6 +1,11 @@
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises"
-import { extname, join } from "node:path"
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
+import { dirname, extname, resolve, sep } from "node:path"
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3"
 
 import type { IdpEnv } from "../config/env.js"
 
@@ -21,28 +26,35 @@ const extensions: Record<(typeof PROFILE_IMAGE_CONTENT_TYPES)[number], string> =
 }
 
 export function createProfileImageKey(userId: string, contentType: keyof typeof extensions) {
-  return `${userId}-${crypto.randomUUID()}${extensions[contentType]}`
+  return `users/${userId}/profile/image/${crypto.randomUUID()}${extensions[contentType]}`
 }
 
 export function createProfileImageStorage(env: IdpEnv): ProfileImageStorage {
-  if (env.PROFILE_IMAGE_STORAGE_DRIVER === "r2") return createR2Storage(env)
+  if (env.PRIVATE_STORAGE_DRIVER === "r2") return createR2Storage(env)
   return createLocalStorage(env)
 }
 
 function createLocalStorage(env: IdpEnv): ProfileImageStorage {
-  const directory = env.PROFILE_IMAGE_LOCAL_DIRECTORY
+  const directory = resolve(env.PROFILE_IMAGE_LOCAL_DIRECTORY ?? ".data/profile-images")
+  const path = (key: string) => {
+    const objectPath = resolve(directory, key)
+    if (objectPath !== directory && !objectPath.startsWith(`${directory}${sep}`))
+      throw new Error("Invalid profile image object key.")
+    return objectPath
+  }
   return {
     async put({ body, key }) {
-      await mkdir(directory, { recursive: true })
-      await writeFile(join(directory, key), body)
+      const objectPath = path(key)
+      await mkdir(dirname(objectPath), { recursive: true })
+      await writeFile(objectPath, body)
     },
     async delete(key) {
-      await unlink(join(directory, key)).catch((error: NodeJS.ErrnoException) => {
+      await unlink(path(key)).catch((error: NodeJS.ErrnoException) => {
         if (error.code !== "ENOENT") throw error
       })
     },
     async get(key) {
-      const body = await readFile(join(directory, key)).catch((error: NodeJS.ErrnoException) => {
+      const body = await readFile(path(key)).catch((error: NodeJS.ErrnoException) => {
         if (error.code === "ENOENT") return null
         throw error
       })
@@ -58,11 +70,11 @@ function createLocalStorage(env: IdpEnv): ProfileImageStorage {
 
 function createR2Storage(env: IdpEnv): ProfileImageStorage {
   const client = new S3Client({
-    endpoint: env.PROFILE_IMAGE_R2_ENDPOINT,
+    endpoint: env.R2_PRIVATE_ENDPOINT,
     region: "auto",
     credentials: {
-      accessKeyId: env.PROFILE_IMAGE_R2_ACCESS_KEY_ID,
-      secretAccessKey: env.PROFILE_IMAGE_R2_SECRET_ACCESS_KEY,
+      accessKeyId: env.R2_PRIVATE_ACCESS_KEY_ID,
+      secretAccessKey: env.R2_PRIVATE_SECRET_ACCESS_KEY,
     },
   })
   return {
@@ -70,17 +82,27 @@ function createR2Storage(env: IdpEnv): ProfileImageStorage {
       await client.send(
         new PutObjectCommand({
           Body: body,
-          Bucket: env.PROFILE_IMAGE_R2_BUCKET,
-          CacheControl: "public, max-age=31536000, immutable",
+          Bucket: env.R2_PRIVATE_BUCKET,
+          CacheControl: "private, max-age=300",
           ContentType: contentType,
           Key: key,
         }),
       )
     },
-    async delete(key) {
-      await client.send(new DeleteObjectCommand({ Bucket: env.PROFILE_IMAGE_R2_BUCKET, Key: key }))
+    async get(key) {
+      const result = await client
+        .send(new GetObjectCommand({ Bucket: env.R2_PRIVATE_BUCKET, Key: key }))
+        .catch(() => null)
+      if (!result?.Body) return null
+      return {
+        body: await result.Body.transformToByteArray(),
+        contentType: result.ContentType ?? "application/octet-stream",
+      }
     },
-    publicUrl: (key) => new URL(key, `${env.PROFILE_IMAGE_PUBLIC_BASE_URL}/`).toString(),
+    async delete(key) {
+      await client.send(new DeleteObjectCommand({ Bucket: env.R2_PRIVATE_BUCKET, Key: key }))
+    },
+    publicUrl: (key) => new URL(`/profile-images/${key}`, env.BETTER_AUTH_URL).toString(),
   }
 }
 

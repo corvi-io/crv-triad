@@ -18,13 +18,23 @@ export function createProfileImageRoutes(
   storage: ProfileImageStorage,
 ) {
   return new Elysia({ name: "profile-image-routes" })
-    .get("/profile-images/:key", async ({ params, status }) => {
-      if (!storage.get || !/^[a-zA-Z0-9-]+\.(jpg|png|webp)$/.test(params.key)) return status(404)
-      const image = await storage.get(params.key)
+    .get("/profile-images/*", async ({ params, request, status }) => {
+      const key = params["*"]
+      const isLegacyKey = /^[a-zA-Z0-9-]+\.(jpg|png|webp)$/.test(key)
+      const isNamespacedKey =
+        /^users\/[a-zA-Z0-9-]+\/profile\/image\/[a-f0-9-]+\.(jpg|png|webp)$/.test(key)
+      if (!storage.get || (!isLegacyKey && !isNamespacedKey)) return status(404)
+      const session = await auth.api.getSession({ headers: request.headers })
+      if (!session?.user.id) return status(401)
+      const belongsToUser = isNamespacedKey
+        ? key.startsWith(`users/${session.user.id}/profile/image/`)
+        : key.startsWith(`${session.user.id}-`)
+      if (!belongsToUser) return status(404)
+      const image = await storage.get(key)
       if (!image) return status(404)
       return new Response(new Blob([image.body as BlobPart], { type: image.contentType }), {
         headers: {
-          "Cache-Control": "public, max-age=31536000, immutable",
+          "Cache-Control": "private, max-age=300",
           "Content-Type": image.contentType,
         },
       })

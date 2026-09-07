@@ -137,6 +137,11 @@ session-memory source; the normal UI does not expose scenario or reset controls.
 resolve the source as disabled and exclude fixtures; no API, persistence, tenancy, or authorization
 contract is accepted. See `docs/studio/barbershop-setup.md`.
 
+For production-backed first access, an owner or administrator whose tenant is not yet schedulable
+is routed into a persistent setup dialog. The dialog reuses those real setup surfaces and can be
+dismissed for the current browser session and tenant without marking setup as complete. Server
+readiness remains authoritative; members are never routed into owner setup as their primary task.
+
 Component placement, exhaustive inventory, public and internal-only decisions, token layers,
 adapter boundaries, and manual accessibility checks are documented in English at
 `docs/studio/component-system.md`. Focused Vitest and Playwright coverage verifies behavior without

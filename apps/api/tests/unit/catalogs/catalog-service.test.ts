@@ -258,8 +258,10 @@ describe("catalog service", () => {
       businessHours: { days: ["monday"], end: "18:00", start: "09:00" },
       code: "CENTRO",
       name: "Centro",
+      timezone: "America/Recife",
     })
     expect(createdUnit).toMatchObject({ id: "unit-a", kind: "unit" })
+    expect(unitDb.db.insert).toHaveBeenCalledOnce()
 
     const serviceDb = createDatabase()
     serviceDb.queue(undefined, undefined, undefined, [serviceRow()], [], [])

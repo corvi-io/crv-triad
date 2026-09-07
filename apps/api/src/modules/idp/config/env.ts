@@ -78,13 +78,8 @@ const envSchema = z
     IDP_STUDIO_URL: configuredHttpOrigin,
     IDP_RESEND_API_KEY: requiredProviderValue,
     IDP_RESEND_API_URL: configuredHttpsUrl.default("https://api.resend.com"),
-    PROFILE_IMAGE_STORAGE_DRIVER: z.enum(["local", "r2"]).default("local"),
+    PRIVATE_STORAGE_DRIVER: z.enum(["local", "r2"]).default("local"),
     PROFILE_IMAGE_LOCAL_DIRECTORY: z.string().min(1).default(".data/profile-images"),
-    PROFILE_IMAGE_R2_ENDPOINT: z.literal("").or(configuredHttpsUrl).default(""),
-    PROFILE_IMAGE_R2_ACCESS_KEY_ID: z.string().default(""),
-    PROFILE_IMAGE_R2_SECRET_ACCESS_KEY: z.string().default(""),
-    PROFILE_IMAGE_R2_BUCKET: z.string().default(""),
-    PROFILE_IMAGE_PUBLIC_BASE_URL: z.literal("").or(configuredHttpsUrl).default(""),
     BUSINESS_MEDIA_LOCAL_DIRECTORY: z.string().min(1).default(".data/business-logos"),
     REPORT_EXPORT_ENABLED: z
       .string()
@@ -93,10 +88,10 @@ const envSchema = z
     REPORT_EXPORT_PROVIDER: z.enum(["fake", "trigger"]).default("trigger"),
     TRIGGER_PROJECT_REF: z.string().default(""),
     TRIGGER_SECRET_KEY: z.string().default(""),
-    R2_REPORT_ENDPOINT: z.literal("").or(configuredHttpsUrl).default(""),
-    R2_REPORT_ACCESS_KEY_ID: z.string().default(""),
-    R2_REPORT_SECRET_ACCESS_KEY: z.string().default(""),
-    R2_REPORT_BUCKET: z.string().default(""),
+    R2_PRIVATE_ENDPOINT: z.literal("").or(configuredHttpsUrl).default(""),
+    R2_PRIVATE_ACCESS_KEY_ID: z.string().default(""),
+    R2_PRIVATE_SECRET_ACCESS_KEY: z.string().default(""),
+    R2_PRIVATE_BUCKET: z.string().default(""),
     LEAD_EMAIL_FROM: z.email().default("leads@example.com"),
     LEAD_EMAIL_TO: z
       .string()
@@ -135,10 +130,10 @@ const envSchema = z
       (value.REPORT_EXPORT_PROVIDER !== "trigger" ||
         !value.TRIGGER_PROJECT_REF ||
         !value.TRIGGER_SECRET_KEY ||
-        !value.R2_REPORT_ENDPOINT ||
-        !value.R2_REPORT_ACCESS_KEY_ID ||
-        !value.R2_REPORT_SECRET_ACCESS_KEY ||
-        !value.R2_REPORT_BUCKET)
+        !value.R2_PRIVATE_ENDPOINT ||
+        !value.R2_PRIVATE_ACCESS_KEY_ID ||
+        !value.R2_PRIVATE_SECRET_ACCESS_KEY ||
+        !value.R2_PRIVATE_BUCKET)
     )
       context.addIssue({
         code: "custom",
@@ -147,24 +142,27 @@ const envSchema = z
       })
     if (
       ["development", "staging", "production"].includes(value.APP_ENV) &&
-      value.PROFILE_IMAGE_STORAGE_DRIVER !== "r2"
+      value.PRIVATE_STORAGE_DRIVER !== "r2"
     ) {
       context.addIssue({
         code: "custom",
         message: "Deployed environments must use R2 profile image storage.",
-        path: ["PROFILE_IMAGE_STORAGE_DRIVER"],
+        path: ["PRIVATE_STORAGE_DRIVER"],
       })
     }
-    if (value.PROFILE_IMAGE_STORAGE_DRIVER === "r2") {
+    if (value.PRIVATE_STORAGE_DRIVER === "r2") {
       for (const key of [
-        "PROFILE_IMAGE_R2_ENDPOINT",
-        "PROFILE_IMAGE_R2_ACCESS_KEY_ID",
-        "PROFILE_IMAGE_R2_SECRET_ACCESS_KEY",
-        "PROFILE_IMAGE_R2_BUCKET",
-        "PROFILE_IMAGE_PUBLIC_BASE_URL",
+        "R2_PRIVATE_ENDPOINT",
+        "R2_PRIVATE_ACCESS_KEY_ID",
+        "R2_PRIVATE_SECRET_ACCESS_KEY",
+        "R2_PRIVATE_BUCKET",
       ] as const) {
         if (!value[key])
-          context.addIssue({ code: "custom", message: `${key} is required for R2.`, path: [key] })
+          context.addIssue({
+            code: "custom",
+            message: `${key} is required for private business media storage.`,
+            path: [key],
+          })
       }
     }
     if (!value.AUTH_TRUSTED_ORIGINS.includes(value.IDP_STUDIO_URL)) {

@@ -2,6 +2,7 @@ import { createOperationalNotificationsRepository } from "virtual:studio-operati
 import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router"
 import { useAccessSummary } from "@/modules/access/use-access-summary"
 import { AuthGate } from "@/modules/auth/components/auth-gate"
+import { PersistentOnboardingBoundary } from "@/modules/onboarding/persistent-onboarding-boundary"
 import { OperationalNotificationTrigger } from "@/modules/operational-notifications/notification-trigger"
 import { OperationalNotificationsRepositoryProvider } from "@/modules/operational-notifications/repository-context"
 import { WorkspaceShell } from "@/modules/shared/components/workspace-shell"
@@ -62,7 +63,13 @@ function AuthenticatedContent({ scenarioId }: { scenarioId?: string }) {
           </div>
         }
       >
-        <Outlet />
+        {pathname === "/overview" ? (
+          <PersistentOnboardingBoundary pathname={pathname}>
+            <Outlet />
+          </PersistentOnboardingBoundary>
+        ) : (
+          <Outlet />
+        )}
       </WorkspaceShell>
     </ContextSwitcherProvider>
   )

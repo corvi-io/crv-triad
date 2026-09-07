@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { CircleAlertIcon, SaveIcon, Trash2Icon } from "lucide-react"
+import { CameraIcon, CircleAlertIcon, ImageIcon, SaveIcon, Trash2Icon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { MaskedInput } from "@/modules/shared/components/forms/masked-input"
 import { Alert, AlertDescription, AlertTitle } from "@/modules/shared/components/ui/alert"
 import { Button } from "@/modules/shared/components/ui/button"
 import {
@@ -46,28 +47,47 @@ import { useBarbershopSetupRepository } from "./repository-context"
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" })
 
-export function BusinessProfileSection({ scenarioId }: { scenarioId: SetupScenarioId }) {
-  const completion = useSetupCompletion(scenarioId)
-  const relations = useSetupAvailability({ scenarioId })
-  if (completion.isPending || relations.isPending) return <CompletionLoading />
-  if (completion.isError || relations.isError)
-    return (
-      <CompletionError onRetry={() => Promise.all([completion.refetch(), relations.refetch()])} />
-    )
+export function BusinessProfileSection({
+  scenarioId,
+  onCompleted,
+}: {
+  scenarioId: SetupScenarioId
+  onCompleted?: () => Promise<void> | void
+}) {
+  const repository = useBarbershopSetupRepository()
+  const profile = useQuery({
+    queryKey: ["barbershop-setup", "business-profile", scenarioId],
+    queryFn: async () =>
+      repository.getBusinessProfile?.() ?? (await repository.getCompletion(scenarioId)).profile,
+  })
+  const units = useQuery({
+    queryKey: ["barbershop-setup", "business-profile-units", scenarioId],
+    queryFn: async () =>
+      repository.getBusinessUnits?.() ?? (await repository.getAvailability({ scenarioId })).units,
+  })
+  if (profile.isPending || units.isPending) return <CompletionLoading />
+  if (profile.isError || units.isError)
+    return <CompletionError onRetry={() => Promise.all([profile.refetch(), units.refetch()])} />
   return (
     <BusinessProfileForm
-      key={`${scenarioId}-${completion.data.profile.displayName}`}
-      initial={completion.data.profile}
-      units={relations.data.units}
+      key={`${scenarioId}-${profile.data.displayName}`}
+      initial={profile.data}
+      units={units.data}
+      onCompleted={onCompleted}
+      onboardingMode={Boolean(onCompleted)}
     />
   )
 }
 
 function BusinessProfileForm({
   initial,
+  onCompleted,
+  onboardingMode,
   units,
 }: {
   initial: BarbershopProfile
+  onCompleted?: () => Promise<void> | void
+  onboardingMode: boolean
   units: readonly { address: string; id: string; name: string }[]
 }) {
   const mutation = useUpdateBarbershopProfile()
@@ -77,17 +97,50 @@ function BusinessProfileForm({
   const [attempted, setAttempted] = useState(false)
   const [focusRequest, setFocusRequest] = useState(0)
   const [logoBusy, setLogoBusy] = useState(false)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [pendingLogo, setPendingLogo] = useState<File | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   const displayInvalid = values.displayName.trim().length < 2
   const phoneInvalid = !/^\d{10,11}$/.test(values.phone.replace(/\D/g, ""))
   const emailInvalid = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)
-  const unitInvalid = !values.primaryUnitId || !units.some(({ id }) => id === values.primaryUnitId)
+  const unitInvalid =
+    !onboardingMode &&
+    (!values.primaryUnitId || !units.some(({ id }) => id === values.primaryUnitId))
 
   useEffect(() => {
     if (focusRequest === 0) return
     formRef.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus()
   }, [focusRequest])
+
+  useEffect(
+    () => () => {
+      if (logoPreview) URL.revokeObjectURL(logoPreview)
+    },
+    [logoPreview],
+  )
+
+  useEffect(() => {
+    if (!values.logoAvailable || !repository.getBusinessLogo) {
+      setLogoPreview(null)
+      return
+    }
+    let active = true
+    let objectUrl: string | null = null
+    void repository
+      .getBusinessLogo()
+      .then((logo) => {
+        if (!active || !logo) return
+        objectUrl = URL.createObjectURL(logo)
+        setLogoPreview(objectUrl)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [repository, values.logoAvailable])
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -99,12 +152,20 @@ function BusinessProfileForm({
       return
     }
     try {
-      const saved = await mutation.mutateAsync(values)
+      let saved = await mutation.mutateAsync(values)
+      if (pendingLogo && saved.version && repository.uploadBusinessLogo) {
+        setLogoBusy(true)
+        saved = await repository.uploadBusinessLogo(pendingLogo, saved.version)
+        setPendingLogo(null)
+      }
       setValues(saved)
       toast.success("Dados da barbearia atualizados.")
+      await onCompleted?.()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar os dados.")
       setFocusRequest((current) => current + 1)
+    } finally {
+      setLogoBusy(false)
     }
   }
 
@@ -121,6 +182,117 @@ function BusinessProfileForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
+          {repository.uploadBusinessLogo ? (
+            <section
+              className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-4 sm:flex-row sm:items-center md:col-span-2"
+              aria-labelledby="business-logo-title"
+            >
+              <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-card text-muted-foreground">
+                {logoPreview ? (
+                  <img
+                    alt="Prévia do logotipo da barbearia"
+                    className="size-full object-cover"
+                    src={logoPreview}
+                  />
+                ) : (
+                  <ImageIcon aria-hidden="true" className="size-8" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-3">
+                <div>
+                  <h4 className="font-medium" id="business-logo-title">
+                    Logotipo da barbearia
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    JPEG, PNG ou WebP, até 5 MB e 4096 × 4096 px.
+                  </p>
+                </div>
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  disabled={logoBusy}
+                  id="barbershop-logo"
+                  ref={logoInputRef}
+                  type="file"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0]
+                    if (!file) return
+                    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+                      setError("Escolha uma imagem JPEG, PNG ou WebP.")
+                      event.target.value = ""
+                      return
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                      setError("Escolha uma imagem de até 5 MB.")
+                      event.target.value = ""
+                      return
+                    }
+                    const preview = URL.createObjectURL(file)
+                    setError("")
+                    setLogoPreview(preview)
+                    if (!values.version) {
+                      setPendingLogo(file)
+                      event.target.value = ""
+                      return
+                    }
+                    setLogoBusy(true)
+                    try {
+                      const next = await repository.uploadBusinessLogo?.(file, values.version)
+                      if (next) setValues(next)
+                      toast.success("Logotipo atualizado.")
+                    } catch (cause) {
+                      URL.revokeObjectURL(preview)
+                      setLogoPreview(null)
+                      setError(
+                        cause instanceof Error
+                          ? cause.message
+                          : "Não foi possível enviar o logotipo.",
+                      )
+                    } finally {
+                      setLogoBusy(false)
+                      event.target.value = ""
+                    }
+                  }}
+                />
+                <label className="sr-only" htmlFor="barbershop-logo">
+                  Logotipo
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    isLoading={logoBusy}
+                    onClick={() => logoInputRef.current?.click()}
+                  >
+                    <CameraIcon aria-hidden="true" data-icon="inline-start" />
+                    {values.logoAvailable ? "Trocar imagem" : "Escolher imagem"}
+                  </Button>
+                  {values.logoAvailable ? (
+                    <Button
+                      disabled={logoBusy}
+                      type="button"
+                      variant="ghost"
+                      onClick={async () => {
+                        if (!values.version) return
+                        setLogoBusy(true)
+                        try {
+                          const next = await repository.removeBusinessLogo?.(values.version)
+                          if (next) setValues(next)
+                          setLogoPreview(null)
+                          toast.success("Logotipo removido.")
+                        } finally {
+                          setLogoBusy(false)
+                        }
+                      }}
+                    >
+                      <Trash2Icon aria-hidden="true" data-icon="inline-start" />
+                      Remover logotipo
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+          ) : null}
           <Field data-invalid={(attempted && displayInvalid) || undefined}>
             <FieldLabel htmlFor="barbershop-display-name" required>
               Nome de exibição
@@ -146,18 +318,13 @@ function BusinessProfileForm({
             <FieldLabel htmlFor="barbershop-phone" required>
               Telefone
             </FieldLabel>
-            <Input
+            <MaskedInput
               id="barbershop-phone"
-              inputMode="tel"
+              mask="brPhone"
               value={values.phone}
               aria-invalid={attempted && phoneInvalid}
               aria-describedby={attempted && phoneInvalid ? "barbershop-phone-error" : undefined}
-              onChange={(event) =>
-                setValues((current) => ({
-                  ...current,
-                  phone: event.target.value.replace(/\D/g, "").slice(0, 11),
-                }))
-              }
+              onValueChange={(phone) => setValues((current) => ({ ...current, phone }))}
             />
             {attempted && phoneInvalid ? (
               <FieldError id="barbershop-phone-error">Informe um telefone válido.</FieldError>
@@ -182,7 +349,7 @@ function BusinessProfileForm({
             ) : null}
           </Field>
           <Field data-invalid={(attempted && unitInvalid) || undefined}>
-            <FieldLabel htmlFor="barbershop-primary-unit" required>
+            <FieldLabel htmlFor="barbershop-primary-unit" required={!onboardingMode}>
               Unidade principal
             </FieldLabel>
             <Select
@@ -232,16 +399,11 @@ function BusinessProfileForm({
           </Field>
           <Field>
             <FieldLabel htmlFor="barbershop-whatsapp">WhatsApp</FieldLabel>
-            <Input
+            <MaskedInput
               id="barbershop-whatsapp"
-              inputMode="tel"
+              mask="brPhone"
               value={values.whatsapp ?? ""}
-              onChange={(event) =>
-                setValues((current) => ({
-                  ...current,
-                  whatsapp: event.target.value.replace(/\D/g, "").slice(0, 11),
-                }))
-              }
+              onValueChange={(whatsapp) => setValues((current) => ({ ...current, whatsapp }))}
             />
           </Field>
           <Field>
@@ -278,59 +440,6 @@ function BusinessProfileForm({
               }
             />
           </Field>
-          {repository.uploadBusinessLogo ? (
-            <Field className="md:col-span-2">
-              <FieldLabel htmlFor="barbershop-logo">Logotipo</FieldLabel>
-              <Input
-                accept="image/jpeg,image/png,image/webp"
-                disabled={logoBusy || !values.version}
-                id="barbershop-logo"
-                type="file"
-                onChange={async (event) => {
-                  const file = event.target.files?.[0]
-                  if (!file || !values.version) return
-                  setLogoBusy(true)
-                  try {
-                    const next = await repository.uploadBusinessLogo?.(file, values.version)
-                    if (next) setValues(next)
-                    toast.success("Logotipo atualizado.")
-                  } catch (cause) {
-                    setError(
-                      cause instanceof Error
-                        ? cause.message
-                        : "Não foi possível enviar o logotipo.",
-                    )
-                  } finally {
-                    setLogoBusy(false)
-                    event.target.value = ""
-                  }
-                }}
-              />
-              <FieldDescription>JPEG, PNG ou WebP, até 5 MB e 4096 × 4096 px.</FieldDescription>
-              {values.logoAvailable ? (
-                <Button
-                  className="w-fit"
-                  disabled={logoBusy}
-                  type="button"
-                  variant="outline"
-                  onClick={async () => {
-                    if (!values.version) return
-                    setLogoBusy(true)
-                    try {
-                      const next = await repository.removeBusinessLogo?.(values.version)
-                      if (next) setValues(next)
-                      toast.success("Logotipo removido.")
-                    } finally {
-                      setLogoBusy(false)
-                    }
-                  }}
-                >
-                  <Trash2Icon data-icon="inline-start" />
-                  Remover logotipo
-                </Button>
-              ) : null}
-            </Field>
-          ) : null}
           {error ? (
             <Alert className="md:col-span-2" variant="destructive">
               <CircleAlertIcon />

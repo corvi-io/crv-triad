@@ -9,7 +9,15 @@ PDF/CSV exports. The backend report catalog extends that lifecycle with six type
 - Business profile and commission state is authoritative in PostgreSQL and capability-gated under
   `/api/business-profile` and `/api/commissions`.
 - Logos use the local filesystem only in `local`; deployed environments use the private R2 adapter
-  selected by `PROFILE_IMAGE_STORAGE_DRIVER=r2`.
+  selected by `PRIVATE_STORAGE_DRIVER=r2`. Business media keys are tenant-scoped under
+  `tenants/{tenantId}/business-profile/logo/`; legacy root keys remain readable until replaced or
+  removed. Business logos use only `R2_PRIVATE_*`; they are read through authenticated API routes
+  and never receive a public object URL.
+- User profile images use the separate identity-owned namespace
+  `users/{userId}/profile/image/`, because one user may belong to multiple tenants. Existing root
+  image keys remain readable until the user replaces or removes the image. New images share the
+  private R2 bucket and are served only through the authenticated, owner-scoped profile image route;
+  the persisted URL never exposes R2 directly.
 - Interactive summaries are bounded to 365 days at `/api/reports/summary`.
 - Export request/history/status/retry/download routes live under `/api/reports/generated`.
 - `GET /api/reports/catalog` returns the six authenticated catalog entries: sales and revenue,

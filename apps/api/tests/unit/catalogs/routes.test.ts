@@ -374,7 +374,7 @@ describe("catalog routes", () => {
     expect(writeAudit).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "update",
-        changedFields: ["address", "businessHours", "code", "name"],
+        changedFields: ["address", "businessHours", "code", "name", "timezone"],
         entityId: "unit-a",
         entityType: "unit",
         requestId: "request-a",

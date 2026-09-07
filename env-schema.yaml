@@ -27,20 +27,15 @@ apps:
       - { source: API__IDP_EMAIL_FROM, runtime: IDP_EMAIL_FROM, github: variable, required: true }
       - { source: API__IDP_STUDIO_URL, runtime: IDP_STUDIO_URL, github: variable, required: true }
       - { source: API__IDP_RESEND_API_KEY, runtime: IDP_RESEND_API_KEY, github: secret, required: true }
-      - { source: API__PROFILE_IMAGE_STORAGE_DRIVER, runtime: PROFILE_IMAGE_STORAGE_DRIVER, github: variable, required: true }
-      - { source: API__PROFILE_IMAGE_R2_ENDPOINT, runtime: PROFILE_IMAGE_R2_ENDPOINT, github: variable, required: true }
-      - { source: API__PROFILE_IMAGE_R2_ACCESS_KEY_ID, runtime: PROFILE_IMAGE_R2_ACCESS_KEY_ID, github: secret, required: true }
-      - { source: API__PROFILE_IMAGE_R2_SECRET_ACCESS_KEY, runtime: PROFILE_IMAGE_R2_SECRET_ACCESS_KEY, github: secret, required: true }
-      - { source: API__PROFILE_IMAGE_R2_BUCKET, runtime: PROFILE_IMAGE_R2_BUCKET, github: variable, required: true }
-      - { source: API__PROFILE_IMAGE_PUBLIC_BASE_URL, runtime: PROFILE_IMAGE_PUBLIC_BASE_URL, github: variable, required: true }
+      - { source: API__PRIVATE_STORAGE_DRIVER, runtime: PRIVATE_STORAGE_DRIVER, github: variable, required: true }
       - { source: API__REPORT_EXPORT_ENABLED, runtime: REPORT_EXPORT_ENABLED, github: variable, required: true }
       - { source: API__REPORT_EXPORT_PROVIDER, runtime: REPORT_EXPORT_PROVIDER, github: variable, required: true }
       - { source: API__TRIGGER_PROJECT_REF, runtime: TRIGGER_PROJECT_REF, github: variable, required: false }
       - { source: API__TRIGGER_SECRET_KEY, runtime: TRIGGER_SECRET_KEY, github: secret, required: false }
-      - { source: API__R2_REPORT_ENDPOINT, runtime: R2_REPORT_ENDPOINT, github: variable, required: false }
-      - { source: API__R2_REPORT_ACCESS_KEY_ID, runtime: R2_REPORT_ACCESS_KEY_ID, github: secret, required: false }
-      - { source: API__R2_REPORT_SECRET_ACCESS_KEY, runtime: R2_REPORT_SECRET_ACCESS_KEY, github: secret, required: false }
-      - { source: API__R2_REPORT_BUCKET, runtime: R2_REPORT_BUCKET, github: variable, required: false }
+      - { source: API__R2_PRIVATE_ENDPOINT, runtime: R2_PRIVATE_ENDPOINT, github: variable, required: true }
+      - { source: API__R2_PRIVATE_ACCESS_KEY_ID, runtime: R2_PRIVATE_ACCESS_KEY_ID, github: secret, required: true }
+      - { source: API__R2_PRIVATE_SECRET_ACCESS_KEY, runtime: R2_PRIVATE_SECRET_ACCESS_KEY, github: secret, required: true }
+      - { source: API__R2_PRIVATE_BUCKET, runtime: R2_PRIVATE_BUCKET, github: variable, required: true }
       - { source: API__LEAD_EMAIL_FROM, runtime: LEAD_EMAIL_FROM, github: variable, required: true }
       - { source: API__LEAD_EMAIL_TO, runtime: LEAD_EMAIL_TO, github: secret, required: true }
       - { source: API__LEAD_RESEND_API_KEY, runtime: LEAD_RESEND_API_KEY, github: secret, required: true }
