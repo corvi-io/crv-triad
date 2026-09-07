@@ -8,7 +8,7 @@ import {
 } from "lucide-react"
 import { defaultServiceDeskSearch } from "@/modules/service-desk/search"
 import { formatDateOnly } from "@/modules/shared/components/forms/date-picker"
-import { Button } from "@/modules/shared/components/ui/button"
+import { Button, buttonVariants } from "@/modules/shared/components/ui/button"
 import { cn } from "@/modules/shared/lib/utils"
 import type { OperationalNotification } from "./contracts"
 import { resolveNotificationDestination } from "./destinations"
@@ -94,24 +94,19 @@ export function NotificationItem({
           {destination ? (
             <DestinationLink destination={destination} />
           ) : (
-            <Button
-              render={
-                <Link
-                  to="/agenda"
-                  search={{
-                    date: formatDateOnly(new Date()),
-                    period: "today",
-                    scenario: "normal",
-                    unit: "centro",
-                    view: "board",
-                  }}
-                />
-              }
-              size="sm"
-              variant="ghost"
+            <Link
+              className={buttonVariants({ size: "sm", variant: "ghost" })}
+              to="/agenda"
+              search={{
+                date: formatDateOnly(new Date()),
+                period: "today",
+                scenario: "normal",
+                unit: "centro",
+                view: "board",
+              }}
             >
               Destino indisponível · Abrir Agenda
-            </Button>
+            </Link>
           )}
           {!notification.isRead && notification.lifecycle === "active" && onMarkRead ? (
             <Button
@@ -137,68 +132,53 @@ function DestinationLink({
 }) {
   if (destination.kind === "agenda") {
     return (
-      <Button
-        render={
-          <Link
-            to="/agenda"
-            search={{
-              appointment: destination.appointment,
-              date: destination.date ?? formatDateOnly(new Date()),
-              period: "today",
-              scenario: "normal",
-              unit: "centro",
-              view: "board",
-            }}
-          />
-        }
-        size="sm"
-        variant="ghost"
+      <Link
+        className={buttonVariants({ size: "sm", variant: "ghost" })}
+        to="/agenda"
+        search={{
+          appointment: destination.appointment,
+          date: destination.date ?? formatDateOnly(new Date()),
+          period: "today",
+          scenario: "normal",
+          unit: "centro",
+          view: "board",
+        }}
       >
         Abrir na agenda
-      </Button>
+      </Link>
     )
   }
   if (destination.kind === "checkout") {
     return (
-      <Button
-        render={
-          <Link
-            params={{ sessionId: destination.sessionId }}
-            search={defaultServiceDeskSearch}
-            to="/service-desk/$sessionId/checkout"
-          />
-        }
-        size="sm"
-        variant="ghost"
+      <Link
+        className={buttonVariants({ size: "sm", variant: "ghost" })}
+        params={{ sessionId: destination.sessionId }}
+        search={defaultServiceDeskSearch}
+        to="/service-desk/$sessionId/checkout"
       >
         Abrir pagamento
-      </Button>
+      </Link>
     )
   }
   if (destination.kind === "service-desk") {
     return (
-      <Button
-        render={
-          <Link
-            params={{ sessionId: destination.sessionId }}
-            search={defaultServiceDeskSearch}
-            to="/service-desk/$sessionId"
-          />
-        }
-        size="sm"
-        variant="ghost"
+      <Link
+        className={buttonVariants({ size: "sm", variant: "ghost" })}
+        params={{ sessionId: destination.sessionId }}
+        search={defaultServiceDeskSearch}
+        to="/service-desk/$sessionId"
       >
         Abrir atendimento
-      </Button>
+      </Link>
     )
   }
   return (
-    <Button
-      render={<Link search={{ notificationScenario: undefined }} to="/notifications" />}
-      size="sm"
-      variant="ghost"
+    <Link
+      className={buttonVariants({ size: "sm", variant: "ghost" })}
+      search={{ notificationScenario: undefined }}
+      to="/notifications"
     >
       Abrir notificações
-    </Button>
+    </Link>
   )
 }

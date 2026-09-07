@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Toaster } from "sonner"
 import { describe, expect, it, vi } from "vitest"
@@ -31,11 +31,14 @@ function setup(
   return { onSubmit, onCancel }
 }
 async function fill() {
-  fireEvent.change(screen.getByRole("textbox", { name: /^Nome/ }), {
-    target: { value: "Cliente Cadastro" },
-  })
-  fireEvent.change(screen.getByRole("textbox", { name: /^E-mail/ }), {
-    target: { value: "cliente@example.invalid" },
+  await act(async () => {
+    fireEvent.change(screen.getByRole("textbox", { name: /^Nome/ }), {
+      target: { value: "Cliente Cadastro" },
+    })
+    fireEvent.change(screen.getByRole("textbox", { name: /^E-mail/ }), {
+      target: { value: "cliente@example.invalid" },
+    })
+    await Promise.resolve()
   })
 }
 describe("canonical quick-client form used from appointments", { timeout: 20000 }, () => {

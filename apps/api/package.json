@@ -7,7 +7,11 @@
     "node": ">=26.0.0"
   },
   "scripts": {
-    "dev": "bun --watch src/server.ts",
+    "dev": "infisical run --silent --env=dev --path=/api -- bun scripts/dev.ts",
+    "dev:local": "concurrently --kill-others-on-fail --names api,trigger --prefix-colors blue,magenta \"bun run dev:api\" \"bun run dev:trigger\"",
+    "dev:api": "bun --watch src/server.ts",
+    "dev:trigger": "trigger dev",
+    "deploy:trigger": "trigger deploy",
     "build": "tsc -p tsconfig.build.json",
     "start": "bun dist/server.js",
     "check": "biome check . && bun run typecheck && bun run test",
@@ -53,6 +57,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "@vitest/coverage-v8": "4.1.10",
+    "concurrently": "^10.0.5",
     "drizzle-kit": "^0.31.10",
     "trigger.dev": "4.5.16",
     "tsx": "^4.23.13",

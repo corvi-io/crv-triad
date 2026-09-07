@@ -1,10 +1,14 @@
-import type { IdpEnv } from "../../idp/config/env.js"
 import type { ReportEmailSender } from "../application/export-providers.js"
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+type ReportEmailEnv = {
+  IDP_EMAIL_FROM: string
+  IDP_RESEND_API_KEY: string
+  IDP_RESEND_API_URL: string
+}
 
 export function createReportEmailSender(
-  env: IdpEnv,
+  env: ReportEmailEnv,
   fetchEmail: FetchLike = fetch,
 ): ReportEmailSender {
   return {
@@ -31,7 +35,7 @@ export function createReportEmailSender(
 
 async function sendEmail(
   fetchEmail: FetchLike,
-  env: IdpEnv,
+  env: ReportEmailEnv,
   input: { idempotencyKey: string; recipient: string; subject: string; text: string; html: string },
 ) {
   const response = await fetchEmail(`${env.IDP_RESEND_API_URL.replace(/\/$/, "")}/emails`, {

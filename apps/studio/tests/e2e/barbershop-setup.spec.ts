@@ -108,19 +108,17 @@ test("shares stable sections, renders the complete overview, and passes focused 
   expect(results.violations).toEqual([])
 })
 
-test("exposes the six-step setup facts and payment policy without claiming authorization", async ({
+test("exposes the essential setup facts and payment policy without claiming authorization", async ({
   page,
 }) => {
   await page.goto(setupUrl())
   for (const step of [
-    "Dados da barbearia",
-    "Horários",
-    "Profissionais",
-    "Serviços",
-    "Pagamentos e comissões",
-    "Revisão",
+    "Cadastrar a operação",
+    "Conectar profissionais",
+    "Definir serviços",
+    "Configurar disponibilidade",
   ]) {
-    await expect(page.getByText(step).first()).toBeVisible()
+    await expect(page.getByRole("heading", { name: step })).toBeVisible()
   }
 
   await page.getByRole("button", { name: "Dados" }).click()

@@ -1,9 +1,9 @@
 import { queue, schemaTask } from "@trigger.dev/sdk"
 import { z } from "zod"
-import { loadEnv } from "../modules/idp/config/env.js"
 import { createDatabase } from "../modules/idp/database/client.js"
 import { createReportWorker } from "../modules/reporting/application/report-worker.js"
 import { createReportingService } from "../modules/reporting/application/reporting-service.js"
+import { loadReportWorkerEnv } from "../modules/reporting/config/worker-env.js"
 import { createR2ArtifactStorage } from "../modules/reporting/infra/r2-artifact-storage.js"
 import { createReportEmailSender } from "../modules/reporting/infra/report-email-sender.js"
 export const managementReportQueue = queue({
@@ -27,7 +27,7 @@ export const generateManagementReport = schemaTask({
     randomize: true,
   },
   run: async (payload) => {
-    const env = loadEnv()
+    const env = loadReportWorkerEnv()
     const { db, pool } = createDatabase(env)
     const storage = createR2ArtifactStorage({
       endpoint: env.R2_PRIVATE_ENDPOINT,
@@ -63,7 +63,7 @@ export const deliverManagementReportEmail = schemaTask({
   // followed by a database outage must be reclaimed instead of completing with pending state.
   retry: { maxAttempts: 3, factor: 1, minTimeoutInMs: 300_000, maxTimeoutInMs: 300_000 },
   run: async (payload) => {
-    const env = loadEnv()
+    const env = loadReportWorkerEnv()
     const { db, pool } = createDatabase(env)
     const storage = createR2ArtifactStorage({
       endpoint: env.R2_PRIVATE_ENDPOINT,

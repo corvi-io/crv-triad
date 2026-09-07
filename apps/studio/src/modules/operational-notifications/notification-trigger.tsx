@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router"
 import { BellIcon } from "lucide-react"
 import { useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/modules/shared/components/ui/alert"
-import { Button } from "@/modules/shared/components/ui/button"
+import { Button, buttonVariants } from "@/modules/shared/components/ui/button"
 import {
   Popover,
   PopoverContent,
@@ -109,13 +109,13 @@ export function OperationalNotificationTrigger({ scenarioId }: { scenarioId?: st
             )}
           </div>
         </ScrollArea>
-        <Button
-          className="mt-3 w-full"
-          render={<Link search={{ notificationScenario: scenarioId }} to="/notifications" />}
-          variant="secondary"
+        <Link
+          className={buttonVariants({ className: "mt-3 w-full", variant: "secondary" })}
+          search={{ notificationScenario: scenarioId }}
+          to="/notifications"
         >
           Ver todas as notificações
-        </Button>
+        </Link>
       </PopoverContent>
     </Popover>
   )

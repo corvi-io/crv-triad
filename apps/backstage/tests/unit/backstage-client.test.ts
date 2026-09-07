@@ -1,9 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   type BackstageClientError,
+  createSupportContext,
   createTenant,
+  getOperator,
+  getSupportWorkspace,
+  getTenant,
   getTenantAccess,
   getTenants,
+  revokeSupportContext,
+  updateTenant,
   updateTenantAccess,
 } from "@/modules/backstage/backstage-client"
 
@@ -100,6 +106,86 @@ describe("Backstage API client", () => {
           subscriptionVersion: 2,
         }),
       }),
+    )
+  })
+
+  it("executes the tenant lifecycle and operator contracts", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      Response.json({ id: "tenant/a", status: "active" }),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await getOperator()
+    await getTenant("tenant/a")
+    await updateTenant({
+      id: "tenant/a",
+      name: "Novo nome",
+      reason: "Correção operacional",
+      status: "active",
+      version: 3,
+    })
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      expect.stringContaining("/api/backstage/me"),
+      expect.stringContaining("/api/backstage/tenants/tenant%2Fa"),
+      expect.stringContaining("/api/backstage/tenants/tenant%2Fa"),
+    ])
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: JSON.stringify({
+          name: "Novo nome",
+          reason: "Correção operacional",
+          status: "active",
+          version: 3,
+        }),
+        method: "PATCH",
+      }),
+    )
+  })
+
+  it("creates, reads, and revokes a bounded support context", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) =>
+      Response.json(
+        String(input).includes("clients")
+          ? { items: [], totalCount: 0 }
+          : String(input).includes("tenant-summary")
+            ? { activeClientCount: 0, activeMemberCount: 1, tenant: { id: "tenant-1" } }
+            : { id: "context-1", status: "revoked" },
+      ),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await createSupportContext({
+      durationMinutes: 30,
+      organizationId: "tenant-1",
+      reason: "Atendimento",
+    })
+    await expect(
+      getSupportWorkspace({ contextId: "context-1", credential: "private" }),
+    ).resolves.toMatchObject({
+      clients: { totalCount: 0 },
+      summary: { activeMemberCount: 1 },
+    })
+    await revokeSupportContext({ contextId: "context-1", credential: "private" })
+
+    const authorizedCalls = fetchMock.mock.calls.filter(
+      ([, init]) => init?.headers && JSON.stringify(init.headers).includes("Support private"),
+    )
+    expect(authorizedCalls).toHaveLength(3)
+  })
+
+  it("omits blank inventory searches and maps non-JSON failures safely", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ items: [], page: 1, pageSize: 20, totalCount: 0 }))
+      .mockResolvedValueOnce(new Response("gateway", { status: 502 }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await getTenants({ page: 1, search: "   " })
+    expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain("search=")
+    await expect(getOperator()).rejects.toEqual(
+      expect.objectContaining({ code: "unavailable", status: 502 }),
     )
   })
 })

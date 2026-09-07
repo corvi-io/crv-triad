@@ -13,6 +13,16 @@ import {
 
 const schema: EnvSchema = {
   schema_version: 1,
+  infrastructure: {
+    env: [
+      {
+        source: "INFRA__TRIGGER_ACCESS_TOKEN",
+        github: "secret",
+        required: true,
+        required_for: ["api"],
+      },
+    ],
+  },
   apps: {
     api: {
       owner: "apps/api",
@@ -95,6 +105,7 @@ describe("env-management", () => {
       API__DATABASE_URL: "postgresql://user:secret@example.test/db",
       API__CAMPAIGN_LINKS_ADMIN_TOKEN: "admin-secret",
       API__POSTHOG_UPSTREAM_URL: "https://us.i.posthog.com",
+      INFRA__TRIGGER_ACCESS_TOKEN: "trigger-secret",
     })
 
     expect(selection.values).toMatchObject([
@@ -117,6 +128,7 @@ describe("env-management", () => {
     expect(() =>
       selectRuntimeEnv(schema, "api", "dev", {
         API__DATABASE_URL: "postgresql://user:secret@example.test/db",
+        INFRA__TRIGGER_ACCESS_TOKEN: "trigger-secret",
       }),
     ).toThrow("API__CAMPAIGN_LINKS_ADMIN_TOKEN")
 
@@ -130,10 +142,20 @@ describe("env-management", () => {
     }
   })
 
+  it("requires deployment infrastructure assigned to the selected app", () => {
+    expect(() =>
+      selectRuntimeEnv(schema, "api", "dev", {
+        API__DATABASE_URL: "postgresql://user:secret@example.test/db",
+        API__CAMPAIGN_LINKS_ADMIN_TOKEN: "admin-secret",
+      }),
+    ).toThrow("INFRA__TRIGGER_ACCESS_TOKEN")
+  })
+
   it("enforces target-specific production values without requiring them in development", () => {
     const baseEnv = {
       API__DATABASE_URL: "postgresql://user:secret@example.test/db",
       API__CAMPAIGN_LINKS_ADMIN_TOKEN: "admin-secret",
+      INFRA__TRIGGER_ACCESS_TOKEN: "trigger-secret",
     }
 
     expect(() => selectRuntimeEnv(schema, "api", "dev", baseEnv)).not.toThrow()
@@ -165,6 +187,7 @@ describe("env-management", () => {
     const selection = selectRuntimeEnv(schema, "api", "dev", {
       API__DATABASE_URL: 'postgresql://user:"secret"@example.test/db',
       API__CAMPAIGN_LINKS_ADMIN_TOKEN: "admin-secret",
+      INFRA__TRIGGER_ACCESS_TOKEN: "trigger-secret",
     })
     const input = renderFlySecretsImportInput(selection)
     const calls: Array<{ args: string[]; input: string }> = []
@@ -189,6 +212,7 @@ describe("env-management", () => {
     const selection = selectRuntimeEnv(schema, "api", "dev", {
       API__DATABASE_URL: "postgresql://user:secret@example.test/db",
       API__CAMPAIGN_LINKS_ADMIN_TOKEN: "admin-secret",
+      INFRA__TRIGGER_ACCESS_TOKEN: "trigger-secret",
     })
 
     expect(() =>
@@ -203,6 +227,7 @@ describe("env-management", () => {
     const selection = selectRuntimeEnv(schema, "api", "dev", {
       API__DATABASE_URL: "postgresql://user:secret@example.test/db",
       API__CAMPAIGN_LINKS_ADMIN_TOKEN: "line-1\nline-2",
+      INFRA__TRIGGER_ACCESS_TOKEN: "trigger-secret",
     })
 
     expect(() => renderFlySecretsImportInput(selection)).toThrow(

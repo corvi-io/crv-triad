@@ -8,6 +8,9 @@ source:
     studio: /studio
     backstage: /backstage
     infrastructure: /infrastructure
+infrastructure:
+  env:
+    - { source: INFRA__TRIGGER_ACCESS_TOKEN, github: secret, required: true, required_for: [api] }
 apps:
   api:
     owner: apps/api
@@ -30,8 +33,9 @@ apps:
       - { source: API__PRIVATE_STORAGE_DRIVER, runtime: PRIVATE_STORAGE_DRIVER, github: variable, required: true }
       - { source: API__REPORT_EXPORT_ENABLED, runtime: REPORT_EXPORT_ENABLED, github: variable, required: true }
       - { source: API__REPORT_EXPORT_PROVIDER, runtime: REPORT_EXPORT_PROVIDER, github: variable, required: true }
-      - { source: API__TRIGGER_PROJECT_REF, runtime: TRIGGER_PROJECT_REF, github: variable, required: false }
-      - { source: API__TRIGGER_SECRET_KEY, runtime: TRIGGER_SECRET_KEY, github: secret, required: false }
+      - { source: API__TRIGGER_PROJECT_REF, runtime: TRIGGER_PROJECT_REF, github: variable, required: true }
+      - { source: API__TRIGGER_SECRET_KEY, runtime: TRIGGER_SECRET_KEY, github: secret, required: true }
+      - { source: API__TRIGGER_PREVIEW_BRANCH, runtime: TRIGGER_PREVIEW_BRANCH, github: variable, required: false, required_targets: [dev] }
       - { source: API__R2_PRIVATE_ENDPOINT, runtime: R2_PRIVATE_ENDPOINT, github: variable, required: true }
       - { source: API__R2_PRIVATE_ACCESS_KEY_ID, runtime: R2_PRIVATE_ACCESS_KEY_ID, github: secret, required: true }
       - { source: API__R2_PRIVATE_SECRET_ACCESS_KEY, runtime: R2_PRIVATE_SECRET_ACCESS_KEY, github: secret, required: true }
