@@ -214,12 +214,11 @@ describe("barbershop setup module", () => {
 
     const duration = await screen.findByLabelText("Duração (min)")
     await user.click(duration)
-    expect(screen.getByRole("option", { name: "15 min" })).toBeVisible()
-    expect(screen.getByRole("option", { name: "5h" })).toBeVisible()
+    expect(await screen.findByRole("option", { name: "15 min" })).toBeVisible()
+    expect(await screen.findByRole("option", { name: "5h" })).toBeVisible()
 
     const price = screen.getByLabelText("Preço (R$)")
-    await user.clear(price)
-    await user.type(price, "7676")
+    fireEvent.change(price, { target: { value: "7676" } })
     expect(price).toHaveValue("R$ 76,76")
   })
 
