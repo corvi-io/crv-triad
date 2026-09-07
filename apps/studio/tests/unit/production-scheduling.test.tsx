@@ -1,6 +1,9 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
+import { ClientProfileDrawer } from "@/modules/clients/client-profile-drawer"
+import { ClientHttpRepository } from "@/modules/clients/http-repository"
+import { ClientRepositoryProvider } from "@/modules/clients/repository-context"
 import { ClientAppointmentHistory } from "@/modules/scheduling/client-appointment-history"
 import { ProductionAppointmentDrawer } from "@/modules/scheduling/production-appointment-drawer"
 import { ProductionAppointmentList } from "@/modules/scheduling/production-appointment-list"
@@ -283,6 +286,60 @@ describe("production appointment flows", { timeout: 20000 }, () => {
     )
     await select("appointment-client", customer.name)
     expect(screen.getByLabelText("Cliente", { exact: true })).toHaveValue(customer.name)
+  })
+  it("shows canonical service preferences in the client profile", async () => {
+    httpFixture((request) =>
+      request.path === `/api/clients/${customer.id}`
+        ? respond({
+            ...customer,
+            preferredServices: [offering],
+          })
+        : undefined,
+    )
+    renderProduction(
+      <ClientRepositoryProvider repository={new ClientHttpRepository()}>
+        <ClientProfileDrawer
+          clientId={customer.id}
+          scenarioId="typical"
+          onEditClient={vi.fn()}
+          onInspectClient={vi.fn()}
+          onOpenChange={vi.fn()}
+        />
+      </ClientRepositoryProvider>,
+    )
+    expect(await screen.findByText(offering.name)).toBeVisible()
+  })
+  it("shows the canonical empty and archived client profile states", async () => {
+    httpFixture((request) =>
+      request.path === `/api/clients/${customer.id}`
+        ? respond({
+            ...customer,
+            appointments: [],
+            email: "",
+            lastVisitAt: null,
+            nextAppointmentAt: null,
+            phone: "",
+            preferenceNote: "",
+            preferredServices: [{ ...offering, status: "archived" }],
+            status: "archived",
+            tags: [],
+          })
+        : undefined,
+    )
+    renderProduction(
+      <ClientRepositoryProvider repository={new ClientHttpRepository()}>
+        <ClientProfileDrawer
+          clientId={customer.id}
+          scenarioId="typical"
+          onEditClient={vi.fn()}
+          onInspectClient={vi.fn()}
+          onOpenChange={vi.fn()}
+        />
+      </ClientRepositoryProvider>,
+    )
+    expect(await screen.findByText("Arquivado", { selector: "dd" })).toBeVisible()
+    expect(screen.getByText(`${offering.name} (arquivado)`)).toBeVisible()
+    expect(screen.getByRole("button", { name: "Restaurar" })).toBeVisible()
   })
   it("uses bounded remote searches for large canonical catalogs", async () => {
     const requests = httpFixture()
