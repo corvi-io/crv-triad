@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+--> statement-breakpoint
 CREATE TABLE "access_audit" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,
@@ -1102,6 +1104,15 @@ CREATE UNIQUE INDEX "scheduling_commands_actor_key_unique" ON "scheduling_comman
 CREATE INDEX "scheduling_commands_actor_idx" ON "scheduling_commands" USING btree ("actor_user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "scheduling_occupancies_source_unique" ON "scheduling_occupancies" USING btree ("organization_id","source","source_id");--> statement-breakpoint
 CREATE INDEX "scheduling_occupancies_professional_time_idx" ON "scheduling_occupancies" USING btree ("organization_id","professional_id","starts_at","ends_at");--> statement-breakpoint
+ALTER TABLE "scheduling_occupancies" ADD CONSTRAINT "scheduling_occupancies_no_overlap"
+EXCLUDE USING gist (
+	"organization_id" WITH =,
+	"professional_id" WITH =,
+	tstzrange("starts_at", "ends_at", '[)') WITH &&
+);--> statement-breakpoint
+CREATE UNIQUE INDEX "scheduling_occupancies_one_live_service"
+ON "scheduling_occupancies" ("organization_id", "professional_id")
+WHERE "source" = 'service' AND "live" = 1;--> statement-breakpoint
 CREATE UNIQUE INDEX "service_desk_commands_actor_key_unique" ON "service_desk_commands" USING btree ("organization_id","actor_user_id","key");--> statement-breakpoint
 CREATE INDEX "service_desk_events_visit_idx" ON "service_desk_events" USING btree ("organization_id","visit_id","version");--> statement-breakpoint
 CREATE UNIQUE INDEX "service_desk_items_tenant_id_unique" ON "service_desk_items" USING btree ("organization_id","id");--> statement-breakpoint
