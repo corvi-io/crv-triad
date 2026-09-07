@@ -134,8 +134,10 @@ building block of a documented composition.
 | `forms/permission-group.tsx` | Form composition | Internal: no accepted active authorization editor in Studio. |
 | `forms/quantity-unit-control.tsx` | Form composition | Internal: inherited composition without an active module-owned quantity contract. |
 | `forms/rhf-form-fields.tsx` | Form adapters | Internal: React Hook Form adapters; discover through owning module forms, not as standalone UI. |
-| `kibo-ui/kanban/index.tsx` | Vendor-derived composite | Internal legacy composite: retained for migration compatibility but no longer consumed by the accepted Agenda board. A future workflow must revalidate its DnD and accessibility contract before reuse. |
+| `forms/tag-input.tsx` | Form control | Documented public contract: keyboard-accessible, one-at-a-time tag entry with duplicate suppression, removable tags, configurable bounds, and domain-owned labels, placeholders, and validation. Shared by client and professional forms. |
 | `layout/module-layout.tsx` | Layout | Internal: structural fixed-head/scroll-body shell exercised through composed pages. Its viewport has no implicit vertical spacing or bottom padding; content owners add intentional gaps locally. Under `WorkspaceShellContent`, boards and nested authenticated feature, detail, and checkout routes reuse the shell-owned content inset rather than duplicating it, fill their remaining height at each active grid breakpoint, and keep scrolling only in panels with real overflow. This does not remove intentional card or form-field spacing. |
+| `layout/account-page-layout.tsx` | Layout | Public: account-management shell with a full-width shared title, description, optional composed actions, fixed header, and `ModuleLayout`-owned scroll body. Its content is centered at `max-w-5xl`; profile, preferences, and notifications use this contract so account surfaces align and respond consistently. |
+| `branding/studio-logo.tsx` | Branding | Public: canonical TRIAD Studio product signature. Provides horizontal and compact icon variants plus adaptive, gold, and inverse tone contracts for authenticated, standalone, and photographic surfaces. |
 | `layout/module-tabs.tsx` | Layout/navigation | Internal: requires router context and module-owned tab metadata. |
 | `layout/page-header.tsx` | Layout | Internal: composed by module pages; actions remain module owned. |
 | `layout/section-header.tsx` | Layout | Internal: small structural helper documented through page compositions. |
@@ -143,7 +145,6 @@ building block of a documented composition.
 | `overlays/confirmation-dialog.tsx` | Overlay | Documented public contract: Base UI Portal/focus-managed confirmation with semantic `--layer-modal` stacking above drawers, explicit title/description, configurable Portuguese action labels, default or destructive treatment, and pending-safe `isLoading` confirmation that keeps labels stable and disables cancellation; covered by consuming form and service-session flows. |
 | `overlays/drawer-section.tsx` | Overlay anatomy | Internal: companion anatomy for `ActionDrawer`, not a standalone surface. |
 | `overlays/drawer-tabs.tsx` | Overlay anatomy | Internal: companion tab anatomy requiring a composed drawer. |
-| `reference-creation-page.tsx` | Legacy page helper | Internal: retained only for migration compatibility; do not use for new generic CRUD pages. |
 | `workspace-overview/dashboard-filters.tsx` | Shell content | Internal: controlled Dashboard period, date, unit, and professional filter composition. Period, unit, and professional reuse `SingleSelectListFilter`/`FilterTrigger`; custom bounds retain the shared date picker; completion remains polite and is covered by Dashboard component/browser tests. |
 | `workspace-overview/index.tsx` | Shell content | Internal: typed operational Dashboard presentation over an injected read-only model; owns the accepted semantic hierarchy, responsive card/table composition, and loading/error/empty/disabled states without importing scheduling. |
 | `workspace-overview/model.ts` | Presentation contract | Internal: scheduling-independent read-only Dashboard view model shared only across the projection/presentation boundary. |
@@ -161,9 +162,11 @@ building block of a documented composition.
 | `ui/badge.tsx` | Data display primitive | Documented public contract: official shadcn bounded semantic label with Base UI `render` support and existing theme roles; Service Desk uses outline/secondary variants while text remains the state carrier. |
 | `ui/breadcrumb.tsx` | Primitive | Internal: building block documented through workspace breadcrumbs. |
 | `ui/button.tsx` | Primitive | Documented public contract: explicit variants, disabled/loading states, stable long labels, and keyboard activation. Agenda adds quiet `filter` and brand-selected `filter-active` variants for menu/popover triggers; state remains textual and exposed through the owning primitive. |
+| `ui/dialog.tsx` | Primitive | Base UI modal composition with shared overlay, header, scroll body, footer, title, and description slots. Persistent workflows control dismissal at the feature boundary instead of changing the primitive. |
 | `ui/calendar.tsx` | Primitive | Internal: implementation detail of the shared date picker. |
 | `ui/chart.tsx` | Data display primitive | Documented public contract: reviewed official shadcn/Recharts 3 composition providing a responsive `ChartContainer`, semantic per-series token configuration, stable initial dimensions, and Recharts accessibility-layer compatibility. Charts remain supplementary: consuming modules must provide visible takeaways, programmatic title/description, non-color semantics where multiple series exist, and semantic table/list equivalents. ENG-53 is the first consumer and production-boundary, component, browser, and axe checks cover it. |
 | `ui/card.tsx` | Primitive | Internal: structural primitive documented through consuming composites. |
+| `ui/checkbox.tsx` | Form primitive | Internal: official shadcn/Base UI checkbox used by explicit multi-selection fields; labels, validation, and group semantics remain owned by the consuming form. |
 | `ui/collapsible.tsx` | Primitive | Internal: implementation detail of drawer/form sections. |
 | `ui/dropdown-menu.tsx` | Primitive | Internal: implementation detail of menus and table controls. |
 | `ui/empty.tsx` | Feedback primitive | Documented public contract: official shadcn Empty anatomy with header, media, title, description, and optional content; Service Desk distinguishes source-empty and filtered-empty copy without custom empty markup. |
@@ -261,3 +264,13 @@ ENG-55 composes the existing `Card`, `Field`, `Input`, `Select`, `Switch`, `Togg
 Agenda. The seven-day board and setup completion sections remain module-owned because their
 semantics are product-specific; no shared component, registry item, calendar/layout dependency, or
 design token was added.
+
+## Scheduling parity
+
+Production scheduling reuses PageHeader, DataTable, ActionDrawer, ConfirmationDialog, RHF fields and DatePicker. PageHeader wraps actions at narrow widths. Required DatePicker buttons use `aria-description` instead of unsupported `aria-required`; primary-button hover preserves solid token contrast. Calendar/board overflow stays within its own bounded surface. See [Production scheduling](scheduling.md).
+
+
+The shared Sonner wrapper maps rich success/info/warning/error surfaces to the existing semantic
+feedback background, border and foreground tokens. This keeps transient scheduling messages at the
+same readable contrast in light and dark themes as status feedback; third-party default success
+colors failed the local touch WCAG scan and must not override these tokens.

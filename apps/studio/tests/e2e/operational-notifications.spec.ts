@@ -3,7 +3,6 @@ import AxeBuilder from "@axe-core/playwright"
 import { expect, type Page, type Route, test } from "@playwright/test"
 
 const evidenceDirectory = path.resolve(process.cwd(), "../../docs/studio/evidence/eng-54")
-
 test.beforeEach(async ({ page }) => routeAuthenticatedSession(page))
 
 test("keeps header, Dashboard, and center consistent with keyboard-safe popover focus", async ({
@@ -36,17 +35,16 @@ test("keeps header, Dashboard, and center consistent with keyboard-safe popover 
   await expect(
     page.locator('[data-slot="workspace-primary-navigation-item"] a', { hasText: "Notificações" }),
   ).toHaveCount(0)
-  await page.getByRole("button", { name: "Marcar como lida" }).first().click()
+  const conflictItem = page
+    .getByText("Conflito identificado na Agenda", { exact: true })
+    .locator("xpath=ancestor::article")
+  await page.getByRole("button", { name: "Marcar como lida" }).last().click()
   await expect(
     page.getByRole("button", {
       name: "Abrir notificações. 6 notificações ativas não lidas.",
     }),
   ).toBeVisible()
-  await page
-    .getByRole("region", { name: "Ativas", exact: true })
-    .getByRole("link", { name: "Abrir destino" })
-    .first()
-    .click()
+  await conflictItem.getByRole("link", { name: "Abrir na agenda" }).click()
   await expect(page).toHaveURL(/\/agenda\?.*appointment=kanban-01/)
   await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeVisible()
   await page.getByRole("button", { name: "Fechar" }).click()
@@ -118,6 +116,7 @@ test("announces a popover read failure and recovers on retry", async ({ page }) 
 test("consumes typed Dashboard, Agenda, and Service Desk destinations with SPA state", async ({
   page,
 }) => {
+  await page.clock.setFixedTime(new Date("2026-07-24T15:35:00-03:00"))
   await page.goto("/overview?notificationScenario=normal")
   const attention = page
     .getByRole("heading", { name: "Atenção necessária" })
@@ -125,7 +124,7 @@ test("consumes typed Dashboard, Agenda, and Service Desk destinations with SPA s
   await attention.getByRole("button", { name: /Conflito identificado na Agenda/ }).click()
   await expect(page).toHaveURL(/\/agenda\?.*appointment=kanban-01/)
   await expect(page.getByRole("dialog", { name: "Agenda / Ver agendamento" })).toBeVisible()
-  await page.goBack()
+  await page.goto("/overview?notificationScenario=normal")
   await expect(page).toHaveURL(/\/overview/)
 
   await attention.getByRole("button", { name: "Ver todos" }).click()
@@ -138,7 +137,7 @@ test("consumes typed Dashboard, Agenda, and Service Desk destinations with SPA s
       name: "Abrir notificações. 6 notificações ativas não lidas.",
     }),
   ).toBeVisible()
-  await waitingItem.getByRole("link", { name: "Abrir destino" }).click()
+  await waitingItem.getByRole("link", { name: "Abrir atendimento" }).click()
   await expect(page).toHaveURL(/\/service-desk\/session-walk-in-fulfillment-long-running(?:\?|$)/)
   await expect(page.getByRole("heading", { name: "Pessoa Longa Duração" })).toBeVisible()
   await expect(page.getByText("Atendimento não encontrado")).toHaveCount(0)
@@ -235,6 +234,22 @@ test("caps 105 unread visually and preserves narrow dark forced-color/reduced-mo
 })
 
 async function routeAuthenticatedSession(page: Page) {
+  await page.route("**/api/contexts", (route) =>
+    fulfillJson(route, {
+      activeOrganizationId: "tenant-notifications-fixture",
+      platform: null,
+      status: "available",
+      tenants: [{ id: "tenant-notifications-fixture", name: "Barbearia de teste", role: "owner" }],
+    }),
+  )
+  await page.route("**/api/access/summary", (route) =>
+    fulfillJson(route, {
+      capabilities: [],
+      organizationId: "tenant-notifications-fixture",
+      role: "owner",
+      subscriptionState: "active",
+    }),
+  )
   await page.route("**/api/auth/**", async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({ headers: corsHeaders(), status: 204 })

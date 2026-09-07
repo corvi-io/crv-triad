@@ -14,8 +14,12 @@ import {
   Undo2Icon,
   UserRoundIcon,
 } from "lucide-react"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { useAccessSummary } from "@/modules/access/use-access-summary"
+import { dismissOnboarding, isOnboardingDismissed } from "@/modules/onboarding/dismissal"
+import { PersistentOnboardingDialog } from "@/modules/onboarding/persistent-onboarding-dialog"
+import { useActivationReadiness } from "@/modules/onboarding/readiness"
 import {
   createDataTablePointAnchor,
   DataTable,
@@ -47,15 +51,16 @@ import {
 } from "@/modules/shared/components/ui/card"
 import { Skeleton } from "@/modules/shared/components/ui/skeleton"
 import { cn } from "@/modules/shared/lib/utils"
+import { useWorkspaceTenantId } from "@/modules/workspace/context-provider"
 import { AvailabilityCalendar } from "./availability-calendar"
 import { BusinessProfileSection, PaymentsSection } from "./completion-sections"
 import type {
+  PendingProfessionalInvitation,
   SetupEntity,
   SetupEntityInput,
   SetupEntityKind,
   SetupEntityStatus,
   SetupListQuery,
-  SetupProfessional,
   SetupScenarioId,
   SetupSection,
 } from "./contracts"
@@ -69,16 +74,24 @@ import {
   entityLabels,
   formatMoney,
   SetupEntityDrawer,
+  SetupEntityOnboardingForm,
 } from "./entity-drawer"
+import { OnboardingAvailabilityStep } from "./onboarding-availability-step"
+import { ProductionAvailability } from "./production-availability"
 import {
+  useBusinessProfile,
   useCreateSetupEntity,
+  usePendingProfessionalInvitations,
+  useResendProfessionalInvitation,
+  useRevokeProfessionalInvitation,
   useSetSetupEntityArchived,
   useSetupAvailability,
-  useSetupCompletion,
   useSetupEntities,
   useSetupOverview,
+  useUpdateBarbershopProfile,
   useUpdateSetupEntity,
 } from "./queries"
+import { useBarbershopSetupRepository } from "./repository-context"
 import type { BarbershopSetupSearch } from "./search"
 
 const sectionItems: ReadonlyArray<{ icon: typeof Building2Icon; id: SetupSection; label: string }> =
@@ -92,6 +105,165 @@ const sectionItems: ReadonlyArray<{ icon: typeof Building2Icon; id: SetupSection
     { id: "availability", label: "Disponibilidade", icon: CalendarClockIcon },
   ]
 
+const sectionHeaders: Record<SetupSection, { description: string; title: string }> = {
+  overview: {
+    title: "Configuração da barbearia",
+    description: "Acompanhe o preparo dos catálogos essenciais para a operação.",
+  },
+  business: {
+    title: "Dados da barbearia",
+    description: "Mantenha as informações gerais e o contato principal da barbearia.",
+  },
+  units: {
+    title: "Unidades",
+    description: "Gerencie endereços, códigos e horários de funcionamento.",
+  },
+  professionals: {
+    title: "Profissionais",
+    description: "Gerencie a equipe, os vínculos e as permissões operacionais.",
+  },
+  services: {
+    title: "Serviços",
+    description: "Gerencie preços, duração e disponibilidade do catálogo.",
+  },
+  payments: {
+    title: "Pagamentos",
+    description: "Configure as formas aceitas para registros de pagamento.",
+  },
+  availability: {
+    title: "Disponibilidade",
+    description: "Defina os períodos disponíveis para atendimento.",
+  },
+}
+
+function sectionToEntityKind(section: SetupSection): SetupEntityKind | undefined {
+  if (section === "units") return "unit"
+  if (section === "professionals") return "professional"
+  if (section === "services") return "service"
+  return undefined
+}
+
+function OnboardingEntityStep({
+  kind,
+  scenarioId,
+  onCompleted,
+}: {
+  kind: SetupEntityKind
+  scenarioId: SetupScenarioId
+  onCompleted: (section: SetupSection) => void
+}) {
+  const repository = useBarbershopSetupRepository()
+  const query = (entityKind: SetupEntityKind): SetupListQuery => ({
+    kind: entityKind,
+    page: 1,
+    pageSize: 50,
+    scenarioId,
+    search: "",
+    sort: { direction: "asc", field: "name" },
+    status: "active",
+  })
+  const units = useSetupEntities(query("unit"))
+  const professionals = useSetupEntities(query("professional"))
+  const services = useSetupEntities(query("service"))
+  const createEntity = useCreateSetupEntity()
+  const updateEntity = useUpdateSetupEntity()
+  const updateProfile = useUpdateBarbershopProfile()
+  const profile = useBusinessProfile(kind === "unit")
+
+  if (
+    units.isPending ||
+    professionals.isPending ||
+    services.isPending ||
+    (kind === "unit" && profile.isPending)
+  )
+    return (
+      <div className="grid gap-3" role="status" aria-label="Preparando formulário">
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-44 w-full" />
+      </div>
+    )
+  if (
+    units.isError ||
+    professionals.isError ||
+    services.isError ||
+    (kind === "unit" && profile.isError)
+  )
+    return (
+      <ErrorState
+        title="Não foi possível preparar esta etapa"
+        onRetry={() => {
+          void Promise.all([
+            units.refetch(),
+            professionals.refetch(),
+            services.refetch(),
+            profile.refetch(),
+          ])
+        }}
+      />
+    )
+
+  return (
+    <SetupEntityOnboardingForm
+      entity={
+        kind === "unit"
+          ? units.data.items.find(
+              (item) => item.kind === "unit" && item.id === profile.data?.primaryUnitId,
+            )
+          : undefined
+      }
+      entityKind={kind}
+      isSaving={createEntity.isPending || updateEntity.isPending || updateProfile.isPending}
+      units={units.data.items.filter(
+        (item): item is Extract<SetupEntity, { kind: "unit" }> => item.kind === "unit",
+      )}
+      professionals={professionals.data.items.filter(
+        (item): item is Extract<SetupEntity, { kind: "professional" }> =>
+          item.kind === "professional",
+      )}
+      services={services.data.items.filter(
+        (item): item is Extract<SetupEntity, { kind: "service" }> => item.kind === "service",
+      )}
+      onSave={async (entityKind, input) => {
+        const existingUnit =
+          entityKind === "unit"
+            ? units.data.items.find(
+                (item) => item.kind === "unit" && item.id === profile.data?.primaryUnitId,
+              )
+            : undefined
+        const created = existingUnit
+          ? await updateEntity.mutateAsync({
+              id: existingUnit.id,
+              input,
+              kind: entityKind,
+              version: existingUnit.version ?? 1,
+            })
+          : await createEntity.mutateAsync({ kind: entityKind, input })
+        if (entityKind === "unit" && created?.kind === "unit") {
+          const currentProfile =
+            (await repository.getBusinessProfile?.()) ??
+            (await repository.getCompletion(scenarioId)).profile
+          if (currentProfile.primaryUnitId !== created.id)
+            await updateProfile.mutateAsync({ ...currentProfile, primaryUnitId: created.id })
+        }
+        toast.success(
+          entityKind === "professional"
+            ? "Convite enviado."
+            : existingUnit
+              ? "Unidade atualizada."
+              : "Registro criado.",
+        )
+        await onCompleted(
+          entityKind === "unit"
+            ? "professionals"
+            : entityKind === "professional"
+              ? "services"
+              : "availability",
+        )
+      }}
+    />
+  )
+}
+
 export function BarbershopSetupPage({
   onSearchChange,
   search,
@@ -99,76 +271,255 @@ export function BarbershopSetupPage({
   onSearchChange: (next: Partial<BarbershopSetupSearch>) => Promise<void> | void
   search: BarbershopSetupSearch
 }) {
-  return (
-    <ModuleLayout
-      head={
-        <div className="flex flex-col gap-3">
-          <PageHeader
-            title="Configuração da barbearia"
-            description="Gerencie unidades, profissionais, serviços e disponibilidade."
-          />
-          <nav aria-label="Seções da configuração" className="overflow-x-auto">
-            <ul className="flex min-w-max gap-1 border-b">
-              {sectionItems.map(({ icon: Icon, id, label }) => (
-                <li key={id}>
-                  <button
-                    type="button"
-                    aria-current={search.section === id ? "page" : undefined}
-                    className={cn(
-                      "inline-flex h-10 cursor-pointer items-center gap-2 border-b-2 px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      search.section === id
-                        ? "border-primary text-foreground"
-                        : "border-transparent text-muted-foreground hover:text-foreground",
-                    )}
-                    onClick={() => onSearchChange({ section: id })}
-                  >
-                    <Icon aria-hidden="true" className="size-4" />
-                    {label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
-      }
-      bodyViewportClassName="h-full min-h-0"
+  const setupRepository = useBarbershopSetupRepository()
+  const activationReadiness = useActivationReadiness()
+  const activeTenantId = useWorkspaceTenantId()
+  const onboardingTenantScope = activeTenantId ?? "isolated"
+  const [dismissedTenantId, setDismissedTenantId] = useState<string | null>(null)
+  const onboardingWasRequired = useRef(false)
+  const availabilityAccess = useAccessSummary()
+  const canManageAvailability = availabilityAccess.data?.capabilities.some(
+    (item) => item.capability === "availability.manage" && item.allowed,
+  )
+  const [availabilityCreate, setAvailabilityCreate] = useState(false)
+  const header = sectionHeaders[search.section]
+  const [createRequest, setCreateRequest] = useState<{
+    kind: SetupEntityKind
+    trigger: HTMLButtonElement
+  } | null>(null)
+  const entityKind = sectionToEntityKind(search.section)
+  if (activationReadiness.data?.outcome === "setup_required") onboardingWasRequired.current = true
+  const showOnboarding =
+    activationReadiness.data?.canManage === true &&
+    (activationReadiness.data.outcome === "setup_required" || onboardingWasRequired.current) &&
+    dismissedTenantId !== onboardingTenantScope &&
+    !isOnboardingDismissed(onboardingTenantScope)
+  const nextOnboardingSection = activationReadiness.data?.steps.find(
+    (step) => step.id === activationReadiness.data?.nextStepId,
+  )?.section as SetupSection | undefined
+  const requestedOnboardingStep = activationReadiness.data?.steps.find(
+    (step) => step.section === search.section,
+  )
+  const onboardingSection: SetupSection =
+    activationReadiness.data?.outcome === "schedule_ready"
+      ? search.section
+      : requestedOnboardingStep?.complete || search.section === nextOnboardingSection
+        ? search.section
+        : (nextOnboardingSection ?? "business")
+  const onboardingEntityKind = sectionToEntityKind(onboardingSection)
+
+  useEffect(() => {
+    if (!showOnboarding || search.section === onboardingSection) return
+    void onSearchChange({ section: onboardingSection })
+  }, [onSearchChange, onboardingSection, search.section, showOnboarding])
+
+  useEffect(() => {
+    if (
+      !showOnboarding ||
+      activationReadiness.data?.outcome !== "schedule_ready" ||
+      search.section === "overview"
+    )
+      return
+    void onSearchChange({ section: "overview" })
+  }, [activationReadiness.data?.outcome, onSearchChange, search.section, showOnboarding])
+  const headerActions = entityKind ? (
+    <Button
+      type="button"
+      onClick={(event) => setCreateRequest({ kind: entityKind, trigger: event.currentTarget })}
     >
-      <h2 className="sr-only">{sectionItems.find(({ id }) => id === search.section)?.label}</h2>
-      <div key={search.scenario} className="h-full min-h-0">
-        <SetupSectionContent
-          search={search}
+      <PlusIcon aria-hidden="true" />
+      {entityLabels[entityKind].newLabel}
+    </Button>
+  ) : search.section === "availability" &&
+    setupRepository.catalogSource === "http" &&
+    canManageAvailability ? (
+    <Button onClick={() => setAvailabilityCreate(true)}>
+      <PlusIcon aria-hidden="true" />
+      Adicionar bloco
+    </Button>
+  ) : undefined
+  const sectionContent = (
+    <SetupSectionContent
+      search={search}
+      availabilityCreate={availabilityCreate}
+      onAvailabilityCreateHandled={() => setAvailabilityCreate(false)}
+      createRequest={createRequest}
+      onCreateRequestHandled={() => setCreateRequest(null)}
+      onSectionChange={(section) => onSearchChange({ section })}
+      onSearchChange={onSearchChange}
+    />
+  )
+  const onboardingContent =
+    onboardingSection === "business" ? (
+      <BusinessProfileSection
+        scenarioId={search.scenario}
+        onCompleted={async () => {
+          const refreshed = await activationReadiness.refetch()
+          const next = refreshed.data?.steps.find((step) => step.id === refreshed.data.nextStepId)
+          await onSearchChange({
+            section: (next?.section as SetupSection | undefined) ?? "overview",
+          })
+        }}
+      />
+    ) : onboardingEntityKind ? (
+      <OnboardingEntityStep
+        kind={onboardingEntityKind}
+        scenarioId={search.scenario}
+        onCompleted={async () => {
+          const refreshed = await activationReadiness.refetch()
+          const next = refreshed.data?.steps.find((step) => step.id === refreshed.data.nextStepId)
+          await onSearchChange({
+            section: (next?.section as SetupSection | undefined) ?? "overview",
+          })
+        }}
+      />
+    ) : onboardingSection === "availability" ? (
+      <OnboardingAvailabilityStep
+        scenarioId={search.scenario}
+        onCompleted={async () => {
+          const refreshed = await activationReadiness.refetch()
+          await onSearchChange({
+            section: refreshed.data?.outcome === "schedule_ready" ? "overview" : "availability",
+          })
+        }}
+      />
+    ) : (
+      sectionContent
+    )
+  return (
+    <>
+      <ModuleLayout
+        head={
+          <div className="flex flex-col gap-3">
+            <PageHeader
+              title={header.title}
+              description={header.description}
+              actions={headerActions}
+            />
+            <nav aria-label="Seções da configuração" className="overflow-x-auto">
+              <ul className="flex min-w-max gap-1 border-b">
+                {sectionItems.map(({ icon: Icon, id, label }) => (
+                  <li key={id}>
+                    <button
+                      type="button"
+                      aria-current={search.section === id ? "page" : undefined}
+                      className={cn(
+                        "inline-flex h-10 cursor-pointer items-center gap-2 border-b-2 px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        search.section === id
+                          ? "border-primary text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground",
+                      )}
+                      onClick={() => onSearchChange({ section: id })}
+                    >
+                      <Icon aria-hidden="true" className="size-4" />
+                      {label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
+        }
+        bodyViewportClassName="h-full min-h-0"
+      >
+        <div key={search.scenario} className="h-full min-h-0">
+          {showOnboarding ? (
+            <div
+              aria-hidden="true"
+              className="grid min-h-80 place-items-center rounded-xl border border-dashed bg-muted/20"
+            >
+              <div className="max-w-md text-center opacity-50">
+                <h2 className="font-heading text-lg font-semibold">Configuração inicial</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Conclua as etapas para liberar a operação da sua barbearia.
+                </p>
+              </div>
+            </div>
+          ) : (
+            sectionContent
+          )}
+        </div>
+      </ModuleLayout>
+
+      {showOnboarding && activationReadiness.data ? (
+        <PersistentOnboardingDialog
+          currentSection={onboardingSection}
+          readiness={activationReadiness.data}
           onSectionChange={(section) => onSearchChange({ section })}
-          onSearchChange={onSearchChange}
-        />
-      </div>
-    </ModuleLayout>
+          onDismiss={() => {
+            dismissOnboarding(onboardingTenantScope)
+            setDismissedTenantId(onboardingTenantScope)
+          }}
+        >
+          {onboardingContent}
+        </PersistentOnboardingDialog>
+      ) : null}
+    </>
   )
 }
 
 function SetupSectionContent({
+  availabilityCreate,
+  onAvailabilityCreateHandled,
+  createRequest,
+  onCreateRequestHandled,
   search,
   onSectionChange,
   onSearchChange,
 }: {
+  availabilityCreate: boolean
+  onAvailabilityCreateHandled: () => void
+  createRequest: { kind: SetupEntityKind; trigger: HTMLButtonElement } | null
+  onCreateRequestHandled: () => void
   search: BarbershopSetupSearch
   onSectionChange: (section: SetupSection) => void
   onSearchChange: (next: Partial<BarbershopSetupSearch>) => Promise<void> | void
 }) {
+  const repository = useBarbershopSetupRepository()
+  const usesHttpCatalogs = repository.catalogSource === "http"
   switch (search.section) {
     case "overview":
       return <OverviewSection scenarioId={search.scenario} onSectionChange={onSectionChange} />
     case "business":
       return <BusinessProfileSection scenarioId={search.scenario} />
     case "units":
-      return <EntitySection kind="unit" scenarioId={search.scenario} />
+      return (
+        <EntitySection
+          createRequest={createRequest}
+          kind="unit"
+          scenarioId={search.scenario}
+          onCreateRequestHandled={onCreateRequestHandled}
+        />
+      )
     case "professionals":
-      return <EntitySection kind="professional" scenarioId={search.scenario} />
+      return (
+        <EntitySection
+          createRequest={createRequest}
+          kind="professional"
+          scenarioId={search.scenario}
+          onCreateRequestHandled={onCreateRequestHandled}
+        />
+      )
     case "services":
-      return <EntitySection kind="service" scenarioId={search.scenario} />
+      return (
+        <EntitySection
+          createRequest={createRequest}
+          kind="service"
+          scenarioId={search.scenario}
+          onCreateRequestHandled={onCreateRequestHandled}
+        />
+      )
     case "payments":
       return <PaymentsSection scenarioId={search.scenario} />
     case "availability":
-      return (
+      return usesHttpCatalogs ? (
+        <ProductionAvailability
+          search={search}
+          onSearchChange={onSearchChange}
+          createRequest={availabilityCreate}
+          onCreateHandled={onAvailabilityCreateHandled}
+        />
+      ) : (
         <AvailabilityCalendar
           date={search.availabilityDate}
           scenarioId={search.scenario}
@@ -186,48 +537,56 @@ function OverviewSection({
   scenarioId: SetupScenarioId
   onSectionChange: (section: SetupSection) => void
 }) {
-  const completion = useSetupCompletion(scenarioId)
   const overview = useSetupOverview(scenarioId)
-  if (overview.isPending || completion.isPending)
-    return <LoadingCards label="Carregando visão geral…" />
-  if (overview.isError || completion.isError)
+  if (overview.isPending) return <LoadingCards label="Carregando visão geral…" />
+  if (overview.isError)
     return (
       <ErrorState
         title="Não foi possível carregar a visão geral"
-        onRetry={() => Promise.all([overview.refetch(), completion.refetch()])}
+        onRetry={() => overview.refetch()}
       />
     )
-  const nextItem = completion.data.readiness.steps.find(({ complete }) => !complete) ??
-    completion.data.readiness.steps.at(-1) ?? {
+  const nextItem = overview.data.items.find(({ complete }) => !complete) ??
+    overview.data.items.at(-1) ?? {
       complete: false,
       description: "Revise os dados da configuração.",
       id: "review",
       section: "overview",
       title: "Revisão",
     }
-  const progress = Math.round(
-    (completion.data.readiness.completedCount / completion.data.readiness.totalCount) * 100,
-  )
+  const progress = Math.round((overview.data.completedCount / overview.data.totalCount) * 100)
   return (
     <section aria-labelledby="overview-title" className="grid gap-5 pb-4">
-      <Card className="overflow-hidden border-primary/20 bg-linear-to-br from-primary/8 via-card to-card">
-        <CardHeader className="gap-3">
-          <div className="grid gap-1">
-            <h2 id="overview-title" className="font-heading text-xl font-medium leading-snug">
-              Prepare a barbearia para operar
-            </h2>
-            <CardDescription className="max-w-2xl">
-              Complete os cadastros na ordem recomendada para conectar unidades, equipe, serviços e
-              horários disponíveis para agendamento.
-            </CardDescription>
+      <Card className="overflow-hidden ring-primary/25">
+        <CardHeader className="gap-4 border-b pb-5">
+          <div className="flex items-start gap-4">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-primary/50 bg-primary/10 text-primary">
+              {progress === 100 ? (
+                <CheckCircle2Icon aria-hidden="true" className="size-5" />
+              ) : (
+                <SlidersHorizontalIcon aria-hidden="true" className="size-5" />
+              )}
+            </span>
+            <div className="grid gap-1">
+              <h2 id="overview-title" className="font-heading text-xl font-semibold leading-snug">
+                {progress === 100
+                  ? "Sua barbearia está pronta para operar"
+                  : "Vamos preparar sua barbearia"}
+              </h2>
+              <CardDescription className="max-w-2xl">
+                {progress === 100
+                  ? "Os elementos essenciais estão configurados. Você pode revisar qualquer etapa antes de abrir a Agenda."
+                  : "Complete os dados essenciais abaixo. Tudo o que você salvar continuará disponível para revisar depois."}
+              </CardDescription>
+            </div>
           </div>
           <CardAction>
             <StatusBadge tone={progress === 100 ? "success" : "info"}>
-              {`${completion.data.readiness.completedCount} de ${completion.data.readiness.totalCount}`}
+              {`${overview.data.completedCount} de ${overview.data.totalCount}`}
             </StatusBadge>
           </CardAction>
         </CardHeader>
-        <CardContent className="grid gap-2">
+        <CardContent className="grid gap-3">
           <div
             aria-label={`${progress}% da configuração concluída`}
             aria-valuemax={100}
@@ -243,8 +602,8 @@ function OverviewSection({
           </div>
           <p className="text-sm text-muted-foreground">
             {progress === 100
-              ? "A configuração principal está completa. Continue revisando sempre que a operação mudar."
-              : `Próxima etapa recomendada: ${nextItem.title}.`}
+              ? "Configuração essencial concluída."
+              : `Agora configure: ${nextItem.title}. ${nextItem.description}`}
           </p>
         </CardContent>
         <CardFooter className="justify-end">
@@ -256,15 +615,20 @@ function OverviewSection({
       </Card>
 
       <div>
-        <h3 className="text-base font-semibold">Etapas da configuração</h3>
+        <h3 className="text-base font-semibold">Revise cada etapa</h3>
         <p className="text-sm text-muted-foreground">
           Cada etapa explica o que será habilitado na operação.
         </p>
       </div>
       <ol className="grid gap-3 md:grid-cols-2">
-        {completion.data.readiness.steps.map((item, index) => (
-          <li key={item.id}>
-            <Card className="h-full">
+        {overview.data.items.map((item, index) => (
+          <li key={item.section}>
+            <Card
+              className={cn(
+                "h-full transition-colors",
+                item.complete ? "ring-primary/20" : "hover:bg-muted/25",
+              )}
+            >
               <CardHeader>
                 <div className="flex size-9 items-center justify-center rounded-full border bg-muted text-sm font-semibold">
                   {item.complete ? (
@@ -280,7 +644,6 @@ function OverviewSection({
                   )}
                 </div>
                 <h4 className="font-heading text-base font-medium leading-snug">{item.title}</h4>
-                <CardDescription>{item.description}</CardDescription>
                 <CardAction>
                   <StatusBadge tone={item.complete ? "success" : "warning"}>
                     {item.complete ? "Completa" : "Pendente"}
@@ -305,17 +668,18 @@ function OverviewSection({
         ))}
       </ol>
       {progress === 100 ? (
-        <Card>
+        <Card className="ring-primary/25">
           <CardHeader>
             <h3 className="font-heading text-base font-medium">Configuração pronta para operar</h3>
             <CardDescription>
-              Revise qualquer etapa quando a operação mudar. As escolhas deste protótipo permanecem
-              somente na sessão local.
+              Revise os catálogos quando a operação mudar. Disponibilidade, pagamentos e demais
+              configurações operacionais serão habilitados somente com persistência própria.
             </CardDescription>
           </CardHeader>
           <CardFooter className="justify-end">
-            <Button nativeButton={false} render={<a href="/overview" />}>
-              Entrar no espaço de trabalho
+            <Button nativeButton={false} render={<a href="/agenda" />}>
+              Abrir agenda
+              <ArrowRightIcon aria-hidden="true" />
             </Button>
           </CardFooter>
         </Card>
@@ -331,10 +695,14 @@ type RowMenuState = {
 } | null
 
 function EntitySection({
+  createRequest,
   kind,
+  onCreateRequestHandled,
   scenarioId,
 }: {
+  createRequest: { kind: SetupEntityKind; trigger: HTMLButtonElement } | null
   kind: SetupEntityKind
+  onCreateRequestHandled: () => void
   scenarioId: SetupScenarioId
 }) {
   const [search, setSearch] = useState("")
@@ -345,6 +713,8 @@ function EntitySection({
   const [drawer, setDrawer] = useState<EntityDrawerState>(null)
   const [rowMenu, setRowMenu] = useState<RowMenuState>(null)
   const [archiveTarget, setArchiveTarget] = useState<SetupEntity | null>(null)
+  const [invitationToRevoke, setInvitationToRevoke] =
+    useState<PendingProfessionalInvitation | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const query = { kind, page, pageSize, scenarioId, search, sort, status } satisfies SetupListQuery
   const entities = useSetupEntities(query)
@@ -352,6 +722,16 @@ function EntitySection({
   const createEntity = useCreateSetupEntity()
   const updateEntity = useUpdateSetupEntity()
   const setArchived = useSetSetupEntityArchived()
+  const pendingInvitations = usePendingProfessionalInvitations(kind === "professional")
+  const resendInvitation = useResendProfessionalInvitation()
+  const revokeInvitation = useRevokeProfessionalInvitation()
+
+  useEffect(() => {
+    if (createRequest?.kind !== kind) return
+    returnFocusRef.current = createRequest.trigger
+    setDrawer({ kind: "create", entityKind: kind })
+    onCreateRequestHandled()
+  }, [createRequest, kind, onCreateRequestHandled])
 
   function closeDrawer() {
     setDrawer(null)
@@ -362,15 +742,22 @@ function EntitySection({
   }
 
   async function save(entityKind: SetupEntityKind, input: SetupEntityInput) {
-    try {
-      if (drawer?.kind === "edit")
-        await updateEntity.mutateAsync({ id: drawer.entity.id, input, kind: entityKind })
-      else await createEntity.mutateAsync({ input, kind: entityKind })
-      toast.success(drawer?.kind === "edit" ? "Registro atualizado." : "Registro criado.")
-      closeDrawer()
-    } catch (error) {
-      toast.error(errorMessage(error))
-    }
+    if (drawer?.kind === "edit")
+      await updateEntity.mutateAsync({
+        id: drawer.entity.id,
+        input,
+        kind: entityKind,
+        version: drawer.entity.version ?? 1,
+      })
+    else await createEntity.mutateAsync({ input, kind: entityKind })
+    toast.success(
+      drawer?.kind === "edit"
+        ? "Registro atualizado."
+        : entityKind === "professional"
+          ? "Convite enviado. O profissional aparecerá após aceitar."
+          : "Registro criado.",
+    )
+    closeDrawer()
   }
 
   async function confirmArchive() {
@@ -414,27 +801,7 @@ function EntitySection({
   }
   const labels = entityLabels[kind]
   return (
-    <section aria-labelledby={`${kind}-title`} className="flex h-full min-h-[32rem] flex-col gap-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 id={`${kind}-title`} className="text-lg font-semibold">
-            {labels.plural}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Gerencie os registros e vínculos desta configuração.
-          </p>
-        </div>
-        <Button
-          type="button"
-          onClick={(event) => {
-            returnFocusRef.current = event.currentTarget
-            setDrawer({ kind: "create", entityKind: kind })
-          }}
-        >
-          <PlusIcon aria-hidden="true" />
-          {labels.newLabel}
-        </Button>
-      </div>
+    <section aria-label={labels.plural} className="flex h-full min-h-[32rem] flex-col gap-3">
       <fieldset className="flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto rounded-lg border bg-card p-2">
         <legend className="sr-only">
           Busca e filtros de {labels.plural.toLocaleLowerCase("pt-BR")}
@@ -466,6 +833,54 @@ function EntitySection({
           }}
         />
       </fieldset>
+      {kind === "professional" && (pendingInvitations.data?.length ?? 0) > 0 ? (
+        <section className="grid gap-2" aria-labelledby="pending-professional-invitations">
+          <div>
+            <h2 className="font-medium" id="pending-professional-invitations">
+              Convites pendentes
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              O profissional aparecerá como ativo depois de aceitar o convite.
+            </p>
+          </div>
+          {pendingInvitations.data?.map((invitation) => (
+            <div
+              className="flex flex-col gap-3 rounded-lg border bg-card p-3 sm:flex-row sm:items-center"
+              key={invitation.id}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{invitation.email}</p>
+                <p className="text-sm text-muted-foreground">{invitation.role}</p>
+              </div>
+              <StatusBadge tone="warning">Pendente</StatusBadge>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  isLoading={resendInvitation.isPending}
+                  onClick={async () => {
+                    try {
+                      await resendInvitation.mutateAsync(invitation.id)
+                      toast.success("Convite reenviado.")
+                    } catch (error) {
+                      toast.error(errorMessage(error))
+                    }
+                  }}
+                >
+                  Reenviar convite
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setInvitationToRevoke(invitation)}
+                >
+                  Cancelar convite
+                </Button>
+              </div>
+            </div>
+          ))}
+        </section>
+      ) : null}
       {entities.isPending ? (
         <LoadingTable />
       ) : entities.isError ? (
@@ -659,6 +1074,25 @@ function EntitySection({
         onCancel={() => setArchiveTarget(null)}
         onConfirm={confirmArchive}
       />
+      <ConfirmationDialog
+        isOpen={invitationToRevoke !== null}
+        title="Cancelar convite pendente?"
+        description="O link enviado deixará de funcionar. Você poderá enviar um novo convite depois."
+        confirmLabel="Cancelar convite"
+        confirmVariant="destructive"
+        isLoading={revokeInvitation.isPending}
+        onCancel={() => setInvitationToRevoke(null)}
+        onConfirm={async () => {
+          if (!invitationToRevoke) return
+          try {
+            await revokeInvitation.mutateAsync(invitationToRevoke.id)
+            toast.success("Convite cancelado.")
+            setInvitationToRevoke(null)
+          } catch (error) {
+            toast.error(errorMessage(error))
+          }
+        }}
+      />
     </section>
   )
 }
@@ -708,8 +1142,7 @@ function LoadingTable() {
 
 function entityDetail(entity: SetupEntity) {
   if (entity.kind === "unit") return `${entity.code} · ${entity.address}`
-  if (entity.kind === "professional")
-    return `${entity.role} · ${accountAccessLabel(entity.accountAccess)}`
+  if (entity.kind === "professional") return entity.role
   return `${entity.category} · ${entity.durationMinutes} min · ${formatMoney(entity.priceCents)}`
 }
 
@@ -718,14 +1151,6 @@ function entityRelationships(entity: SetupEntity) {
   if (entity.kind === "professional")
     return `${entity.unitIds.length} unidade(s) · ${entity.serviceIds.length} serviço(s)`
   return `${entity.unitIds.length} unidade(s) · ${entity.professionalIds.length} profissional(is)`
-}
-
-function accountAccessLabel(value: SetupProfessional["accountAccess"]) {
-  return value === "connected"
-    ? "Acesso conectado"
-    : value === "invited"
-      ? "Convite pendente"
-      : "Sem acesso configurado"
 }
 
 function errorMessage(error: unknown) {

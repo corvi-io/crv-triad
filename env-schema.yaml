@@ -6,7 +6,11 @@ source:
     api: /api
     site: /site
     studio: /studio
+    backstage: /backstage
     infrastructure: /infrastructure
+infrastructure:
+  env:
+    - { source: INFRA__TRIGGER_ACCESS_TOKEN, github: secret, required: true, required_for: [api] }
 apps:
   api:
     owner: apps/api
@@ -26,6 +30,16 @@ apps:
       - { source: API__IDP_EMAIL_FROM, runtime: IDP_EMAIL_FROM, github: variable, required: true }
       - { source: API__IDP_STUDIO_URL, runtime: IDP_STUDIO_URL, github: variable, required: true }
       - { source: API__IDP_RESEND_API_KEY, runtime: IDP_RESEND_API_KEY, github: secret, required: true }
+      - { source: API__PRIVATE_STORAGE_DRIVER, runtime: PRIVATE_STORAGE_DRIVER, github: variable, required: true }
+      - { source: API__REPORT_EXPORT_ENABLED, runtime: REPORT_EXPORT_ENABLED, github: variable, required: true }
+      - { source: API__REPORT_EXPORT_PROVIDER, runtime: REPORT_EXPORT_PROVIDER, github: variable, required: true }
+      - { source: API__TRIGGER_PROJECT_REF, runtime: TRIGGER_PROJECT_REF, github: variable, required: true }
+      - { source: API__TRIGGER_SECRET_KEY, runtime: TRIGGER_SECRET_KEY, github: secret, required: true }
+      - { source: API__TRIGGER_PREVIEW_BRANCH, runtime: TRIGGER_PREVIEW_BRANCH, github: variable, required: false, required_targets: [dev] }
+      - { source: API__R2_PRIVATE_ENDPOINT, runtime: R2_PRIVATE_ENDPOINT, github: variable, required: true }
+      - { source: API__R2_PRIVATE_ACCESS_KEY_ID, runtime: R2_PRIVATE_ACCESS_KEY_ID, github: secret, required: true }
+      - { source: API__R2_PRIVATE_SECRET_ACCESS_KEY, runtime: R2_PRIVATE_SECRET_ACCESS_KEY, github: secret, required: true }
+      - { source: API__R2_PRIVATE_BUCKET, runtime: R2_PRIVATE_BUCKET, github: variable, required: true }
       - { source: API__LEAD_EMAIL_FROM, runtime: LEAD_EMAIL_FROM, github: variable, required: true }
       - { source: API__LEAD_EMAIL_TO, runtime: LEAD_EMAIL_TO, github: secret, required: true }
       - { source: API__LEAD_RESEND_API_KEY, runtime: LEAD_RESEND_API_KEY, github: secret, required: true }
@@ -33,6 +47,7 @@ apps:
       - { source: API__LEAD_TURNSTILE_SECRET_KEY, runtime: LEAD_TURNSTILE_SECRET_KEY, github: secret, required: true }
       - { source: API__LEAD_TURNSTILE_HOSTNAMES, runtime: LEAD_TURNSTILE_HOSTNAMES, github: variable, required: true }
       - { source: API__POSTHOG_UPSTREAM_URL, runtime: POSTHOG_UPSTREAM_URL, github: variable, required: false }
+      - { source: API__POSTHOG_PROJECT_KEY, runtime: POSTHOG_PROJECT_KEY, github: variable, required: false, required_targets: [prd] }
   site:
     owner: apps/site
     runtime: cloudflare-pages-static
@@ -59,3 +74,15 @@ apps:
       - { source: STUDIO__VITE_SCHEDULING_SOURCE, runtime: VITE_SCHEDULING_SOURCE, github: variable, required: false }
       - { source: STUDIO__VITE_BARBERSHOP_SETUP_SOURCE, runtime: VITE_BARBERSHOP_SETUP_SOURCE, github: variable, required: false }
       - { source: STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE, runtime: VITE_CLIENT_MANAGEMENT_SOURCE, github: variable, required: false }
+      - { source: STUDIO__VITE_REVENUE_OPERATIONS_SOURCE, runtime: VITE_REVENUE_OPERATIONS_SOURCE, github: variable, required: false }
+      - { source: STUDIO__VITE_REPORTING_SOURCE, runtime: VITE_REPORTING_SOURCE, github: variable, required: false }
+  backstage:
+    owner: apps/backstage
+    runtime: cloudflare-pages-static
+    targets:
+      dev: { github_environment: dev, cloudflare_pages_branch: dev }
+      hml: { github_environment: hml, cloudflare_pages_branch: hml }
+      prd: { github_environment: prd, cloudflare_pages_branch: main }
+    env:
+      - { source: BACKSTAGE__VITE_AUTH_BASE_URL, runtime: VITE_AUTH_BASE_URL, github: variable, required: true }
+      - { source: BACKSTAGE__VITE_DEPLOY_TARGET, runtime: VITE_DEPLOY_TARGET, github: variable, required: false }

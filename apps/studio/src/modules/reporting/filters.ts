@@ -12,6 +12,7 @@ export type ReportSearch = {
   scenario: ReportingScenarioId
   service?: string
   to: string
+  unit?: string
 }
 
 const safeFacetId = /^[a-z0-9][a-z0-9-]{0,63}$/
@@ -49,6 +50,7 @@ export function normalizeReportSearch(
         ? (search.scenario as ReportingScenarioId)
         : "typical",
     service: normalizeFacet(search.service),
+    unit: normalizeFacet(search.unit),
   }
 }
 
@@ -59,6 +61,7 @@ export function filtersFromSearch(search: ReportSearch): ReportFilters {
     professionalId: search.professional,
     serviceId: search.service,
     to: search.to,
+    unitId: search.unit,
   }
 }
 

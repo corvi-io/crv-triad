@@ -1,4 +1,5 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { activationReadinessKey } from "@/modules/onboarding/readiness"
 import type {
   AvailabilityQuery,
   AvailabilityResult,
@@ -36,11 +37,14 @@ export const barbershopSetupQueryKeys = {
     [...barbershopSetupQueryKeys.all, "availability", query] as const,
   completion: (scenarioId: SetupScenarioId) =>
     [...barbershopSetupQueryKeys.all, "completion", scenarioId] as const,
+  businessProfile: () => [...barbershopSetupQueryKeys.all, "business-profile"] as const,
   list: (query: SetupListQuery) => [...barbershopSetupQueryKeys.all, "list", query] as const,
   overview: (scenarioId: SetupScenarioId) =>
     [...barbershopSetupQueryKeys.all, "overview", scenarioId] as const,
   professionalSummary: (professionalId: string, date: string) =>
     [...barbershopSetupQueryKeys.all, "professional-summary", professionalId, date] as const,
+  professionalInvitations: () =>
+    [...barbershopSetupQueryKeys.all, "professional-invitations"] as const,
 }
 
 export function useSetupCompletion(scenarioId: SetupScenarioId) {
@@ -48,6 +52,17 @@ export function useSetupCompletion(scenarioId: SetupScenarioId) {
   return useQuery({
     queryKey: barbershopSetupQueryKeys.completion(scenarioId),
     queryFn: () => repository.getCompletion(scenarioId),
+  })
+}
+
+export function useBusinessProfile(enabled = true) {
+  const repository = useBarbershopSetupRepository()
+  return useQuery({
+    enabled,
+    queryKey: barbershopSetupQueryKeys.businessProfile(),
+    queryFn: () =>
+      repository.getBusinessProfile?.() ??
+      Promise.reject(new Error("Perfil da barbearia indisponível.")),
   })
 }
 
@@ -75,6 +90,31 @@ export function useSetupEntities(query: SetupListQuery) {
   })
 }
 
+export function usePendingProfessionalInvitations(enabled: boolean) {
+  const repository = useBarbershopSetupRepository()
+  return useQuery({
+    enabled: enabled && Boolean(repository.listPendingProfessionalInvitations),
+    queryKey: barbershopSetupQueryKeys.professionalInvitations(),
+    queryFn: () => repository.listPendingProfessionalInvitations?.() ?? Promise.resolve([]),
+  })
+}
+
+export function useResendProfessionalInvitation() {
+  const repository = useBarbershopSetupRepository()
+  return useCompletionMutation((id: string) => {
+    if (!repository.resendProfessionalInvitation) throw new Error("Reenvio indisponível.")
+    return repository.resendProfessionalInvitation(id)
+  })
+}
+
+export function useRevokeProfessionalInvitation() {
+  const repository = useBarbershopSetupRepository()
+  return useCompletionMutation((id: string) => {
+    if (!repository.revokeProfessionalInvitation) throw new Error("Cancelamento indisponível.")
+    return repository.revokeProfessionalInvitation(id)
+  })
+}
+
 export function useSetupAvailability(query: AvailabilityQuery) {
   const repository = useBarbershopSetupRepository()
   return useQuery({
@@ -84,7 +124,7 @@ export function useSetupAvailability(query: AvailabilityQuery) {
 }
 
 function useEntityMutation<TVariables>(
-  mutationFn: (variables: TVariables) => Promise<SetupEntity>,
+  mutationFn: (variables: TVariables) => Promise<SetupEntity | undefined>,
 ) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -92,7 +132,10 @@ function useEntityMutation<TVariables>(
     onMutate: () => ({ generation: getQueryGeneration(queryClient) }),
     onSuccess: (_data, _variables, context) => {
       if (isCurrentGeneration(queryClient, context.generation))
-        return queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all })
+        return Promise.all([
+          queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all }),
+          queryClient.invalidateQueries({ queryKey: activationReadinessKey }),
+        ])
     },
   })
 }
@@ -113,7 +156,10 @@ function useCompletionMutation<TVariables, TResult>(
     onMutate: () => ({ generation: getQueryGeneration(queryClient) }),
     onSuccess: (_data, _variables, context) => {
       if (isCurrentGeneration(queryClient, context.generation))
-        return queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all })
+        return Promise.all([
+          queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all }),
+          queryClient.invalidateQueries({ queryKey: activationReadinessKey }),
+        ])
     },
   })
 }
@@ -140,8 +186,17 @@ export function useSetProfessionalServiceOverride() {
 export function useUpdateSetupEntity() {
   const repository = useBarbershopSetupRepository()
   return useEntityMutation(
-    ({ id, input, kind }: { id: string; input: SetupEntityInput; kind: SetupEntityKind }) =>
-      repository.update(kind, id, input),
+    ({
+      id,
+      input,
+      kind,
+      version,
+    }: {
+      id: string
+      input: SetupEntityInput
+      kind: SetupEntityKind
+      version: number
+    }) => repository.update(kind, id, input, version),
   )
 }
 
@@ -181,7 +236,10 @@ export function useSetSetupEntityArchived() {
     },
     onSettled: (_data, _error, _variables, context) => {
       if (context && isCurrentGeneration(queryClient, context.generation))
-        return queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all })
+        return Promise.all([
+          queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all }),
+          queryClient.invalidateQueries({ queryKey: activationReadinessKey }),
+        ])
     },
   })
 }
@@ -212,7 +270,10 @@ export function useUpdateSetupAvailability() {
     },
     onSettled: (_data, _error, _variables, context) => {
       if (context && isCurrentGeneration(queryClient, context.generation))
-        return queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all })
+        return Promise.all([
+          queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all }),
+          queryClient.invalidateQueries({ queryKey: activationReadinessKey }),
+        ])
     },
   })
 }
@@ -244,7 +305,10 @@ export function useUpdateSetupAvailabilityBatch() {
     },
     onSettled: (_data, _error, _variables, context) => {
       if (context && isCurrentGeneration(queryClient, context.generation))
-        return queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all })
+        return Promise.all([
+          queryClient.invalidateQueries({ queryKey: barbershopSetupQueryKeys.all }),
+          queryClient.invalidateQueries({ queryKey: activationReadinessKey }),
+        ])
     },
   })
 }
@@ -268,9 +332,12 @@ export function useCopySetupAvailabilityToWeekdays() {
           records: result.records.map((record) => updatesById.get(record.id) ?? record),
         })
       }
-      return queryClient.invalidateQueries({
-        queryKey: [...barbershopSetupQueryKeys.all, "availability"],
-      })
+      return Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [...barbershopSetupQueryKeys.all, "availability"],
+        }),
+        queryClient.invalidateQueries({ queryKey: activationReadinessKey }),
+      ])
     },
   })
 }

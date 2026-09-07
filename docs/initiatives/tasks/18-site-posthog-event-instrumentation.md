@@ -29,6 +29,12 @@
 - [x] Cover proxy routing, security headers, client IP handling, safe failures, and unsupported methods.
 - [x] Update API/site environment contracts and durable operational documentation.
 - [ ] Validate production Live Events and payloads after deployment begins sending consented events.
+- [x] Move the accepted-lead conversion event to the API boundary after successful provider delivery.
+- [x] Pass only a consented, validated anonymous analytics ID with lead submissions.
+- [x] Add API and site regression coverage for consent correlation, honeypot exclusion, and
+      non-blocking analytics failures.
+- [x] Correct dashboard environment filters, visitor aggregation, metric naming, and the primary funnel.
+- [ ] Revalidate production ingestion and dashboard results through the PostHog MCP.
 
 ## Verification Evidence
 
@@ -38,8 +44,12 @@
 - `bun --filter site build`: passed with four static pages and sitemap output.
 - PostHog dashboard `2052101`: 12 saved insights and six categorized text tiles in Brazilian Portuguese.
 - PostHog funnel `sRIKNjbS`: five ordered steps from page view to accepted lead submission.
+- Dashboard `2052101` now applies `environment = production` globally; lead metrics and the primary
+  funnel use the server-confirmed `lead_submission_accepted` event and consent-aware wording.
 - Provider queries execute successfully and currently return zero because the project has not received site events.
-- `bun --filter api check`: passed with 17 files and 126 tests, including 14 analytics proxy tests.
+- `bun --filter api check`: passed with 20 files and 136 tests, including server-confirmed lead capture.
+- `bun --filter api coverage:check`: passed at 91.28% statements, 83.38% branches, 95.04%
+  functions, and 93.41% lines.
 - `bun test ./.github/scripts/env-management.test.ts`: seven tests passed.
 - `bun run check`: API, site, and studio passed.
 - Feature Product QA: approved at 9.5/10 with inspected desktop and mobile screenshots; report under
@@ -54,3 +64,5 @@
 - [x] Provider project/region, dashboard ownership, and URLs were confirmed through the authorized project.
 - [ ] API-proxy bandwidth and concurrency are unmeasured; reevaluate a managed or dedicated edge
       proxy if traffic or cost becomes material.
+- [ ] PostHog remains a consented analytics subset; the lead delivery provider or future CRM is the
+      source of truth for total commercial leads.

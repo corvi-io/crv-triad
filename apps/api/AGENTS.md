@@ -8,3 +8,8 @@
 - Use Drizzle for PostgreSQL persistence and keep migrations under `drizzle`.
 - Keep unit tests under `tests/unit` and composed HTTP/database tests under `tests/integration`.
 - Run `bun --filter api check` and `bun --filter api coverage:check` before handoff.
+- Return expected form failures with stable machine-readable codes and safe
+  `error.details.field` metadata when one field caused the failure. Keep Portuguese copy in the
+  client and do not leak constraint names, SQL, submitted values, or internals.
+- Return optimistic-concurrency failures as `409 version_conflict`; never silently overwrite a
+  stale version.

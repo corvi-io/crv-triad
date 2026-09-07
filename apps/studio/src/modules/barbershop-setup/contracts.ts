@@ -16,10 +16,37 @@ export type SetupEntityStatus = "active" | "archived"
 export type AccountAccessStatus = "connected" | "invited" | "not-configured"
 
 export type BarbershopProfile = {
+  description?: string
   displayName: string
   email: string
+  instagram?: string
+  logoAvailable?: boolean
   phone: string
   primaryUnitId?: string
+  version?: number
+  website?: string
+  whatsapp?: string
+}
+
+export type CommissionPolicy = {
+  basisPoints?: number | null
+  fixedCents?: number | null
+  kind: "fixed" | "none" | "percentage"
+  professionalId: string
+  serviceId?: string | null
+  version: number
+}
+export type CommissionDetail = {
+  items: readonly {
+    id: string
+    kind: "earned" | "reversal"
+    professionalName: string
+    serviceName: string
+    commissionCents: number
+    barbershopShareCents: number
+    localDate: string
+  }[]
+  totals: { commissionCents: number; barbershopShareCents: number }
 }
 
 export const basePaymentMethodIds = ["pix", "cash", "debit", "credit"] as const
@@ -105,7 +132,10 @@ export type SetupCompletion = {
 }
 
 export type TimeRange = { end: string; start: string }
-export type BusinessHours = TimeRange & { days: readonly Weekday[] }
+export type BusinessHoursPeriod = TimeRange & { days: readonly Weekday[] }
+export type BusinessHours = BusinessHoursPeriod & {
+  periods?: readonly BusinessHoursPeriod[]
+}
 export type AvailabilityTimeBlock = TimeRange & {
   excludedDates: readonly string[]
   id: string
@@ -121,6 +151,7 @@ export type AvailabilityView = (typeof availabilityViews)[number]
 type SetupEntityBase = {
   id: string
   status: SetupEntityStatus
+  version?: number
 }
 
 export type SetupUnit = SetupEntityBase & {
@@ -129,14 +160,13 @@ export type SetupUnit = SetupEntityBase & {
   code: string
   kind: "unit"
   name: string
+  timezone?: string
 }
 
 export type SetupProfessional = SetupEntityBase & {
   accountAccess: AccountAccessStatus
   accessPolicy?: ProfessionalAccessPolicy
   commissionBasisPoints?: number
-  contactEmail?: string
-  contactPhone?: string
   kind: "professional"
   name: string
   role: string
@@ -212,7 +242,23 @@ export type SetupOverview = {
 }
 
 export type UnitInput = Omit<SetupUnit, "id" | "kind" | "status">
-export type ProfessionalInput = Omit<SetupProfessional, "id" | "kind" | "status">
+export type ProfessionalInput = {
+  commissionBasisPoints: number
+  invitationEmail: string
+  role: string
+  serviceIds: readonly string[]
+  specialties: readonly string[]
+  unitIds: readonly string[]
+}
+export type PendingProfessionalInvitation = {
+  assignments: { serviceIds: readonly string[]; unitIds: readonly string[] }
+  email: string
+  expiresAt: string
+  id: string
+  role: string
+  specialties: readonly string[]
+  status: "pending"
+}
 export type ServiceInput = Omit<SetupService, "id" | "kind" | "status">
 export type SetupEntityInput = ProfessionalInput | ServiceInput | UnitInput
 
@@ -267,13 +313,16 @@ export class SetupOperationInvalidatedError extends Error {
 }
 
 export interface BarbershopSetupRepository {
+  readonly catalogSource?: "http"
   copyAvailabilityToWeekdays(
     input: CopyAvailabilityToWeekdaysInput,
   ): Promise<readonly SetupAvailability[]>
-  create(kind: SetupEntityKind, input: SetupEntityInput): Promise<SetupEntity>
+  create(kind: SetupEntityKind, input: SetupEntityInput): Promise<SetupEntity | undefined>
   getActivePaymentMethodIds(): Promise<readonly BasePaymentMethodId[]>
   getAvailability(query: AvailabilityQuery): Promise<AvailabilityResult>
   getCompletion(scenarioId: SetupScenarioId): Promise<SetupCompletion>
+  getBusinessProfile?(): Promise<BarbershopProfile>
+  getBusinessUnits?(): Promise<readonly SetupUnit[]>
   getOverview(scenarioId: SetupScenarioId): Promise<SetupOverview>
   getProfessionalOperationalSummary(
     professionalId: string,
@@ -281,6 +330,9 @@ export interface BarbershopSetupRepository {
   ): Promise<ProfessionalOperationalSummary>
   getProfessionalCommissionBasisPoints(professionalId: string): Promise<number>
   list(query: SetupListQuery): Promise<SetupEntityPage>
+  listPendingProfessionalInvitations?(): Promise<readonly PendingProfessionalInvitation[]>
+  resendProfessionalInvitation?(id: string): Promise<void>
+  revokeProfessionalInvitation?(id: string): Promise<void>
   resolveProfessionalService(
     serviceId: string,
     professionalId: string,
@@ -289,11 +341,24 @@ export interface BarbershopSetupRepository {
     input: SetProfessionalServiceOverrideInput,
   ): Promise<ProfessionalServiceOverride | undefined>
   setArchived(kind: SetupEntityKind, id: string, archived: boolean): Promise<SetupEntity>
-  update(kind: SetupEntityKind, id: string, input: SetupEntityInput): Promise<SetupEntity>
+  update(
+    kind: SetupEntityKind,
+    id: string,
+    input: SetupEntityInput,
+    version?: number,
+  ): Promise<SetupEntity>
   updateAvailability(input: SetupAvailability): Promise<SetupAvailability>
   updateAvailabilityBatch(
     input: UpdateAvailabilityBatchInput,
   ): Promise<readonly SetupAvailability[]>
   updatePaymentMethods(input: UpdatePaymentMethodsInput): Promise<readonly PaymentMethodSetting[]>
   updateProfile(input: BarbershopProfile): Promise<BarbershopProfile>
+  getCommissionPolicies?(): Promise<readonly CommissionPolicy[]>
+  getCommissionDetail?(filters: { from: string; to: string }): Promise<CommissionDetail>
+  saveCommissionPolicy?(
+    input: Omit<CommissionPolicy, "version"> & { expectedVersion: number | null },
+  ): Promise<readonly CommissionPolicy[]>
+  getBusinessLogo?(): Promise<Blob | null>
+  uploadBusinessLogo?(file: File, expectedVersion: number): Promise<BarbershopProfile>
+  removeBusinessLogo?(expectedVersion: number): Promise<BarbershopProfile>
 }

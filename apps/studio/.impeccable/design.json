@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-04T00:00:00-03:00",
+  "title": "Design System: TRIAD Studio",
+  "extensions": {
+    "colorMeta": {
+      "primary-light": {
+        "role": "primary",
+        "displayName": "Operational Gold",
+        "canonical": "#86652f",
+        "tonalRamp": [
+          "#fff9ec",
+          "#fdf0ce",
+          "#f9dfa0",
+          "#f1c871",
+          "#d8b86c",
+          "#cdaa5b",
+          "#b0883f",
+          "#86652f",
+          "#5e4624",
+          "#3d2e19",
+          "#21180d"
+        ]
+      },
+      "background-dark": {
+        "role": "neutral",
+        "displayName": "Navy Night",
+        "canonical": "#0f172a",
+        "tonalRamp": [
+          "#f3f6fc",
+          "#e4eaf5",
+          "#c5d0e5",
+          "#9baccc",
+          "#7086af",
+          "#50678f",
+          "#3b4e72",
+          "#2e3e5d",
+          "#1e293b",
+          "#0f172a",
+          "#080d19"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Page Headline",
+        "purpose": "Names the confirmed operating context or major administrative destination."
+      },
+      "body": {
+        "displayName": "Operational Body",
+        "purpose": "Primary reading and form content in compact task-oriented screens."
+      },
+      "label": {
+        "displayName": "Control Label",
+        "purpose": "Explicit names for controls, table columns, roles, and metadata."
+      }
+    },
+    "shadows": [
+      {
+        "name": "menu",
+        "value": "0 0.625rem 1.875rem rgb(10 10 10 / 0.12)",
+        "purpose": "Floating menus and popovers only."
+      },
+      {
+        "name": "sidebar",
+        "value": "0 0.0625rem 0.125rem rgb(10 10 10 / 0.08)",
+        "purpose": "Subtle separation for the contiguous authenticated shell."
+      },
+      {
+        "name": "brand",
+        "value": "0 1.5rem 4rem rgb(8 13 25 / 0.32)",
+        "purpose": "Bounded authentication identity surfaces only."
+      }
+    ],
+    "motion": [
+      { "name": "fast", "value": "150ms", "purpose": "Immediate control feedback." },
+      { "name": "normal", "value": "200ms", "purpose": "Sidebar and ordinary state transitions." },
+      {
+        "name": "reduced",
+        "value": "0.01ms",
+        "purpose": "Global effective duration under prefers-reduced-motion; transforms are removed from moving agenda surfaces."
+      }
+    ],
+    "breakpoints": [{ "name": "sm", "value": "640px" }, { "name": "md", "value": "768px" }]
+  },
+  "components": [
+    {
+      "name": "Support-State Boundary",
+      "kind": "custom",
+      "description": "Persistent structural signature for reason-bound, time-limited, read-only CRV support.",
+      "html": "<header class=\"ds-support-boundary\"><strong>Suporte ativo — Barbearia</strong><small>Expira às 14:30</small><button>Sair do suporte</button></header>",
+      "css": ".ds-support-boundary { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding: .75rem 1rem; border-bottom: 1px solid color-mix(in srgb, #b91c1c 40%, transparent); background: color-mix(in srgb, #b91c1c 10%, transparent); color: #080d19; } .ds-support-boundary strong, .ds-support-boundary small { display: block; } .ds-support-boundary button { margin-inline-start: auto; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Confirmed Context",
+    "overview": "A calm navy-and-gold operating environment where every action visibly belongs to one server-confirmed tenant, platform, or temporary support context. Brand emphasis is scarce; hierarchy, containment, and factual state carry trust.",
+    "keyCharacteristics": [
+      "Restrained navy surfaces with purposeful gold emphasis",
+      "Compact operational density",
+      "Continuously visible organization and authority context",
+      "Structural separation for platform and support work",
+      "Intentional light, dark, reduced-motion, and 320px behavior"
+    ],
+    "rules": [
+      {
+        "name": "Gold Is Scarce",
+        "body": "Use gold for focus, selection, brand, and primary action—not as a large decorative wash.",
+        "section": "colors"
+      },
+      {
+        "name": "State Has More Than Color",
+        "body": "Every authority and support state needs direct language and semantic structure in addition to color.",
+        "section": "colors"
+      },
+      {
+        "name": "Flat by Default",
+        "body": "Operational hierarchy comes from tonal layers and one-pixel boundaries; elevation is reserved for overlays, shell separation, and bounded brand surfaces.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Use server-confirmed context and authorization facts.",
+      "Keep Brazilian Portuguese copy direct and factual.",
+      "Preserve keyboard, focus, screen-reader, 320px, dark-theme, and reduced-motion behavior."
+    ],
+    "donts": [
+      "Do not merge tenant, platform, and support into one generic dashboard.",
+      "Do not communicate authority or status by color alone.",
+      "Do not imply impersonation, payment collection, or unsupported authority."
+    ]
+  }
+}

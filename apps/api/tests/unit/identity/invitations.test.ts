@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  acceptInvitationForUser,
   createInvitation,
   createInvitationSecret,
   digestInvitationToken,
@@ -66,6 +67,47 @@ function createFakeDatabase(rows: unknown[] = []) {
 }
 
 describe("invitations", () => {
+  it("does not reapply an admin role while replaying an accepted invitation", async () => {
+    let selectCount = 0
+    let updateCount = 0
+    const accepted = {
+      acceptedByUserId: "user-1",
+      email: "invite@example.com",
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      id: "invitation-1",
+      role: "admin",
+      status: "accepted",
+      tokenDigest: "digest",
+      tokenIssuedAt: now,
+    }
+    const transaction = {
+      execute: async () => [],
+      select: () => {
+        const rows = selectCount++ === 0 ? [accepted] : []
+        const query = {
+          from: () => query,
+          limit: async () => rows,
+          where: () => query,
+        }
+        return query
+      },
+      update: () => {
+        updateCount += 1
+        throw new Error("Replay must not update the global user role.")
+      },
+    }
+    const db = {
+      transaction: async <T>(callback: (tx: typeof transaction) => Promise<T>) =>
+        callback(transaction),
+    }
+
+    await expect(
+      acceptInvitationForUser(db as never, "Invite@Example.com", "user-1", "invitation-1"),
+    ).resolves.toMatchObject({ id: "invitation-1", status: "accepted" })
+    expect(selectCount).toBe(1)
+    expect(updateCount).toBe(0)
+  })
+
   it("uses a deterministic lookup for pending invitations", async () => {
     const { calls, db } = createFakeDatabase([{ id: "invitation-1" }])
 
@@ -188,7 +230,7 @@ describe("invitations", () => {
     expect(calls.transactionCount).toBe(1)
   })
 
-  it("supersedes the previous invitation before issuing a replacement secret", async () => {
+  it("rotates the secret without changing the invitation identity", async () => {
     const previous = createInvitationSecret()
     const updatedValues: unknown[] = []
     const insertedValues: Array<Record<string, unknown>> = []
@@ -221,7 +263,7 @@ describe("invitations", () => {
         set: (values: unknown) => {
           updatedValues.push(values)
           return {
-            where: () => ({ returning: async () => [{ ...current, status: "superseded" }] }),
+            where: () => ({ returning: async () => [{ ...current, ...(values as object) }] }),
           }
         },
       }),
@@ -237,11 +279,15 @@ describe("invitations", () => {
       now,
     )
 
-    expect(updatedValues).toContainEqual(expect.objectContaining({ status: "superseded" }))
-    expect(insertedValues).toHaveLength(1)
-    expect(insertedValues[0]).not.toHaveProperty("token")
+    expect(updatedValues).toContainEqual(
+      expect.objectContaining({ tokenIssuedAt: now, updatedAt: now }),
+    )
+    expect(insertedValues).toHaveLength(0)
+    expect(replacement?.invitation.id).toBe(current.id)
     expect(replacement?.token).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(replacement?.token).not.toBe(previous.token)
-    expect(insertedValues[0]?.tokenDigest).toBe(digestInvitationToken(replacement?.token ?? ""))
+    expect(updatedValues[0]).toEqual(
+      expect.objectContaining({ tokenDigest: digestInvitationToken(replacement?.token ?? "") }),
+    )
   })
 })

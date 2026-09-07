@@ -68,3 +68,9 @@
   masked date text fields.
 - Do not invent catalogs, uploads, filters, or record relationships before the
   owning domain contract is accepted.
+- Handle expected submission failures inside the form: map stable API error codes and
+  `error.details.field` to the matching field, render an accessible inline message, and focus the
+  first invalid field. A toast may summarize an unexpected failure but must not be the only feedback.
+- Treat `version_conflict` as a recoverable form state. Preserve the draft, explain that the record
+  changed after the screen was opened, and offer an explicit reload-latest action; never overwrite
+  silently or describe the editor as necessarily being another person.

@@ -7,6 +7,7 @@ export const clientQueryKeys = {
   detail: (id: string, scenarioId: ClientScenarioId) =>
     [...clientQueryKeys.all, "detail", scenarioId, id] as const,
   list: (query: ClientListQuery) => [...clientQueryKeys.all, "list", query] as const,
+  tags: (scenarioId: ClientScenarioId) => [...clientQueryKeys.all, "tags", scenarioId] as const,
 }
 
 export function useClients(query: ClientListQuery) {
@@ -20,6 +21,14 @@ export function useClient(id: string | null, scenarioId: ClientScenarioId) {
     enabled: Boolean(id),
     queryKey: clientQueryKeys.detail(id ?? "", scenarioId),
     queryFn: () => repository.get(id ?? "", scenarioId),
+  })
+}
+
+export function useClientTags(scenarioId: ClientScenarioId) {
+  const repository = useClientRepository()
+  return useQuery({
+    queryKey: clientQueryKeys.tags(scenarioId),
+    queryFn: () => repository.listTags(scenarioId),
   })
 }
 
@@ -38,8 +47,9 @@ export function useCreateClient() {
 
 export function useUpdateClient() {
   const repository = useClientRepository()
-  return useClientMutation(({ id, input }: { id: string; input: ClientInput }) =>
-    repository.update(id, input),
+  return useClientMutation(
+    ({ id, input, version }: { id: string; input: ClientInput; version: number }) =>
+      repository.update(id, input, version),
   )
 }
 
@@ -47,8 +57,8 @@ export function useSetClientArchived() {
   const repository = useClientRepository()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ archived, id }: { archived: boolean; id: string }) =>
-      repository.setArchived(id, archived),
+    mutationFn: ({ archived, id, version }: { archived: boolean; id: string; version: number }) =>
+      repository.setArchived(id, archived, version),
     onMutate: async ({ archived, id }) => {
       await queryClient.cancelQueries({ queryKey: clientQueryKeys.all })
       const snapshot = queryClient.getQueriesData({ queryKey: clientQueryKeys.all })
@@ -74,15 +84,25 @@ export function useAddClientNote() {
 export function useUpdateClientNote() {
   const repository = useClientRepository()
   return useClientMutation(
-    ({ clientId, input, noteId }: { clientId: string; input: NoteInput; noteId: string }) =>
-      repository.updateNote(clientId, noteId, input),
+    ({
+      clientId,
+      input,
+      noteId,
+      version,
+    }: {
+      clientId: string
+      input: NoteInput
+      noteId: string
+      version: number
+    }) => repository.updateNote(clientId, noteId, input, version),
   )
 }
 
 export function useRemoveClientNote() {
   const repository = useClientRepository()
-  return useClientMutation(({ clientId, noteId }: { clientId: string; noteId: string }) =>
-    repository.removeNote(clientId, noteId),
+  return useClientMutation(
+    ({ clientId, noteId, version }: { clientId: string; noteId: string; version: number }) =>
+      repository.removeNote(clientId, noteId, version),
   )
 }
 

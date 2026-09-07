@@ -1,5 +1,14 @@
 # NN Initiative Name
 
+## Status
+
+- Planning state: Draft | Blocked | Ready
+- Approval state: Draft | Awaiting approval | Changes requested | Approved | Rejected
+- Delivery state: Not started | In progress | Blocked | Done
+- Owner:
+- Last updated:
+- Approved by/date:
+
 ## Summary
 
 Briefly describe the initiative, the user or business outcome, and the affected app boundaries.
@@ -10,6 +19,14 @@ Briefly describe the initiative, the user or business outcome, and the affected 
 - Problem:
 - Why now:
 - Related docs/issues:
+- Repository evidence:
+
+## Actors And Workflows
+
+- Primary actors:
+- Current workflow:
+- Target workflow:
+- Alternate/failure/recovery flows:
 
 ## Goals
 
@@ -20,6 +37,16 @@ Briefly describe the initiative, the user or business outcome, and the affected 
 
 - Out of scope item 1
 - Out of scope item 2
+
+## Requirements
+
+### Functional
+
+- REQ-001:
+
+### Non-Functional
+
+- REQ-002:
 
 ## Brainstorm
 
@@ -42,6 +69,7 @@ Briefly describe the initiative, the user or business outcome, and the affected 
 - What simpler path could work?
 - What more robust path might be needed later?
 - What should not be built yet?
+- What is the cost of doing nothing?
 
 ### Options
 
@@ -62,6 +90,28 @@ State the recommended path and why it fits the near-term scope.
 - Studio impact:
 - Data/persistence impact:
 - External provider impact:
+
+## Project Standards Applicability
+
+Classify every row from
+`.agents/skills/triad-initiative-workflow/references/planning-gates.md`.
+
+| Concern | Classification | Rationale | Relevant skills/docs |
+| --- | --- | --- | --- |
+| Product workflow |  |  |  |
+| Architecture |  |  |  |
+| API |  |  |  |
+| Identity and authorization |  |  |  |
+| Persistence |  |  |  |
+| Studio UI |  |  |  |
+| Site UI |  |  |  |
+| Accessibility |  |  |  |
+| Performance and scale |  |  |  |
+| Security and privacy |  |  |  |
+| Observability |  |  |  |
+| Reliability and delivery |  |  |  |
+| Testing and QA |  |  |  |
+| Documentation |  |  |  |
 
 ## Performance And Scalability
 
@@ -98,11 +148,26 @@ Do not claim numeric capacity unless measured or explicitly estimated with assum
 - Alerts:
 - Sensitive data that must not be logged:
 
+## Delivery And Rollback
+
+- Compatibility strategy:
+- Feature flag/rollout:
+- Migration/backfill:
+- Rollback:
+- Operational readiness:
+
+## Success Measures
+
+- Success signals:
+- Baseline or measurement plan:
+- Regression guardrails:
+- Evaluation window:
+
 ## Acceptance Criteria
 
-- [ ] Criterion 1
-- [ ] Criterion 2
-- [ ] Criterion 3
+- [ ] AC-001:
+- [ ] AC-002:
+- [ ] AC-003:
 
 ## Verification Plan
 
@@ -114,5 +179,26 @@ Do not claim numeric capacity unless measured or explicitly estimated with assum
 
 ## Open Questions
 
+### Blocking
+
 - [ ] Question 1
-- [ ] Question 2
+
+### Non-Blocking
+
+- [ ] Question 2 — resolution path/owner:
+
+## Assumptions
+
+- Assumption — validation path:
+
+## Definition of Ready
+
+- [ ] All mandatory gates in `planning-gates.md` pass.
+- [ ] Requirement-to-acceptance-to-task traceability is complete.
+- [ ] The planning state is `Ready` before requesting approval.
+
+## Approval History
+
+| Date | Decision | Decided by | Notes / requested changes |
+| --- | --- | --- | --- |
+|  | Awaiting approval |  |  |

@@ -9,6 +9,10 @@ import {
   validateScheduleSearch,
 } from "@/modules/scheduling/agenda"
 import { resolveAgendaCurrentTimeMarker } from "@/modules/scheduling/agenda-current-time"
+import {
+  clampAgendaScrollTop,
+  resolveAgendaInitialScrollTop,
+} from "@/modules/scheduling/agenda-initial-position"
 
 const professionals = [
   { id: "professional-carlos", name: "Carlos Lima" },
@@ -103,7 +107,7 @@ describe("agenda derivation", () => {
           customStart: "2026-02-30",
           date: "2026-02-30",
           status: "invalid",
-          unit: "invalid",
+          unit: "<invalid>",
           view: "invalid",
         },
         "2026-07-21",
@@ -145,6 +149,24 @@ describe("Agenda current-time marker", () => {
     })
   })
 
+  it("uses the unit timezone for its date and clock instead of the browser timezone", () => {
+    expect(
+      resolveAgendaCurrentTimeMarker({
+        ...workingDay,
+        now: new Date("2026-07-22T17:37:00.000Z"),
+        timezone: "America/Recife",
+      }),
+    ).toMatchObject({ label: "Agora 14:37", time: "14:37" })
+
+    expect(
+      resolveAgendaCurrentTimeMarker({
+        ...workingDay,
+        now: new Date("2026-07-23T02:00:00.000Z"),
+        timezone: "America/Recife",
+      }),
+    ).toBeUndefined()
+  })
+
   it("includes the opening minute and excludes the closing minute", () => {
     expect(
       resolveAgendaCurrentTimeMarker({
@@ -180,5 +202,30 @@ describe("Agenda current-time marker", () => {
         now: new Date(2026, 6, 22, 8, 0),
       }),
     ).toBeUndefined()
+  })
+})
+
+describe("Agenda initial positioning", () => {
+  it("centers the marker below the sticky header and clamps both boundaries", () => {
+    expect(
+      resolveAgendaInitialScrollTop({
+        clientHeight: 400,
+        markerTop: 900,
+        scrollHeight: 1_400,
+        stickyHeaderHeight: 40,
+      }),
+    ).toBe(680)
+    expect(clampAgendaScrollTop(-10, 1_400, 400)).toBe(0)
+    expect(clampAgendaScrollTop(2_000, 1_400, 400)).toBe(1_000)
+  })
+
+  it("uses the opening boundary when today's marker is outside the range", () => {
+    expect(
+      resolveAgendaInitialScrollTop({
+        clientHeight: 400,
+        scrollHeight: 1_400,
+        stickyHeaderHeight: 40,
+      }),
+    ).toBe(0)
   })
 })

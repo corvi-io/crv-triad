@@ -7,6 +7,7 @@ import {
   isAppointmentActiveAt,
   projectScheduledEntries,
   queueCounts,
+  resolveStartProfessionalId,
   sortQueueEntries,
   waitMinutes,
 } from "@/modules/service-desk/projection"
@@ -45,6 +46,25 @@ function sourceDate(hours: number, minutes: number, seconds = 0) {
 }
 
 describe("service desk pure rules", () => {
+  it("uses the scheduled professional when starting without a manual assignment", () => {
+    const [entry] = projectScheduledEntries({
+      appointments: [appointment],
+      calledAppointmentIds: new Set([appointment.id]),
+      now: sourceDate(10, 5),
+    })
+
+    expect(resolveStartProfessionalId(entry, {})).toBe("professional-carlos")
+    expect(resolveStartProfessionalId(entry, { [entry.id]: "professional-substitute" })).toBe(
+      "professional-substitute",
+    )
+    expect(
+      resolveStartProfessionalId(
+        { ...entry, assignedProfessionalId: "professional-assigned", professionalId: undefined },
+        {},
+      ),
+    ).toBe("professional-assigned")
+  })
+
   it("allows only the explicit waiting-to-called-to-service journey", () => {
     expect(canTransition("waiting", "called")).toBe(true)
     expect(canTransition("called", "in-service")).toBe(true)
@@ -251,6 +271,8 @@ describe("service desk URL and walk-in validation", () => {
   it("provides explicit Portuguese messages for every form bound", () => {
     const result = walkInFormSchema.safeParse({
       arrivalTime: "25:99",
+      identityKind: "guest",
+      clientId: "",
       customerName: "A",
       customerPhone: "123",
       notes: "x".repeat(301),
@@ -275,15 +297,15 @@ describe("service desk URL and walk-in validation", () => {
   })
 
   it("creates fresh clock-based defaults and a temporary snapshot input", () => {
-    const now = sourceDate(11, 30)
-    expect(createWalkInFormDefaults(now)).toMatchObject({
+    const now = new Date("2026-07-23T14:30:00.000Z")
+    expect(createWalkInFormDefaults(now, "America/Recife")).toMatchObject({
       arrivalTime: "11:30",
       preferenceKind: "first-available",
       priority: "normal",
     })
     const input = walkInFormValuesToInput(
       {
-        ...createWalkInFormDefaults(now),
+        ...createWalkInFormDefaults(now, "America/Recife"),
         customerName: " Pessoa Exemplo ",
         customerPhone: "81900000000",
         notes: " temporário ",
@@ -291,11 +313,29 @@ describe("service desk URL and walk-in validation", () => {
       },
       now,
       "centro",
+      "America/Recife",
     )
     expect(input).toMatchObject({
       customerName: "Pessoa Exemplo",
       notes: "temporário",
       unitId: "centro",
     })
+  })
+
+  it("interprets arrival time in the unit timezone instead of the browser timezone", () => {
+    const now = new Date("2026-09-05T15:30:00.000Z")
+    const defaults = createWalkInFormDefaults(now, "America/Recife")
+    expect(defaults.arrivalTime).toBe("12:30")
+    const input = walkInFormValuesToInput(
+      {
+        ...defaults,
+        customerName: "Pessoa Exemplo",
+        serviceId: "service-simple-cut",
+      },
+      now,
+      "centro",
+      "America/Recife",
+    )
+    expect(input.arrivalAt).toBe("2026-09-05T15:30:00.000Z")
   })
 })

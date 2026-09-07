@@ -14,9 +14,13 @@ import { WorkspaceShellSidebar } from "./sidebar"
 export function WorkspaceShell({
   children,
   headerActions,
+  hiddenPrimaryPaths,
+  workspaceSwitcher,
 }: {
   children: ReactNode
   headerActions?: ReactNode
+  hiddenPrimaryPaths?: readonly string[]
+  workspaceSwitcher?: ReactNode
 }) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -51,12 +55,14 @@ export function WorkspaceShell({
       onSignOut={handleSignOut}
       pathname={location.pathname}
       headerActions={headerActions}
+      hiddenPrimaryPaths={hiddenPrimaryPaths}
       user={{
         email: userEmail,
         image: userImage,
         initial: userInitial,
         name: userName,
       }}
+      workspaceSwitcher={workspaceSwitcher}
     >
       {children}
     </WorkspaceShellFrame>
@@ -94,19 +100,23 @@ function WorkspaceShellFrame({
   onSignOut,
   pathname,
   headerActions,
+  hiddenPrimaryPaths,
   user,
+  workspaceSwitcher,
 }: {
   children: ReactNode
   isSigningOut?: boolean
   onSignOut?: () => void
   pathname: string
   headerActions?: ReactNode
+  hiddenPrimaryPaths?: readonly string[]
   user: {
     email: string
     image?: string | null
     initial: string
     name: string
   }
+  workspaceSwitcher?: ReactNode
 }) {
   return (
     <TooltipProvider>
@@ -115,7 +125,9 @@ function WorkspaceShellFrame({
           isSigningOut={isSigningOut}
           onSignOut={onSignOut}
           pathname={pathname}
+          hiddenPrimaryPaths={hiddenPrimaryPaths}
           user={user}
+          workspaceSwitcher={workspaceSwitcher}
         />
         <SidebarInset
           id="main-content"

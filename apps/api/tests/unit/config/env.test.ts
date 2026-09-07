@@ -12,7 +12,7 @@ const validEnv = {
   BETTER_AUTH_URL: "http://127.0.0.1:8000",
   AUTH_TRUSTED_ORIGINS: "http://localhost:3000, http://localhost:3001",
   AUTH_SESSION_EXPIRES_IN_SECONDS: "60",
-  AUTH_PASSWORD_MIN_LENGTH: "15",
+  AUTH_PASSWORD_MIN_LENGTH: "8",
   AUTH_PASSWORD_MAX_LENGTH: "256",
   AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS: "3600",
   AUTH_GOOGLE_CLIENT_ID: "test-google-client-id",
@@ -22,18 +22,82 @@ const validEnv = {
   IDP_RESEND_API_KEY: "test-resend-api-key",
 }
 
+const privateR2Env = {
+  R2_PRIVATE_ENDPOINT: "https://account.r2.cloudflarestorage.com",
+  R2_PRIVATE_ACCESS_KEY_ID: "private-access-key",
+  R2_PRIVATE_SECRET_ACCESS_KEY: "private-secret-key",
+  R2_PRIVATE_BUCKET: "business-media",
+}
+
 describe("parseEnv", () => {
   it("parses and coerces a valid environment", () => {
     const env = parseEnv(validEnv)
 
     expect(env.API_PORT).toBe(8000)
     expect(env.AUTH_SESSION_EXPIRES_IN_SECONDS).toBe(60)
-    expect(env.AUTH_PASSWORD_MIN_LENGTH).toBe(15)
+    expect(env.AUTH_PASSWORD_MIN_LENGTH).toBe(8)
     expect(env.AUTH_TRUSTED_ORIGINS).toEqual(["http://localhost:3000", "http://localhost:3001"])
     expect(env.IDP_RESEND_API_URL).toBe("https://api.resend.com")
     expect(env.IDP_STUDIO_URL).toBe("http://localhost:3000")
     expect(env.LEAD_EMAIL_TO).toEqual(["contato@example.com"])
     expect(env.POSTHOG_UPSTREAM_URL).toBe("https://us.i.posthog.com")
+    expect(env.POSTHOG_PROJECT_KEY).toBe("")
+    expect(env.PRIVATE_STORAGE_DRIVER).toBe("local")
+    expect(env.REPORT_EXPORT_PROVIDER).toBe("trigger")
+  })
+
+  it("requires R2 and all of its values in deployed environments", () => {
+    expect(() =>
+      parseEnv({ ...validEnv, APP_ENV: "staging", PRIVATE_STORAGE_DRIVER: "local" }),
+    ).toThrow("Deployed environments must use R2 profile image storage")
+
+    for (const key of [
+      "R2_PRIVATE_ENDPOINT",
+      "R2_PRIVATE_ACCESS_KEY_ID",
+      "R2_PRIVATE_SECRET_ACCESS_KEY",
+      "R2_PRIVATE_BUCKET",
+    ] as const) {
+      expect(() =>
+        parseEnv({
+          ...validEnv,
+          APP_ENV: "staging",
+          PRIVATE_STORAGE_DRIVER: "r2",
+          ...privateR2Env,
+          [key]: "",
+        }),
+      ).toThrow(`${key} is required for private business media storage`)
+    }
+
+    expect(
+      parseEnv({
+        ...validEnv,
+        APP_ENV: "staging",
+        PRIVATE_STORAGE_DRIVER: "r2",
+        ...privateR2Env,
+      }).PRIVATE_STORAGE_DRIVER,
+    ).toBe("r2")
+  })
+
+  it("requires lead delivery and protection values in production", () => {
+    const productionEnv = {
+      ...validEnv,
+      APP_ENV: "production",
+      PRIVATE_STORAGE_DRIVER: "r2",
+      ...privateR2Env,
+      LEAD_RESEND_API_KEY: "resend-key",
+      LEAD_TURNSTILE_SECRET_KEY: "turnstile-key",
+      LEAD_TURNSTILE_HOSTNAMES: "triad.example.test",
+    }
+    expect(parseEnv(productionEnv).APP_ENV).toBe("production")
+    expect(() => parseEnv({ ...productionEnv, LEAD_RESEND_API_KEY: "" })).toThrow(
+      "LEAD_RESEND_API_KEY is required in production",
+    )
+    expect(() => parseEnv({ ...productionEnv, LEAD_TURNSTILE_SECRET_KEY: "" })).toThrow(
+      "LEAD_TURNSTILE_SECRET_KEY is required in production",
+    )
+    expect(() => parseEnv({ ...productionEnv, LEAD_TURNSTILE_HOSTNAMES: "" })).toThrow(
+      "At least one hostname is required in production",
+    )
   })
 
   it("accepts only supported PostHog regional ingestion origins", () => {

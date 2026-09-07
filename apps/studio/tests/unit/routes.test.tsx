@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router"
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { type ReactNode, useEffect } from "react"
 import { describe, expect, it, vi } from "vitest"
 
 import { type AuthState, AuthStateProvider } from "@/modules/auth/services/auth-provider"
+import { clientSearchDefaults } from "@/modules/clients/search"
 import { ThemeProvider } from "@/modules/shared/theme/theme-provider"
 import { routeTree } from "@/routeTree.gen"
 
@@ -16,8 +17,15 @@ vi.mock("@/modules/auth/services/auth-client", async (importOriginal) => {
   return { ...actual, signOut: () => signOut() }
 })
 
-function renderRoute(path: string, authState: AuthState) {
+function renderRoute(path: string, authState: AuthState, deniedReason?: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  if (deniedReason)
+    queryClient.setQueryData(["access-summary"], {
+      organizationId: "test-tenant",
+      role: "member",
+      subscriptionState: "active",
+      capabilities: [{ capability: "clients.read", allowed: false, reason: deniedReason }],
+    })
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -82,9 +90,7 @@ describe("routes", () => {
       session: null,
     })
 
-    expect(
-      await screen.findByRole("heading", { name: "Entrar no TRIAD Studio" }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Bem-vindo de volta" })).toBeInTheDocument()
     expect(screen.queryByRole("heading", { name: "Meu perfil" })).not.toBeInTheDocument()
   })
 
@@ -103,9 +109,7 @@ describe("routes", () => {
         .getAllByRole("link", { name: "Dashboard" })
         .find((link) => link.hasAttribute("aria-current")),
     ).toHaveAttribute("href", "/overview")
-    expect(
-      screen.queryByRole("heading", { name: "Entrar no TRIAD Studio" }),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "Bem-vindo de volta" })).not.toBeInTheDocument()
   })
 
   it("redirects authenticated root and login visits to overview", async () => {
@@ -140,19 +144,24 @@ describe("routes", () => {
   })
 
   it("renders barbershop setup as a private module inside the workspace shell", async () => {
-    renderRoute("/barbershop-setup?section=services", authenticatedState())
+    const { router } = renderRoute("/barbershop-setup/services", authenticatedState())
+
+    expect(router.state.location.href).toBe("/barbershop-setup/services")
+    expect(
+      await screen.findByRole("navigation", { name: "Navegação principal" }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("navigation", { name: "Navegação secundária" }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("redirects barbershop setup defaults to a clean overview URL", async () => {
+    const { router } = renderRoute("/barbershop-setup", authenticatedState())
 
     expect(
       await screen.findByRole("heading", { name: "Configuração da barbearia" }),
     ).toBeInTheDocument()
-    const navigation = screen.getByRole("navigation", { name: "Navegação secundária" })
-    expect(within(navigation).getByRole("link", { name: "Barbearia" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    )
-    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
-      "Configuração da barbearia",
-    )
+    expect(router.state.location.href).toBe("/barbershop-setup/overview")
   })
 
   it("rejects a cash date that rolls over to another calendar day", async () => {
@@ -175,5 +184,72 @@ describe("routes", () => {
       expect(router.state.location.search.from).not.toBe("2025-01-01")
       expect(router.state.location.search.to).not.toBe("2026-12-31")
     })
+  })
+
+  it("omits default client search state and preserves shareable drawer intent", async () => {
+    const { router } = renderRoute("/workspace-preview", authenticatedState())
+
+    await act(() => router.navigate({ search: clientSearchDefaults, to: "/clients" }))
+    expect(router.state.location.href).toBe("/clients")
+
+    await act(() =>
+      router.navigate({
+        search: { ...clientSearchDefaults, client: "client_01" },
+        to: "/clients",
+      }),
+    )
+    expect(router.state.location.href).toBe("/clients?client=client_01")
+
+    await act(() =>
+      router.navigate({
+        search: { ...clientSearchDefaults, client: "client_01", mode: "edit" },
+        to: "/clients",
+      }),
+    )
+    expect(router.state.location.href).toBe("/clients?client=client_01&mode=edit")
+  })
+  it.each([
+    ["capability_forbidden", "Sua função atual não permite consultar clientes."],
+    ["subscription_inactive", "A assinatura da barbearia está suspensa ou expirada."],
+    ["module_not_included", "O plano atual não inclui a gestão de clientes."],
+    ["unknown", "Este recurso não está liberado para o acesso atual."],
+  ])("explains the %s client boundary and requests access once", async (reason, message) => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ id: "request-id", status: "pending" }), { status: 200 }),
+      )
+    vi.stubGlobal("fetch", fetcher)
+    renderRoute("/clients", authenticatedState(), reason)
+    expect(await screen.findByText(message)).toBeVisible()
+    await userEvent.click(screen.getByRole("button", { name: "Solicitar acesso" }))
+    expect(await screen.findByText("Solicitação enviada ao responsável.")).toBeVisible()
+    expect(screen.getByRole("button", { name: "Solicitar acesso" })).toBeDisabled()
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.stringContaining("/api/access/requests"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ capabilityKey: "clients.read" }),
+      }),
+    )
+  })
+  it("allows retrying an access request without granting local client permissions", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response("", { status: 500 }))
+        .mockResolvedValue(
+          new Response(JSON.stringify({ id: "request-id", status: "pending" }), { status: 200 }),
+        ),
+    )
+    renderRoute("/clients", authenticatedState(), "capability_forbidden")
+    await userEvent.click(await screen.findByRole("button", { name: "Solicitar acesso" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível enviar a solicitação.",
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Solicitar acesso" }))
+    expect(await screen.findByText("Solicitação enviada ao responsável.")).toBeVisible()
+    expect(screen.queryByRole("table", { name: "Diretório de clientes" })).not.toBeInTheDocument()
   })
 })

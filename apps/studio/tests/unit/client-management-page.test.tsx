@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { type ReactNode, useEffect, useState } from "react"
 import { describe, expect, it, vi } from "vitest"
@@ -14,7 +14,7 @@ const defaultSearch: ClientSearch = {
   contact: "all",
   duplicate: "all",
   page: 1,
-  pageSize: 10,
+  pageSize: 20,
   scenario: "typical",
   sortDirection: "asc",
   sortField: "name",
@@ -56,7 +56,9 @@ describe("client management pages", () => {
 
   it("renders slow loading, empty, and filtered-empty directory states", async () => {
     const slow = renderDirectory({ scenario: "slow" })
-    expect(screen.getByRole("status")).toHaveTextContent("Carregando clientes…")
+    const loadingState = screen.getByRole("status", { name: "Carregando clientes" })
+    expect(loadingState).toBeVisible()
+    expect(loadingState.querySelector("[data-slot=skeleton]")).not.toBeNull()
     expect(await screen.findByRole("table", { name: "Diretório de clientes" })).toBeVisible()
     slow.unmount()
 
@@ -124,28 +126,53 @@ describe("client management pages", () => {
     expect(await within(drawer).findByText("Contato e estado")).toBeVisible()
   })
 
-  it("uses explicit edit mode and focuses the first localized validation error", async () => {
+  it("opens a distinct edit drawer and focuses the first localized validation error", async () => {
     const user = userEvent.setup()
     renderDirectory()
     await user.click(await screen.findByRole("button", { name: "Cliente Sintético 05" }))
-    const drawer = await screen.findByRole("dialog", {
+    const profileDrawer = await screen.findByRole("dialog", {
       name: /Clientes \/ Cliente Sintético 05/,
     })
 
-    await user.click(within(drawer).getByRole("button", { name: "Editar" }))
-    expect(await within(drawer).findByText("Editar cliente")).toBeVisible()
-    expect(within(drawer).queryByRole("tab", { name: "Resumo" })).not.toBeInTheDocument()
+    await user.click(within(profileDrawer).getByRole("button", { name: "Editar" }))
+    const editDrawer = await screen.findByRole("dialog", {
+      name: /Clientes \/ Editar cliente/,
+    })
+    expect(editDrawer).not.toBe(profileDrawer)
+    expect(within(editDrawer).queryByRole("tab", { name: "Resumo" })).not.toBeInTheDocument()
+    await waitFor(() => expect(profileDrawer).not.toBeInTheDocument())
 
-    const name = within(drawer).getByLabelText("Nome")
+    const name = within(editDrawer).getByLabelText("Nome")
     await user.clear(name)
-    const save = within(drawer).getAllByRole("button", { name: "Salvar" })[0]
+    const save = within(editDrawer).getByRole("button", { name: "Salvar alterações" })
     expect(save).toBeDefined()
     if (!save) return
     await user.click(save)
 
-    expect(await within(drawer).findByText("Informe o nome do cliente.")).toBeVisible()
+    expect(await within(editDrawer).findByText("Informe o nome do cliente.")).toBeVisible()
     expect(name).toHaveAttribute("aria-invalid", "true")
     expect(name).toHaveFocus()
+  })
+
+  it("provides placeholders and adds or removes tags without comma-separated typing", async () => {
+    const user = userEvent.setup()
+    renderDirectory()
+
+    await user.click(screen.getByRole("button", { name: "Novo cliente" }))
+    const drawer = await screen.findByRole("dialog", { name: /Clientes \/ Novo cliente/ })
+
+    expect(within(drawer).getByPlaceholderText("Ex.: Gabriel Silva")).toBeVisible()
+    expect(within(drawer).getByPlaceholderText("(81) 99999-9999")).toBeVisible()
+    expect(within(drawer).getByPlaceholderText("Ex.: gabriel@email.com")).toBeVisible()
+    expect(
+      within(drawer).getByPlaceholderText("Ex.: Confirmar o acabamento antes de finalizar"),
+    ).toBeVisible()
+
+    const tagInput = within(drawer).getByLabelText("Tags")
+    await user.type(tagInput, "Cliente frequente{Enter}")
+    expect(within(drawer).getByText("Cliente frequente")).toBeVisible()
+    await user.click(within(drawer).getByRole("button", { name: "Remover tag Cliente frequente" }))
+    expect(within(drawer).queryByText("Cliente frequente")).not.toBeInTheDocument()
   })
 
   it("confirms archive, restore, and note removal before mutating", async () => {
@@ -172,8 +199,14 @@ describe("client management pages", () => {
     expect(noteArticle).not.toBeNull()
     if (!noteArticle) return
     await user.click(within(noteArticle).getByRole("button", { name: "Remover" }))
-    const removeDialog = await screen.findByRole("dialog", { name: "Remover nota?" })
-    await user.click(within(removeDialog).getByRole("button", { name: "Remover" }))
+    expect(screen.queryByRole("dialog", { name: "Remover nota?" })).not.toBeInTheDocument()
+    expect(within(noteArticle).getByText("Essa ação não pode ser desfeita.")).toBeVisible()
+    expect(within(noteArticle).queryByRole("button", { name: "Editar" })).not.toBeInTheDocument()
+    await user.click(within(noteArticle).getByRole("button", { name: "Cancelar" }))
+    expect(within(noteArticle).getByRole("button", { name: "Editar" })).toBeVisible()
+
+    await user.click(within(noteArticle).getByRole("button", { name: "Remover" }))
+    await user.click(within(noteArticle).getByRole("button", { name: "Remover nota" }))
     await waitFor(() => expect(note).not.toBeInTheDocument())
   })
 
@@ -184,20 +217,124 @@ describe("client management pages", () => {
     const row = trigger.closest("tr")
     expect(row).not.toBeNull()
     if (!row) return
-    row.focus()
-    fireEvent.keyDown(row, { key: "F10", shiftKey: true })
+    await act(async () => {
+      row.focus()
+      fireEvent.keyDown(row, { key: "F10", shiftKey: true })
+    })
 
     const viewAction = await screen.findByRole("menuitem", { name: "Visualizar" })
-    viewAction.focus()
+    await act(async () => viewAction.focus())
     expect(viewAction).toHaveFocus()
+    expect(screen.getByRole("menuitem", { name: "Editar" })).toBeVisible()
     const archiveAction = screen.getByRole("menuitem", { name: "Arquivar" })
-    archiveAction.focus()
+    await act(async () => archiveAction.focus())
     expect(archiveAction).toHaveFocus()
     await user.keyboard("{Enter}")
 
     const confirmation = await screen.findByRole("dialog", { name: "Arquivar cliente?" })
     await waitFor(() => expect(confirmation.contains(document.activeElement)).toBe(true))
   })
+  it("keeps invalid or rejected notes editable and persists the corrected retry", async () => {
+    const repository = new ClientMemoryRepository()
+    const add = vi.spyOn(repository, "addNote").mockRejectedValueOnce(new Error("Offline"))
+    const update = vi.spyOn(repository, "updateNote").mockRejectedValueOnce(new Error("Offline"))
+    renderDirectory({ repository })
+    await userEvent.click(await screen.findByRole("button", { name: "Cliente Sintético 05" }))
+    const drawer = await screen.findByRole("dialog")
+    await userEvent.click(within(drawer).getByRole("tab", { name: "Notas" }))
+    await userEvent.click(within(drawer).getByRole("button", { name: "Adicionar nota" }))
+    expect(await within(drawer).findByRole("alert")).toBeVisible()
+    expect(add).not.toHaveBeenCalled()
+    fireEvent.change(within(drawer).getByLabelText("Nova nota"), {
+      target: { value: "Confirmar horário por telefone." },
+    })
+    await userEvent.click(within(drawer).getByRole("button", { name: "Adicionar nota" }))
+    await waitFor(() => expect(add).toHaveBeenCalledOnce())
+    expect(within(drawer).getByLabelText("Nova nota")).toHaveValue(
+      "Confirmar horário por telefone.",
+    )
+    await userEvent.click(within(drawer).getByRole("button", { name: "Adicionar nota" }))
+    const text = await within(drawer).findByText("Confirmar horário por telefone.", {
+      selector: "p",
+    })
+    const article = text.closest("article")
+    if (!article) throw new Error("Missing note article")
+    await userEvent.click(within(article).getByRole("button", { name: "Editar" }))
+    fireEvent.change(within(article).getByLabelText("Editar nota"), { target: { value: "" } })
+    await userEvent.click(within(article).getByRole("button", { name: "Salvar nota" }))
+    expect(await within(article).findByRole("alert")).toBeVisible()
+    expect(update).not.toHaveBeenCalled()
+    fireEvent.change(within(article).getByLabelText("Editar nota"), {
+      target: { value: "Horário confirmado." },
+    })
+    await userEvent.click(within(article).getByRole("button", { name: "Salvar nota" }))
+    await waitFor(() => expect(update).toHaveBeenCalledOnce())
+    expect(within(article).getByLabelText("Editar nota")).toHaveValue("Horário confirmado.")
+    await userEvent.click(within(article).getByRole("button", { name: "Salvar nota" }))
+    expect(await within(article).findByText("Horário confirmado.", { selector: "p" })).toBeVisible()
+    await userEvent.click(within(article).getByRole("button", { name: "Editar" }))
+    await userEvent.click(within(article).getByRole("button", { name: "Cancelar" }))
+    expect(within(article).queryByLabelText("Editar nota")).not.toBeInTheDocument()
+  }, 20000)
+  it("retains a note after failed removal and permits a later confirmed retry", async () => {
+    const repository = new ClientMemoryRepository()
+    const remove = vi.spyOn(repository, "removeNote").mockRejectedValueOnce(new Error("Offline"))
+    renderDirectory({ repository })
+    await userEvent.click(await screen.findByRole("button", { name: "Cliente Sintético 05" }))
+    const drawer = await screen.findByRole("dialog")
+    await userEvent.click(within(drawer).getByRole("tab", { name: "Notas" }))
+    const text = within(drawer).getByText("Prefere atendimento objetivo e acabamento discreto.")
+    const article = text.closest("article")
+    if (!article) throw new Error("Missing note article")
+    await userEvent.click(within(article).getByRole("button", { name: "Remover" }))
+    await userEvent.click(within(article).getByRole("button", { name: "Remover nota" }))
+    await waitFor(() => expect(remove).toHaveBeenCalledOnce())
+    expect(text).toBeVisible()
+    await userEvent.click(within(article).getByRole("button", { name: "Remover nota" }))
+    await waitFor(() => expect(text).not.toBeInTheDocument())
+  })
+  it("keeps the active profile after a rejected archive and recovers its source", async () => {
+    const repository = new ClientMemoryRepository()
+    const get = vi.spyOn(repository, "get").mockRejectedValueOnce(new Error("Offline"))
+    const archive = vi.spyOn(repository, "setArchived").mockRejectedValueOnce(new Error("Offline"))
+    renderDirectory({ repository })
+    await userEvent.click(await screen.findByRole("button", { name: "Cliente Sintético 05" }))
+    const drawer = await screen.findByRole("dialog")
+    await userEvent.click(await within(drawer).findByRole("button", { name: "Tentar novamente" }))
+    await userEvent.click(await within(drawer).findByRole("button", { name: "Arquivar" }))
+    const confirmation = screen.getByRole("dialog", { name: "Arquivar cliente?" })
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Arquivar" }))
+    await waitFor(() => expect(archive).toHaveBeenCalledOnce())
+    expect(within(drawer).getByText("Ativo")).toBeVisible()
+    expect(get.mock.calls.length).toBeGreaterThanOrEqual(2)
+  })
+  it("creates and edits a canonical directory client before returning to the refreshed list", async () => {
+    const repository = new ClientMemoryRepository()
+    const create = vi.spyOn(repository, "create"),
+      update = vi.spyOn(repository, "update")
+    renderDirectory({ repository })
+    await userEvent.click(screen.getByRole("button", { name: "Novo cliente" }))
+    let drawer = await screen.findByRole("dialog")
+    fireEvent.change(within(drawer).getByLabelText("Nome"), {
+      target: { value: "AAA Cliente Agenda" },
+    })
+    fireEvent.change(within(drawer).getByLabelText("E-mail"), {
+      target: { value: "agenda@example.invalid" },
+    })
+    await userEvent.click(within(drawer).getAllByRole("button", { name: "Salvar" })[0])
+    drawer = await screen.findByRole("dialog", { name: /AAA Cliente Agenda/ })
+    expect(create).toHaveBeenCalledOnce()
+    await userEvent.click(within(drawer).getByRole("button", { name: "Editar" }))
+    drawer = await screen.findByRole("dialog", { name: /Editar cliente/ })
+    fireEvent.change(within(drawer).getByLabelText("Nome"), {
+      target: { value: "AAA Cliente Revisado" },
+    })
+    await userEvent.click(within(drawer).getByRole("button", { name: "Salvar alterações" }))
+    drawer = await screen.findByRole("dialog", { name: /AAA Cliente Revisado/ })
+    expect(update).toHaveBeenCalledOnce()
+    await userEvent.click(within(drawer).getByRole("button", { name: "Fechar" }))
+    expect(await screen.findByRole("button", { name: "AAA Cliente Revisado" })).toBeVisible()
+  }, 20000)
 })
 
 function renderDirectory({

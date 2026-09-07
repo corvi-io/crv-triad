@@ -10,8 +10,9 @@ provider credentials, account-linking decisions, or persistence.
   notice/resend, verified-email confirmation, and safe provider callback errors.
 - `/accept-invitation` reads only an opaque query proof, removes it from browser history, resolves
   the lifecycle through the IDP, and offers password creation only for a valid result. It renders
-  explicit validating, invalid, expired, revoked, used, superseded, network, submitting, and success
-  states. Success returns to login without a session.
+  explicit validating, invalid, expired, revoked, used, superseded, network, and submitting states.
+  Existing accounts authenticate first and return to this route with the same proof; acceptance
+  then completes the IDP and organization links before entering the workspace.
 - `/forgot-password` validates an email and always uses enumeration-safe result copy. Its native
   `requestPasswordReset` call sets `redirectTo` to the fixed browser-origin
   `/reset-password` route.
@@ -32,7 +33,7 @@ environment variables.
 | ------------------------- | ------------------------- | ---------------------------------------------------------- |
 | Email/password sign-in    | `signIn.email`            | `/overview`                                                |
 | Token-proven first access | `signUp.email`            | Opaque write-only proof; IDP owns email, role, and gate    |
-| Google sign-in            | `signIn.social`           | Google only; `/overview`; safe `/login` error target       |
+| Google sign-in            | `signIn.social`           | Google only; invitation-aware return or `/overview`        |
 | Verification resend       | `sendVerificationEmail`   | `/login?verified=true`                                     |
 | Forgot password           | `requestPasswordReset`    | `/reset-password`                                          |
 | Complete reset            | `resetPassword`           | Native URL token only                                      |
@@ -49,6 +50,12 @@ encryption, durable delivery, or provider-independent timing. Backlog follow-up 
 durable queued IDP transactional-email delivery. The server remains the authority for invitation
 access, verified provider email, same-email linking, minimal `openid`/`email`/`profile` scopes,
 profile preservation, session revocation, and unlink-all rejection.
+
+When login starts from an invitation, Studio preserves the opaque proof only in Better Auth's
+validated OAuth return/error URLs and returns to `/accept-invitation` after the session exists. The
+authenticated acceptance endpoint distinguishes account mismatch, changed proof, and recoverable
+completion failure without returning the invited email or upstream error details. Replaying the
+same proof for the same account is safe; a different account cannot consume it.
 
 ## UI And Accessibility Contract
 

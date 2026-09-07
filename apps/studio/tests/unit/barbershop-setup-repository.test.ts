@@ -171,10 +171,11 @@ describe("barbershop setup memory repository", () => {
     if (bravo?.kind !== "professional") return
     await expect(
       repository.update("professional", bravo.id, {
-        accountAccess: bravo.accountAccess,
-        name: bravo.name,
+        commissionBasisPoints: bravo.commissionBasisPoints ?? 0,
+        invitationEmail: "",
         role: bravo.role,
         serviceIds: [...bravo.serviceIds, created.id],
+        specialties: bravo.specialties ?? [],
         unitIds: bravo.unitIds,
       }),
     ).rejects.toThrow(
@@ -532,10 +533,11 @@ describe("barbershop setup memory repository", () => {
     expect(professional?.kind).toBe("professional")
     if (professional?.kind !== "professional") return
     await repository.update("professional", professional.id, {
-      accountAccess: professional.accountAccess,
-      name: professional.name,
+      commissionBasisPoints: professional.commissionBasisPoints ?? 0,
+      invitationEmail: "",
       role: professional.role,
       serviceIds: [],
+      specialties: professional.specialties ?? [],
       unitIds: ["unit-center"],
     })
 

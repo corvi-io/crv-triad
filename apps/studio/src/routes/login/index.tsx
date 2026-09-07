@@ -5,6 +5,10 @@ import { z } from "zod"
 import { LoginScreen } from "@/modules/auth/components/login-screen"
 
 const loginSearchSchema = z.object({
+  invitationToken: z.preprocess(
+    (value) => (typeof value === "string" && value.length <= 256 ? value : undefined),
+    z.string().min(1).optional(),
+  ),
   error: z.preprocess((value) => {
     if (value === "INVALID_TOKEN" || value === "invalid_token") return "verification_invalid"
     if (value === "TOKEN_EXPIRED") return "verification_expired"
@@ -41,5 +45,11 @@ function LoginRoute() {
     })
   }, [navigate, search.verified])
 
-  return <LoginScreen error={search.error} verified={verified} />
+  return (
+    <LoginScreen
+      error={search.error}
+      invitationToken={search.invitationToken}
+      verified={verified}
+    />
+  )
 }

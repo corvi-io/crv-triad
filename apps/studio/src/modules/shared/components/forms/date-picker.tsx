@@ -67,7 +67,7 @@ export function DatePicker({
             ref={ref}
             aria-describedby={ariaDescribedBy}
             aria-invalid={ariaInvalid}
-            aria-required={required || undefined}
+            aria-description={required ? "Campo obrigatório" : undefined}
             className={cn(
               "h-8 w-full justify-start rounded-sm border-input px-2 font-normal",
               !selectedDate && "text-muted-foreground",

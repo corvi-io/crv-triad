@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { z } from "zod"
 
 import { PreferencesScreen } from "@/modules/preferences/components/preferences-screen"
+import { AccountPageLayout } from "@/modules/shared/components/layout/account-page-layout"
 
 const preferencesSearchSchema = z.object({
   google: z.preprocess(
@@ -30,5 +31,12 @@ function PreferencesRoute() {
     })
   }, [navigate, search.google])
 
-  return <PreferencesScreen googleResult={googleResult} />
+  return (
+    <AccountPageLayout
+      title="Preferências"
+      description="Personalize a aparência e gerencie a segurança da sua conta."
+    >
+      <PreferencesScreen googleResult={googleResult} />
+    </AccountPageLayout>
+  )
 }

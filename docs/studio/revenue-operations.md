@@ -1,4 +1,30 @@
-# TRIAD Studio Revenue Operations Prototype
+# TRIAD Studio Revenue Operations
+
+## Production runtime (Initiative 24)
+
+Initiative 24 promotes checkout, receipt correction, payment-method policy, cash movements, and
+daily closing to the authenticated API/PostgreSQL source. A checkout is opened explicitly from the
+immutable Initiative 23 completed-service handoff; reading a visit never creates financial state.
+Posting creates an internal receipt and ledger facts only. It does not process or refund money and
+does not complete, cancel, or otherwise mutate Service Desk or Scheduling.
+
+All amounts are integer cents. Posted receipts, tenders, lines, reversals, movement corrections, and
+closing revisions are immutable. Cash days use the unit timezone and server-derived operational
+date. Actor identity and display name are resolved from the authenticated server session and
+snapshotted in records; mutation requests cannot supply a responsible-person name. Reasons are
+stored only in authorized records and excluded from URLs, idempotency fingerprints, telemetry, and
+safe error payloads.
+
+Reads are tenant-leading, deterministically sorted, bounded to the supported 10/20/50 page sizes
+and a 31-day history window. Cash-day totals are PostgreSQL aggregates over the full ledger while
+detail collections return at most the latest 50 rows. The lock order is policy, unit timezone,
+operational day, checkout, then receipt. Payment registration, reversal, movement, close, and reopen
+compete under the same day lock and require optimistic versions plus HMAC command idempotency.
+
+Pix, cash, debit, and credit start enabled and owners/admins can persist their availability through
+the production setup repository. Commission/profit settings and projections remain outside this
+initiative. The sections below describe the retained development-memory prototype and must not be
+read as production authority where they conflict with this production contract.
 
 ## Scope
 

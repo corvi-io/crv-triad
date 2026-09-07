@@ -14,7 +14,7 @@ const signInWithGoogle = vi.fn()
 vi.mock("@/modules/auth/services/auth-client", () => ({
   resendVerificationEmail: (email: string) => resendVerificationEmail(email),
   signInWithEmail: (values: unknown) => signInWithEmail(values),
-  signInWithGoogle: () => signInWithGoogle(),
+  signInWithGoogle: (invitationToken?: string) => signInWithGoogle(invitationToken),
 }))
 
 function renderLogin(path = "/login") {
@@ -55,9 +55,7 @@ describe("login screen", () => {
     const user = userEvent.setup()
     renderLogin()
 
-    expect(
-      await screen.findByRole("heading", { name: "Entrar no TRIAD Studio" }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Bem-vindo de volta" })).toBeInTheDocument()
     expect(
       screen.getByRole("region", { name: "Identidade visual do TRIAD Studio" }),
     ).toBeInTheDocument()
@@ -106,6 +104,15 @@ describe("login screen", () => {
     await user.click(await screen.findByRole("button", { name: "Continuar com Google" }))
 
     expect(signInWithGoogle).toHaveBeenCalledOnce()
+  })
+
+  it("preserves the invitation while starting Google sign-in", async () => {
+    const user = userEvent.setup()
+    renderLogin("/login?invitationToken=synthetic-invitation-proof")
+
+    await user.click(await screen.findByRole("button", { name: "Continuar com Google" }))
+
+    expect(signInWithGoogle).toHaveBeenCalledWith("synthetic-invitation-proof")
   })
 
   it("shows a verification notice for an existing unverified credential and resends safely", async () => {

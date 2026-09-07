@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useWorkspaceTenantId } from "@/modules/workspace/context-provider"
 import type {
   Appointment,
   AppointmentInput,
@@ -16,18 +17,24 @@ export const schedulingQueryKeys = {
 }
 
 export function useScheduleDay(query: ScheduleDayQuery) {
+  const tenantId = useWorkspaceTenantId()
   const repository = useSchedulingRepository()
   return useQuery({
-    queryKey: schedulingQueryKeys.day(query),
-    queryFn: () => getScheduleRange(repository, query),
+    queryKey:
+      repository.source === "http"
+        ? ["scheduling", tenantId, "day", query]
+        : schedulingQueryKeys.day(query),
+    queryFn: ({ signal }) => getScheduleRange(repository, query, signal),
+    enabled: Boolean(query.unitId),
   })
 }
 
 function useScheduleMutation<TVariables>(mutationFn: (variables: TVariables) => Promise<unknown>) {
   const queryClient = useQueryClient()
   return useMutation({
+    networkMode: "always",
     mutationFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: schedulingQueryKeys.all }),
+    onSuccess: () => invalidateSchedulingConsumers(queryClient),
   })
 }
 
@@ -38,16 +45,28 @@ export function useCreateAppointment() {
 
 export function useUpdateAppointment() {
   const repository = useSchedulingRepository()
-  return useScheduleMutation(({ id, input }: { id: string; input: AppointmentInput }) =>
-    repository.update(id, input),
+  return useScheduleMutation(
+    ({ id, input, reschedule }: { id: string; input: AppointmentInput; reschedule?: boolean }) =>
+      reschedule && repository.reschedule
+        ? repository.reschedule(id, input)
+        : repository.update(id, input),
   )
 }
 
 export function useCancelAppointment() {
   const repository = useSchedulingRepository()
   return useScheduleMutation(
-    ({ id, reason }: { id: string; reason: Exclude<CancellationReason, "no-show"> }) =>
-      repository.cancel(id, reason),
+    ({
+      id,
+      reason,
+      version,
+      note,
+    }: {
+      id: string
+      reason: Exclude<CancellationReason, "no-show">
+      version?: number
+      note?: string
+    }) => repository.cancel(id, reason, version, note),
   )
 }
 
@@ -55,8 +74,10 @@ export function useTransitionAppointment() {
   const repository = useSchedulingRepository()
   const queryClient = useQueryClient()
   return useMutation({
+    networkMode: "always",
     mutationFn: (input: AppointmentTransitionInput) => repository.transition(input),
     onMutate: async (input) => {
+      if (repository.source === "http") return { snapshots: [] }
       await queryClient.cancelQueries({ queryKey: schedulingQueryKeys.all })
       const snapshots = queryClient.getQueriesData<ScheduleDay>({
         queryKey: schedulingQueryKeys.all,
@@ -95,7 +116,7 @@ export function useTransitionAppointment() {
     onError: (_error, _input, context) => {
       for (const [key, value] of context?.snapshots ?? []) queryClient.setQueryData(key, value)
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: schedulingQueryKeys.all }),
+    onSettled: () => invalidateSchedulingConsumers(queryClient),
   })
 }
 
@@ -134,14 +155,19 @@ export function useRescheduleAppointment() {
   const repository = useSchedulingRepository()
   const queryClient = useQueryClient()
   return useMutation({
+    networkMode: "always",
     mutationFn: ({ appointment, date, professionalId, start }: AppointmentRescheduleInput) =>
-      repository.update(appointment.id, {
-        ...appointment,
-        date: date ?? appointment.date,
-        professionalId,
-        start,
-      }),
+      (repository.reschedule?.bind(repository) ?? repository.update.bind(repository))(
+        appointment.id,
+        {
+          ...appointment,
+          date: date ?? appointment.date,
+          professionalId,
+          start,
+        },
+      ),
     onMutate: async (input) => {
+      if (repository.source === "http") return { snapshots: [] }
       await queryClient.cancelQueries({ queryKey: schedulingQueryKeys.all })
       const snapshots = queryClient.getQueriesData<ScheduleDay>({
         queryKey: schedulingQueryKeys.all,
@@ -154,7 +180,7 @@ export function useRescheduleAppointment() {
     onError: (_error, _input, context) => {
       for (const [key, value] of context?.snapshots ?? []) queryClient.setQueryData(key, value)
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: schedulingQueryKeys.all }),
+    onSettled: () => invalidateSchedulingConsumers(queryClient),
   })
 }
 
@@ -174,4 +200,14 @@ export function useScenarioActions(query: ScheduleDayQuery) {
       await refresh({ ...query, scenarioId: id })
     },
   }
+}
+
+export async function invalidateSchedulingConsumers(
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  await Promise.all(
+    ["scheduling", "clients", "barbershop-setup", "availability"].map((key) =>
+      queryClient.invalidateQueries({ queryKey: [key] }),
+    ),
+  )
 }

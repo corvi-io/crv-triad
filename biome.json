@@ -17,6 +17,7 @@
       "!**/*.astro",
       "!apps/site/public",
       "!apps/studio/src/routeTree.gen.ts",
+      "!apps/backstage/src/routeTree.gen.ts",
       "!.agents/skills/**/scripts",
       "!docs/product-qa/reports",
       "!bun.lock"

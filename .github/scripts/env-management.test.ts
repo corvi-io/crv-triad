@@ -13,6 +13,16 @@ import {
 
 const schema: EnvSchema = {
   schema_version: 1,
+  infrastructure: {
+    env: [
+      {
+        source: "INFRA__TRIGGER_ACCESS_TOKEN",
+        github: "secret",
+        required: true,
+        required_for: ["api"],
+      },
+    ],
+  },
   apps: {
     api: {
       owner: "apps/api",
@@ -22,6 +32,11 @@ const schema: EnvSchema = {
           github_environment: "dev",
           fly_app: "crv-triad-api-dev",
           fly_config: "apps/api/fly.dev.toml",
+        },
+        prd: {
+          github_environment: "prd",
+          fly_app: "crv-triad-api-prd",
+          fly_config: "apps/api/fly.prd.toml",
         },
       },
       env: [
@@ -42,6 +57,13 @@ const schema: EnvSchema = {
           runtime: "POSTHOG_UPSTREAM_URL",
           github: "variable",
           required: false,
+        },
+        {
+          source: "API__POSTHOG_PROJECT_KEY",
+          runtime: "POSTHOG_PROJECT_KEY",
+          github: "variable",
+          required: false,
+          required_targets: ["prd"],
         },
       ],
     },
@@ -83,6 +105,7 @@ describe("env-management", () => {
       API__DATABASE_URL: "postgresql://user:secret@example.test/db",
       API__CAMPAIGN_LINKS_ADMIN_TOKEN: "admin-secret",
       API__POSTHOG_UPSTREAM_URL: "https://us.i.posthog.com",
+      INFRA__TRIGGER_ACCESS_TOKEN: "trigger-secret",
     })
 
     expect(selection.values).toMatchObject([
@@ -105,6 +128,7 @@ describe("env-management", () => {
     expect(() =>
       selectRuntimeEnv(schema, "api", "dev", {
         API__DATABASE_URL: "postgresql://user:secret@example.test/db",
+        INFRA__TRIGGER_ACCESS_TOKEN: "trigger-secret",
       }),
     ).toThrow("API__CAMPAIGN_LINKS_ADMIN_TOKEN")
 
@@ -116,6 +140,34 @@ describe("env-management", () => {
       expect(error).toBeInstanceOf(Error)
       expect((error as Error).message).not.toContain("secret@example")
     }
+  })
+
+  it("requires deployment infrastructure assigned to the selected app", () => {
+    expect(() =>
+      selectRuntimeEnv(schema, "api", "dev", {
+        API__DATABASE_URL: "postgresql://user:secret@example.test/db",
+        API__CAMPAIGN_LINKS_ADMIN_TOKEN: "admin-secret",
+      }),
+    ).toThrow("INFRA__TRIGGER_ACCESS_TOKEN")
+  })
+
+  it("enforces target-specific production values without requiring them in development", () => {
+    const baseEnv = {
+      API__DATABASE_URL: "postgresql://user:secret@example.test/db",
+      API__CAMPAIGN_LINKS_ADMIN_TOKEN: "admin-secret",
+      INFRA__TRIGGER_ACCESS_TOKEN: "trigger-secret",
+    }
+
+    expect(() => selectRuntimeEnv(schema, "api", "dev", baseEnv)).not.toThrow()
+    expect(() => selectRuntimeEnv(schema, "api", "prd", baseEnv)).toThrow(
+      "API__POSTHOG_PROJECT_KEY",
+    )
+    expect(() =>
+      selectRuntimeEnv(schema, "api", "prd", {
+        ...baseEnv,
+        API__POSTHOG_PROJECT_KEY: "phc_public-project-key",
+      }),
+    ).not.toThrow()
   })
 
   it("writes runtime names to GitHub env files without source names", () => {
@@ -135,6 +187,7 @@ describe("env-management", () => {
     const selection = selectRuntimeEnv(schema, "api", "dev", {
       API__DATABASE_URL: 'postgresql://user:"secret"@example.test/db',
       API__CAMPAIGN_LINKS_ADMIN_TOKEN: "admin-secret",
+      INFRA__TRIGGER_ACCESS_TOKEN: "trigger-secret",
     })
     const input = renderFlySecretsImportInput(selection)
     const calls: Array<{ args: string[]; input: string }> = []
@@ -159,6 +212,7 @@ describe("env-management", () => {
     const selection = selectRuntimeEnv(schema, "api", "dev", {
       API__DATABASE_URL: "postgresql://user:secret@example.test/db",
       API__CAMPAIGN_LINKS_ADMIN_TOKEN: "admin-secret",
+      INFRA__TRIGGER_ACCESS_TOKEN: "trigger-secret",
     })
 
     expect(() =>
@@ -173,6 +227,7 @@ describe("env-management", () => {
     const selection = selectRuntimeEnv(schema, "api", "dev", {
       API__DATABASE_URL: "postgresql://user:secret@example.test/db",
       API__CAMPAIGN_LINKS_ADMIN_TOKEN: "line-1\nline-2",
+      INFRA__TRIGGER_ACCESS_TOKEN: "trigger-secret",
     })
 
     expect(() => renderFlySecretsImportInput(selection)).toThrow(

@@ -143,11 +143,15 @@ function StandardMaskedInput({
 }
 
 function getCanonicalEditUnits(mask: InputMaskName, canonicalValue: string) {
-  return mask === "brMoney" ? canonicalValue.replace(/\D/g, "") : canonicalValue
+  return mask === "brMoney" || mask === "brPercent"
+    ? canonicalValue.replace(/\D/g, "")
+    : canonicalValue
 }
 
 function getCanonicalValueFromEditUnits(mask: InputMaskName, editUnits: string) {
-  return mask === "brMoney" ? normalizeInputMask(mask, editUnits) : editUnits
+  return mask === "brMoney" || mask === "brPercent"
+    ? normalizeInputMask(mask, editUnits)
+    : editUnits
 }
 
 function getCanonicalOffsetAtDisplayIndex(
@@ -155,7 +159,8 @@ function getCanonicalOffsetAtDisplayIndex(
   displayValue: string,
   index: number,
 ) {
-  if (mask === "brMoney") return displayValue.slice(0, index).replace(/\D/g, "").length
+  if (mask === "brMoney" || mask === "brPercent")
+    return displayValue.slice(0, index).replace(/\D/g, "").length
   return getCanonicalEditUnits(mask, normalizeInputMask(mask, displayValue.slice(0, index))).length
 }
 

@@ -1,0 +1,816 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans:
+    "Geist Variable", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-feedback-success: var(--feedback-success);
+  --color-feedback-success-foreground: var(--feedback-success-foreground);
+  --color-feedback-success-border: var(--feedback-success-border);
+  --color-feedback-warning: var(--feedback-warning);
+  --color-feedback-warning-foreground: var(--feedback-warning-foreground);
+  --color-feedback-warning-border: var(--feedback-warning-border);
+  --color-feedback-info: var(--feedback-info);
+  --color-feedback-info-foreground: var(--feedback-info-foreground);
+  --color-feedback-info-border: var(--feedback-info-border);
+  --color-feedback-destructive: var(--feedback-destructive);
+  --color-feedback-destructive-foreground: var(--feedback-destructive-foreground);
+  --color-feedback-destructive-border: var(--feedback-destructive-border);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-primary: var(--chart-primary);
+  --color-chart-accent: var(--chart-accent);
+  --color-chart-warm: var(--chart-warm);
+  --color-chart-danger: var(--chart-danger);
+  --color-chart-muted: var(--chart-muted);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-schedule-scheduled: var(--schedule-scheduled);
+  --color-schedule-scheduled-foreground: var(--schedule-scheduled-foreground);
+  --color-schedule-scheduled-border: var(--schedule-scheduled-border);
+  --color-schedule-confirmed: var(--schedule-confirmed);
+  --color-schedule-confirmed-foreground: var(--schedule-confirmed-foreground);
+  --color-schedule-confirmed-border: var(--schedule-confirmed-border);
+  --color-schedule-arrived: var(--schedule-arrived);
+  --color-schedule-arrived-foreground: var(--schedule-arrived-foreground);
+  --color-schedule-arrived-border: var(--schedule-arrived-border);
+  --color-schedule-waiting: var(--schedule-waiting);
+  --color-schedule-waiting-foreground: var(--schedule-waiting-foreground);
+  --color-schedule-waiting-border: var(--schedule-waiting-border);
+  --color-schedule-in-progress: var(--schedule-in-progress);
+  --color-schedule-in-progress-foreground: var(--schedule-in-progress-foreground);
+  --color-schedule-in-progress-border: var(--schedule-in-progress-border);
+  --color-schedule-completed: var(--schedule-completed);
+  --color-schedule-completed-foreground: var(--schedule-completed-foreground);
+  --color-schedule-completed-border: var(--schedule-completed-border);
+  --color-schedule-canceled: var(--schedule-canceled);
+  --color-schedule-canceled-foreground: var(--schedule-canceled-foreground);
+  --color-schedule-canceled-border: var(--schedule-canceled-border);
+  --color-schedule-no-show: var(--schedule-no-show);
+  --color-schedule-no-show-foreground: var(--schedule-no-show-foreground);
+  --color-schedule-no-show-border: var(--schedule-no-show-border);
+  --color-workspace-sidebar-selected: var(--workspace-sidebar-selected-background);
+  --color-workspace-sidebar-selected-foreground: var(--workspace-sidebar-selected-foreground);
+  --color-workspace-sidebar-selected-border: var(--workspace-sidebar-selected-border);
+  --spacing-workspace-sidebar: var(--workspace-sidebar-width-expanded);
+  --spacing-workspace-sidebar-icon: var(--workspace-sidebar-width-collapsed);
+  --spacing-workspace-sidebar-mobile: var(--workspace-sidebar-width-mobile);
+  --spacing-workspace-nav-item: var(--workspace-nav-item-height);
+  --spacing-workspace-nav-icon: var(--workspace-nav-icon-size);
+  --spacing-workspace-brand: var(--workspace-brand-height);
+  --spacing-workspace-avatar: var(--workspace-avatar-size);
+  --spacing-workspace-header: var(--workspace-header-height);
+  --text-workspace-nav: var(--workspace-nav-font-size);
+  --text-workspace-nav--line-height: var(--workspace-nav-line-height);
+  --text-workspace-brand-title: var(--workspace-brand-title-size);
+  --text-workspace-brand-title--line-height: var(--primitive-line-height-tight);
+  --text-workspace-brand-subtitle: var(--workspace-brand-subtitle-size);
+  --text-workspace-brand-subtitle--line-height: var(--primitive-line-height-tight);
+  --shadow-workspace-sidebar: var(--workspace-sidebar-shadow);
+  --transition-duration-workspace-sidebar: var(--workspace-sidebar-transition-duration);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+@keyframes auth-drift {
+  0%,
+  100% {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: scale(1.06) translate3d(-0.6%, -0.4%, 0);
+  }
+}
+
+:root {
+  /* Primitive tokens: raw values from the accepted design anchors and project scales. */
+  --primitive-transparent: transparent;
+  --primitive-layer-modal: 60;
+  --primitive-white: #ffffff;
+  --primitive-neutral-50: #fafafa;
+  --primitive-neutral-100: #f5f5f5;
+  --primitive-neutral-200: #e5e5e5;
+  --primitive-neutral-300: #d4d4d4;
+  --primitive-neutral-400: #a3a3a3;
+  --primitive-neutral-500: #737373;
+  --primitive-neutral-600: #525252;
+  --primitive-neutral-700: #404040;
+  --primitive-neutral-800: #262626;
+  --primitive-neutral-900: #171717;
+  --primitive-neutral-950: #0a0a0a;
+  --primitive-navy-50: #f3f6fc;
+  --primitive-navy-100: #e4eaf5;
+  --primitive-navy-200: #c5d0e5;
+  --primitive-navy-300: #9baccc;
+  --primitive-navy-400: #7086af;
+  --primitive-navy-500: #50678f;
+  --primitive-navy-600: #3b4e72;
+  --primitive-navy-700: #2e3e5d;
+  --primitive-navy-800: #1e293b;
+  --primitive-navy-900: #0f172a;
+  --primitive-navy-950: #080d19;
+  --primitive-navy-card: #131d32;
+  --primitive-navy-popover: #172036;
+  --primitive-navy-secondary: #1b2740;
+  --primitive-navy-accent: #24324d;
+  --primitive-navy-border: #2a3852;
+  --primitive-navy-input: #24314a;
+  --primitive-gold-50: #fff9ec;
+  --primitive-gold-100: #fdf0ce;
+  --primitive-gold-200: #f9dfa0;
+  --primitive-gold-300: #f1c871;
+  --primitive-gold-400: #d8b86c;
+  --primitive-gold-500: #cdaa5b;
+  --primitive-gold-600: #b0883f;
+  --primitive-gold-700: #86652f;
+  --primitive-gold-800: #5e4624;
+  --primitive-gold-900: #3d2e19;
+  --primitive-gold-950: #21180d;
+  --primitive-red-50: #fef2f2;
+  --primitive-red-200: #fecaca;
+  --primitive-red-400: #f87171;
+  --primitive-red-500: #ef4444;
+  --primitive-red-600: #dc2626;
+  --primitive-red-700: #b91c1c;
+  --primitive-red-800: #991b1b;
+  --primitive-red-950: #450a0a;
+  --primitive-amber-50: #fffbeb;
+  --primitive-amber-200: #fde68a;
+  --primitive-amber-500: #f59e0b;
+  --primitive-amber-700: #b45309;
+  --primitive-amber-900: #78350f;
+  --primitive-amber-950: #451a03;
+  --primitive-green-50: #f0fdf4;
+  --primitive-green-100: #dcfce7;
+  --primitive-green-200: #bbf7d0;
+  --primitive-green-400: #4ade80;
+  --primitive-green-500: #22c55e;
+  --primitive-green-600: #16a34a;
+  --primitive-green-700: #15803d;
+  --primitive-green-800: #166534;
+  --primitive-green-900: #14532d;
+  --primitive-green-950: #052e16;
+  --primitive-sky-50: #f0f9ff;
+  --primitive-sky-200: #bae6fd;
+  --primitive-sky-400: #38bdf8;
+  --primitive-sky-500: #0ea5e9;
+  --primitive-sky-700: #0369a1;
+  --primitive-sky-900: #0c4a6e;
+  --primitive-sky-950: #082f49;
+
+  --primitive-space-px: 1px;
+  --primitive-space-1: 0.25rem;
+  --primitive-space-1-5: 0.375rem;
+  --primitive-space-2: 0.5rem;
+  --primitive-space-3: 0.75rem;
+  --primitive-space-4: 1rem;
+  --primitive-space-5: 1.25rem;
+  --primitive-space-6: 1.5rem;
+  --primitive-space-8: 2rem;
+  --primitive-space-10: 2.5rem;
+  --primitive-space-12: 3rem;
+  --primitive-space-14: 3.5rem;
+
+  --primitive-font-size-xs: 0.75rem;
+  --primitive-font-size-sm: 0.875rem;
+  --primitive-font-size-base: 1rem;
+  --primitive-font-size-lg: 1.125rem;
+  --primitive-font-size-xl: 1.25rem;
+  --primitive-line-height-tight: 1.25;
+  --primitive-line-height-snug: 1.375;
+  --primitive-line-height-normal: 1.5;
+  --primitive-font-weight-regular: 400;
+  --primitive-font-weight-medium: 500;
+  --primitive-font-weight-semibold: 600;
+
+  --primitive-radius-sm: 0.375rem;
+  --primitive-radius-xs: 0.25rem;
+  --primitive-radius-md: 0.5rem;
+  --primitive-radius-lg: 0.75rem;
+  --primitive-radius-full: 9999px;
+  --primitive-shadow-menu: 0 0.625rem 1.875rem rgb(10 10 10 / 0.12);
+  --primitive-shadow-sidebar: 0 0.0625rem 0.125rem rgb(10 10 10 / 0.08);
+  --primitive-shadow-schedule-card:
+    0 0.0625rem 0.125rem rgb(8 13 25 / 0.12), inset 0 0 0 1px rgb(255 255 255 / 0.02);
+  --primitive-shadow-schedule-card-hover:
+    0 0.25rem 0.75rem rgb(8 13 25 / 0.16), inset 0 0 0 1px rgb(255 255 255 / 0.03);
+  --primitive-shadow-schedule-drag:
+    0 0.875rem 2.125rem rgb(8 13 25 / 0.34), inset 0 0 0 1px rgb(255 255 255 / 0.04);
+  --primitive-shadow-brand-outline: inset 0 0 0 1px rgb(205 170 91 / 0.18);
+  --primitive-shadow-brand: 0 1.5rem 4rem rgb(8 13 25 / 0.32);
+  --primitive-duration-fast: 150ms;
+  --primitive-duration-normal: 200ms;
+
+  /* Semantic tokens: stable product meanings consumed by shared primitives. */
+  --background: var(--primitive-navy-50);
+  --foreground: var(--primitive-navy-950);
+  --card: var(--primitive-white);
+  --card-foreground: var(--primitive-navy-950);
+  --popover: var(--primitive-white);
+  --popover-foreground: var(--primitive-navy-950);
+  --layer-modal: var(--primitive-layer-modal);
+  --primary: var(--primitive-gold-700);
+  --primary-foreground: var(--primitive-white);
+  --secondary: var(--primitive-navy-100);
+  --secondary-foreground: var(--primitive-navy-900);
+  --muted: var(--primitive-navy-100);
+  --muted-foreground: var(--primitive-navy-600);
+  --accent: var(--primitive-gold-50);
+  --accent-foreground: var(--primitive-navy-900);
+  --destructive: var(--primitive-red-700);
+  --destructive-foreground: var(--primitive-white);
+  --feedback-success: var(--primitive-green-50);
+  --feedback-success-foreground: var(--primitive-green-800);
+  --feedback-success-border: var(--primitive-green-700);
+  --feedback-warning: var(--primitive-amber-50);
+  --feedback-warning-foreground: var(--primitive-amber-900);
+  --feedback-warning-border: var(--primitive-amber-700);
+  --feedback-info: var(--primitive-sky-50);
+  --feedback-info-foreground: var(--primitive-sky-900);
+  --feedback-info-border: var(--primitive-sky-700);
+  --feedback-destructive: var(--primitive-red-50);
+  --feedback-destructive-foreground: var(--primitive-red-800);
+  --feedback-destructive-border: var(--primitive-red-700);
+  --border: var(--primitive-navy-200);
+  --input: var(--primitive-navy-500);
+  --ring: var(--primitive-gold-700);
+  --chart-primary: var(--primitive-navy-700);
+  --chart-accent: var(--primitive-gold-700);
+  --chart-warm: var(--primitive-amber-700);
+  --chart-danger: var(--primitive-red-700);
+  --chart-muted: var(--primitive-navy-500);
+  --sidebar: var(--primitive-white);
+  --sidebar-foreground: var(--primitive-navy-950);
+  --sidebar-primary: var(--primitive-gold-700);
+  --sidebar-primary-foreground: var(--primitive-white);
+  --sidebar-accent: var(--primitive-gold-50);
+  --sidebar-accent-foreground: var(--primitive-navy-900);
+  --sidebar-accent-border: var(--primitive-gold-600);
+  --sidebar-selected-foreground: var(--primitive-navy-900);
+  --sidebar-border: var(--primitive-navy-200);
+  --sidebar-ring: var(--primitive-gold-700);
+
+  /* Scheduling semantic tokens: presentation-only roles, never backend status vocabulary. */
+  --schedule-scheduled: var(--primitive-gold-50);
+  --schedule-scheduled-foreground: var(--primitive-gold-800);
+  --schedule-scheduled-border: var(--primitive-gold-600);
+  --schedule-confirmed: var(--primitive-green-50);
+  --schedule-confirmed-foreground: var(--primitive-green-800);
+  --schedule-confirmed-border: var(--primitive-green-700);
+  --schedule-arrived: var(--primitive-navy-100);
+  --schedule-arrived-foreground: var(--primitive-navy-800);
+  --schedule-arrived-border: var(--primitive-navy-600);
+  --schedule-waiting: var(--primitive-amber-50);
+  --schedule-waiting-foreground: var(--primitive-amber-900);
+  --schedule-waiting-border: var(--primitive-amber-700);
+  --schedule-in-progress: var(--primitive-sky-50);
+  --schedule-in-progress-foreground: var(--primitive-sky-900);
+  --schedule-in-progress-border: var(--primitive-sky-700);
+  --schedule-completed: var(--primitive-green-100);
+  --schedule-completed-foreground: var(--primitive-green-900);
+  --schedule-completed-border: var(--primitive-green-700);
+  --schedule-canceled: var(--primitive-red-50);
+  --schedule-canceled-foreground: var(--primitive-red-800);
+  --schedule-canceled-border: var(--primitive-red-700);
+  --schedule-no-show: var(--primitive-neutral-100);
+  --schedule-no-show-foreground: var(--primitive-neutral-800);
+  --schedule-no-show-border: var(--primitive-neutral-500);
+
+  /* Agenda component tokens: neutral hierarchy with bounded status signals. */
+  --schedule-grid-surface: color-mix(in srgb, var(--background) 72%, var(--card));
+  --schedule-grid-border: var(--border);
+  --schedule-grid-line: color-mix(in srgb, var(--border) 76%, var(--background));
+  --schedule-time-column-surface: color-mix(in srgb, var(--muted) 58%, var(--background));
+  --schedule-barber-header-surface: color-mix(in srgb, var(--card) 88%, var(--background));
+  --schedule-appointment-surface: var(--card);
+  --schedule-appointment-foreground: var(--card-foreground);
+  --schedule-appointment-border: var(--input);
+  --schedule-appointment-indicator-width: calc(var(--primitive-space-px) * 3);
+  --schedule-appointment-tint: 16%;
+  --schedule-appointment-shadow: var(--primitive-shadow-schedule-card);
+  --schedule-appointment-hover-shadow: var(--primitive-shadow-schedule-card-hover);
+  --schedule-appointment-drag-shadow: var(--primitive-shadow-schedule-drag);
+  --schedule-drop-target-surface: color-mix(in srgb, var(--primary) 6%, transparent);
+  --schedule-drop-target-border: var(--primary);
+  --schedule-current-time-line: var(--primary);
+  --schedule-current-time-label-surface: var(--primary);
+  --schedule-current-time-label-foreground: var(--primary-foreground);
+  --selection-radius: var(--primitive-radius-xs);
+
+  /* Workspace component tokens: authenticated shell geometry and state styling. */
+  /* Contiguous 255px expanded and 56px collapsed desktop panels. */
+  --workspace-sidebar-width-expanded: 15.9375rem;
+  --workspace-sidebar-width-collapsed: 3.5rem;
+  --workspace-sidebar-width-mobile: min(15.9375rem, calc(100vw - 1rem));
+  --workspace-sidebar-background: var(--sidebar);
+  --workspace-sidebar-foreground: var(--sidebar-foreground);
+  --workspace-sidebar-border: var(--sidebar-border);
+  --workspace-sidebar-focus-ring: var(--sidebar-ring);
+  --workspace-sidebar-selected-background: var(--sidebar-accent);
+  --workspace-sidebar-selected-foreground: var(--sidebar-selected-foreground);
+  --workspace-sidebar-selected-border: var(--sidebar-accent-border);
+  --workspace-sidebar-inset: var(--primitive-space-2);
+  --workspace-sidebar-radius: var(--primitive-radius-md);
+  --workspace-sidebar-shadow: var(--primitive-shadow-sidebar);
+  --workspace-sidebar-transition-duration: var(--primitive-duration-normal);
+  --workspace-nav-item-height: var(--primitive-space-8);
+  --workspace-nav-icon-size: var(--primitive-space-4);
+  --workspace-nav-padding-inline: var(--primitive-space-2);
+  --workspace-nav-gap: var(--primitive-space-2);
+  --workspace-nav-radius: var(--primitive-radius-md);
+  --workspace-nav-selected-radius: var(--selection-radius);
+  --workspace-nav-selected-indicator-width: calc(var(--primitive-space-px) * 2);
+  --workspace-nav-selected-padding-inline-start: var(--primitive-space-2);
+  --workspace-nav-selected-padding-inline-end: var(--primitive-space-8);
+  --workspace-nav-font-size: var(--primitive-font-size-sm);
+  --workspace-nav-line-height: 1.25rem;
+  --workspace-brand-height: 4rem;
+  --workspace-brand-horizontal-width: 10.5rem;
+  --workspace-brand-symbol-collapsed-width: var(--primitive-space-8);
+  --workspace-brand-padding-inline: var(--primitive-space-2);
+  --workspace-brand-padding-block: var(--primitive-space-2);
+  --workspace-brand-title-size: var(--primitive-font-size-base);
+  --workspace-brand-subtitle-size: var(--primitive-font-size-xs);
+  --workspace-secondary-gap: var(--primitive-space-1);
+  --workspace-avatar-size: var(--primitive-space-8);
+  --workspace-user-row-height: 3.25rem;
+  --workspace-header-height: var(--primitive-space-14);
+  --workspace-content-inset-x: var(--primitive-space-6);
+  --workspace-content-inset-y: var(--primitive-space-5);
+  --auth-brand-background:
+    radial-gradient(
+      circle at 18% 16%,
+      color-mix(in srgb, var(--primitive-gold-300) 18%, transparent) 0,
+      transparent 38%
+    ),
+    linear-gradient(
+      145deg,
+      var(--primitive-white),
+      var(--primitive-navy-50) 58%,
+      var(--primitive-navy-100)
+    );
+  --auth-brand-shadow: var(--primitive-shadow-brand-outline), var(--primitive-shadow-brand);
+
+  --radius: var(--primitive-radius-md);
+  color-scheme: light;
+}
+
+.dark {
+  --background: var(--primitive-navy-900);
+  --foreground: var(--primitive-navy-50);
+  --card: var(--primitive-navy-card);
+  --card-foreground: var(--primitive-navy-50);
+  --popover: var(--primitive-navy-popover);
+  --popover-foreground: var(--primitive-navy-50);
+  --primary: var(--primitive-gold-500);
+  --primary-foreground: var(--primitive-navy-950);
+  --secondary: var(--primitive-navy-secondary);
+  --secondary-foreground: var(--primitive-navy-100);
+  --muted: var(--primitive-navy-800);
+  --muted-foreground: var(--primitive-navy-300);
+  --accent: var(--primitive-navy-accent);
+  --accent-foreground: var(--primitive-navy-50);
+  --destructive: var(--primitive-red-600);
+  --destructive-foreground: var(--primitive-white);
+  --feedback-success: var(--primitive-green-950);
+  --feedback-success-foreground: var(--primitive-green-200);
+  --feedback-success-border: var(--primitive-green-500);
+  --feedback-warning: var(--primitive-amber-950);
+  --feedback-warning-foreground: var(--primitive-amber-200);
+  --feedback-warning-border: var(--primitive-amber-500);
+  --feedback-info: var(--primitive-sky-950);
+  --feedback-info-foreground: var(--primitive-sky-200);
+  --feedback-info-border: var(--primitive-sky-500);
+  --feedback-destructive: var(--primitive-red-950);
+  --feedback-destructive-foreground: var(--primitive-red-200);
+  --feedback-destructive-border: var(--primitive-red-500);
+  --border: var(--primitive-navy-border);
+  --input: var(--primitive-navy-400);
+  --ring: var(--primitive-gold-400);
+  --sidebar: var(--primitive-navy-950);
+  --sidebar-foreground: var(--primitive-navy-50);
+  --sidebar-primary: var(--primitive-gold-500);
+  --sidebar-primary-foreground: var(--primitive-navy-950);
+  --sidebar-accent: var(--primitive-navy-accent);
+  --sidebar-accent-foreground: var(--primitive-navy-50);
+  --sidebar-accent-border: var(--primitive-gold-500);
+  --sidebar-selected-foreground: var(--primitive-gold-200);
+  --sidebar-border: var(--primitive-navy-border);
+  --sidebar-ring: var(--primitive-gold-400);
+  --chart-primary: var(--primitive-gold-400);
+  --chart-accent: var(--primitive-navy-300);
+  --chart-warm: var(--primitive-amber-500);
+  --chart-danger: var(--primitive-red-400);
+  --chart-muted: var(--primitive-navy-400);
+  --schedule-scheduled: var(--primitive-gold-950);
+  --schedule-scheduled-foreground: var(--primitive-gold-200);
+  --schedule-scheduled-border: var(--primitive-gold-500);
+  --schedule-confirmed: var(--primitive-green-950);
+  --schedule-confirmed-foreground: var(--primitive-green-200);
+  --schedule-confirmed-border: var(--primitive-green-500);
+  --schedule-arrived: var(--primitive-navy-800);
+  --schedule-arrived-foreground: var(--primitive-navy-100);
+  --schedule-arrived-border: var(--primitive-navy-400);
+  --schedule-waiting: var(--primitive-amber-950);
+  --schedule-waiting-foreground: var(--primitive-amber-200);
+  --schedule-waiting-border: var(--primitive-amber-500);
+  --schedule-in-progress: var(--primitive-sky-950);
+  --schedule-in-progress-foreground: var(--primitive-sky-200);
+  --schedule-in-progress-border: var(--primitive-sky-500);
+  --schedule-completed: var(--primitive-green-900);
+  --schedule-completed-foreground: var(--primitive-green-50);
+  --schedule-completed-border: var(--primitive-green-400);
+  --schedule-canceled: var(--primitive-red-950);
+  --schedule-canceled-foreground: var(--primitive-red-200);
+  --schedule-canceled-border: var(--primitive-red-500);
+  --schedule-no-show: var(--primitive-neutral-900);
+  --schedule-no-show-foreground: var(--primitive-neutral-200);
+  --schedule-no-show-border: var(--primitive-neutral-500);
+  --schedule-appointment-tint: 12%;
+  --auth-brand-background:
+    radial-gradient(
+      circle at 18% 16%,
+      color-mix(in srgb, var(--primitive-gold-400) 18%, transparent) 0,
+      transparent 38%
+    ),
+    linear-gradient(
+      145deg,
+      var(--primitive-navy-popover),
+      var(--primitive-navy-900) 58%,
+      var(--primitive-navy-950)
+    );
+  color-scheme: dark;
+}
+
+@layer components {
+  .auth-brand-surface {
+    background: var(--auth-brand-background);
+    box-shadow: var(--auth-brand-shadow);
+  }
+
+  .agenda-board {
+    border-color: var(--schedule-grid-border);
+    background: var(--schedule-grid-surface);
+  }
+
+  .agenda-grid {
+    background: var(--schedule-grid-surface);
+  }
+
+  .agenda-grid-scroll {
+    container-type: inline-size;
+  }
+
+  .agenda-grid-line {
+    border-color: var(--schedule-grid-line);
+  }
+
+  .agenda-time-cell {
+    background: var(--schedule-time-column-surface);
+  }
+
+  .agenda-barber-header {
+    background: var(--schedule-barber-header-surface);
+  }
+
+  .agenda-current-time-marker {
+    z-index: 45;
+    display: block;
+    width: calc(100cqi - 5rem);
+    height: 2px;
+    background: var(--schedule-current-time-line);
+  }
+
+  .agenda-current-time-label {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: var(--primitive-space-1);
+    display: inline-flex;
+    min-height: 1.25rem;
+    align-items: center;
+    border-radius: var(--primitive-radius-full);
+    background: var(--schedule-current-time-label-surface);
+    color: var(--schedule-current-time-label-foreground);
+    font-size: 0.6875rem;
+    font-weight: var(--primitive-font-weight-semibold);
+    line-height: 1;
+    padding-inline: var(--primitive-space-1-5);
+    transform: translateY(-50%);
+    white-space: nowrap;
+  }
+
+  .agenda-current-time-marker[data-label-placement="after"] .agenda-current-time-label {
+    transform: none;
+  }
+
+  .agenda-current-time-marker[data-label-placement="before"] .agenda-current-time-label {
+    inset-block-start: auto;
+    inset-block-end: 50%;
+    transform: none;
+  }
+
+  [data-appointment-status="scheduled"] {
+    --agenda-status-surface: var(--schedule-scheduled);
+    --agenda-status-foreground: var(--schedule-scheduled-foreground);
+    --agenda-status-border: var(--schedule-scheduled-border);
+  }
+
+  [data-appointment-status="confirmed"] {
+    --agenda-status-surface: var(--schedule-confirmed);
+    --agenda-status-foreground: var(--schedule-confirmed-foreground);
+    --agenda-status-border: var(--schedule-confirmed-border);
+  }
+
+  [data-appointment-status="arrived"] {
+    --agenda-status-surface: var(--schedule-arrived);
+    --agenda-status-foreground: var(--schedule-arrived-foreground);
+    --agenda-status-border: var(--schedule-arrived-border);
+  }
+
+  [data-appointment-status="waiting"] {
+    --agenda-status-surface: var(--schedule-waiting);
+    --agenda-status-foreground: var(--schedule-waiting-foreground);
+    --agenda-status-border: var(--schedule-waiting-border);
+  }
+
+  [data-appointment-status="in-progress"] {
+    --agenda-status-surface: var(--schedule-in-progress);
+    --agenda-status-foreground: var(--schedule-in-progress-foreground);
+    --agenda-status-border: var(--schedule-in-progress-border);
+  }
+
+  [data-appointment-status="completed"] {
+    --agenda-status-surface: var(--schedule-completed);
+    --agenda-status-foreground: var(--schedule-completed-foreground);
+    --agenda-status-border: var(--schedule-completed-border);
+  }
+
+  [data-appointment-status="canceled"] {
+    --agenda-status-surface: var(--schedule-canceled);
+    --agenda-status-foreground: var(--schedule-canceled-foreground);
+    --agenda-status-border: var(--schedule-canceled-border);
+  }
+
+  [data-appointment-status="no-show"] {
+    --agenda-status-surface: var(--schedule-no-show);
+    --agenda-status-foreground: var(--schedule-no-show-foreground);
+    --agenda-status-border: var(--schedule-no-show-border);
+  }
+
+  .agenda-appointment-card {
+    border-color: var(--schedule-appointment-border);
+    background-color: var(--schedule-appointment-surface);
+    background-image: linear-gradient(
+      to right,
+      color-mix(
+          in srgb,
+          var(--agenda-status-surface) var(--schedule-appointment-tint),
+          var(--schedule-appointment-surface)
+        )
+        0%,
+      transparent 38%
+    );
+    box-shadow: var(--schedule-appointment-shadow);
+    color: var(--schedule-appointment-foreground);
+    transition:
+      border-color var(--primitive-duration-fast) ease,
+      box-shadow var(--primitive-duration-fast) ease,
+      transform var(--primitive-duration-fast) ease;
+  }
+
+  .agenda-appointment-card::before,
+  .agenda-appointment-drag-preview::before {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: var(--schedule-appointment-indicator-width);
+    background: var(--agenda-status-border);
+    content: "";
+    pointer-events: none;
+  }
+
+  .agenda-appointment-card:hover {
+    border-color: color-mix(
+      in srgb,
+      var(--agenda-status-border) 46%,
+      var(--schedule-appointment-border)
+    );
+    box-shadow: var(--schedule-appointment-hover-shadow);
+    transform: translateY(-1px);
+  }
+
+  .agenda-appointment-card:has(:focus-visible) {
+    border-color: var(--ring);
+    box-shadow:
+      0 0 0 2px var(--ring),
+      var(--schedule-appointment-hover-shadow);
+    transform: none;
+    transition-property: border-color, box-shadow;
+  }
+
+  .agenda-appointment-card[data-dragging="true"] {
+    opacity: 0.42;
+    transform: none;
+  }
+
+  .agenda-compact-status-symbol {
+    color: var(--agenda-status-border);
+  }
+
+  .agenda-appointment-status-badge {
+    border-color: var(--agenda-status-border);
+    background: var(--agenda-status-surface);
+    color: var(--agenda-status-foreground);
+  }
+
+  .agenda-appointment-drag-preview {
+    position: relative;
+    overflow: hidden;
+    border-color: var(--agenda-status-border);
+    background-color: var(--schedule-appointment-surface);
+    background-image: linear-gradient(
+      to right,
+      color-mix(
+          in srgb,
+          var(--agenda-status-surface) var(--schedule-appointment-tint),
+          var(--schedule-appointment-surface)
+        )
+        0%,
+      transparent 38%
+    );
+    box-shadow: var(--schedule-appointment-drag-shadow);
+    transform: rotate(0.4deg) scale(1.01);
+  }
+
+  .agenda-drop-target {
+    transition:
+      background-color var(--primitive-duration-fast) ease,
+      box-shadow var(--primitive-duration-fast) ease;
+  }
+
+  .agenda-drop-target:hover {
+    background: color-mix(in srgb, var(--muted) 58%, transparent);
+  }
+
+  .agenda-drop-target[data-over="true"] {
+    background: var(--schedule-drop-target-surface);
+    box-shadow: inset 0 0 0 1px var(--schedule-drop-target-border);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    min-width: 320px;
+    background: var(--background);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100svh;
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    letter-spacing: 0;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100svh;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    scroll-margin: 6rem;
+  }
+
+  :where(
+    a[href],
+    button:not(:disabled),
+    summary,
+    [role="button"]:not([aria-disabled="true"]),
+    [role="checkbox"]:not([aria-disabled="true"]),
+    [role="menuitem"]:not([aria-disabled="true"]),
+    [role="menuitemcheckbox"]:not([aria-disabled="true"]),
+    [role="menuitemradio"]:not([aria-disabled="true"]),
+    [role="option"]:not([aria-disabled="true"]),
+    [role="radio"]:not([aria-disabled="true"]),
+    [role="switch"]:not([aria-disabled="true"]),
+    [role="tab"]:not([aria-disabled="true"])
+  ) {
+    cursor: pointer;
+  }
+
+  :focus {
+    outline: none;
+  }
+}
+
+/* Keep the semantic indicator above copied utility-layer outline resets. */
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+  }
+
+  .agenda-appointment-card,
+  .agenda-appointment-card:hover,
+  .agenda-appointment-card:has(:focus-visible),
+  .agenda-appointment-drag-preview {
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline-color: Highlight;
+  }
+
+  [data-appointment-status] {
+    border-color: ButtonText;
+  }
+
+  .agenda-appointment-card,
+  .agenda-appointment-drag-preview {
+    border-color: ButtonText;
+    background: Canvas;
+    box-shadow: none;
+    color: CanvasText;
+  }
+
+  .agenda-appointment-card::before,
+  .agenda-appointment-drag-preview::before,
+  .agenda-current-time-marker,
+  [data-slot="workspace-active-indicator"] {
+    background: Highlight;
+  }
+
+  .agenda-current-time-label {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .agenda-appointment-status-badge {
+    border-color: ButtonText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .agenda-drop-target[data-over="true"] {
+    background: Canvas;
+    box-shadow: inset 0 0 0 2px Highlight;
+  }
+}

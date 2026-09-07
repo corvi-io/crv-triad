@@ -5,6 +5,7 @@ import type {
   AddServiceItemInput,
   AssignServiceItemProfessionalInput,
   CompleteServicePaymentInput,
+  InterruptSessionInput,
   QueueEntry,
   ServiceDeskQuery,
   ServiceDeskRepository,
@@ -97,6 +98,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
         now: now.toISOString(),
         professionals: schedule.professionals,
         services: schedule.services,
+        unitTimezone: schedule.timezone ?? null,
         unavailableProfessionalIds:
           query.scenarioId === "unavailable-professional" ? ["professional-carlos"] : [],
         unitName: schedule.unitName,
@@ -145,6 +147,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
       return this.#engine.create(
         {
           ...input,
+          customerName: input.customerName ?? "Cliente cadastrado",
           source: "walk-in",
           stage: "waiting",
         },
@@ -308,6 +311,15 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
     })
   }
 
+  async interruptSession(input: InterruptSessionInput) {
+    return this.#mutateSession("interrupt", input, (session, now) => {
+      this.#assertSessionActive(session)
+      if (input.reason.trim().length < 3 || input.reason.trim().length > 160)
+        throw new ServiceDeskTransitionError("Informe um motivo entre 3 e 160 caracteres.")
+      return { ...session, finishedAt: now, status: "canceled" as const }
+    })
+  }
+
   async call(entryId: string) {
     const generation = this.#generation
     return this.#engine.execute("update", () => {
@@ -418,7 +430,13 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
         throw new ServiceDeskTransitionError("Escolha o profissional específico.")
       }
       this.#assertEligible(
-        { ...input, id: "pending", source: "walk-in", stage: "waiting" },
+        {
+          ...input,
+          customerName: input.customerName ?? "Cliente cadastrado",
+          id: "pending",
+          source: "walk-in",
+          stage: "waiting",
+        },
         input.professionalId,
       )
     }
@@ -485,7 +503,7 @@ export class ServiceDeskMemoryRepository implements ServiceDeskRepository {
   }
 
   async #mutateSession(
-    kind: "add" | "assign" | "finish" | "notes" | "remove",
+    kind: "add" | "assign" | "finish" | "interrupt" | "notes" | "remove",
     input: SessionMutationInput,
     update: (session: ServiceSession, now: string) => ServiceSession,
   ) {

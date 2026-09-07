@@ -1,8 +1,19 @@
 # TRIAD Studio
 
+Multi-tenant context routing and the production client HTTP source are documented in
+[`docs/studio/multi-tenant-contexts.md`](../../docs/studio/multi-tenant-contexts.md). Operational
+provisioning, ownership recovery, support, rollout, and rollback are documented in
+[`docs/operations/multi-tenant-access-runbook.md`](../../docs/operations/multi-tenant-access-runbook.md).
+
 Authenticated barbershop-management frontend for CRV Triad.
 
 ## Development
+
+The local development server exposes one unified TanStack Devtools launcher in the lower-right
+corner, with dedicated Query and Router panels. Query Devtools lets developers inspect query keys,
+cache state, fetch status, stale state, and mutations. The unified shell is hidden from preview-only
+surfaces and production builds. Studio owns the visible `TS` launcher and delegates its action to
+the unified shell because the upstream alpha trigger is not reliable across authenticated layouts.
 
 ```bash
 bun --filter studio dev
@@ -44,9 +55,13 @@ it does not expose identity administration. See `docs/studio/authentication.md` 
 UI states, provider-error handling, accessibility, and test boundaries.
 
 Invitation acceptance removes the opaque query proof from browser history before form entry,
-uses a no-referrer policy, never accepts editable identity or role data, prevents duplicate submit,
-and returns to normal login without creating a session. Invitation, reset, and preference password
-forms share the same 15–256-character Portuguese guidance while the IDP remains authoritative.
+uses a no-referrer policy, never accepts editable identity or role data, and prevents duplicate
+submit. New credential accounts create a session through Better Auth; existing accounts, including
+Google first access, preserve the proof through login and complete the invitation only after the
+session exists. Safe Portuguese feedback distinguishes a different signed-in account from a
+changed proof or recoverable completion failure without revealing the invited address. Invitation,
+reset, and preference password forms share the same 8–256-character composition guidance in
+Portuguese while the IDP remains authoritative.
 
 The preview and sandbox redirect to `/login` in production. The sandbox is deterministic and
 resettable, persists nothing, and never mocks authentication. Verify it with
@@ -122,6 +137,11 @@ session-memory source; the normal UI does not expose scenario or reset controls.
 resolve the source as disabled and exclude fixtures; no API, persistence, tenancy, or authorization
 contract is accepted. See `docs/studio/barbershop-setup.md`.
 
+For production-backed first access, an owner or administrator whose tenant is not yet schedulable
+is routed into a persistent setup dialog. The dialog reuses those real setup surfaces and can be
+dismissed for the current browser session and tenant without marking setup as complete. Server
+readiness remains authoritative; members are never routed into owner setup as their primary task.
+
 Component placement, exhaustive inventory, public and internal-only decisions, token layers,
 adapter boundaries, and manual accessibility checks are documented in English at
 `docs/studio/component-system.md`. Focused Vitest and Playwright coverage verifies behavior without
@@ -137,7 +157,8 @@ Runtime env:
 
 - `VITE_APP_NAME`
 - `VITE_AUTH_BASE_URL`
-- `VITE_BARBERSHOP_SETUP_SOURCE` (`disabled` or `memory`; defaults to `disabled`)
+- `VITE_BARBERSHOP_SETUP_SOURCE` (`disabled`, `http`, or `memory`; defaults to `disabled`; use
+  `http` for production-backed catalogs)
 - `VITE_CLIENT_MANAGEMENT_SOURCE` (`disabled` or `memory`; defaults to `disabled`)
 - `VITE_DEPLOY_TARGET` (`local`, `dev`, `hml`, or `prd`; defaults to `local`)
 - `VITE_SCHEDULING_SOURCE` (`disabled` or `memory`; defaults to `disabled`)
@@ -147,3 +168,5 @@ management for local UX
 work. Remote `dev` builds require `VITE_DEPLOY_TARGET=dev` plus `memory` in the relevant source
 variable. The composition boundary ignores memory for `hml` and `prd`, and production checks reject
 synthetic markers.
+
+Production scheduling and availability now use the HTTP source by default. The Dashboard preserves its original panels and explicitly labels metrics whose source is not integrated. See [scheduling](../../docs/studio/scheduling.md).

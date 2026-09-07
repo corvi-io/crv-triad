@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "node:crypto"
 import { and, desc, eq, gt, isNotNull, sql } from "drizzle-orm"
 
 import type { IdpDatabase } from "../database/client.js"
-import { invitation } from "../database/schema.js"
+import { invitation, member, organizationInvitation, user } from "../database/schema.js"
 import { createId } from "../infra/ids.js"
 import { type IdpRole, normalizeEmail } from "./access-policy.js"
 
@@ -108,6 +108,15 @@ export async function resolveInvitationToken(
   token: string,
   now = new Date(),
 ): Promise<InvitationTokenResolution> {
+  const resolution = await resolveInvitationTokenRecord(db, token, now)
+  return resolution.state === "valid" ? resolution : { state: resolution.state }
+}
+
+export async function resolveInvitationTokenRecord(
+  db: IdpDatabase,
+  token: string,
+  now = new Date(),
+): Promise<InvitationTokenResolution> {
   const digest = digestInvitationToken(token)
   if (!digest) return { state: "invalid" }
 
@@ -118,10 +127,10 @@ export async function resolveInvitationToken(
     .limit(1)
 
   if (!row?.tokenIssuedAt) return { state: "invalid" }
-  if (row.status === "accepted") return { state: "accepted" }
-  if (row.status === "revoked") return { state: "revoked" }
-  if (row.status === "superseded") return { state: "superseded" }
-  if (row.status === "expired" || row.expiresAt <= now) return { state: "expired" }
+  if (row.status === "accepted") return { invitation: row, state: "accepted" }
+  if (row.status === "revoked") return { invitation: row, state: "revoked" }
+  if (row.status === "superseded") return { invitation: row, state: "superseded" }
+  if (row.status === "expired" || row.expiresAt <= now) return { invitation: row, state: "expired" }
   if (row.status !== "pending") return { state: "invalid" }
 
   return { invitation: row, state: "valid" }
@@ -145,44 +154,127 @@ export async function resendInvitation(
 
     await lockPendingInvitationEmail(tx, current.email)
 
-    const [superseded] = await tx
+    const secret = createInvitationSecret()
+    const [rotated] = await tx
       .update(invitation)
-      .set({ status: "superseded", updatedAt: now })
+      .set({ expiresAt, tokenDigest: secret.digest, tokenIssuedAt: now, updatedAt: now })
       .where(and(eq(invitation.id, current.id), eq(invitation.status, "pending")))
       .returning()
 
-    if (!superseded) return null
-
-    const secret = createInvitationSecret()
-    const [created] = await tx
-      .insert(invitation)
-      .values({
-        id: createId(),
-        email: current.email,
-        role: current.role,
-        status: "pending",
-        invitedByUserId: current.invitedByUserId,
-        expiresAt,
-        tokenDigest: secret.digest,
-        tokenIssuedAt: now,
-      })
-      .returning()
-
-    return { invitation: created, token: secret.token }
+    return rotated ? { invitation: rotated, token: secret.token } : null
   })
 }
 
-export async function acceptInvitationForUser(db: IdpDatabase, email: string, userId: string) {
-  const pendingInvitation = await findPendingInvitationByEmail(db, email)
-  if (!pendingInvitation) return null
+export async function acceptInvitationForUser(
+  db: IdpDatabase,
+  email: string,
+  userId: string,
+  invitationId: string,
+) {
+  const normalizedEmail = normalizeEmail(email)
 
-  const [accepted] = await db
-    .update(invitation)
-    .set({ status: "accepted", acceptedAt: new Date(), acceptedByUserId: userId })
-    .where(and(eq(invitation.id, pendingInvitation.id), eq(invitation.status, "pending")))
-    .returning()
+  return db.transaction(async (transaction) => {
+    const tx = transaction as unknown as IdpDatabase
+    await lockPendingInvitationEmail(tx, normalizedEmail)
 
-  return accepted
+    const [current] = await tx
+      .select()
+      .from(invitation)
+      .where(and(eq(invitation.id, invitationId), eq(invitation.email, normalizedEmail)))
+      .limit(1)
+    if (!current) return null
+
+    let accepted = current
+    let transitionedToAccepted = false
+    if (current.status === "accepted") {
+      if (current.acceptedByUserId !== userId) return null
+    } else {
+      if (
+        current.status !== "pending" ||
+        !current.tokenDigest ||
+        !current.tokenIssuedAt ||
+        current.expiresAt <= new Date()
+      )
+        return null
+
+      const [updated] = await tx
+        .update(invitation)
+        .set({ status: "accepted", acceptedAt: new Date(), acceptedByUserId: userId })
+        .where(and(eq(invitation.id, current.id), eq(invitation.status, "pending")))
+        .returning()
+      if (!updated) return null
+      accepted = updated
+      transitionedToAccepted = true
+    }
+
+    if (transitionedToAccepted && accepted.role === "admin")
+      await tx.update(user).set({ role: "admin", updatedAt: new Date() }).where(eq(user.id, userId))
+    if (transitionedToAccepted)
+      await acceptOrganizationInvitationsInTransaction(tx, normalizedEmail, userId)
+    return accepted
+  })
+}
+
+export async function acceptOrganizationInvitationsForUser(
+  db: IdpDatabase,
+  email: string,
+  userId: string,
+) {
+  const normalizedEmail = normalizeEmail(email)
+  return db.transaction(async (transaction) => {
+    const tx = transaction as unknown as IdpDatabase
+    await lockPendingInvitationEmail(tx, normalizedEmail)
+    return acceptOrganizationInvitationsInTransaction(tx, normalizedEmail, userId)
+  })
+}
+
+async function acceptOrganizationInvitationsInTransaction(
+  db: IdpDatabase,
+  normalizedEmail: string,
+  userId: string,
+) {
+  const result = await db
+    .select()
+    .from(organizationInvitation)
+    .where(
+      and(
+        eq(organizationInvitation.email, normalizedEmail),
+        eq(organizationInvitation.status, "pending"),
+        gt(organizationInvitation.expiresAt, new Date()),
+      ),
+    )
+  const pending = Array.isArray(result) ? result : []
+
+  for (const record of pending) {
+    await db
+      .insert(member)
+      .values({
+        id: createId(),
+        organizationId: record.organizationId,
+        role: record.role ?? "member",
+        status: "active",
+        userId,
+      })
+      .onConflictDoUpdate({
+        target: [member.organizationId, member.userId],
+        set: {
+          role: sql<"admin" | "member" | "owner">`case
+            when ${member.role} = 'owner' or excluded.role = 'owner' then 'owner'
+            when ${member.role} = 'admin' or excluded.role = 'admin' then 'admin'
+            else 'member'
+          end`,
+          status: "active",
+        },
+      })
+    await db
+      .update(organizationInvitation)
+      .set({ status: "accepted" })
+      .where(
+        and(eq(organizationInvitation.id, record.id), eq(organizationInvitation.status, "pending")),
+      )
+  }
+
+  return pending.length
 }
 
 export function createInvitationSecret(): { digest: string; token: string } {

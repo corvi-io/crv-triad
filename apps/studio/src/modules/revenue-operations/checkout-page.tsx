@@ -6,7 +6,6 @@ import {
   CreditCardIcon,
   LandmarkIcon,
   PlusIcon,
-  ReceiptTextIcon,
   ScissorsIcon,
   WalletCardsIcon,
 } from "lucide-react"
@@ -55,8 +54,8 @@ import type { Checkout, PaymentTender, TenderMethod } from "./contracts"
 import { RevenueOperationsError } from "./contracts"
 import { formatMoney, REASON_MAX_LENGTH, tenderSummary } from "./money"
 import {
+  useCancelReceipt,
   useCheckout,
-  useCommissionPreview,
   useCompletePayment,
   useReplaceTenders,
   useUpdateCheckoutAdjustments,
@@ -174,12 +173,11 @@ export function CheckoutPage({ onBack, sessionId }: { onBack: () => void; sessio
 }
 
 function CheckoutWorkspace({ checkout, onBack }: { checkout: Checkout; onBack: () => void }) {
-  const commissions = useCommissionPreview(checkout.id)
   const completePayment = useCompletePayment(checkout.id)
   const [confirming, setConfirming] = useState(false)
   const operationId = useRef("")
   const summary = tenderSummary(checkout.tenders, checkout.totalCents)
-  const paid = checkout.status === "paid"
+  const paid = checkout.status === "paid" || checkout.status === "registered"
 
   async function complete() {
     operationId.current ||= createOperationId()
@@ -190,7 +188,7 @@ function CheckoutWorkspace({ checkout, onBack }: { checkout: Checkout; onBack: (
       })
       operationId.current = ""
       setConfirming(false)
-      toast.success("Pagamento concluído.")
+      toast.success("Pagamento registrado.")
     } catch (error) {
       toast.error(
         error instanceof RevenueOperationsError
@@ -219,34 +217,25 @@ function CheckoutWorkspace({ checkout, onBack }: { checkout: Checkout; onBack: (
           <p className="text-sm text-muted-foreground">{checkout.unitName}</p>
         </div>
         <Badge variant={paid ? "outline" : "secondary"}>
-          {paid ? "Concluído · Pago" : "Pronto para pagamento"}
+          {paid ? "Pagamento registrado" : "Pronto para registrar"}
         </Badge>
       </header>
 
       {paid ? (
         <Alert>
           <CircleCheckIcon aria-hidden="true" />
-          <AlertTitle>Pagamento concluído</AlertTitle>
+          <AlertTitle>Pagamento registrado</AlertTitle>
           <AlertDescription>
             Este registro é somente leitura e não é um comprovante fiscal.
           </AlertDescription>
         </Alert>
-      ) : (
-        <Alert>
-          <ReceiptTextIcon aria-hidden="true" />
-          <AlertTitle>Registro de demonstração</AlertTitle>
-          <AlertDescription>
-            Nenhum valor real será processado. Não informe dados de cartão, credenciais ou
-            informações pessoais.
-          </AlertDescription>
-        </Alert>
-      )}
+      ) : null}
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(19rem,0.65fr)]">
         <div className="flex min-w-0 flex-col gap-4">
           <ServiceLines checkout={checkout} readOnly={paid} />
           {!paid ? <AdjustmentForm checkout={checkout} /> : null}
-          <CommissionPreview checkout={checkout} commissions={commissions.data ?? []} />
+          {checkout.receipts?.length ? <ReceiptHistory checkout={checkout} /> : null}
         </div>
         <div className="flex min-w-0 flex-col gap-4">
           <PaymentSection checkout={checkout} readOnly={paid} />
@@ -285,11 +274,11 @@ function CheckoutWorkspace({ checkout, onBack }: { checkout: Checkout; onBack: (
                   isLoading={completePayment.isPending}
                   onClick={() => setConfirming(true)}
                 >
-                  Concluir pagamento
+                  Registrar pagamento
                 </Button>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Pagamento concluído e bloqueado para alterações.
+                  O registro financeiro está preservado e disponível somente para leitura.
                 </p>
               )}
               {!paid && !summary.reconciled ? (
@@ -303,12 +292,12 @@ function CheckoutWorkspace({ checkout, onBack }: { checkout: Checkout; onBack: (
       </div>
       <ConfirmationDialog
         cancelLabel="Revisar pagamento"
-        confirmLabel="Concluir pagamento"
+        confirmLabel="Registrar pagamento"
         confirmVariant="default"
-        description={`Confirme o registro de ${formatMoney(checkout.totalCents)}. Depois de concluído, este pagamento ficará somente para leitura.`}
+        description={`Confirmo que revisei os valores e as formas de pagamento de ${formatMoney(checkout.totalCents)}. Este registro não processa cobranças externas nem emite documento fiscal.`}
         isLoading={completePayment.isPending}
         isOpen={confirming}
-        title="Concluir pagamento?"
+        title="Registrar pagamento?"
         onCancel={() => setConfirming(false)}
         onConfirm={() => void complete()}
       />
@@ -330,8 +319,7 @@ function ServiceLines({ checkout, readOnly }: { checkout: Checkout; readOnly: bo
           <Alert>
             <AlertTitle>Alteração de preço não autorizada</AlertTitle>
             <AlertDescription>
-              A permissão desta demonstração não permite alterar os valores dos serviços. Isso não
-              representa uma regra de acesso em produção.
+              Seu acesso permite revisar os serviços e registrar o pagamento sem alterar valores.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -516,63 +504,96 @@ function AdjustmentForm({ checkout }: { checkout: Checkout }) {
   )
 }
 
-function CommissionPreview({
-  checkout,
-  commissions,
-}: {
-  checkout: Checkout
-  commissions: Awaited<
-    ReturnType<ReturnType<typeof useCommissionPreview>["refetch"]>
-  >["data"] extends infer T
-    ? NonNullable<T>
-    : never
-}) {
-  const values = commissions as readonly {
-    barbershopCents: number
-    commissionCents: number
-    lineId: string
-    professionalName: string
-    rule: { kind: "fixed" | "none" | "percentage"; rateBasisPoints?: number; fixedCents?: number }
-  }[]
+function ReceiptHistory({ checkout }: { checkout: Checkout }) {
+  const cancelReceipt = useCancelReceipt(checkout.id)
+  const active = checkout.receipts?.find(({ status }) => status === "active")
+  const [reason, setReason] = useState("")
+  const [confirming, setConfirming] = useState(false)
+  const operationId = useRef("")
+
+  async function cancel() {
+    if (!active || reason.trim().length < 3) return
+    operationId.current ||= createOperationId()
+    try {
+      await cancelReceipt.mutateAsync({
+        checkoutId: checkout.id,
+        operationId: operationId.current,
+        reason,
+        receiptId: active.id,
+      })
+      operationId.current = ""
+      setConfirming(false)
+      setReason("")
+      toast.success("Registro cancelado. O atendimento permaneceu concluído.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível cancelar o registro.")
+    }
+  }
   return (
     <Card>
       <CardHeader>
         <CardTitle>
-          <h2>Prévia de comissões</h2>
+          <h2>Histórico de registros</h2>
         </CardTitle>
         <CardDescription>
-          Cálculo por serviço. O repasse ao profissional não faz parte deste protótipo.
+          Registros e cancelamentos financeiros permanecem imutáveis e não alteram o atendimento.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {values.map((commission) => {
-          const line = checkout.lines.find(({ id }) => id === commission.lineId)
-          return (
-            <div
-              key={commission.lineId}
-              className="grid gap-1 rounded-lg border p-3 lg:grid-cols-3"
-            >
-              <div>
-                <p className="font-medium">{line?.serviceName}</p>
-                <p className="text-sm text-muted-foreground">{commission.professionalName}</p>
-              </div>
-              <p>
-                Comissão <strong>{formatMoney(commission.commissionCents)}</strong>
+        {checkout.receipts?.map((receipt) => (
+          <div
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
+            key={receipt.id}
+          >
+            <div>
+              <p className="font-medium">
+                {receipt.status === "active" ? "Pagamento registrado" : "Registro cancelado"}
               </p>
-              <p>
-                Barbearia <strong>{formatMoney(commission.barbershopCents)}</strong>
-              </p>
-              <p className="text-sm text-muted-foreground lg:col-span-3">
-                {commission.rule.kind === "percentage"
-                  ? `${(commission.rule.rateBasisPoints ?? 0) / 100}% sobre o valor líquido`
-                  : commission.rule.kind === "fixed"
-                    ? `Valor fixo de ${formatMoney(commission.rule.fixedCents ?? 0)}`
-                    : "Sem comissão"}
+              <p className="text-sm text-muted-foreground">
+                Data operacional {receipt.localDate.split("-").reverse().join("/")}
               </p>
             </div>
-          )
-        })}
+            <span className="tabular-nums font-medium">{formatMoney(receipt.totalCents)}</span>
+          </div>
+        ))}
+        {active && checkout.adjustmentAuthorized ? (
+          <div className="flex flex-col gap-2 rounded-lg border p-3">
+            <Field>
+              <FieldLabel htmlFor="receipt-cancellation-reason">Motivo do cancelamento</FieldLabel>
+              <Input
+                id="receipt-cancellation-reason"
+                maxLength={REASON_MAX_LENGTH}
+                placeholder="Ex.: Forma de pagamento registrada incorretamente"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+              />
+              <FieldDescription>
+                O cancelamento cria uma reversão integral; não realiza estorno externo.
+              </FieldDescription>
+            </Field>
+            <Button
+              className="w-fit"
+              type="button"
+              variant="destructive"
+              disabled={reason.trim().length < 3}
+              onClick={() => setConfirming(true)}
+            >
+              Cancelar registro
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
+      <ConfirmationDialog
+        cancelLabel="Manter registro"
+        confirmLabel="Cancelar registro"
+        confirmVariant="destructive"
+        description="Confirme que o recebimento ou estorno externo já foi tratado fora do TRIAD. O histórico original será preservado e o atendimento não será alterado."
+        isLoading={cancelReceipt.isPending}
+        isOpen={confirming}
+        title="Cancelar este registro?"
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => void cancel()}
+      />
     </Card>
   )
 }

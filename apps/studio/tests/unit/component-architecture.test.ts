@@ -52,7 +52,7 @@ describe("Studio component dependency model", () => {
     expect(productionRoute).toContain('from "virtual:studio-development-sandbox"')
 
     const setupRoute = await readFile(
-      path.resolve(process.cwd(), "src/routes/_authenticated/barbershop-setup/index.tsx"),
+      path.resolve(process.cwd(), "src/routes/_authenticated/barbershop-setup/$section/index.tsx"),
       "utf8",
     )
     const setupShim = await readFile(

@@ -174,8 +174,68 @@ export function createOpenApiDocument(baseUrl: string): OpenAPIObject {
             },
           },
           responses: {
-            "200": { description: "Invitation lifecycle state" },
+            "200": {
+              description: "Invitation lifecycle state with optional valid-token business context",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["state"],
+                    properties: {
+                      state: {
+                        type: "string",
+                        enum: ["accepted", "expired", "invalid", "revoked", "superseded", "valid"],
+                      },
+                      role: { type: "string", enum: ["admin", "member"] },
+                      expiresAt: { type: "string", format: "date-time" },
+                      hasAccount: { type: "boolean" },
+                      context: {
+                        type: "object",
+                        properties: {
+                          organizationName: { type: "string" },
+                          professionalRole: { type: "string" },
+                          unitNames: { type: "array", maxItems: 50, items: { type: "string" } },
+                          inviterName: { type: "string" },
+                          logoAvailable: { type: "boolean" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
             "429": { description: "Resolution rate limit exceeded" },
+          },
+        },
+      },
+      "/invitations/logo": {
+        post: {
+          tags: ["Invitations"],
+          summary: "Read a valid invitation's business logo",
+          description:
+            "Validates the opaque invitation proof before returning private, no-store image bytes. Storage keys and permanent URLs are never exposed.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["token"],
+                  properties: { token: { type: "string", writeOnly: true } },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Private invitation logo bytes",
+              content: {
+                "image/jpeg": { schema: { type: "string", format: "binary" } },
+                "image/png": { schema: { type: "string", format: "binary" } },
+                "image/webp": { schema: { type: "string", format: "binary" } },
+              },
+            },
+            "404": { description: "Proof is invalid, terminal, or has no available logo" },
           },
         },
       },

@@ -365,7 +365,7 @@ describe("createAuthOptions", () => {
     BETTER_AUTH_URL: "http://127.0.0.1:8000",
     AUTH_TRUSTED_ORIGINS: ["http://localhost:3000"],
     AUTH_SESSION_EXPIRES_IN_SECONDS: 2_592_000,
-    AUTH_PASSWORD_MIN_LENGTH: 15,
+    AUTH_PASSWORD_MIN_LENGTH: 8,
     AUTH_PASSWORD_MAX_LENGTH: 256,
     AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS: 3_600,
     AUTH_GOOGLE_CLIENT_ID: "google-client-id-placeholder",
@@ -383,6 +383,29 @@ describe("createAuthOptions", () => {
   }
 
   const testPassword = "test-password-123"
+
+  it("configures organization tenancy without enabling public provisioning", () => {
+    const options = createAuthOptions(env as never, {} as never, emailSender)
+    const plugin = options.plugins?.find((candidate) => candidate.id === "organization") as
+      | { options?: Record<string, unknown>; schema?: Record<string, unknown> }
+      | undefined
+
+    expect(plugin).toBeDefined()
+    expect(plugin?.options).toMatchObject({
+      allowUserToCreateOrganization: false,
+      creatorRole: "owner",
+      disableOrganizationDeletion: true,
+      dynamicAccessControl: { enabled: false },
+      schema: {
+        invitation: { modelName: "organizationInvitation" },
+        member: { modelName: "member" },
+        organization: { modelName: "organization" },
+        session: { fields: { activeOrganizationId: "active_organization_id" } },
+      },
+    })
+    expect(plugin?.schema).not.toHaveProperty("team")
+    expect(options.plugins?.some((candidate) => candidate.id === "admin")).toBe(false)
+  })
 
   type GoogleIdentity = {
     id: string
@@ -584,11 +607,11 @@ describe("createAuthOptions", () => {
 
     expect(options.emailAndPassword).toMatchObject({
       enabled: true,
-      requireEmailVerification: true,
+      requireEmailVerification: false,
       revokeSessionsOnPasswordReset: true,
     })
     expect(options.emailVerification).toMatchObject({
-      autoSignInAfterVerification: false,
+      autoSignInAfterVerification: true,
       sendOnSignIn: true,
       sendOnSignUp: false,
     })
@@ -615,7 +638,7 @@ describe("createAuthOptions", () => {
     expect(options.databaseHooks?.session?.create?.before).toBeTypeOf("function")
   })
 
-  it("accepts one invitation and rejects replay through native credential creation without a session", async () => {
+  it("accepts one invitation with a session and rejects replay", async () => {
     const secret = createInvitationSecret()
     const now = new Date()
     const memoryDb: Record<string, Array<Record<string, unknown>>> = {
@@ -640,7 +663,26 @@ describe("createAuthOptions", () => {
       user: [],
       verification: [],
     }
-    const options = createAuthOptions(env as never, {} as never, emailSender)
+    const hookRows = [[{ id: "invitation-id" }]]
+    let hookQueryIndex = 0
+    const sessionHookDb = {
+      execute: async () => [],
+      transaction: async <T>(callback: (transaction: unknown) => Promise<T>) =>
+        callback(sessionHookDb),
+      select: () => ({
+        from: () => ({
+          where: () => ({ limit: async () => hookRows[hookQueryIndex++] ?? [] }),
+        }),
+      }),
+    }
+    const onInvitationAccepted = vi.fn(async () => undefined)
+    const options = createAuthOptions(
+      env as never,
+      sessionHookDb as never,
+      emailSender,
+      undefined,
+      onInvitationAccepted,
+    )
     const auth = betterAuth({
       ...options,
       database: memoryAdapter(memoryDb),
@@ -659,7 +701,7 @@ describe("createAuthOptions", () => {
       email: "invitation-proof@invalid.example",
       invitationToken: secret.token,
       name: "Usuário TRIAD",
-      password: "uma frase longa e exclusiva",
+      password: "Senha válida 1!",
       rememberMe: false,
     }
 
@@ -678,11 +720,12 @@ describe("createAuthOptions", () => {
     })
     expect(memoryDb.account).toHaveLength(1)
     expect(memoryDb.account[0]).toMatchObject({ providerId: "credential" })
-    expect(memoryDb.session).toHaveLength(0)
+    expect(memoryDb.session).toHaveLength(1)
     expect(memoryDb.invitation[0]).toMatchObject({
       acceptedByUserId: memoryDb.user[0]?.id,
       status: "accepted",
     })
+    expect(onInvitationAccepted).toHaveBeenCalledWith(expect.any(String), memoryDb.user[0]?.id)
   })
 
   it("rolls back invitation consumption and native identity writes after credential failure", async () => {
@@ -739,7 +782,7 @@ describe("createAuthOptions", () => {
         email: "untrusted-input@example.invalid",
         invitationToken: secret.token,
         name: "Usuário TRIAD",
-        password: "uma frase longa e exclusiva",
+        password: "Senha válida 1!",
         rememberMe: false,
       },
     })
@@ -764,7 +807,7 @@ describe("createAuthOptions", () => {
           emailVerified: false,
           name: "Test identity",
         } as never,
-        { path: "/callback/google" } as never,
+        { params: { id: "google" }, path: "/callback/:id" } as never,
       ),
     ).rejects.toMatchObject({ status: "FORBIDDEN" })
   })
@@ -875,6 +918,41 @@ describe("createAuthOptions", () => {
     expect(memoryDb.session).toHaveLength(0)
     expect(session.status).toBe(200)
     expect(session.session).toEqual({ authenticated: false })
+  })
+
+  it("creates a persisted session for a verified invited Google identity", async () => {
+    const email = "invited-verified-google@example.invalid"
+    const pendingInvitation = {
+      email,
+      expiresAt: new Date(Date.now() + 60_000),
+      id: "pending-verified-google-invitation-id",
+      role: "member",
+      status: "pending",
+    }
+    const { client, memoryDb } = await createAuthPolicyHarness({
+      googleIdentity: {
+        email,
+        emailVerified: true,
+        id: "invited-verified-google-account-id",
+        name: "Invited verified Google user",
+      },
+      hookSelectRows: [[], [pendingInvitation], [{ emailVerified: true, status: "active" }]],
+    })
+
+    const response = await client.request("/sign-in/social", {
+      body: { idToken: { token: "invited-verified-google-token" }, provider: "google" },
+    })
+    const sessionResponse = await client.request("/get-session")
+
+    expect(response.status).toBe(200)
+    expect(memoryDb.user).toEqual([
+      expect.objectContaining({ email, emailVerified: true, status: "active" }),
+    ])
+    expect(memoryDb.account).toEqual([
+      expect.objectContaining({ providerId: "google", userId: memoryDb.user[0]?.id }),
+    ])
+    expect(memoryDb.session).toHaveLength(1)
+    expect(sessionResponse.session).toEqual({ authenticated: true, email })
   })
 
   it("rejects an unverified Google identity for an existing same-email user", async () => {

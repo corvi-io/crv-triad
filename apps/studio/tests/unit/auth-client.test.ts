@@ -31,6 +31,7 @@ vi.mock("better-auth/react", () => ({
 }))
 
 import {
+  acceptExistingInvitation,
   acceptInvitation,
   changePassword,
   linkGoogle,
@@ -39,6 +40,7 @@ import {
   resendVerificationEmail,
   resetPassword,
   resolveInvitation,
+  resolveInvitationLogo,
   signInWithEmail,
   signInWithGoogle,
   unlinkGoogle,
@@ -83,7 +85,8 @@ describe("auth client", () => {
     })
     await expect(
       acceptInvitation({
-        password: "uma frase longa e exclusiva",
+        name: "Pessoa Convidada",
+        password: "Senha válida 1!",
         token: "synthetic-invitation-proof",
       }),
     ).resolves.toEqual({ status: true })
@@ -99,6 +102,73 @@ describe("auth client", () => {
     expect(acceptanceRequest?.[1]).toMatchObject({ method: "POST", referrerPolicy: "no-referrer" })
   })
 
+  it("loads invitation logo bytes only from a successful proof-gated response", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(new Uint8Array([1, 2, 3]), {
+          headers: { "content-type": "image/png" },
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(resolveInvitationLogo("valid-proof")).resolves.toMatchObject({ type: "image/png" })
+    await expect(resolveInvitationLogo("terminal-proof")).resolves.toBeNull()
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      referrerPolicy: "no-referrer",
+    })
+  })
+
+  it("rejects an unavailable invitation resolution", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(new Response(null, { status: 503 })))
+
+    await expect(resolveInvitation("synthetic-invitation-proof")).rejects.toThrow(
+      "Invitation resolution unavailable.",
+    )
+  })
+
+  it.each([
+    ["PASSWORD_POLICY_REJECTED", "password_policy"],
+    ["INVALID_INVITATION_PROOF", "invalid_invitation"],
+    ["UNAVAILABLE", "unavailable"],
+  ] as const)("maps safe new-invitation error %s", async (code, expected) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ code }), { status: 400 })),
+    )
+
+    await expect(
+      acceptInvitation({ name: "Pessoa", password: "Senha válida 1!", token: "proof" }),
+    ).resolves.toEqual({ error: expected })
+  })
+
+  it.each([
+    [401, "UNAUTHENTICATED", "unauthenticated"],
+    [400, "INVITATION_ACCOUNT_MISMATCH", "account_mismatch"],
+    [409, "INVITATION_CHANGED", "invitation_changed"],
+    [503, "INVITATION_COMPLETION_FAILED", "completion_failed"],
+  ] as const)("maps safe existing-invitation error %s", async (status, code, expected) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ code }), { status })),
+    )
+
+    await expect(acceptExistingInvitation("synthetic-invitation-proof")).resolves.toEqual({
+      error: expected,
+    })
+  })
+
+  it("falls back to unavailable for an unreadable existing-invitation error", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(new Response("not-json", { status: 500 })))
+
+    await expect(acceptExistingInvitation("synthetic-invitation-proof")).resolves.toEqual({
+      error: "unavailable",
+    })
+  })
+
   it("requests password reset with an absolute redirect URL", async () => {
     await requestPasswordReset("maria@example.com")
 
@@ -110,20 +180,20 @@ describe("auth client", () => {
 
   it("delegates the complete recovery and verification lifecycle to Better Auth", async () => {
     await resendVerificationEmail("test-user@example.invalid")
-    await resetPassword({ newPassword: "new-password-123", token: "opaque-test-token" })
-    await changePassword({ currentPassword: "old-password-123", newPassword: "new-password-123" })
+    await resetPassword({ newPassword: "New-password-123!", token: "opaque-test-token" })
+    await changePassword({ currentPassword: "old-password-123", newPassword: "New-password-123!" })
 
     expect(authMocks.sendVerificationEmail).toHaveBeenCalledWith({
-      callbackURL: "http://localhost:3000/login?verified=true",
+      callbackURL: "http://localhost:3000/overview",
       email: "test-user@example.invalid",
     })
     expect(authMocks.resetPassword).toHaveBeenCalledWith({
-      newPassword: "new-password-123",
+      newPassword: "New-password-123!",
       token: "opaque-test-token",
     })
     expect(authMocks.changePassword).toHaveBeenCalledWith({
       currentPassword: "old-password-123",
-      newPassword: "new-password-123",
+      newPassword: "New-password-123!",
       revokeOtherSessions: true,
     })
   })
@@ -148,5 +218,16 @@ describe("auth client", () => {
     expect(authMocks.listAccounts).toHaveBeenCalledOnce()
     expect(authMocks.signInSocial.mock.calls[0]?.[0]).not.toHaveProperty("scopes")
     expect(authMocks.linkSocial.mock.calls[0]?.[0]).not.toHaveProperty("scopes")
+  })
+
+  it("returns invited Google sign-in to the token acceptance route", async () => {
+    await signInWithGoogle("synthetic-invitation-proof")
+
+    expect(authMocks.signInSocial).toHaveBeenCalledWith({
+      callbackURL: "http://localhost:3000/accept-invitation?token=synthetic-invitation-proof",
+      errorCallbackURL:
+        "http://localhost:3000/login?error=provider&invitationToken=synthetic-invitation-proof",
+      provider: "google",
+    })
   })
 })

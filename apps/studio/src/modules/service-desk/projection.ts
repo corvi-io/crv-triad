@@ -25,6 +25,13 @@ export const professionalPreferenceLabels: Record<ProfessionalPreferenceKind, st
   specific: "Profissional específico",
 }
 
+export function resolveStartProfessionalId(
+  entry: Pick<QueueEntry, "assignedProfessionalId" | "id" | "professionalId">,
+  assignments: Readonly<Record<string, string>>,
+) {
+  return assignments[entry.id] || entry.professionalId || entry.assignedProfessionalId
+}
+
 export function appointmentDateTime(appointment: Appointment) {
   return parseISO(`${appointment.date}T${appointment.start}:00`)
 }

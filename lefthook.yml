@@ -1,5 +1,7 @@
 pre-commit:
   commands:
+    studio-coverage:
+      run: bash .github/scripts/check-staged-studio-coverage.sh
     biome:
       glob: "*.{js,jsx,ts,tsx,json,jsonc,astro,css,md}"
       run: bunx biome check --write --no-errors-on-unmatched {staged_files}

@@ -12,6 +12,7 @@ dist/
 coverage/
 .coverage
 .artifacts/
+.trigger/
 
 # Environment files
 .env
@@ -32,3 +33,4 @@ yarn-error.log*
 .idea/
 .vscode/
 *.swp
+.data/

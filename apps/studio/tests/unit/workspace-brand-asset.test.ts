@@ -7,6 +7,7 @@ import stackedWhite from "../../public/brand/crv-triad-stacked-white.svg?raw"
 import symbolGold from "../../public/brand/crv-triad-symbol-gold.svg?raw"
 import symbolWhite from "../../public/brand/crv-triad-symbol-white.svg?raw"
 import authShellSource from "../../src/modules/auth/components/auth-shell/index.tsx?raw"
+import studioLogoSource from "../../src/modules/shared/components/branding/studio-logo.tsx?raw"
 import workspaceBrandSource from "../../src/modules/shared/components/workspace-shell/workspace-brand.tsx?raw"
 
 describe("workspace brand asset", () => {
@@ -27,22 +28,18 @@ describe("workspace brand asset", () => {
 
   it("uses horizontal marks in the expanded shell and official symbols when collapsed", () => {
     expect(workspaceBrandSource).toContain('aria-label="TRIAD Studio — ir para o Dashboard"')
-    expect(workspaceBrandSource).toContain('src="/brand/crv-triad-horizontal-gold.svg"')
-    expect(workspaceBrandSource).toContain('src="/brand/crv-triad-horizontal-white.svg"')
-    expect(workspaceBrandSource).toContain('src="/brand/crv-triad-symbol-gold.svg"')
-    expect(workspaceBrandSource).toContain('src="/brand/crv-triad-symbol-white.svg"')
+    expect(workspaceBrandSource).toContain("<StudioLogo")
+    expect(workspaceBrandSource).toContain('variant="icon"')
     expect(workspaceBrandSource).toContain("group-data-[collapsible=icon]")
-    expect(workspaceBrandSource).toContain("dark:hidden")
-    expect(workspaceBrandSource).toContain("dark:block")
+    expect(studioLogoSource).toContain("crv-triad-\u0024{kind}-gold.svg")
+    expect(studioLogoSource).toContain("crv-triad-\u0024{kind}-white.svg")
+    expect(studioLogoSource).toContain("Studio")
+    expect(studioLogoSource).toContain('aria-label="TRIAD Studio"')
   })
 
-  it("uses the horizontal and stacked theme pairs on authentication surfaces", () => {
-    expect(authShellSource).toContain('src="/brand/crv-triad-horizontal-gold.svg"')
-    expect(authShellSource).toContain('src="/brand/crv-triad-horizontal-white.svg"')
-    expect(authShellSource).toContain('src="/brand/crv-triad-stacked-gold.svg"')
-    expect(authShellSource).toContain('src="/brand/crv-triad-stacked-white.svg"')
+  it("uses the canonical Studio signature on authentication surfaces", () => {
+    expect(authShellSource).toContain("<StudioLogo")
+    expect(authShellSource).toContain('src="/auth/studio-quiet-luxury.webp"')
     expect(authShellSource).not.toContain("/placeholder.svg")
-    expect(authShellSource.match(/alt=""/g)).toHaveLength(4)
-    expect(authShellSource.match(/aria-hidden="true"/g)).toHaveLength(4)
   })
 })

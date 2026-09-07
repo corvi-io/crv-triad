@@ -12,6 +12,7 @@
 - `apps/site` owns the public Astro marketing site and its lead form UI.
 - `apps/api` owns business APIs, authentication, sessions, invitations, users, and identity contracts.
 - `apps/studio` owns the authenticated barbershop-management product interface.
+- `apps/backstage` owns internal system administration, tenant lifecycle operations, and bounded support access.
 - Keep identity rules isolated under `apps/api/src/modules/idp`; do not put business-domain rules there.
 
 ## IDP Architecture
@@ -35,12 +36,12 @@
 
 - Keep app-local `.env` and `.env.example` files runtime-shaped inside each app.
 - Do not introduce a single root `.env`.
-- Preserve local ports: API `8000`, studio `3000`, site `3001`.
+- Preserve local ports: API `8000`, studio `3000`, barber `3001` (reserved), backstage `3003`, site `3004`.
 - Use root `env-schema.yaml` as the metadata-only deployment env manifest; never store actual values there.
 - Use Infisical environments `dev`, `hml`, and `prd` as the value source of truth.
 - GitHub Environments retain protection rules and the non-secret Infisical OIDC identity/project identifiers only.
-- Store app values in Infisical paths `/api`, `/site`, and `/studio`, with infrastructure values in `/infrastructure`.
-- Name deployment sources with an uppercase app prefix (`API__*`, `SITE__*`, `STUDIO__*`).
+- Store app values in Infisical paths `/api`, `/site`, `/studio`, and `/backstage`, with infrastructure values in `/infrastructure`.
+- Name deployment sources with an uppercase app prefix (`API__*`, `SITE__*`, `STUDIO__*`, `BACKSTAGE__*`).
 - Name pipeline and release controls with `CICD__*` and provider credentials,
   provider identifiers, and deployed-resource locations with `INFRA__*`.
 - Do not add uncategorized custom GitHub variables or secrets. GitHub-provided

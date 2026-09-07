@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/corvi-io/crv-triad/compare/v0.5.0...v0.6.0) (2026-09-01)
+
+
+### Features
+
+* **analytics:** confirm lead capture server-side ([#58](https://github.com/corvi-io/crv-triad/issues/58)) ([899e974](https://github.com/corvi-io/crv-triad/commit/899e974b26be230b41497c4dc59fda23d9982534))
+
 ## [0.5.0](https://github.com/corvi-io/crv-triad/compare/v0.4.0...v0.5.0) (2026-09-01)
 
 

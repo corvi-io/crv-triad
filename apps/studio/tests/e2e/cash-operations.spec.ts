@@ -170,7 +170,7 @@ test("passes axe and captures light, dark, 320px, reduced-motion, keyboard, and 
 
 async function focusWithTab(page: Page, accessibleName: string) {
   for (let index = 0; index < 100; index += 1) {
-    await page.keyboard.press("Tab")
+    await page.keyboard.press("Tab", { delay: 10 })
     const name = await page.evaluate(() => {
       const element = document.activeElement
       if (!(element instanceof HTMLElement)) return ""
@@ -182,6 +182,43 @@ async function focusWithTab(page: Page, accessibleName: string) {
 }
 
 async function routeAuthenticatedSession(page: Page) {
+  await page.route("**/api/access/summary", async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ headers: corsHeaders(), status: 204 })
+      return
+    }
+    await route.fulfill({
+      body: JSON.stringify({
+        capabilities: [
+          { allowed: true, capability: "cash.read", reason: null },
+          { allowed: true, capability: "cash.manage", reason: null },
+        ],
+        organizationId: "test-tenant",
+        role: "owner",
+        subscriptionState: "active",
+      }),
+      contentType: "application/json",
+      headers: corsHeaders(),
+      status: 200,
+    })
+  })
+  await page.route("**/api/contexts", async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ headers: corsHeaders(), status: 204 })
+      return
+    }
+    await route.fulfill({
+      body: JSON.stringify({
+        activeOrganizationId: "test-tenant",
+        platform: null,
+        status: "available",
+        tenants: [{ id: "test-tenant", name: "Barbearia de teste", role: "owner" }],
+      }),
+      contentType: "application/json",
+      headers: corsHeaders(),
+      status: 200,
+    })
+  })
   await page.route("**/api/auth/**", async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({ headers: corsHeaders(), status: 204 })
@@ -204,10 +241,11 @@ async function routeAuthenticatedSession(page: Page) {
 }
 
 function corsHeaders() {
+  const studioOrigin = `http://127.0.0.1:${process.env.STUDIO_E2E_PORT ?? "3100"}`
   return {
     "access-control-allow-credentials": "true",
     "access-control-allow-headers": "content-type",
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-origin": "http://127.0.0.1:3100",
+    "access-control-allow-origin": studioOrigin,
   }
 }

@@ -11,7 +11,7 @@ See [Release Process](release-process.md) for release automation, first-release 
 production promotion, publication, and post-release synchronization.
 
 Each pipeline detects affected apps and runs app-specific quality and security gates. The consolidated
-API deploys to Fly.io. Site and studio deploy to Cloudflare Pages. Third-party actions are pinned to full
+API deploys to Fly.io. Site, Studio, and Backstage deploy to Cloudflare Pages. Third-party actions are pinned to full
 commit SHAs, dependency updates are managed by Dependabot, and the shared security job runs the
 repository CI script test suite before any app delivery job can start.
 
@@ -23,13 +23,19 @@ Infisical OIDC identifiers. Repository-scoped release controls remain in GitHub.
 
 | Category | Purpose | Examples |
 | --- | --- | --- |
-| `API__*`, `SITE__*`, `STUDIO__*` | App runtime or browser build inputs | `API__DATABASE_URL`, `STUDIO__VITE_AUTH_BASE_URL` |
+| `API__*`, `SITE__*`, `STUDIO__*`, `BACKSTAGE__*` | App runtime or browser build inputs | `API__DATABASE_URL`, `BACKSTAGE__VITE_AUTH_BASE_URL` |
 | `CICD__*` | Release controls | `CICD__RELEASE_ENABLED` |
 | `INFRA__*` | Provider credentials, provider identifiers, and deployed-resource locations | `INFRA__FLY_API_TOKEN`, `INFRA__STUDIO_URL` |
 
 The deploy gate translates categorized sources to the standard environment names expected by Fly.io,
 Wrangler, Vite, Astro, Elysia, and Better Auth. App-local `.env` files remain runtime-shaped. GitHub's
 built-in `GITHUB_*` values are not custom configuration and remain unchanged.
+
+API delivery deploys the Trigger.dev bundle before the Fly release. It reads the environment-specific
+`INFRA__TRIGGER_ACCESS_TOKEN` from `/infrastructure` and maps Triad `dev`,
+`hml`, and `prd` to Trigger.dev Preview branch `dev`, Staging, and Production respectively. When the
+Trigger.dev plan only permits full-access keys, the infrastructure entry references the canonical
+environment-specific `/api/API__TRIGGER_SECRET_KEY` instead of copying its value.
 
 Do not add uncategorized custom variables or secrets to workflows. Update `env-schema.yaml`, its
 validation tests, and the relevant deployment documentation together.
@@ -48,7 +54,11 @@ Every deployment environment starts with:
 - `INFRA__FLY_API_TOKEN` for Fly.io deployments.
 - `INFRA__CLOUDFLARE_API_TOKEN`, `INFRA__CLOUDFLARE_ACCOUNT_ID`, and the appropriate Pages project
   names for Cloudflare deployments.
-- `INFRA__STUDIO_URL` for studio deployment reporting and smoke checks.
+- `INFRA__STUDIO_URL` and `INFRA__BACKSTAGE_URL` for application deployment reporting and smoke checks.
+
+Backstage additionally requires `INFRA__CLOUDFLARE_BACKSTAGE_PROJECT_NAME`. Its public origin must
+be included in the corresponding API `API__AUTH_TRUSTED_ORIGINS` value before deployment. When both
+applications are affected, API delivery completes before Backstage delivery begins.
 
 Provision only Triad-owned applications, databases, Pages projects, tokens, and domains. Deployments
 are automatic once changes reach the environment's branch or pull-request boundary; keep required

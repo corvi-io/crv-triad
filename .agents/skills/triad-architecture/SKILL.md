@@ -15,8 +15,8 @@ in English.
 1. Identify the user-visible intent and the affected boundary.
 2. Choose the owner:
    - `apps/site`: public Astro landing page and browser-visible marketing UX.
-   - `apps/api`: central FastAPI backend for landing-page support and future
-     internal business capabilities.
+   - `apps/api`: Bun and Elysia modular monolith for business APIs and landing-page
+     support.
    - `apps/api/src/modules/idp`: identity provider for authentication, sessions, invitations,
      and internal identity contracts.
    - `apps/studio`: authenticated barbershop-management product interface.

@@ -1,9 +1,11 @@
+import { organizationClient } from "better-auth/client/plugins"
 import { createAuthClient } from "better-auth/react"
 
 import { env } from "@/modules/shared/config/env"
 
 export const authClient = createAuthClient({
   baseURL: getAbsoluteAuthBaseUrl(),
+  plugins: [organizationClient()],
 })
 
 export async function signInWithEmail(input: { email: string; password: string }) {
@@ -15,7 +17,15 @@ export async function signInWithEmail(input: { email: string; password: string }
 }
 
 export type InvitationResolution = {
+  context?: {
+    inviterName?: string
+    logoAvailable?: boolean
+    organizationName: string
+    professionalRole?: string
+    unitNames?: readonly string[]
+  } | null
   expiresAt?: string
+  hasAccount?: boolean
   role?: "admin" | "member"
   state: "accepted" | "expired" | "invalid" | "revoked" | "superseded" | "valid"
 }
@@ -33,12 +43,24 @@ export async function resolveInvitation(token: string, signal?: AbortSignal) {
   return (await response.json()) as InvitationResolution
 }
 
-export async function acceptInvitation(input: { password: string; token: string }) {
+export async function resolveInvitationLogo(token: string, signal?: AbortSignal) {
+  const response = await fetch(getIdpUrl("/invitations/logo"), {
+    body: JSON.stringify({ token }),
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+    referrerPolicy: "no-referrer",
+    signal,
+  })
+  return response.ok ? response.blob() : null
+}
+
+export async function acceptInvitation(input: { name: string; password: string; token: string }) {
   const response = await fetch(getIdpUrl("/api/auth/sign-up/email"), {
     body: JSON.stringify({
       email: "invitation-proof@invalid.example",
       invitationToken: input.token,
-      name: "Usuário TRIAD",
+      name: input.name,
       password: input.password,
       rememberMe: false,
     }),
@@ -60,6 +82,30 @@ export async function acceptInvitation(input: { password: string; token: string 
   }
 }
 
+export async function acceptExistingInvitation(token: string) {
+  const response = await fetch(getIdpUrl("/invitations/accept-existing"), {
+    body: JSON.stringify({ token }),
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+    referrerPolicy: "no-referrer",
+  })
+  if (response.ok) return { status: true as const }
+  const payload = (await response.json().catch(() => null)) as { code?: unknown } | null
+  return {
+    error:
+      response.status === 401
+        ? ("unauthenticated" as const)
+        : payload?.code === "INVITATION_ACCOUNT_MISMATCH"
+          ? ("account_mismatch" as const)
+          : payload?.code === "INVITATION_CHANGED"
+            ? ("invitation_changed" as const)
+            : payload?.code === "INVITATION_COMPLETION_FAILED"
+              ? ("completion_failed" as const)
+              : ("unavailable" as const),
+  }
+}
+
 export async function requestPasswordReset(email: string) {
   return authClient.requestPasswordReset({
     email,
@@ -73,15 +119,41 @@ export async function resetPassword(input: { newPassword: string; token: string 
 
 export async function resendVerificationEmail(email: string) {
   return authClient.sendVerificationEmail({
-    callbackURL: getBrowserUrl("/login?verified=true"),
+    callbackURL: getBrowserUrl("/overview"),
     email,
   })
 }
 
-export async function signInWithGoogle() {
+export async function uploadProfileImage(file: File) {
+  const body = new FormData()
+  body.set("file", file)
+  const response = await fetch(getApiUrl("/profile/image"), {
+    body,
+    credentials: "include",
+    method: "PUT",
+  })
+  if (!response.ok) throw new Error("Não foi possível salvar a foto. Tente novamente.")
+  return (await response.json()) as { image: string }
+}
+
+export async function removeProfileImage() {
+  const response = await fetch(getApiUrl("/profile/image"), {
+    credentials: "include",
+    method: "DELETE",
+  })
+  if (!response.ok) throw new Error("Não foi possível remover a foto. Tente novamente.")
+}
+
+export async function signInWithGoogle(invitationToken?: string) {
+  const callbackURL = invitationToken
+    ? getBrowserUrl(`/accept-invitation?token=${encodeURIComponent(invitationToken)}`)
+    : getBrowserUrl("/overview")
+  const errorCallbackURL = invitationToken
+    ? getBrowserUrl(`/login?error=provider&invitationToken=${encodeURIComponent(invitationToken)}`)
+    : getBrowserUrl("/login?error=provider")
   return authClient.signIn.social({
-    callbackURL: getBrowserUrl("/overview"),
-    errorCallbackURL: getBrowserUrl("/login?error=provider"),
+    callbackURL,
+    errorCallbackURL,
     provider: "google",
   })
 }
@@ -129,6 +201,10 @@ function getBrowserOrigin() {
   return typeof window === "undefined" ? "http://localhost:3000" : window.location.origin
 }
 
-function getIdpUrl(path: string) {
+export function getApiUrl(path: string) {
   return new URL(path, getAbsoluteAuthBaseUrl()).toString()
+}
+
+function getIdpUrl(path: string) {
+  return getApiUrl(path)
 }

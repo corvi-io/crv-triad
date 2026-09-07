@@ -1,11 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { BanknoteIcon, CalendarDaysIcon, HistoryIcon, StoreIcon } from "lucide-react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { ptBR } from "react-day-picker/locale"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { useAuth } from "@/modules/auth/services/auth-provider"
 import type { SchedulingUnitId } from "@/modules/scheduling/contracts"
 import { FilterTrigger } from "@/modules/shared/components/data-display/filter-trigger"
 import { SingleSelectListFilter } from "@/modules/shared/components/data-display/list-filter"
@@ -41,7 +40,17 @@ import type {
 } from "./contracts"
 import { RevenueOperationsError } from "./contracts"
 import { formatMoney } from "./money"
-import { useCloseDay, useDailyClosing, useDailyClosings, useOpenDaySummary } from "./queries"
+import {
+  useCashMovement,
+  useCloseDay,
+  useDailyClosing,
+  useDailyClosings,
+  useOpenCashDay,
+  useOpenDaySummary,
+  useReopenCashDay,
+  useRevenueUnits,
+} from "./queries"
+import { useRevenueOperationsRepository } from "./repository-context"
 
 const cashFormSchema = z
   .object({
@@ -69,16 +78,20 @@ type CashPageProps = {
 }
 
 export function CashPage({ closingId, onOpenClosing, query }: CashPageProps) {
-  const summaryQuery = useOpenDaySummary(query)
+  const repository = useRevenueOperationsRepository()
+  const unitsQuery = useRevenueUnits()
+  const hydratedUnitId = query.unitId || unitsQuery.data?.[0]?.id || ""
+  const hydratedQuery = { ...query, unitId: hydratedUnitId }
+  const summaryQuery = useOpenDaySummary(hydratedQuery)
   const historyQuery = useDailyClosings({
     date: query.date,
     limit: CLOSING_HISTORY_LIMIT,
     scenarioId: query.scenarioId,
-    unitId: query.unitId,
+    unitId: hydratedUnitId,
   })
-  const detailQuery = useDailyClosing(closingId, query)
+  const detailQuery = useDailyClosing(closingId, hydratedQuery)
 
-  if (summaryQuery.isPending || historyQuery.isPending) {
+  if (unitsQuery.isPending || summaryQuery.isPending || historyQuery.isPending) {
     return (
       <div
         aria-busy="true"
@@ -95,7 +108,7 @@ export function CashPage({ closingId, onOpenClosing, query }: CashPageProps) {
   if (summaryQuery.isError || historyQuery.isError) {
     return (
       <Alert>
-        <AlertTitle>Não foi possível carregar o caixa</AlertTitle>
+        <AlertTitle>Caixa indisponível</AlertTitle>
         <AlertDescription>
           Revise a unidade e a data ou tente novamente. Nenhum fechamento foi alterado.
         </AlertDescription>
@@ -104,6 +117,9 @@ export function CashPage({ closingId, onOpenClosing, query }: CashPageProps) {
   }
 
   const summary = summaryQuery.data
+  if (!summary.id && repository.openCashDay) {
+    return <CashOpening query={hydratedQuery} />
+  }
   return (
     <div className="space-y-6">
       {closingId ? (
@@ -113,7 +129,7 @@ export function CashPage({ closingId, onOpenClosing, query }: CashPageProps) {
           onClose={() => onOpenClosing(null)}
         />
       ) : null}
-      <OpenDay summary={summary} query={query} />
+      <OpenDay canReopen={Boolean(repository.reopenDay)} summary={summary} query={hydratedQuery} />
       <ClosingHistory closings={historyQuery.data} onOpenClosing={onOpenClosing} />
     </div>
   )
@@ -128,6 +144,7 @@ export function CashFilters({
   onContextChange: CashContextChangeHandler
   unitId: SchedulingUnitId
 }) {
+  const units = useRevenueUnits()
   const selectedDate = parseDateOnly(date)
   const [dateMenuOpen, setDateMenuOpen] = useState(false)
   const [displayedMonth, setDisplayedMonth] = useState(() => selectedDate ?? new Date())
@@ -147,10 +164,14 @@ export function CashFilters({
         id="cash-unit-filter"
         inactiveValue="centro"
         label="Unidade"
-        options={[
-          { label: "Centro", value: "centro" },
-          { label: "Artesão", value: "artesao" },
-        ]}
+        options={
+          units.data?.length
+            ? units.data.map((unit) => ({ label: unit.name, value: unit.id }))
+            : [
+                { label: "Centro", value: "centro" },
+                { label: "Artesão", value: "artesao" },
+              ]
+        }
         value={unitId}
         onValueChange={(nextUnitId) => onContextChange({ unitId: nextUnitId })}
       />
@@ -196,10 +217,88 @@ export function CashFilters({
   )
 }
 
+function CashOpening({ query }: { query: OperationalDayQuery }) {
+  const mutation = useOpenCashDay(query)
+  const [openingCash, setOpeningCash] = useState("")
+  const operationId = useRef("")
+  const value = moneyToCents(openingCash)
+  const canOpen = isToday(query.date)
+
+  async function open() {
+    if (value === null) return
+    operationId.current ||= crypto.randomUUID()
+    try {
+      await mutation.mutateAsync({ openingCashCents: value, operationId: operationId.current })
+      operationId.current = ""
+    } catch {
+      // The retained key lets an unknown outcome be reconciled by an exact retry.
+    }
+  }
+
+  return (
+    <Card className="max-w-2xl">
+      <CardHeader>
+        <CardTitle>Abrir caixa operacional</CardTitle>
+        <CardDescription>
+          Informe o dinheiro físico contado no início. Nenhum saldo anterior será carregado
+          automaticamente.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!canOpen ? (
+          <Alert>
+            <AlertTitle>Nenhum caixa nesta data</AlertTitle>
+            <AlertDescription>
+              A abertura usa sempre a data operacional atual definida pelo servidor.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <FormField
+              required
+              description="Use o valor efetivamente contado, inclusive quando for zero."
+              error={openingCash && value === null ? "Informe um valor válido." : undefined}
+              icon={BanknoteIcon}
+              id="opening-cash"
+              label="Dinheiro inicial"
+            >
+              <MaskedInput
+                aria-invalid={Boolean(openingCash && value === null)}
+                id="opening-cash"
+                mask="brMoney"
+                value={openingCash}
+                onValueChange={setOpeningCash}
+              />
+            </FormField>
+            {mutation.isError ? (
+              <Alert>
+                <AlertTitle>Caixa não aberto</AlertTitle>
+                <AlertDescription>
+                  Não foi possível confirmar a abertura. Seus dados foram mantidos; tente novamente.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            <Button
+              type="button"
+              disabled={value === null}
+              isLoading={mutation.isPending}
+              onClick={() => void open()}
+            >
+              Abrir caixa
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 function OpenDay({
+  canReopen,
   query,
   summary,
 }: {
+  canReopen: boolean
   query: OperationalDayQuery
   summary: OpenDaySummary | DailyClosingSnapshot
 }) {
@@ -221,9 +320,9 @@ function OpenDay({
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          label="Recebido"
+          label="Receita líquida registrada"
           value={formatMoney(summary.receivedCents)}
-          description={`${summary.paidSaleCount} venda${summary.paidSaleCount === 1 ? "" : "s"} paga${summary.paidSaleCount === 1 ? "" : "s"}`}
+          description={`${summary.paidSaleCount} registro${summary.paidSaleCount === 1 ? "" : "s"} ativo${summary.paidSaleCount === 1 ? "" : "s"}`}
         />
         <MetricCard
           label="Dinheiro esperado"
@@ -231,22 +330,21 @@ function OpenDay({
           description="Somente pagamentos registrados em dinheiro."
         />
         <MetricCard
-          label="Comissões"
-          value={formatMoney(summary.commissionCents)}
-          description={`Barbearia: ${formatMoney(summary.barbershopCents)}`}
+          label="Registros cancelados"
+          value={formatMoney(summary.reversedReceiptCents ?? 0)}
+          description={`${summary.reversalCount ?? summary.cancellationCount} cancelamento(s) financeiro(s)`}
         />
         <MetricCard
-          label="Ocorrências"
-          value={summary.cancellationCount + summary.noShowCount}
-          description={`${summary.cancellationCount} cancelamento(s) · ${summary.noShowCount} falta(s)`}
+          label="Comandas pendentes"
+          value={summary.pendingCheckoutCount ?? 0}
+          description="Serviços concluídos ainda não são receita."
         />
       </div>
       {summary.paidSaleCount === 0 ? (
         <Alert>
-          <AlertTitle>Nenhuma venda paga nesta data</AlertTitle>
+          <AlertTitle>Nenhum pagamento registrado nesta data</AlertTitle>
           <AlertDescription>
-            Os totais estão zerados. Este cenário ainda permite registrar a conferência e fechar o
-            dia.
+            Comandas pendentes não entram na receita. O dia ainda pode ser conferido e fechado.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -266,47 +364,210 @@ function OpenDay({
             Total conciliado: {formatMoney(paymentTotal)}
           </p>
         </SummaryCard>
-        <SummaryCard title="Ajustes e resultado">
+        <SummaryCard title="Conciliação física">
           <SummaryList
             rows={[
+              { label: "Dinheiro inicial", value: formatMoney(summary.openingCashCents ?? 0) },
+              { label: "Suprimentos", value: `+ ${formatMoney(summary.supplyCents ?? 0)}` },
+              { label: "Retiradas", value: `− ${formatMoney(summary.withdrawalCents ?? 0)}` },
+              {
+                label: "Estornos em dinheiro",
+                value: `− ${formatMoney(summary.receiptReversalCents ?? 0)}`,
+              },
               { label: "Descontos", value: `− ${formatMoney(summary.discountCents)}` },
               { label: "Acréscimos", value: `+ ${formatMoney(summary.surchargeCents)}` },
-              { label: "Comissões", value: formatMoney(summary.commissionCents) },
-              { label: "Valor da barbearia", value: formatMoney(summary.barbershopCents) },
             ]}
           />
         </SummaryCard>
-        <SummaryCard title="Valores por profissional" className="lg:col-span-2">
-          {summary.professionals.length ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {summary.professionals.map((professional) => (
-                <div className="rounded-lg border p-3" key={professional.professionalId}>
-                  <p className="font-medium">{professional.professionalName}</p>
-                  <p className="mt-1 text-sm tabular-nums">
-                    Receita {formatMoney(professional.revenueCents)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Comissão {formatMoney(professional.commissionCents)} · Barbearia{" "}
-                    {formatMoney(professional.barbershopCents)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground">Nenhum valor profissional nesta data.</p>
-          )}
-        </SummaryCard>
       </div>
       {summary.status === "closed" ? (
-        <ClosedCashSummary closing={summary} />
+        <>
+          <ClosedCashSummary closing={summary} />
+          {summary.id && canReopen ? <ReopenCashDay query={query} summary={summary} /> : null}
+        </>
       ) : (
-        <CashClosingForm
-          key={`${query.scenarioId}:${query.unitId}:${query.date}:${summary.expectedCashCents}`}
-          query={query}
-          summary={summary}
-        />
+        <>
+          {summary.id ? <CashMovementForm query={query} summary={summary} /> : null}
+          <CashClosingForm
+            key={`${query.scenarioId}:${query.unitId}:${query.date}`}
+            query={query}
+            summary={summary}
+          />
+        </>
       )}
     </section>
+  )
+}
+
+function CashMovementForm({
+  query,
+  summary,
+}: {
+  query: OperationalDayQuery
+  summary: OpenDaySummary
+}) {
+  const mutation = useCashMovement(query)
+  const [kind, setKind] = useState<"supply" | "withdrawal">("supply")
+  const [amount, setAmount] = useState("")
+  const [reason, setReason] = useState("")
+  const operationId = useRef("")
+  const amountCents = moneyToCents(amount)
+  const valid = amountCents !== null && amountCents > 0 && reason.trim().length >= 3
+
+  async function submit() {
+    if (!summary.id || !valid || amountCents === null) return
+    operationId.current ||= crypto.randomUUID()
+    try {
+      await mutation.mutateAsync({
+        cashDayId: summary.id,
+        kind,
+        amountCents,
+        reason,
+        operationId: operationId.current,
+      })
+      operationId.current = ""
+      setAmount("")
+      setReason("")
+    } catch {
+      // Keep the draft and command key for safe retry after an unknown outcome.
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Movimento de dinheiro</CardTitle>
+        <CardDescription>
+          Suprimentos e retiradas não alteram a receita de serviços e ficam no histórico imutável.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-3">
+        <FormField id="movement-kind" label="Tipo" required>
+          <select
+            className="h-9 rounded-md border bg-transparent px-3 text-sm"
+            id="movement-kind"
+            value={kind}
+            onChange={(event) => setKind(event.target.value as "supply" | "withdrawal")}
+          >
+            <option value="supply">Suprimento</option>
+            <option value="withdrawal">Retirada</option>
+          </select>
+        </FormField>
+        <FormField
+          id="movement-amount"
+          label="Valor"
+          required
+          error={
+            amount && (amountCents === null || amountCents <= 0)
+              ? "Informe um valor maior que zero."
+              : undefined
+          }
+        >
+          <MaskedInput
+            id="movement-amount"
+            mask="brMoney"
+            value={amount}
+            onValueChange={setAmount}
+          />
+        </FormField>
+        <FormField
+          id="movement-reason"
+          label="Motivo"
+          required
+          error={reason && reason.trim().length < 3 ? "Use pelo menos 3 caracteres." : undefined}
+        >
+          <Textarea
+            id="movement-reason"
+            maxLength={160}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+          />
+        </FormField>
+        {mutation.isError ? (
+          <Alert className="md:col-span-3">
+            <AlertTitle>Movimento não registrado</AlertTitle>
+            <AlertDescription>
+              Revise o caixa atual e tente novamente. O rascunho foi mantido.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <Button
+          className="w-fit md:col-span-3"
+          type="button"
+          disabled={!valid}
+          isLoading={mutation.isPending}
+          onClick={() => void submit()}
+        >
+          Registrar {kind === "supply" ? "suprimento" : "retirada"}
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ReopenCashDay({
+  query,
+  summary,
+}: {
+  query: OperationalDayQuery
+  summary: DailyClosingSnapshot
+}) {
+  const mutation = useReopenCashDay(query)
+  const [reason, setReason] = useState("")
+  const operationId = useRef("")
+
+  async function reopen() {
+    if (reason.trim().length < 3) return
+    operationId.current ||= crypto.randomUUID()
+    try {
+      await mutation.mutateAsync({
+        cashDayId: summary.cashDayId,
+        operationId: operationId.current,
+        reason,
+      })
+      operationId.current = ""
+    } catch {
+      // Preserve the correction reason and key for an exact retry.
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Reabrir caixa de hoje</CardTitle>
+        <CardDescription>
+          A revisão de fechamento permanece preservada. Apenas o dia operacional atual, sem dia
+          posterior, pode ser reaberto.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <FormField id="reopen-reason" label="Motivo da reabertura" required>
+          <Textarea
+            id="reopen-reason"
+            maxLength={160}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+          />
+        </FormField>
+        {mutation.isError ? (
+          <Alert>
+            <AlertTitle>Reabertura não realizada</AlertTitle>
+            <AlertDescription>
+              Verifique se este é o caixa atual e se não existe um dia posterior.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={reason.trim().length < 3}
+          isLoading={mutation.isPending}
+          onClick={() => void reopen()}
+        >
+          Reabrir caixa
+        </Button>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -317,9 +578,9 @@ function CashClosingForm({
   query: OperationalDayQuery
   summary: OpenDaySummary
 }) {
-  const { session } = useAuth()
   const closeDay = useCloseDay(query)
   const [confirmationOpen, setConfirmationOpen] = useState(false)
+  const [reviewedVersion, setReviewedVersion] = useState(summary.version)
   const form = useForm<CashFormValues>({
     defaultValues: {
       countedCash:
@@ -336,6 +597,10 @@ function CashClosingForm({
   const differenceCents = countedCashCents - summary.expectedCashCents
   const reasonError = form.formState.errors.reason?.message
   const countedError = form.formState.errors.countedCash?.message
+  const serverChanged =
+    reviewedVersion !== undefined &&
+    summary.version !== undefined &&
+    reviewedVersion !== summary.version
 
   function reviewClose(values: CashFormValues) {
     if (differenceCents !== 0 && values.reason.trim().length < 3) {
@@ -356,11 +621,12 @@ function CashClosingForm({
     }
     try {
       await closeDay.mutateAsync({
+        cashDayId: summary.id ?? "",
         countedCashCents,
         date: query.date,
+        expectedVersion: summary.version ?? 0,
         operationId: crypto.randomUUID(),
         reason: values.reason,
-        responsiblePersonName: session?.user.name || "Responsável do turno",
         scenarioId: query.scenarioId,
         unitId: query.unitId,
       })
@@ -381,12 +647,29 @@ function CashClosingForm({
       <CardHeader>
         <CardTitle>Conferência e fechamento</CardTitle>
         <CardDescription>
-          Conte o dinheiro físico. O fechamento cria um registro imutável e não poderá ser reaberto
-          nesta experiência.
+          Conte o dinheiro físico. O fechamento cria uma revisão imutável; uma reabertura autorizada
+          preserva esta revisão no histórico.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form noValidate className="space-y-5" onSubmit={form.handleSubmit(reviewClose)}>
+          {serverChanged ? (
+            <Alert role="alert">
+              <AlertTitle>O caixa foi atualizado</AlertTitle>
+              <AlertDescription>
+                Revise os valores mais recentes antes de confirmar. Sua contagem e seu motivo foram
+                preservados.
+              </AlertDescription>
+              <Button
+                className="mt-3"
+                type="button"
+                variant="outline"
+                onClick={() => setReviewedVersion(summary.version)}
+              >
+                Revisar valores atualizados
+              </Button>
+            </Alert>
+          ) : null}
           {form.formState.errors.root?.message ? (
             <Alert role="alert">
               <AlertTitle>Fechamento não realizado</AlertTitle>
@@ -447,7 +730,9 @@ function CashClosingForm({
             </p>
           </FormField>
           <div className="flex justify-end">
-            <Button type="submit">Fechar dia</Button>
+            <Button type="submit" disabled={serverChanged}>
+              Fechar dia
+            </Button>
           </div>
         </form>
       </CardContent>

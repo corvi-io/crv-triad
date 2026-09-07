@@ -9,7 +9,7 @@ test("keeps public auth journeys focused, responsive, and accessible", async ({ 
   await routeUnauthenticatedSession(page)
 
   await page.goto("/login")
-  await expect(page.getByRole("heading", { name: "Entrar no TRIAD Studio" })).toBeFocused()
+  await expect(page.getByRole("heading", { name: "Bem-vindo de volta" })).toBeFocused()
   await expect(page.getByRole("button", { name: "Continuar com Google" })).toBeVisible()
   await page.keyboard.press("Tab")
   await expect(page.getByRole("button", { name: "Continuar com Google" })).toBeFocused()
@@ -69,8 +69,8 @@ test("submits forgot and reset password through the native Better Auth contract"
   await expect(newPassword).toHaveAttribute("type", "password")
   await page.getByRole("button", { name: "Mostrar senha" }).first().click()
   await expect(newPassword).toHaveAttribute("type", "text")
-  await newPassword.fill("new-password-123")
-  await page.getByLabel("Confirmar nova senha").fill("new-password-123")
+  await newPassword.fill("New-password-123!")
+  await page.getByLabel("Confirmar nova senha").fill("New-password-123!")
   await page.getByRole("button", { name: "Redefinir senha" }).dblclick()
 
   await expect(page.getByRole("status")).toContainText("Sua senha foi redefinida")
@@ -95,11 +95,11 @@ test("maps verification failures without contradictory success and consumes the 
   await expect(page).not.toHaveURL(/verified=/)
 })
 
-test("accepts one invitation without creating a session and rejects its replay", async ({
-  page,
-}) => {
+test("accepts one invitation, creates a session, and rejects its replay", async ({ page }) => {
   let accepted = false
+  let authenticated = false
   let acceptanceRequests = 0
+  await routeTenantContext(page)
   await page.setViewportSize({ height: 720, width: 320 })
   await page.route("**/invitations/resolve", async (route) => {
     if (await fulfillPreflight(route)) return
@@ -116,7 +116,17 @@ test("accepts one invitation without creating a session and rejects its replay",
     if (pathname.endsWith("/sign-up/email")) {
       acceptanceRequests += 1
       accepted = true
+      authenticated = true
       await fulfillJson(route, { status: true })
+      return
+    }
+    if (pathname.endsWith("/get-session")) {
+      await fulfillJson(
+        route,
+        authenticated
+          ? { user: { email: "invited@example.invalid", id: "invited-user", name: "Invited" } }
+          : null,
+      )
       return
     }
     await fulfillJson(route, null)
@@ -124,14 +134,14 @@ test("accepts one invitation without creating a session and rejects its replay",
 
   await page.goto("/accept-invitation?token=opaque-test-proof")
   await expect(page).toHaveURL(/\/accept-invitation$/)
-  await expect(page.getByText(/Convite válido para o perfil de membro/)).toBeVisible()
-  await page.getByLabel("Nova senha", { exact: true }).fill("uma frase longa e exclusiva")
-  await page.getByLabel("Confirmar nova senha").fill("uma frase longa e exclusiva")
+  await expect(page.getByText("Crie seu acesso para confirmar o convite.")).toBeVisible()
+  await page.getByLabel("Seu nome").fill("Pessoa Convidada")
+  await page.getByLabel("Nova senha", { exact: true }).fill("Senha válida 1!")
+  await page.getByLabel("Confirmar nova senha").fill("Senha válida 1!")
   await page.getByRole("button", { name: "Criar senha" }).dblclick()
 
-  await expect(page.getByRole("status")).toContainText("Entre normalmente")
+  await expect(page).toHaveURL(/\/overview(?:\?|$)/)
   expect(acceptanceRequests).toBe(1)
-  await expect(page.getByRole("link", { name: "Ir para entrar" })).toBeVisible()
   const accessibility = await new AxeBuilder({ page })
     .include("#main-content")
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
@@ -144,7 +154,59 @@ test("accepts one invitation without creating a session and rejects its replay",
   await expect(page.getByLabel("Nova senha", { exact: true })).toHaveCount(0)
 })
 
+test("preserves an existing-account invitation through Google sign-in and maps mismatch safely", async ({
+  page,
+}) => {
+  let googlePayload: Record<string, unknown> | undefined
+  await page.route("**/invitations/resolve", async (route) => {
+    if (await fulfillPreflight(route)) return
+    await fulfillJson(route, {
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      hasAccount: true,
+      role: "member",
+      state: "valid",
+    })
+  })
+  await page.route("**/invitations/accept-existing", async (route) => {
+    if (await fulfillPreflight(route)) return
+    if (!googlePayload) {
+      await fulfillJson(route, { code: "unauthenticated" }, 401)
+      return
+    }
+    await fulfillJson(route, { code: "INVITATION_ACCOUNT_MISMATCH" }, 400)
+  })
+  await page.route("**/api/auth/**", async (route) => {
+    if (await fulfillPreflight(route)) return
+    const pathname = new URL(route.request().url()).pathname
+    if (pathname.endsWith("/get-session")) {
+      await fulfillJson(route, null)
+      return
+    }
+    if (pathname.endsWith("/sign-in/social")) {
+      googlePayload = route.request().postDataJSON() as Record<string, unknown>
+      await fulfillJson(route, { code: "PROVIDER_UNAVAILABLE" }, 400)
+      return
+    }
+    await fulfillJson(route, null)
+  })
+
+  await page.goto("/accept-invitation?token=opaque-existing-proof")
+  await page.getByRole("button", { name: "Entrar e aceitar convite" }).click()
+  await expect(page).toHaveURL(/\/login\?invitationToken=/)
+  await page.getByRole("button", { name: "Continuar com Google" }).click()
+
+  await expect.poll(() => googlePayload).toBeDefined()
+  expect(googlePayload).toMatchObject({
+    callbackURL: `${studioOrigin}/accept-invitation?token=opaque-existing-proof`,
+    errorCallbackURL: `${studioOrigin}/login?error=provider&invitationToken=opaque-existing-proof`,
+    provider: "google",
+  })
+  await expect(page.getByRole("alert")).toContainText("Não foi possível continuar com o Google")
+  expect(await page.textContent("body")).not.toContain("opaque-existing-proof")
+})
+
 test("keeps a Google-only user from removing the last access method", async ({ page }) => {
+  await routeTenantContext(page)
   await page.route("**/api/auth/**", async (route) => {
     if (await fulfillPreflight(route)) return
 
@@ -174,7 +236,7 @@ test("keeps a Google-only user from removing the last access method", async ({ p
   await expect(page.getByText(/Crie uma senha antes de desconectar/)).toBeVisible()
 
   const accessibility = await new AxeBuilder({ page })
-    .include('[aria-labelledby="security-access-heading"]')
+    .include('[aria-label="Configurações de segurança e acesso"]')
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze()
   expect(accessibility.violations).toEqual([])
@@ -183,6 +245,7 @@ test("keeps a Google-only user from removing the last access method", async ({ p
 test("does not trust a Google callback marker when the account list disagrees", async ({
   page,
 }) => {
+  await routeTenantContext(page)
   await page.route("**/api/auth/**", async (route) => {
     if (await fulfillPreflight(route)) return
 
@@ -219,6 +282,25 @@ async function routeUnauthenticatedSession(page: Page) {
   })
 }
 
+async function routeTenantContext(page: Page) {
+  await page.route("**/api/contexts**", async (route) => {
+    await fulfillJson(route, {
+      activeOrganizationId: "tenant-a",
+      platform: null,
+      status: "available",
+      tenants: [{ id: "tenant-a", name: "Barbearia Aurora", role: "owner" }],
+    })
+  })
+  await page.route("**/api/access/summary", async (route) => {
+    await fulfillJson(route, {
+      capabilities: [],
+      organizationId: "tenant-a",
+      role: "owner",
+      subscriptionState: "active",
+    })
+  })
+}
+
 async function fulfillPreflight(route: Route) {
   if (route.request().method() !== "OPTIONS") return false
 
@@ -226,12 +308,12 @@ async function fulfillPreflight(route: Route) {
   return true
 }
 
-async function fulfillJson(route: Route, body: unknown) {
+async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
     body: JSON.stringify(body),
     contentType: "application/json",
     headers: corsHeaders(),
-    status: 200,
+    status,
   })
 }
 

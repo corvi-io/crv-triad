@@ -8,8 +8,10 @@ import {
 } from "./contracts"
 
 export type ClientSearch = {
+  client?: string
   contact: ContactCompleteness
   duplicate: DuplicateFilter
+  mode?: "edit"
   page: number
   pageSize: 10 | 20 | 50
   scenario: ClientScenarioId
@@ -18,6 +20,18 @@ export type ClientSearch = {
   status: ClientStatus
   tag: string
 }
+
+export const clientSearchDefaults = {
+  contact: "all",
+  duplicate: "all",
+  page: 1,
+  pageSize: 20,
+  scenario: "typical",
+  sortDirection: "asc",
+  sortField: "name",
+  status: "active",
+  tag: "",
+} as const satisfies Omit<ClientSearch, "client" | "mode">
 
 const sortFields: readonly ClientSortField[] = [
   "name",
@@ -30,7 +44,9 @@ export function validateClientSearch(
   search: Record<string, unknown>,
   resolveScenario: (value: unknown) => ClientScenarioId,
 ): ClientSearch {
+  const client = parseClientId(search.client)
   return {
+    client,
     contact: ["all", "complete", "incomplete"].includes(String(search.contact))
       ? (search.contact as ContactCompleteness)
       : "all",
@@ -40,15 +56,26 @@ export function validateClientSearch(
     page: boundedInteger(search.page, 1, 10_000, 1),
     pageSize: [10, 20, 50].includes(Number(search.pageSize))
       ? (Number(search.pageSize) as 10 | 20 | 50)
-      : 10,
+      : clientSearchDefaults.pageSize,
+    mode: client && search.mode === "edit" ? "edit" : undefined,
     scenario: resolveScenario(search.scenario),
     sortDirection: search.sortDirection === "desc" ? "desc" : "asc",
     sortField: sortFields.includes(search.sortField as ClientSortField)
       ? (search.sortField as ClientSortField)
       : "name",
     status: search.status === "archived" ? "archived" : "active",
-    tag: typeof search.tag === "string" && /^[a-z0-9-]{1,32}$/.test(search.tag) ? search.tag : "",
+    tag: parseTag(search.tag),
   }
+}
+
+function parseClientId(value: unknown) {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value) ? value : undefined
+}
+
+function parseTag(value: unknown) {
+  if (typeof value !== "string") return ""
+  const tag = value.trim()
+  return tag.length <= 60 && /^[\p{L}\p{N}][\p{L}\p{N}\s_-]*$/u.test(tag) ? tag : ""
 }
 
 export function resolveClientScenario(value: unknown): ClientScenarioId {

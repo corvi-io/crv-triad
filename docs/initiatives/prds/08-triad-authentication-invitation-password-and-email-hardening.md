@@ -75,9 +75,10 @@ sessions, and its mounted `/api/auth/*` contract.
   invitation token.
 - Enforce one password contract on first access, password reset, and
   authenticated password change, with the IDP as the final authority.
-- Adopt a minimum of 15 characters and maximum of 256, allow spaces, Unicode,
-  paste, autofill, and password managers, and reject common, expected, or known
-  compromised whole-password values without mandatory character-class rules.
+- Adopt a minimum of 8 characters and maximum of 256, require at least one
+  uppercase letter, lowercase letter, digit, and special character, allow
+  spaces, Unicode, paste, autofill, and password managers, and reject common,
+  expected, or known compromised whole-password values.
 - Give Brazilian Portuguese, accessible, non-color-only guidance that shows
   which objective requirements are satisfied and treats any strength meter as
   advisory rather than a security guarantee.
@@ -217,14 +218,16 @@ the migration is treated as complete.
 
 Treat a successfully consumed invitation link as mailbox proof for password
 first access, so the user is not forced through a second verification email.
-Do not automatically sign the user in after password creation; show success and
-return to normal login. Google first access continues to rely on Google's
+Create the authenticated session after password creation and redirect directly
+to the Studio overview. Google first access continues to rely on Google's
 verified-email proof and the existing pending-invitation policy.
 
-Use 15 to 256 characters, Unicode and spaces, no mandatory composition, and a
-reviewed local whole-password blocklist in the IDP. Keep Better Auth's native
-hash unchanged. Studio mirrors the public length limits for immediate feedback,
-while server enforcement remains authoritative on every password-setting path.
+Use 8 to 256 Unicode characters and require at least one uppercase letter, one
+lowercase letter, one digit, and one punctuation or symbol character. Spaces are
+allowed but do not count as special characters. Keep the reviewed local
+whole-password blocklist and Better Auth's native hash unchanged. Studio mirrors
+the public policy for immediate feedback, while server enforcement remains
+authoritative on every password-setting path.
 
 Create an IDP-owned `AuthEmailLayout` and three focused React Email templates.
 Use the selected Studio reference for its centered container, clear hierarchy,
@@ -277,7 +280,7 @@ component input and keep the current transport/provider boundary unchanged.
   a new invitation; they do not reveal other accounts or invitations.
 - Successful acceptance consumes the token once, activates the invited
   identity with the invitation role, records acceptance, marks mailbox proof,
-  and returns the user to login without creating an automatic session.
+  and creates an authenticated session before redirecting to the Studio overview.
 - Repeated or concurrent submissions cannot create duplicate users,
   credentials, accounts, or accepted invitations.
 - Resend creates a new secret and invalidates the previous link. Provider
@@ -288,17 +291,18 @@ component input and keep the current transport/provider boundary unchanged.
 
 ## Password Policy And Guidance Contract
 
-- IDP accepts passwords from 15 through 256 Unicode characters and does not
-  trim, truncate, or require character classes.
+- IDP accepts passwords from 8 through 256 Unicode characters and requires at
+  least one uppercase letter, one lowercase letter, one digit, and one Unicode
+  punctuation or symbol character. It does not trim or truncate passwords.
 - Paste, autofill, password managers, reveal/hide controls, and spaces remain
   supported; `autocomplete="new-password"` is used when establishing a secret.
 - IDP checks the complete proposed password against a reviewed blocklist of
   common, compromised, and TRIAD/context-specific values on signup, reset, and
   change. It never checks or transmits substrings to a remote provider.
 - Only objective requirements receive pass/fail indicators. The visible guide
-  covers minimum length, non-common/non-predictable guidance, and confirmation
-  matching. An optional strength meter is advisory and cannot override server
-  policy.
+  covers minimum length, required character classes,
+  non-common/non-predictable guidance, and confirmation matching. An optional
+  strength meter is advisory and cannot override server policy.
 - Status uses icon/text and not color alone, is associated with the password
   field, and avoids announcing every keystroke through an overly chatty live
   region.

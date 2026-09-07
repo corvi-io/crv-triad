@@ -1,6 +1,10 @@
 import AxeBuilder from "@axe-core/playwright"
 import { expect, type Page, test } from "@playwright/test"
 
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-07-22T12:00:00Z"))
+})
+
 const agendaUrl = (scenario = "normal") =>
   `/workspace-preview/agenda?date=2026-07-22&scenario=${scenario}`
 const scheduleStates = [
@@ -421,6 +425,7 @@ test("preserves system theme, narrow/zoom reflow, sticky axes, and coarse-pointe
     window.localStorage.setItem("triad-studio-theme", "system")
   })
   const coarsePage = await coarseContext.newPage()
+  await coarsePage.clock.setFixedTime(new Date("2026-07-22T12:00:00Z"))
   await coarsePage.goto(agendaUrl())
   expect(await coarsePage.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true)
   const coarseCard = coarsePage.locator('[data-appointment-id="kanban-05"]')
@@ -651,6 +656,7 @@ test("supports keyboard rescheduling with Portuguese live announcements", async 
   const handle = card.getByRole("button", { name: "Remarcar Rafael Costa" })
   await handle.focus()
   await page.keyboard.press("Space")
+  await expect(page.getByText(/Remarcando Rafael Costa\. Use as setas/)).toBeAttached()
   await page.keyboard.press("Space")
   await expect(
     page.locator("#main-content").getByText("O agendamento já está nesse horário e barbeiro."),

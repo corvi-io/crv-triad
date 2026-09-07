@@ -29,6 +29,10 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
   routes should render only their page content.
 - Guard private routes with explicit loading states and redirects; avoid
   unauthenticated content flicker.
+- Represent visual content loading with the shared `Skeleton` primitive shaped to the eventual
+  layout, including tables, cards, forms, drawers, and detail views. Preserve an accessible named
+  `role="status"` around the skeleton composition. Do not use visible text such as `Carregando...`
+  as the primary loading presentation for these surfaces.
 - Use `/overview` as the default authenticated destination. Keep `/profile` as a
   private account/profile route, not as the workspace home.
 - Use the narrow Better Auth React client under `src/modules/auth/services` for
@@ -126,6 +130,11 @@ Use this skill for `apps/studio/**`. Follow root `AGENTS.md` and `apps/studio/AG
   browser. Persist shareable
   list state such as filters, search, sorting, pagination, and view mode in URL
   query parameters when it is useful for collaboration or handoff.
+- Keep shareable UI state in typed TanStack Router search params, including an opened record and
+  its view/edit intent when a copied URL should restore that surface. Define explicit route
+  defaults and use `stripSearchParams` so default pagination, sorting, filters, scenarios, tabs, and
+  view modes do not pollute generated URLs. Prefer a concise search param over a path segment when
+  the underlying page remains the list and the detail is an overlay.
 - Compose product-list searches with the shared compact `ListSearchField` and list filters with the
   shared single/multi-select filter components. Preserve raw `Select` for form data entry rather
   than list filtering.

@@ -8,5 +8,7 @@
 - Use Drizzle for PostgreSQL persistence and migrations.
 - Generate identity IDs with UUIDv7 through `src/modules/idp/infra/ids.ts`.
 - Keep identity rules under `src/modules/idp` and business rules in their owning modules.
+- Follow the [business context and access contract](business-context-and-access.md) for tenant,
+  client, platform-support, capability, subscription, and quota behavior.
 - Keep `/health` lightweight and `/ready` for readiness.
 - Do not add `/v1` unless an external versioned contract is explicitly required.

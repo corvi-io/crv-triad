@@ -22,6 +22,7 @@ import type {
   BarbershopSetupRepository,
   CopyAvailabilityToWeekdaysInput,
   PaymentMethodSetting,
+  ProfessionalInput,
   ProfessionalOperationalSummary,
   ProfessionalServiceOverride,
   ResolvedProfessionalService,
@@ -418,8 +419,16 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
   async create(kind: SetupEntityKind, input: SetupEntityInput) {
     return this.#mutate("create", () => {
       this.#validateEntityInput(kind, input)
+      const acceptedInput =
+        kind === "professional"
+          ? {
+              ...input,
+              accountAccess: "connected" as const,
+              name: (input as ProfessionalInput).invitationEmail.split("@")[0] || "Profissional",
+            }
+          : input
       const created = this.#engine.create(
-        { ...input, kind, status: "active" } as unknown as Omit<SetupRecord, "id">,
+        { ...acceptedInput, kind, status: "active" } as unknown as Omit<SetupRecord, "id">,
         kind,
       ) as SetupEntity
       if (created.kind === "professional") {
@@ -436,6 +445,9 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
       const current = this.#entity(kind, id)
       const updated = this.#engine.update(id, {
         ...input,
+        ...(current.kind === "professional"
+          ? { accountAccess: current.accountAccess, name: current.name }
+          : {}),
         kind,
         status: current.status,
       } as Partial<SetupRecord>)
@@ -636,7 +648,7 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
   }
 
   #validateEntityInput(kind: SetupEntityKind, input: SetupEntityInput) {
-    if (!("name" in input) || input.name.trim().length < 2)
+    if (kind !== "professional" && (!("name" in input) || input.name.trim().length < 2))
       throw new SetupValidationError("Informe um nome com pelo menos 2 caracteres.")
     if (kind === "service") {
       const service = input as SetupService
@@ -649,21 +661,20 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
     }
     if (kind === "unit") {
       const unit = input as SetupUnit
+      const periods = unit.businessHours.periods ?? [unit.businessHours]
       if (
-        unit.businessHours.days.length === 0 ||
-        unit.businessHours.start >= unit.businessHours.end
+        periods.length === 0 ||
+        periods.some((period) => period.days.length === 0 || period.start >= period.end)
       )
         throw new SetupValidationError("Informe dias e um período de funcionamento válido.")
     }
     if (kind === "professional") {
-      const professional = input as SetupProfessional
-      if (professional.contactPhone && !/^\d{10,11}$/.test(professional.contactPhone))
-        throw new SetupValidationError("Informe um telefone profissional válido.")
+      const professional = input as ProfessionalInput
       if (
-        professional.contactEmail &&
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(professional.contactEmail)
+        professional.invitationEmail &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(professional.invitationEmail)
       )
-        throw new SetupValidationError("Informe um e-mail profissional válido.")
+        throw new SetupValidationError("Informe um e-mail de convite válido.")
       if (
         professional.commissionBasisPoints !== undefined &&
         (!Number.isInteger(professional.commissionBasisPoints) ||
@@ -671,13 +682,6 @@ export class BarbershopSetupMemoryRepository implements BarbershopSetupRepositor
           professional.commissionBasisPoints > 10_000)
       )
         throw new SetupValidationError("Informe uma comissão entre 0% e 100%.")
-      if (
-        professional.accessPolicy?.["own-schedule-only"] &&
-        professional.accessPolicy["access-other-professionals"]
-      )
-        throw new SetupValidationError(
-          "O acesso somente à própria Agenda não permite dados de outros profissionais.",
-        )
       this.#assertActiveRelations("unit", professional.unitIds)
       this.#assertActiveRelations("service", professional.serviceIds)
       this.#assertServicesServeUnits(professional.serviceIds, professional.unitIds)

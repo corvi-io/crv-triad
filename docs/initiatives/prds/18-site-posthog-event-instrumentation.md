@@ -20,6 +20,7 @@ a constrained first-party API proxy before production rollout.
 - Require explicit analytics consent and keep all lead PII outside event and replay payloads.
 - Provide deployment and PostHog operator guidance without storing provider credentials.
 - Route PostHog ingestion, configuration, and lazy-loaded SDK assets through a named API boundary.
+- Confirm accepted leads from the API after provider delivery instead of trusting a browser response.
 
 ## Non-Goals
 
@@ -40,6 +41,8 @@ not individual lead surveillance.
 - Product: the production PostHog project, region, retention policy, and dashboard owners are external configuration.
 - Technical: the draft referenced Next.js and `mailto:`, while the live site is static Astro with API intake.
 - Data: no stable authenticated visitor ID exists, so anonymous capture is the honest model.
+- Data: browser-only success capture can count honeypot responses and cannot be treated as the
+  authoritative accepted-lead boundary.
 - Operational: Live Events, replay masking, funnel, and dashboard need authorized provider-side validation.
 
 ### Counterpoints
@@ -66,16 +69,21 @@ disable autocapture, keep visitors anonymous, and route SDK traffic through a co
 API module. The proxy uses fixed region-matched PostHog origins, strips credentials and cookies,
 sanitizes upstream failures, and never becomes a caller-selected generic proxy.
 
+Keep behavioral events in the browser. When consent is granted, pass only the SDK-generated
+anonymous distinct ID with the lead request. Emit `lead_submission_accepted` from the API only
+after the lead provider accepts delivery. Analytics failure must remain non-blocking and must not
+change the lead response. Browser success remains a UI outcome and is not an analytics conversion.
+
 ## Architecture And Boundaries
 
 - Site impact: consent UI, analytics helper, interaction hooks, public env configuration, and durable docs.
-- API impact: a public `/e/*` analytics proxy; API lead success remains the source for
-  `lead_submission_succeeded`.
+- API impact: a public `/e/*` analytics proxy and a best-effort server-side accepted-lead event
+  emitted after provider delivery.
 - IDP impact: none.
 - Studio impact: none.
 - Data/persistence impact: consent choice stays in browser storage; PostHog owns opted-in event retention.
-- External provider impact: public project key, fixed API upstream region, and operator-created
-  funnel and dashboard.
+- External provider impact: the public project key is also available to the API for server-side
+  event ingestion, alongside the fixed upstream region and operator-created funnel and dashboard.
 
 ## Performance And Scalability
 
@@ -95,6 +103,8 @@ sanitizes upstream failures, and never becomes a caller-selected generic proxy.
 - Incoming authorization, cookie, connection, and private forwarding headers are not sent upstream.
 - Non-successful upstream bodies are replaced by stable safe errors with a request identifier.
 - Names, barbershop names, phone, email, form text, tokens, credentials, and private headers are prohibited.
+- The optional analytics distinct ID must match a narrow opaque identifier pattern and must never
+  contain a caller-provided email, phone number, name, or business value.
 - Replay masks every input and lead-dialog text; analytics failure never blocks lead submission.
 
 ## Accessibility And UX
@@ -123,6 +133,11 @@ sanitizes upstream failures, and never becomes a caller-selected generic proxy.
       unsupported methods, and sanitized upstream failures.
 - [ ] An authorized operator validates production Live Events and event payloads after deployment.
 - [x] The production dashboard and funnel artifacts are created, linked, and structurally validated.
+- [x] Accepted-lead analytics are emitted by the API only after provider delivery and only when
+      the visitor supplied a consented anonymous distinct ID.
+- [x] Production dashboard queries filter `environment = production`, distinguish delivery
+      reliability from conversion, and use unique visitors for the selected period.
+- [ ] Production ingestion is evidenced by real consented events in the provider data schema.
 
 ## Verification Plan
 

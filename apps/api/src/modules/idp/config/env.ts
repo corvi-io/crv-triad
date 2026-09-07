@@ -69,7 +69,7 @@ const envSchema = z
       )
       .pipe(z.array(configuredHttpOrigin)),
     AUTH_SESSION_EXPIRES_IN_SECONDS: z.coerce.number().int().positive().default(2_592_000),
-    AUTH_PASSWORD_MIN_LENGTH: z.coerce.number().int().min(15).default(15),
+    AUTH_PASSWORD_MIN_LENGTH: z.coerce.number().int().min(8).default(8),
     AUTH_PASSWORD_MAX_LENGTH: z.coerce.number().int().min(256).default(256),
     AUTH_RESET_PASSWORD_TOKEN_EXPIRES_IN_SECONDS: z.coerce.number().int().positive().default(3_600),
     AUTH_GOOGLE_CLIENT_ID: requiredProviderValue,
@@ -78,6 +78,21 @@ const envSchema = z
     IDP_STUDIO_URL: configuredHttpOrigin,
     IDP_RESEND_API_KEY: requiredProviderValue,
     IDP_RESEND_API_URL: configuredHttpsUrl.default("https://api.resend.com"),
+    PRIVATE_STORAGE_DRIVER: z.enum(["local", "r2"]).default("local"),
+    PROFILE_IMAGE_LOCAL_DIRECTORY: z.string().min(1).default(".data/profile-images"),
+    BUSINESS_MEDIA_LOCAL_DIRECTORY: z.string().min(1).default(".data/business-logos"),
+    REPORT_EXPORT_ENABLED: z
+      .string()
+      .default("false")
+      .transform((value) => value === "true"),
+    REPORT_EXPORT_PROVIDER: z.enum(["fake", "trigger"]).default("trigger"),
+    TRIGGER_PROJECT_REF: z.string().default(""),
+    TRIGGER_SECRET_KEY: z.string().default(""),
+    TRIGGER_PREVIEW_BRANCH: z.string().default(""),
+    R2_PRIVATE_ENDPOINT: z.literal("").or(configuredHttpsUrl).default(""),
+    R2_PRIVATE_ACCESS_KEY_ID: z.string().default(""),
+    R2_PRIVATE_SECRET_ACCESS_KEY: z.string().default(""),
+    R2_PRIVATE_BUCKET: z.string().default(""),
     LEAD_EMAIL_FROM: z.email().default("leads@example.com"),
     LEAD_EMAIL_TO: z
       .string()
@@ -107,8 +122,50 @@ const envSchema = z
     POSTHOG_UPSTREAM_URL: z
       .enum(["https://us.i.posthog.com", "https://eu.i.posthog.com"])
       .default("https://us.i.posthog.com"),
+    POSTHOG_PROJECT_KEY: z.string().trim().default(""),
   })
   .superRefine((value, context) => {
+    if (
+      value.REPORT_EXPORT_ENABLED &&
+      ["development", "staging", "production"].includes(value.APP_ENV) &&
+      (value.REPORT_EXPORT_PROVIDER !== "trigger" ||
+        !value.TRIGGER_PROJECT_REF ||
+        !value.TRIGGER_SECRET_KEY ||
+        !value.R2_PRIVATE_ENDPOINT ||
+        !value.R2_PRIVATE_ACCESS_KEY_ID ||
+        !value.R2_PRIVATE_SECRET_ACCESS_KEY ||
+        !value.R2_PRIVATE_BUCKET)
+    )
+      context.addIssue({
+        code: "custom",
+        message: "Enabled report export requires complete Trigger.dev and R2 configuration.",
+        path: ["REPORT_EXPORT_ENABLED"],
+      })
+    if (
+      ["development", "staging", "production"].includes(value.APP_ENV) &&
+      value.PRIVATE_STORAGE_DRIVER !== "r2"
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Deployed environments must use R2 profile image storage.",
+        path: ["PRIVATE_STORAGE_DRIVER"],
+      })
+    }
+    if (value.PRIVATE_STORAGE_DRIVER === "r2") {
+      for (const key of [
+        "R2_PRIVATE_ENDPOINT",
+        "R2_PRIVATE_ACCESS_KEY_ID",
+        "R2_PRIVATE_SECRET_ACCESS_KEY",
+        "R2_PRIVATE_BUCKET",
+      ] as const) {
+        if (!value[key])
+          context.addIssue({
+            code: "custom",
+            message: `${key} is required for private business media storage.`,
+            path: [key],
+          })
+      }
+    }
     if (!value.AUTH_TRUSTED_ORIGINS.includes(value.IDP_STUDIO_URL)) {
       context.addIssue({
         code: "custom",
