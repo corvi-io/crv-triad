@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "mode": "feature",
+  "run": {
+    "date": "2026-09-07",
+    "branch": "feature/reporting-email-r2-access",
+    "commit": "79e7bdd",
+    "environment": "Local API 8000; isolated Playwright Studio 3100 and Backstage 3103",
+    "data_mode": "Synthetic browser fixtures; no remote PostgreSQL mutation",
+    "evaluator": "Codex",
+    "baseline": null,
+    "limitations": ["No isolated local PostgreSQL target was available for a browser persistence mutation."]
+  },
+  "scope": {
+    "initiative": "27",
+    "apps": ["api", "studio", "backstage"],
+    "modules": ["reporting", "object storage", "tenant access"],
+    "personas": ["Tenant owner", "Backstage system owner"],
+    "tenants": ["Synthetic tenant fixture"],
+    "out_of_scope": ["Trigger.dev environment configuration", "Production deployment"]
+  },
+  "journeys": [
+    {"id":"R2A-J1","apps":["studio"],"module":"reporting","persona":"Tenant owner","tenant":"Synthetic tenant fixture","kind":"happy_path","name":"Configure and request a CSV report by e-mail","result":"passed","evidence":[".artifacts/product-qa/reporting/catalog-desktop.png","Studio reporting Playwright 2/2"]},
+    {"id":"R2A-J2","apps":["backstage","api"],"module":"tenant access","persona":"Backstage system owner","tenant":"Synthetic tenant fixture","kind":"authorization","name":"Enable a tenant capability with an audit reason","result":"passed","evidence":[".artifacts/product-qa/backstage/tenant-capabilities.png","Backstage Playwright 3/3","Focused API Vitest 22/22"]},
+    {"id":"R2A-J3","apps":["studio","api"],"module":"reporting persistence","persona":"Tenant owner","tenant":"Synthetic tenant fixture","kind":"persistence","name":"Persist and deliver a report through the real local database","result":"blocked","evidence":["Configured database target is remote Neon and was not mutated"]}
+  ],
+  "screenshots": [
+    {"journey_id":"R2A-J1","checkpoint":"Report catalog","viewport":"1440x900","artifact":".artifacts/product-qa/reporting/catalog-desktop.png","inspected":true,"result":"passed","observations":["No legacy filters or data tables; six report cards are visible."]},
+    {"journey_id":"R2A-J1","checkpoint":"Configuration dialog","viewport":"320x720","artifact":".artifacts/product-qa/reporting/configuration-mobile.png","inspected":true,"result":"passed","observations":["Dialog fits the viewport; select is keyboard operable; no horizontal overflow."]},
+    {"journey_id":"R2A-J2","checkpoint":"Tenant capabilities","viewport":"1440x1000","artifact":".artifacts/product-qa/backstage/tenant-capabilities.png","inspected":true,"result":"passed","observations":["Capability controls follow the existing Backstage hierarchy and expose the audited action."]}
+  ],
+  "access_checks": [
+    {"actor":"Backstage support operator","resource_tenant":"Synthetic tenant fixture","vector":"Direct capability update API","result":"passed","evidence":"Unit route test rejects the mutation."},
+    {"actor":"Backstage system owner","resource_tenant":"Synthetic tenant fixture","vector":"Capability update UI","result":"passed","evidence":"Playwright capability journey and focused API tests."}
+  ],
+  "findings": [
+    {"id":"R2A-001","type":"test_defect","severity":"medium","app":"studio","module":"dashboard tests","title":"Time-sensitive dashboard assertion expected a past appointment in the upcoming list","status":"fixed","evidence":["Studio check: 837 tests passed"],"attempts":1},
+    {"id":"R2A-002","type":"environment_limitation","severity":"high","app":"cross-app","module":"report persistence","title":"No isolated local PostgreSQL target for browser persistence proof","status":"blocked","evidence":["Remote database target detected without exposing credentials"],"attempts":1}
+  ],
+  "scores": {
+    "product_outcome": 9.2,
+    "functional_reliability_persistence": 7.5,
+    "ux_visual_integrity": 9.2,
+    "access_privacy_tenant_isolation": 8.8,
+    "accessibility": 9.5,
+    "operability_regression_protection": 9.0,
+    "weighted_total": 8.7
+  },
+  "verification": [
+    {"check":"API check","result":"passed","evidence":"50 files; 408 tests"},
+    {"check":"Studio check","result":"passed","evidence":"86 files; 837 tests; production boundary passed"},
+    {"check":"Backstage check","result":"passed","evidence":"2 files; 5 tests; production boundary passed"},
+    {"check":"Security gate","result":"passed","evidence":"No audit findings after transitive dependency overrides"},
+    {"check":"Studio reporting Playwright","result":"passed","evidence":"2/2; inspected desktop and mobile screenshots; zero Axe violations"},
+    {"check":"Backstage Playwright","result":"passed","evidence":"3/3; inspected tenant capability screenshot; zero Axe violations"},
+    {"check":"Real browser persistence","result":"blocked","evidence":"No isolated PostgreSQL target available"}
+  ],
+  "decision": "approved_with_reservations"
+}
