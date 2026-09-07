@@ -101,6 +101,14 @@ describe("API deployment contract", () => {
     expect(workflow).not.toContain("app: backstage, deploy: false")
   })
 
+  it("treats the protected Backstage edge response as reachable", () => {
+    const deployGate = readFileSync(".github/scripts/run-deploy-gate.sh", "utf8")
+
+    expect(deployGate).toContain('wait_for_health "$backstage_health_url" "403"')
+    expect(deployGate).toContain('[[ "$status" =~ ^[23][0-9][0-9]$')
+    expect(deployGate).not.toContain('wait_for_health "$studio_health_url" "403"')
+  })
+
   it("does not report skipped development deploys as successful deployments", () => {
     const workflow = readFileSync(".github/workflows/reusable-app-delivery.yml", "utf8")
     const deployGate = readFileSync(".github/scripts/run-deploy-gate.sh", "utf8")
