@@ -723,9 +723,7 @@ export function createSchedulingService(db: IdpDatabase, fingerprintSecret: stri
     ])
     if (rows.length > 2000 || visible.length > 2000 || series.length > 2000)
       throw new SchedulingError("range_capacity_exceeded")
-    const periods = location.openingPeriods.length
-      ? location.openingPeriods
-      : [{ days: location.openingDays, start: location.openingStart, end: location.openingEnd }]
+    const periods = location.openingPeriods
     const occurrences = projectAvailability(series, query.startDate, query.endDate).flatMap(
       (item) => {
         if (item.kind !== "available") return [item]

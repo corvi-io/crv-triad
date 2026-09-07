@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core"
 
@@ -24,9 +25,6 @@ export const unit = pgTable(
     name: text("name").notNull(),
     address: text("address").notNull(),
     timezone: text("timezone"),
-    openingDays: text("opening_days").array().default(sql`'{}'::text[]`).notNull(),
-    openingStart: text("opening_start").notNull(),
-    openingEnd: text("opening_end").notNull(),
     openingPeriods: jsonb("opening_periods")
       .$type<readonly { days: readonly string[]; end: string; start: string }[]>()
       .default([])
@@ -40,12 +38,11 @@ export const unit = pgTable(
   },
   (table) => [
     check("units_version_positive_check", sql`${table.version} > 0`),
-    check("units_opening_time_check", sql`${table.openingStart} < ${table.openingEnd}`),
     uniqueIndex("units_organization_normalized_code_unique").on(
       table.organizationId,
       table.normalizedCode,
     ),
-    uniqueIndex("units_organization_id_unique").on(table.organizationId, table.id),
+    unique("units_organization_id_unique").on(table.organizationId, table.id),
     index("units_organization_status_name_id_idx").on(
       table.organizationId,
       table.status,

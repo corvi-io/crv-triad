@@ -247,9 +247,7 @@ function ClientSummary({
                   ?.map(({ name, status }) =>
                     status === "archived" ? `${name} (arquivado)` : name,
                   )
-                  .join(", ") ||
-                client.servicePreferences?.join(", ") ||
-                "-"
+                  .join(", ") || "-"
               }
             />
             <Detail label="Última visita" value={formatDateTime(client.lastVisitAt)} />

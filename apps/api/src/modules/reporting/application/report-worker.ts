@@ -4,7 +4,7 @@ import { createId } from "../../shared/infra/ids.js"
 import { reportArtifact, reportAttempt, reportRequest } from "../database/schema.js"
 import type { ArtifactStorage, ReportEmailSender } from "./export-providers.js"
 import { type ReportType, reportCatalogItem } from "./report-catalog.js"
-import { renderReportCsv, renderReportPdf } from "./report-renderer.js"
+import { renderReportCsv } from "./report-renderer.js"
 import type { ReportingService } from "./reporting-service.js"
 
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000
@@ -17,7 +17,7 @@ export function createReportObjectKey(input: {
   createdAt: Date
   reportRequestId: string
   attempt: number
-  format: "csv" | "pdf"
+  format: "csv"
 }) {
   const year = input.createdAt.getUTCFullYear()
   const month = String(input.createdAt.getUTCMonth() + 1).padStart(2, "0")
@@ -34,25 +34,6 @@ export function createReportWorker(
   observe: (event: Record<string, unknown>) => void = () => undefined,
 ) {
   async function deliverReadyEmail(request: typeof reportRequest.$inferSelect) {
-    if (request.emailDeliveryStatus === "not_applicable") return "terminal" as const
-    if (!request.requesterEmail) {
-      await db
-        .update(reportRequest)
-        .set({
-          emailDeliveryStatus: "not_applicable",
-          emailDeliveryFailureCode: null,
-          emailDeliveryClaimedAt: null,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(reportRequest.organizationId, request.organizationId),
-            eq(reportRequest.id, request.id),
-            sql`${reportRequest.emailDeliveryStatus} <> 'sent'`,
-          ),
-        )
-      return "terminal" as const
-    }
     if (!emailSender) return "terminal" as const
     const staleClaim = new Date(Date.now() - DELIVERY_CLAIM_TIMEOUT_MS)
     const claimed = await db
@@ -200,16 +181,15 @@ export function createReportWorker(
         { organizationId: payload.organizationId, actorUserId: request.requesterUserId } as never,
         request.reportType,
         filters,
-        request.configSnapshot ?? legacyConfig(request.reportType, filters),
+        request.configSnapshot,
       )
       const document = {
         title: reportCatalogItem(request.reportType).title,
         period: `${filters.from} a ${filters.to} (${filters.timezone})`,
         rows,
       }
-      const body = request.format === "pdf" ? renderReportPdf(document) : renderReportCsv(document)
-      const contentType =
-        request.format === "pdf" ? ("application/pdf" as const) : ("text/csv" as const)
+      const body = renderReportCsv(document)
+      const contentType = "text/csv" as const
       const objectKey = createReportObjectKey({
         organizationId: payload.organizationId,
         reportType: request.reportType,
@@ -356,8 +336,7 @@ export function createReportWorker(
       )
       .limit(1)
     if (request?.status !== "ready") return { outcome: "ignored" as const }
-    if (["sent", "not_applicable"].includes(request.emailDeliveryStatus))
-      return { outcome: "sent" as const }
+    if (request.emailDeliveryStatus === "sent") return { outcome: "sent" as const }
     const delivery = await deliverReadyEmail(request)
     if (delivery === "claim_active") throw new Error("report_email_delivery_claim_active")
     return { outcome: "sent" as const }
@@ -395,19 +374,6 @@ export function createReportWorker(
     return artifacts.length
   }
   return { run, deliver, expire }
-}
-
-function legacyConfig(type: ReportType, filters: typeof reportRequest.$inferSelect.filters) {
-  const { timezone, ...reportFilters } = filters
-  const defaults: Record<ReportType, Record<string, unknown>> = {
-    sales_revenue: { includeReversals: true },
-    professional_performance: { ranking: "revenue" },
-    commissions: { includeReversals: true },
-    new_returning_customers: { customerDefinition: "first_completed_receipt_in_tenant" },
-    cancellations_no_shows: { includeCancelled: true, includeNoShows: true },
-    cash_payments: { includeReversals: true },
-  }
-  return { reportType: type, filters: reportFilters, timezone, ...defaults[type] } as never
 }
 
 export type ReportWorker = ReturnType<typeof createReportWorker>

@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core"
 import { client } from "../../clients/database/schema.js"
@@ -65,7 +66,7 @@ export const appointment = pgTable(
       columns: [table.organizationId, table.clientId],
       foreignColumns: [client.organizationId, client.id],
     }),
-    uniqueIndex("scheduling_appointments_tenant_id_unique").on(table.organizationId, table.id),
+    unique("scheduling_appointments_tenant_id_unique").on(table.organizationId, table.id),
     index("scheduling_appointments_unit_date_idx").on(
       table.organizationId,
       table.unitId,

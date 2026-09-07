@@ -261,18 +261,16 @@ describe("report worker object keys", () => {
     expect(observe).toHaveBeenCalledWith(expect.objectContaining({ event: "report_export_failed" }))
   })
 
-  it("supports explicit delivery terminal states and expires artifacts", async () => {
-    for (const emailDeliveryStatus of ["sent", "not_applicable"] as const) {
-      const database = scriptedDatabase({
-        selects: [[{ ...request, status: "ready", emailDeliveryStatus }]],
-      })
-      await expect(
-        createReportWorker(database.db, {} as never, storage() as never).deliver({
-          organizationId: "tenant-1",
-          reportRequestId: request.id,
-        }),
-      ).resolves.toEqual({ outcome: "sent" })
-    }
+  it("supports the delivered terminal state and expires artifacts", async () => {
+    const delivered = scriptedDatabase({
+      selects: [[{ ...request, status: "ready", emailDeliveryStatus: "sent" }]],
+    })
+    await expect(
+      createReportWorker(delivered.db, {} as never, storage() as never).deliver({
+        organizationId: "tenant-1",
+        reportRequestId: request.id,
+      }),
+    ).resolves.toEqual({ outcome: "sent" })
     const ignored = scriptedDatabase({ selects: [[{ ...request, status: "failed" }]] })
     await expect(
       createReportWorker(ignored.db, {} as never, storage() as never).deliver({

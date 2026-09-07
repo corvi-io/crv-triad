@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core"
 import { client } from "../../clients/database/schema.js"
@@ -52,7 +53,7 @@ export const serviceDeskVisit = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("service_desk_visits_tenant_id_unique").on(table.organizationId, table.id),
+    unique("service_desk_visits_tenant_id_unique").on(table.organizationId, table.id),
     uniqueIndex("service_desk_visits_tenant_appointment_unique").on(
       table.organizationId,
       table.appointmentId,
@@ -231,7 +232,7 @@ export const serviceDeskHandoff = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("service_desk_handoffs_visit_unique").on(table.organizationId, table.visitId),
+    unique("service_desk_handoffs_visit_unique").on(table.organizationId, table.visitId),
     foreignKey({
       columns: [table.organizationId, table.visitId],
       foreignColumns: [serviceDeskVisit.organizationId, serviceDeskVisit.id],

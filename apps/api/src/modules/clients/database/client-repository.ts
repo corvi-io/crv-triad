@@ -41,7 +41,6 @@ const clientProjection = {
   name: client.name,
   phone: client.phone,
   preferenceNote: client.preferenceNote,
-  servicePreferences: client.servicePreferences,
   status: client.status,
   tags: client.tags,
   updatedAt: client.updatedAt,

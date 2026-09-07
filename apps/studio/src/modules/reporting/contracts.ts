@@ -33,8 +33,8 @@ export type GeneratedReport = {
   activeAttempt: number
   completedAt?: string | null
   createdAt: string
-  emailDeliveryStatus: "failed" | "not_applicable" | "pending" | "sending" | "sent"
-  format: "csv" | "pdf"
+  emailDeliveryStatus: "failed" | "pending" | "sending" | "sent"
+  format: "csv"
   id: string
   reportType: ReportDefinitionId
   safeFailureCode?: string | null
@@ -53,7 +53,7 @@ export type ReportFilterId = "dateRange" | "unit" | "professional" | "service" |
 
 export type ReportCatalogItem = {
   description: string
-  formats: readonly ("csv" | "pdf")[]
+  formats: readonly "csv"[]
   id: ReportDefinitionId
   supportedFilters: readonly ReportFilterId[]
   title: string

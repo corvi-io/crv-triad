@@ -52,10 +52,7 @@ function unitRow(overrides: Record<string, unknown> = {}) {
     createdAt: now,
     id: "unit-a",
     name: "Centro",
-    openingDays: ["monday"],
-    openingEnd: "18:00",
     openingPeriods: [{ days: ["monday"], end: "18:00", start: "09:00" }],
-    openingStart: "09:00",
     organizationId: "tenant-a",
     status: "active" as const,
     updatedAt: now,
@@ -179,17 +176,6 @@ describe("catalog service", () => {
     expect(professionals).toEqual([
       { id: "professional-a", name: "Marcus", status: "active", unitIds: ["unit-a"] },
     ])
-  })
-
-  it("uses active defaults and legacy opening hours in unit options", async () => {
-    const { db, queue } = createDatabase()
-    queue([unitRow({ openingPeriods: [] })])
-    const options = await createCatalogService(db as never).options("tenant-a", "unit", {})
-    expect(options[0]).toMatchObject({
-      businessHours: {
-        periods: [{ days: ["monday"], end: "18:00", start: "09:00" }],
-      },
-    })
   })
 
   it("covers default list and option projections without selected values", async () => {

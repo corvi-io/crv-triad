@@ -88,7 +88,7 @@ test("admin generates, observes and downloads a fake local artifact", async ({ p
     page.getByRole("button", { name: "Baixar" }).first().click(),
   ])
   expect(download.status()).toBe(200)
-  expect(download.headers()["content-type"]).toContain("application/pdf")
+  expect(download.headers()["content-type"]).toContain("text/csv")
   const reportId = await page.evaluate(
     async ({ api }) => {
       const reports = (await (

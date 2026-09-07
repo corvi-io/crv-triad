@@ -78,9 +78,7 @@ beforeAll(async () => {
     code: "SCHEDULE",
     normalizedCode: "schedule",
     address: "Synthetic address",
-    openingDays: ["monday"],
-    openingStart: "09:00",
-    openingEnd: "18:00",
+    openingPeriods: [{ days: ["monday"], start: "09:00", end: "18:00" }],
   })
   await db.insert(professional).values({
     id: base.professionalId,
@@ -543,17 +541,12 @@ describe.sequential("persistent scheduling", () => {
       vi.useRealTimers()
     }
   })
-  it("projects local appointment time and preserves legacy client preferences", async () => {
-    await db
-      .update(client)
-      .set({ servicePreferences: ["Legacy preference"] })
-      .where(eq(client.id, base.clientId))
+  it("projects local appointment time", async () => {
     const repository = createDrizzleClientRepository(db as never, nextClientAppointment)
     const projected = await repository.get({
       organizationId: actor.organizationId,
       clientId: base.clientId,
     })
-    expect(projected).toMatchObject({ servicePreferences: ["Legacy preference"] })
     const expected = await pool.query(
       "select date::text, start from scheduling_appointments where organization_id=$1 and client_id=$2 and starts_at >= now() and status in ('scheduled','confirmed','arrived') order by starts_at,id limit 1",
       [actor.organizationId, base.clientId],

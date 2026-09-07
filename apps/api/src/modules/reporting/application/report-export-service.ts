@@ -291,20 +291,10 @@ function assertSameIdempotentRequest(
   existing: typeof reportRequest.$inferSelect,
   input: ReturnType<typeof createReportRequestSchema.parse>,
 ) {
-  const { timezone, ...legacyFilters } = existing.filters
-  const existingSnapshot =
-    existing.configSnapshot ??
-    createReportRequestSchema.parse({
-      format: existing.format,
-      filters: legacyFilters,
-      timezone,
-      idempotencyKey: existing.idempotencyKey,
-      reportType: existing.reportType,
-    }).configSnapshot
   if (
     existing.format !== input.format ||
     existing.reportType !== input.reportType ||
-    canonicalJson(existingSnapshot) !== canonicalJson(input.configSnapshot)
+    canonicalJson(existing.configSnapshot) !== canonicalJson(input.configSnapshot)
   )
     throw new Error("idempotency_conflict")
 }

@@ -1,9 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
-import { ClientProfileDrawer } from "@/modules/clients/client-profile-drawer"
-import { ClientHttpRepository } from "@/modules/clients/http-repository"
-import { ClientRepositoryProvider } from "@/modules/clients/repository-context"
 import { ClientAppointmentHistory } from "@/modules/scheduling/client-appointment-history"
 import { ProductionAppointmentDrawer } from "@/modules/scheduling/production-appointment-drawer"
 import { ProductionAppointmentList } from "@/modules/scheduling/production-appointment-list"
@@ -286,29 +283,6 @@ describe("production appointment flows", { timeout: 20000 }, () => {
     )
     await select("appointment-client", customer.name)
     expect(screen.getByLabelText("Cliente", { exact: true })).toHaveValue(customer.name)
-  })
-  it("shows legacy preferences when no canonical service preference exists", async () => {
-    httpFixture((request) =>
-      request.path === `/api/clients/${customer.id}`
-        ? respond({
-            ...customer,
-            preferredServices: [],
-            servicePreferences: ["Preferência antiga preservada"],
-          })
-        : undefined,
-    )
-    renderProduction(
-      <ClientRepositoryProvider repository={new ClientHttpRepository()}>
-        <ClientProfileDrawer
-          clientId={customer.id}
-          scenarioId="typical"
-          onEditClient={vi.fn()}
-          onInspectClient={vi.fn()}
-          onOpenChange={vi.fn()}
-        />
-      </ClientRepositoryProvider>,
-    )
-    expect(await screen.findByText("Preferência antiga preservada")).toBeVisible()
   })
   it("uses bounded remote searches for large canonical catalogs", async () => {
     const requests = httpFixture()

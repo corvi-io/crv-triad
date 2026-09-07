@@ -57,8 +57,10 @@ describe("client persistence integrity", () => {
         "clients_organization_created_at_id_idx",
         "clients_organization_normalized_phone_idx",
         "clients_organization_normalized_email_idx",
-        "clients_organization_id_unique",
       ]),
+    )
+    expect(getTableConfig(client).uniqueConstraints.map((constraint) => constraint.name)).toContain(
+      "clients_organization_id_unique",
     )
   })
 

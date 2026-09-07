@@ -89,9 +89,7 @@ for (const suffix of ["a", "b"] as const) {
       normalizedCode: `q${suffix}`,
       address: "Endereço sintético",
       timezone: "America/Recife",
-      openingDays: [...weekdays],
-      openingStart: "00:00",
-      openingEnd: "23:59",
+      openingPeriods: [{ days: [...weekdays], start: "00:00", end: "23:59" }],
     })
     .onConflictDoNothing()
   await db

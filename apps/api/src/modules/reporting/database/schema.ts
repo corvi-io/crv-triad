@@ -35,13 +35,15 @@ export const reportRequest = pgTable(
     requesterUserId: text("requester_user_id")
       .notNull()
       .references(() => user.id, { onDelete: "restrict" }),
-    format: text("format", { enum: ["pdf", "csv"] }).notNull(),
+    format: text("format", { enum: ["csv"] }).notNull(),
     reportType: text("report_type").$type<ReportType>().default("sales_revenue").notNull(),
     configVersion: integer("config_version").default(1).notNull(),
-    configSnapshot: jsonb("config_snapshot").$type<ReportConfigSnapshot>(),
+    configSnapshot: jsonb("config_snapshot").$type<ReportConfigSnapshot>().notNull(),
     filters: jsonb("filters").$type<ReportFilters>().notNull(),
-    requesterEmail: text("requester_email"),
-    requesterEmailVerifiedAt: timestamp("requester_email_verified_at", { withTimezone: true }),
+    requesterEmail: text("requester_email").notNull(),
+    requesterEmailVerifiedAt: timestamp("requester_email_verified_at", {
+      withTimezone: true,
+    }).notNull(),
     idempotencyKey: text("idempotency_key").notNull(),
     status: text("status", { enum: ["queued", "running", "ready", "failed", "expired"] })
       .default("queued")
@@ -51,7 +53,7 @@ export const reportRequest = pgTable(
     providerRunReference: text("provider_run_reference"),
     safeFailureCode: text("safe_failure_code"),
     emailDeliveryStatus: text("email_delivery_status", {
-      enum: ["pending", "sending", "sent", "failed", "not_applicable"],
+      enum: ["pending", "sending", "sent", "failed"],
     })
       .default("pending")
       .notNull(),
@@ -116,7 +118,7 @@ export const reportArtifact = pgTable(
     reportRequestId: text("report_request_id").notNull(),
     attempt: integer("attempt").notNull(),
     objectKey: text("object_key").notNull(),
-    contentType: text("content_type", { enum: ["application/pdf", "text/csv"] }).notNull(),
+    contentType: text("content_type", { enum: ["text/csv"] }).notNull(),
     byteSize: bigint("byte_size", { mode: "number" }).notNull(),
     checksum: text("checksum").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),

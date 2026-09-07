@@ -72,11 +72,7 @@ export function createActivationReadinessService(db: IdpDatabase, clock = () => 
           )
           .limit(1)
       : []
-    const periods = location
-      ? location.openingPeriods.length
-        ? location.openingPeriods
-        : [{ days: location.openingDays, start: location.openingStart, end: location.openingEnd }]
-      : []
+    const periods = location?.openingPeriods ?? []
     const unitReady = Boolean(location?.timezone && periods.some((period) => period.days.length))
 
     const [eligibleProfessional] = location

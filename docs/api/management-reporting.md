@@ -10,12 +10,10 @@ CSV exports. The backend report catalog extends that lifecycle with six typed re
   `/api/business-profile` and `/api/commissions`.
 - Logos use the local filesystem only in `local`; deployed environments use the private R2 adapter
   selected by `PRIVATE_STORAGE_DRIVER=r2`. Business media keys are tenant-scoped under
-  `tenants/{tenantId}/branding/logo/`; legacy keys remain readable until replaced or
-  removed. Business logos use only `R2_PRIVATE_*`; they are read through authenticated API routes
+  `tenants/{tenantId}/branding/logo/`. Business logos use only `R2_PRIVATE_*`; they are read through authenticated API routes
   and never receive a public object URL.
 - User profile images use the separate identity-owned namespace
-  `users/{userId}/profile/avatar/`, because one user may belong to multiple tenants. Existing root
-  image keys remain readable until the user replaces or removes the image. New images share the
+  `users/{userId}/profile/avatar/`, because one user may belong to multiple tenants. Images share the
   private R2 bucket and are served only through the authenticated, owner-scoped profile image route;
   the persisted URL never exposes R2 directly.
 - Interactive summaries are bounded to 365 days at `/api/reports/summary`.
@@ -75,10 +73,8 @@ deterministic without assigning the full receipt to every line or tender.
 ## Public Lifecycle Contract
 
 Generation status is `queued | running | ready | failed | expired`; delivery status is
-`pending | sending | sent | failed | not_applicable`. Clients poll generation only for `queued` or
-`running`, and poll delivery only for a ready report in `pending` or `sending`. Legacy requests with
-no requester email are migrated, and also defensively converged by the worker, to terminal
-`not_applicable`.
+`pending | sending | sent | failed`. Clients poll generation only for `queued` or `running`, and
+poll delivery only for a ready report in `pending` or `sending`.
 
 Generation retry accepts only `failed` or `expired`. Delivery retry accepts only
 `ready + failed`, reuses the existing private artifact, and never regenerates it. Concurrent callers

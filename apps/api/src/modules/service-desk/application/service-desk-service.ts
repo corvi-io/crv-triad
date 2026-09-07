@@ -175,9 +175,6 @@ export function createServiceDeskService(
         id: unit.id,
         name: unit.name,
         timezone: unit.timezone,
-        openingDays: unit.openingDays,
-        openingStart: unit.openingStart,
-        openingEnd: unit.openingEnd,
         openingPeriods: unit.openingPeriods,
       })
       .from(unit)
@@ -279,15 +276,7 @@ export function createServiceDeskService(
     const start = localDateTime(startsAt, catalog.location.timezone as string)
     const end = localDateTime(endsAt, catalog.location.timezone as string)
     if (start.date !== end.date) throw new ServiceDeskError("invalid_relation", "professionalId")
-    const periods = catalog.location.openingPeriods.length
-      ? catalog.location.openingPeriods
-      : [
-          {
-            days: catalog.location.openingDays,
-            start: catalog.location.openingStart,
-            end: catalog.location.openingEnd,
-          },
-        ]
+    const periods = catalog.location.openingPeriods
     if (
       !periods.some(
         (period) =>

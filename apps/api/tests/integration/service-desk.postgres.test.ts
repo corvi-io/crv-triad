@@ -63,9 +63,13 @@ beforeAll(async () => {
     code: "D",
     normalizedCode: "d",
     address: "Synthetic",
-    openingDays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
-    openingStart: "00:00",
-    openingEnd: "23:59",
+    openingPeriods: [
+      {
+        days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+        start: "00:00",
+        end: "23:59",
+      },
+    ],
     timezone: "America/Recife",
   })
   await db.insert(professional).values({

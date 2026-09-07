@@ -68,7 +68,7 @@ function resolveAgendaClock(now: Date, timezone?: string | null) {
         }
       }
     } catch {
-      // Invalid legacy timezones fall back to the browser clock.
+      // Invalid timezones fall back to the browser clock.
     }
   }
 
