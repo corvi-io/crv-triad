@@ -8,6 +8,9 @@ source:
     studio: /studio
     backstage: /backstage
     infrastructure: /infrastructure
+infrastructure:
+  env:
+    - { source: INFRA__TRIGGER_ACCESS_TOKEN, github: secret, required: true, required_for: [api] }
 apps:
   api:
     owner: apps/api

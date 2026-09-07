@@ -29,8 +29,17 @@ export type AppConfig = {
   env: EnvEntry[]
 }
 
+export type InfrastructureEnvEntry = {
+  source: string
+  github: GitHubSourceKind
+  required: boolean
+  required_for: string[]
+  required_targets?: string[]
+}
+
 export type EnvSchema = {
   schema_version: number
+  infrastructure?: { env: InfrastructureEnvEntry[] }
   apps: Record<string, AppConfig>
 }
 
@@ -95,6 +104,55 @@ export function assertSchema(value: unknown): asserts value is EnvSchema {
   }
 
   const seenSources = new Set<string>()
+
+  if (value.infrastructure !== undefined) {
+    if (!isRecord(value.infrastructure) || !Array.isArray(value.infrastructure.env)) {
+      throw new EnvManagementError("env-schema.yaml infrastructure must declare env entries.")
+    }
+
+    for (const entry of value.infrastructure.env) {
+      if (
+        !isRecord(entry) ||
+        typeof entry.source !== "string" ||
+        !entry.source.startsWith("INFRA__") ||
+        !SOURCE_NAME_PATTERN.test(entry.source)
+      ) {
+        throw new EnvManagementError("Infrastructure has an invalid source name.")
+      }
+      if (entry.github !== "secret" && entry.github !== "variable") {
+        throw new EnvManagementError(
+          `Infrastructure source "${entry.source}" must declare github as secret or variable.`,
+        )
+      }
+      if (typeof entry.required !== "boolean") {
+        throw new EnvManagementError(
+          `Infrastructure source "${entry.source}" must declare required as a boolean.`,
+        )
+      }
+      if (
+        !Array.isArray(entry.required_for) ||
+        entry.required_for.length === 0 ||
+        entry.required_for.some((appName) => typeof appName !== "string" || !value.apps[appName])
+      ) {
+        throw new EnvManagementError(
+          `Infrastructure source "${entry.source}" has invalid required_for apps.`,
+        )
+      }
+      if (
+        entry.required_targets !== undefined &&
+        (!Array.isArray(entry.required_targets) ||
+          entry.required_targets.some((targetName) => typeof targetName !== "string"))
+      ) {
+        throw new EnvManagementError(
+          `Infrastructure source "${entry.source}" has invalid required_targets.`,
+        )
+      }
+      if (seenSources.has(entry.source)) {
+        throw new EnvManagementError(`Duplicate source name "${entry.source}".`)
+      }
+      seenSources.add(entry.source)
+    }
+  }
 
   for (const [appName, app] of Object.entries(value.apps)) {
     if (!isRecord(app)) {
@@ -221,13 +279,20 @@ export function selectRuntimeEnv(
     )
   }
 
-  const missing = app.env
-    .filter(
+  const requiredInfrastructure =
+    schema.infrastructure?.env.filter(
+      (entry) =>
+        entry.required_for.includes(appName) &&
+        (entry.required || entry.required_targets?.includes(targetName)),
+    ) ?? []
+  const missing = [
+    ...app.env.filter(
       (entry) =>
         (entry.required || entry.required_targets?.includes(targetName)) &&
         !hasRequiredValue(sourceEnv[entry.source]),
-    )
-    .map((entry) => entry.source)
+    ),
+    ...requiredInfrastructure.filter((entry) => !hasRequiredValue(sourceEnv[entry.source])),
+  ].map((entry) => entry.source)
 
   if (missing.length > 0) {
     throw new EnvManagementError(
