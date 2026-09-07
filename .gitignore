@@ -12,6 +12,7 @@ dist/
 coverage/
 .coverage
 .artifacts/
+.trigger/
 
 # Environment files
 .env

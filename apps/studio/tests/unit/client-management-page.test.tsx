@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { type ReactNode, useEffect, useState } from "react"
 import { describe, expect, it, vi } from "vitest"
@@ -217,15 +217,17 @@ describe("client management pages", () => {
     const row = trigger.closest("tr")
     expect(row).not.toBeNull()
     if (!row) return
-    row.focus()
-    fireEvent.keyDown(row, { key: "F10", shiftKey: true })
+    await act(async () => {
+      row.focus()
+      fireEvent.keyDown(row, { key: "F10", shiftKey: true })
+    })
 
     const viewAction = await screen.findByRole("menuitem", { name: "Visualizar" })
-    viewAction.focus()
+    await act(async () => viewAction.focus())
     expect(viewAction).toHaveFocus()
     expect(screen.getByRole("menuitem", { name: "Editar" })).toBeVisible()
     const archiveAction = screen.getByRole("menuitem", { name: "Arquivar" })
-    archiveAction.focus()
+    await act(async () => archiveAction.focus())
     expect(archiveAction).toHaveFocus()
     await user.keyboard("{Enter}")
 

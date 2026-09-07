@@ -71,7 +71,7 @@ following `prd` Infisical inputs.
 
 | Category | Secrets | Variables |
 | --- | --- | --- |
-| Fly.io | `INFRA__FLY_API_TOKEN` | — |
+| Fly.io and Trigger.dev | `INFRA__FLY_API_TOKEN`, `INFRA__TRIGGER_ACCESS_TOKEN` | — |
 | Cloudflare | `INFRA__CLOUDFLARE_API_TOKEN` | `INFRA__CLOUDFLARE_ACCOUNT_ID`, `INFRA__CLOUDFLARE_SITE_PROJECT_NAME`, `INFRA__CLOUDFLARE_STUDIO_PROJECT_NAME`, `INFRA__CLOUDFLARE_BACKSTAGE_PROJECT_NAME`, `INFRA__STUDIO_URL`, `INFRA__BACKSTAGE_URL` |
 | API | `API__DATABASE_URL`, `API__BETTER_AUTH_SECRET`, provider secrets | Runtime URLs, origins, and provider identifiers declared in `env-schema.yaml` |
 | Site | — | `SITE__PUBLIC_SITE_URL` |

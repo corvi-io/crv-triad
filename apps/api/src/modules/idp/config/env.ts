@@ -88,6 +88,7 @@ const envSchema = z
     REPORT_EXPORT_PROVIDER: z.enum(["fake", "trigger"]).default("trigger"),
     TRIGGER_PROJECT_REF: z.string().default(""),
     TRIGGER_SECRET_KEY: z.string().default(""),
+    TRIGGER_PREVIEW_BRANCH: z.string().default(""),
     R2_PRIVATE_ENDPOINT: z.literal("").or(configuredHttpsUrl).default(""),
     R2_PRIVATE_ACCESS_KEY_ID: z.string().default(""),
     R2_PRIVATE_SECRET_ACCESS_KEY: z.string().default(""),

@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router"
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { type ReactNode, useEffect } from "react"
 import { describe, expect, it, vi } from "vitest"
@@ -189,19 +189,23 @@ describe("routes", () => {
   it("omits default client search state and preserves shareable drawer intent", async () => {
     const { router } = renderRoute("/workspace-preview", authenticatedState())
 
-    await router.navigate({ search: clientSearchDefaults, to: "/clients" })
+    await act(() => router.navigate({ search: clientSearchDefaults, to: "/clients" }))
     expect(router.state.location.href).toBe("/clients")
 
-    await router.navigate({
-      search: { ...clientSearchDefaults, client: "client_01" },
-      to: "/clients",
-    })
+    await act(() =>
+      router.navigate({
+        search: { ...clientSearchDefaults, client: "client_01" },
+        to: "/clients",
+      }),
+    )
     expect(router.state.location.href).toBe("/clients?client=client_01")
 
-    await router.navigate({
-      search: { ...clientSearchDefaults, client: "client_01", mode: "edit" },
-      to: "/clients",
-    })
+    await act(() =>
+      router.navigate({
+        search: { ...clientSearchDefaults, client: "client_01", mode: "edit" },
+        to: "/clients",
+      }),
+    )
     expect(router.state.location.href).toBe("/clients?client=client_01&mode=edit")
   })
   it.each([

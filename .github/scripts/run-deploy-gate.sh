@@ -74,12 +74,48 @@ record_deployment() {
   fi
 }
 
+deploy_trigger_tasks() {
+  if [[ -z "${INFRA__TRIGGER_ACCESS_TOKEN:-}" ]]; then
+    echo "INFRA__TRIGGER_ACCESS_TOKEN is required to deploy Trigger.dev tasks."
+    return 1
+  fi
+
+  if [[ -z "${API__TRIGGER_PROJECT_REF:-}" ]]; then
+    echo "API__TRIGGER_PROJECT_REF is required to deploy Trigger.dev tasks."
+    return 1
+  fi
+
+  local trigger_environment
+  local -a trigger_args
+  case "$target" in
+    dev)
+      trigger_environment="preview"
+      trigger_args=(--env preview --branch dev)
+      ;;
+    hml)
+      trigger_environment="staging"
+      trigger_args=(--env staging)
+      ;;
+    prd)
+      trigger_environment="production"
+      trigger_args=(--env prod)
+      ;;
+  esac
+
+  echo "Deploying Trigger.dev tasks to ${trigger_environment}."
+  TRIGGER_ACCESS_TOKEN="$INFRA__TRIGGER_ACCESS_TOKEN" \
+    TRIGGER_PROJECT_REF="$API__TRIGGER_PROJECT_REF" \
+    bun run --cwd apps/api deploy:trigger -- "${trigger_args[@]}" --external-id "${GITHUB_SHA:?GITHUB_SHA is required}"
+}
+
 if [[ "$app" == "api" ]]; then
   if [[ -z "${INFRA__FLY_API_TOKEN:-}" ]]; then
     echo "INFRA__FLY_API_TOKEN is required to deploy API to Fly.io."
     exit 1
   fi
 
+  bun .github/scripts/env-management.ts validate --app api --target "$target"
+  deploy_trigger_tasks
   FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" bun .github/scripts/env-management.ts sync-fly --app api --target "$target"
   FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" flyctl deploy . --config "$api_config" --dockerfile apps/api/Dockerfile --remote-only
   wait_for_health "$api_health_url"

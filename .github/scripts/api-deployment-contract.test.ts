@@ -71,6 +71,28 @@ describe("API deployment contract", () => {
     expect(workflow).toContain("run: bun run test:ci")
   })
 
+  it("requires and deploys Trigger.dev before the API runtime for every hosted target", () => {
+    const deployGate = readFileSync(".github/scripts/run-deploy-gate.sh", "utf8")
+    const healthGate = deployGate.indexOf('wait_for_health "$api_health_url"')
+    const triggerDeploy = deployGate.indexOf(
+      "deploy_trigger_tasks",
+      deployGate.indexOf('if [[ "$app" == "api" ]]'),
+    )
+    const flyDeploy = deployGate.indexOf("flyctl deploy")
+
+    expect(deployGate).toContain("INFRA__TRIGGER_ACCESS_TOKEN")
+    expect(deployGate).toContain("trigger_args=(--env preview --branch dev)")
+    expect(deployGate).toContain("trigger_args=(--env staging)")
+    expect(deployGate).toContain("trigger_args=(--env prod)")
+    expect(deployGate).toContain("bun run --cwd apps/api deploy:trigger")
+    expect(deployGate).not.toContain("bun --cwd apps/api run deploy:trigger")
+    expect(deployGate).toContain('--external-id "$' + "{GITHUB_SHA:?GITHUB_SHA is required}" + '"')
+    expect(healthGate).toBeGreaterThan(-1)
+    expect(triggerDeploy).toBeGreaterThan(-1)
+    expect(triggerDeploy).toBeLessThan(flyDeploy)
+    expect(healthGate).toBeGreaterThan(flyDeploy)
+  })
+
   it("deploys Backstage at environment boundaries after affected API delivery", () => {
     const workflow = readFileSync(".github/workflows/reusable-delivery.yml", "utf8")
 

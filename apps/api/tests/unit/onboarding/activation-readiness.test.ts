@@ -2,9 +2,30 @@ import { describe, expect, it } from "vitest"
 
 import type { Occurrence } from "../../../src/modules/availability/domain/availability.js"
 import {
+  createActivationReadinessService,
   hasAnySchedulableSlot,
   hasSchedulableSlot,
 } from "../../../src/modules/onboarding/application/activation-readiness.js"
+
+function database(...results: unknown[][]) {
+  const queue = [...results]
+  const select = () => {
+    // biome-ignore lint/suspicious/noExplicitAny: recursive fluent methods model the awaitable Drizzle query boundary.
+    const chain: any = {
+      from: () => chain,
+      where: () => chain,
+      innerJoin: () => chain,
+      orderBy: () => chain,
+      groupBy: () => chain,
+      limit: () => Promise.resolve(queue.shift() ?? []),
+      // biome-ignore lint/suspicious/noThenProperty: Drizzle query builders are intentionally awaitable.
+      then: (fulfilled: (value: unknown) => unknown, rejected?: (reason: unknown) => unknown) =>
+        Promise.resolve(queue.shift() ?? []).then(fulfilled, rejected),
+    }
+    return chain
+  }
+  return { select } as never
+}
 
 const occurrence = (kind: Occurrence["kind"], start: string, end: string): Occurrence => ({
   id: `${kind}:${start}`,
@@ -19,6 +40,109 @@ const occurrence = (kind: Occurrence["kind"], start: string, end: string): Occur
 })
 
 describe("activation readiness slot detection", () => {
+  it("reports the first missing setup step for an empty tenant", async () => {
+    const readiness = createActivationReadinessService(database([]))
+    await expect(
+      readiness({ organizationId: "tenant-1", role: "member" } as never),
+    ).resolves.toMatchObject({
+      outcome: "setup_required",
+      canManage: false,
+      completedCount: 0,
+      totalCount: 5,
+      nextStepId: "business_identity",
+    })
+  })
+
+  it.each([
+    "owner",
+    "admin",
+  ] as const)("reports schedule readiness for a configured %s", async (role) => {
+    const location = {
+      id: "unit-1",
+      timezone: "America/Recife",
+      openingPeriods: [{ days: ["monday"], start: "09:00", end: "18:00" }],
+      openingDays: [],
+      openingStart: "00:00",
+      openingEnd: "00:00",
+    }
+    const series = {
+      id: "series-1",
+      organizationId: "tenant-1",
+      unitId: "unit-1",
+      professionalId: "professional-1",
+      kind: "available" as const,
+      start: "09:00",
+      end: "18:00",
+      weekdays: ["monday"],
+      effectiveFrom: "2026-09-07",
+      effectiveUntil: null,
+      excludedDates: [],
+      status: "active" as const,
+      version: 1,
+    }
+    const readiness = createActivationReadinessService(
+      database(
+        [{ id: "profile-1", primaryUnitId: "unit-1" }],
+        [location],
+        [{ id: "professional-1" }],
+        [{ id: "service-1" }],
+        [series],
+        [{ professionalId: "professional-1", durationMinutes: 30 }],
+      ),
+      () => new Date("2026-09-07T12:00:00.000Z"),
+    )
+    await expect(readiness({ organizationId: "tenant-1", role } as never)).resolves.toMatchObject({
+      outcome: "schedule_ready",
+      canManage: true,
+      completedCount: 5,
+      totalCount: 5,
+      nextStepId: null,
+    })
+  })
+
+  it("supports legacy unit hours and nullable service durations", async () => {
+    const location = {
+      id: "unit-1",
+      timezone: "America/Recife",
+      openingPeriods: [],
+      openingDays: ["monday"],
+      openingStart: "09:00",
+      openingEnd: "18:00",
+    }
+    const series = {
+      id: "series-1",
+      unitId: "unit-1",
+      professionalId: "professional-1",
+      kind: "available" as const,
+      start: "09:00",
+      end: "18:00",
+      weekdays: ["monday"],
+      effectiveFrom: "2026-09-07",
+      effectiveUntil: null,
+      excludedDates: [],
+      status: "active" as const,
+      version: 1,
+    }
+    const readiness = createActivationReadinessService(
+      database(
+        [{ id: "profile-1", primaryUnitId: "unit-1" }],
+        [location],
+        [],
+        [],
+        [series],
+        [{ professionalId: "professional-1", durationMinutes: null }],
+      ),
+      () => new Date("2026-09-07T12:00:00.000Z"),
+    )
+    await expect(
+      readiness({ organizationId: "tenant-1", role: "member" } as never),
+    ).resolves.toMatchObject({
+      outcome: "setup_required",
+      completedCount: 2,
+      nextStepId: "professional",
+    })
+  })
+
   it("recognizes an arbitrary-minute availability interval", () => {
     expect(
       hasSchedulableSlot(

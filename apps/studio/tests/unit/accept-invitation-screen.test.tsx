@@ -1,8 +1,10 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import { AuthStateProvider } from "@/modules/auth/services/auth-provider"
 import { ThemeProvider } from "@/modules/shared/theme/theme-provider"
 import { routeTree } from "@/routeTree.gen"
 
@@ -19,15 +21,32 @@ vi.mock("@/modules/auth/services/auth-client", () => ({
     resolveInvitationLogo(token, signal),
 }))
 
-function renderAcceptance(path = "/accept-invitation?token=synthetic-invitation-proof") {
+function renderAcceptance(
+  path = "/accept-invitation?token=synthetic-invitation-proof",
+  authenticated = true,
+) {
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
   })
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <ThemeProvider>
-      <RouterProvider router={router} />
-    </ThemeProvider>,
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthStateProvider
+          value={{
+            error: null,
+            isPending: false,
+            refetch: vi.fn(),
+            session: authenticated
+              ? { user: { email: "member@example.com", name: "Pessoa Convidada" } }
+              : null,
+          }}
+        >
+          <RouterProvider router={router} />
+        </AuthStateProvider>
+      </ThemeProvider>
+    </QueryClientProvider>,
   )
   return router
 }
@@ -215,7 +234,7 @@ describe("invitation acceptance", () => {
     resolveInvitation.mockResolvedValueOnce({ state: "valid", role: "member", hasAccount: true })
     acceptExistingInvitation.mockResolvedValueOnce({ error: "unauthenticated" })
     const user = userEvent.setup()
-    const router = renderAcceptance()
+    const router = renderAcceptance(undefined, false)
 
     await user.click(await screen.findByRole("button", { name: "Entrar e aceitar convite" }))
     await waitFor(() => expect(router.state.location.pathname).toBe("/login"))

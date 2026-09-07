@@ -31,6 +31,12 @@ The deploy gate translates categorized sources to the standard environment names
 Wrangler, Vite, Astro, Elysia, and Better Auth. App-local `.env` files remain runtime-shaped. GitHub's
 built-in `GITHUB_*` values are not custom configuration and remain unchanged.
 
+API delivery deploys the Trigger.dev bundle before the Fly release. It reads the environment-specific
+`INFRA__TRIGGER_ACCESS_TOKEN` from `/infrastructure` and maps Triad `dev`,
+`hml`, and `prd` to Trigger.dev Preview branch `dev`, Staging, and Production respectively. When the
+Trigger.dev plan only permits full-access keys, the infrastructure entry references the canonical
+environment-specific `/api/API__TRIGGER_SECRET_KEY` instead of copying its value.
+
 Do not add uncategorized custom variables or secrets to workflows. Update `env-schema.yaml`, its
 validation tests, and the relevant deployment documentation together.
 
