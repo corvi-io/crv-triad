@@ -11,6 +11,8 @@ source:
 infrastructure:
   env:
     - { source: INFRA__TRIGGER_ACCESS_TOKEN, github: secret, required: true, required_for: [api] }
+    - { source: INFRA__POSTHOG_CLI_API_KEY, github: secret, required: true, required_for: [studio], required_targets: [prd] }
+    - { source: INFRA__POSTHOG_CLI_PROJECT_ID, github: variable, required: true, required_for: [studio], required_targets: [prd] }
 apps:
   api:
     owner: apps/api
@@ -21,6 +23,7 @@ apps:
       prd: { github_environment: prd, fly_app: crv-triad-api-prd, fly_config: apps/api/fly.prd.toml }
     env:
       - { source: API__APP_ENV, runtime: APP_ENV, github: variable, required: true }
+      - { source: API__APP_RELEASE, runtime: APP_RELEASE, github: variable, required: false }
       - { source: API__DATABASE_URL, runtime: DATABASE_URL, github: secret, required: true }
       - { source: API__BETTER_AUTH_SECRET, runtime: BETTER_AUTH_SECRET, github: secret, required: true }
       - { source: API__BETTER_AUTH_URL, runtime: BETTER_AUTH_URL, github: variable, required: true }
@@ -71,6 +74,9 @@ apps:
     env:
       - { source: STUDIO__VITE_AUTH_BASE_URL, runtime: VITE_AUTH_BASE_URL, github: variable, required: true }
       - { source: STUDIO__VITE_DEPLOY_TARGET, runtime: VITE_DEPLOY_TARGET, github: variable, required: false }
+      - { source: STUDIO__VITE_POSTHOG_KEY, runtime: VITE_POSTHOG_KEY, github: variable, required: true, required_targets: [prd] }
+      - { source: STUDIO__VITE_POSTHOG_HOST, runtime: VITE_POSTHOG_HOST, github: variable, required: true, required_targets: [prd] }
+      - { source: STUDIO__VITE_POSTHOG_REPLAY_SAMPLE_RATE, runtime: VITE_POSTHOG_REPLAY_SAMPLE_RATE, github: variable, required: false }
       - { source: STUDIO__VITE_SCHEDULING_SOURCE, runtime: VITE_SCHEDULING_SOURCE, github: variable, required: false }
       - { source: STUDIO__VITE_BARBERSHOP_SETUP_SOURCE, runtime: VITE_BARBERSHOP_SETUP_SOURCE, github: variable, required: false }
       - { source: STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE, runtime: VITE_CLIENT_MANAGEMENT_SOURCE, github: variable, required: false }

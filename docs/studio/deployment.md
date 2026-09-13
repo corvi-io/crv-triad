@@ -15,11 +15,19 @@ Infisical `/studio` sources mapped to required public runtime values:
 
 - `STUDIO__VITE_AUTH_BASE_URL` -> `VITE_AUTH_BASE_URL`
 - `STUDIO__VITE_DEPLOY_TARGET` -> `VITE_DEPLOY_TARGET` (optional target guard)
+- `STUDIO__VITE_POSTHOG_KEY` -> `VITE_POSTHOG_KEY` (required in production)
+- `STUDIO__VITE_POSTHOG_HOST` -> `VITE_POSTHOG_HOST` (required in production)
+- `STUDIO__VITE_POSTHOG_REPLAY_SAMPLE_RATE` -> `VITE_POSTHOG_REPLAY_SAMPLE_RATE` (optional)
 - `STUDIO__VITE_SCHEDULING_SOURCE` -> `VITE_SCHEDULING_SOURCE` (optional prototype source)
 - `STUDIO__VITE_BARBERSHOP_SETUP_SOURCE` -> `VITE_BARBERSHOP_SETUP_SOURCE` (optional setup source)
 - `STUDIO__VITE_CLIENT_MANAGEMENT_SOURCE` -> `VITE_CLIENT_MANAGEMENT_SOURCE` (optional client evaluation source)
 
 `VITE_APP_NAME` keeps its application default and is not a deployment source. All Vite values are browser-visible; do not place secrets in them. Local `.env.example` names remain runtime-shaped.
+
+The delivery gate sets `VITE_RELEASE` from `GITHUB_SHA`. Production also requires
+`INFRA__POSTHOG_CLI_API_KEY` and `INFRA__POSTHOG_CLI_PROJECT_ID`; these administrative values are
+used only to upload hidden source maps and are never exported into the browser build. Uploaded maps
+are removed from the artifact before Cloudflare Pages deployment.
 
 The memory schedule and barbershop setup sources are composed independently only when their source
 is `memory` and the target is `local` or `dev`. Each deployment workflow passes its fixed `dev`,

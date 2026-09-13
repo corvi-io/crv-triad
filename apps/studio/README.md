@@ -7,6 +7,10 @@ provisioning, ownership recovery, support, rollout, and rollback are documented 
 
 Authenticated barbershop-management frontend for CRV Triad.
 
+Product analytics, replay privacy, identity, and error tracking are documented in
+[`docs/studio/analytics.md`](../../docs/studio/analytics.md). Telemetry is disabled locally and
+starts on the login surface in configured deployments.
+
 ## Development
 
 The local development server exposes one unified TanStack Devtools launcher in the lower-right

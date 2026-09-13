@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { type ProductEvent, productAnalyticsMeta } from "@/modules/shared/analytics/posthog"
 import type { ClientInput, ClientListQuery, ClientScenarioId, NoteInput } from "./contracts"
 import { useClientRepository } from "./repository-context"
 
@@ -32,9 +33,13 @@ export function useClientTags(scenarioId: ClientScenarioId) {
   })
 }
 
-function useClientMutation<TVariables>(mutationFn: (variables: TVariables) => Promise<unknown>) {
+function useClientMutation<TVariables>(
+  analyticsEvent: ProductEvent,
+  mutationFn: (variables: TVariables) => Promise<unknown>,
+) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: productAnalyticsMeta(analyticsEvent),
     mutationFn,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: clientQueryKeys.all }),
   })
@@ -42,12 +47,13 @@ function useClientMutation<TVariables>(mutationFn: (variables: TVariables) => Pr
 
 export function useCreateClient() {
   const repository = useClientRepository()
-  return useClientMutation((input: ClientInput) => repository.create(input))
+  return useClientMutation("client_created", (input: ClientInput) => repository.create(input))
 }
 
 export function useUpdateClient() {
   const repository = useClientRepository()
   return useClientMutation(
+    "client_updated",
     ({ id, input, version }: { id: string; input: ClientInput; version: number }) =>
       repository.update(id, input, version),
   )
@@ -57,6 +63,7 @@ export function useSetClientArchived() {
   const repository = useClientRepository()
   const queryClient = useQueryClient()
   return useMutation({
+    meta: productAnalyticsMeta("client_updated"),
     mutationFn: ({ archived, id, version }: { archived: boolean; id: string; version: number }) =>
       repository.setArchived(id, archived, version),
     onMutate: async ({ archived, id }) => {
@@ -76,14 +83,17 @@ export function useSetClientArchived() {
 
 export function useAddClientNote() {
   const repository = useClientRepository()
-  return useClientMutation(({ clientId, input }: { clientId: string; input: NoteInput }) =>
-    repository.addNote(clientId, input),
+  return useClientMutation(
+    "client_updated",
+    ({ clientId, input }: { clientId: string; input: NoteInput }) =>
+      repository.addNote(clientId, input),
   )
 }
 
 export function useUpdateClientNote() {
   const repository = useClientRepository()
   return useClientMutation(
+    "client_updated",
     ({
       clientId,
       input,
@@ -101,6 +111,7 @@ export function useUpdateClientNote() {
 export function useRemoveClientNote() {
   const repository = useClientRepository()
   return useClientMutation(
+    "client_updated",
     ({ clientId, noteId, version }: { clientId: string; noteId: string; version: number }) =>
       repository.removeNote(clientId, noteId, version),
   )

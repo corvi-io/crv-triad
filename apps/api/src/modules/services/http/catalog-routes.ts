@@ -19,6 +19,7 @@ export function createCatalogRoutes(
   authEmailSender?: Pick<AuthEmailSender, "sendInvitation">,
   writeAudit?: CatalogAuditWriter,
   invitationDisplayContext?: InvitationDisplayContextProvider,
+  reportUnexpected: (error: unknown, request: Request, requestId: string) => void = () => undefined,
 ) {
   const root = new Elysia({ name: "catalog-routes" })
   for (const [kind, path] of [
@@ -36,6 +37,7 @@ export function createCatalogRoutes(
         authEmailSender,
         writeAudit,
         invitationDisplayContext,
+        reportUnexpected,
       ),
     )
   }
@@ -51,6 +53,7 @@ function createRoutesForKind(
   authEmailSender?: Pick<AuthEmailSender, "sendInvitation">,
   writeAudit?: CatalogAuditWriter,
   invitationDisplayContext?: InvitationDisplayContextProvider,
+  reportUnexpected: (error: unknown, request: Request, requestId: string) => void = () => undefined,
 ) {
   async function authorize(headers: Headers, manage = false) {
     const decision = await resolveContext(headers)
@@ -144,6 +147,7 @@ function createRoutesForKind(
         set.status = 400
         return { code: "invalid_request", requestId }
       }
+      reportUnexpected(error, request, requestId)
       set.status = 500
       return { code: "internal_error", requestId }
     })

@@ -29,6 +29,7 @@ export function createServiceDeskRoutes(
   resolve: TenantContextResolver,
   authorize: TenantActionAuthorizer,
   observe: (event: ServiceDeskTelemetry) => void = () => undefined,
+  reportUnexpected: (error: unknown, request: Request, requestId: string) => void = () => undefined,
 ) {
   const traces = new WeakMap<
     Headers,
@@ -121,6 +122,7 @@ export function createServiceDeskRoutes(
           requestId: id,
         }
       }
+      reportUnexpected(error, request, id)
       set.status = 500
       return { code: "internal_error", requestId: id }
     })
