@@ -32,6 +32,7 @@ export function createSchedulingRoutes(
   resolve: TenantContextResolver,
   authorize: TenantActionAuthorizer,
   observe: (event: SchedulingTelemetry) => void = () => undefined,
+  reportUnexpected: (error: unknown, request: Request, requestId: string) => void = () => undefined,
 ) {
   const requests = new WeakMap<
     Headers,
@@ -161,6 +162,7 @@ export function createSchedulingRoutes(
         set.status = 404
         return { code: "not_found", requestId }
       }
+      reportUnexpected(error, request, requestId)
       set.status = 500
       return { code: "internal_error", requestId }
     })

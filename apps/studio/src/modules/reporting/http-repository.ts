@@ -1,4 +1,5 @@
 import { getApiUrl } from "@/modules/auth/services/auth-client"
+import { ExpectedHttpError } from "@/modules/shared/errors/expected-http-error"
 import type {
   GeneratedReport,
   ReportCatalog,
@@ -130,12 +131,16 @@ async function request<T>(path: string, options: { body?: unknown; method?: stri
   if (response.ok) return response.json() as Promise<T>
   const error = (await response.json().catch(() => ({}))) as { code?: string }
   if (response.status === 403)
-    throw new Error("Você não tem permissão para acessar estes relatórios.")
+    throw new ExpectedHttpError(
+      "Você não tem permissão para acessar estes relatórios.",
+      response.status,
+    )
   if (response.status === 503)
-    throw new Error("A geração de relatórios está indisponível neste ambiente.")
-  throw new Error(
-    error.code === "invalid_request"
-      ? "Revise os filtros informados."
-      : "Não foi possível concluir a operação.",
-  )
+    throw new ExpectedHttpError(
+      "A geração de relatórios está indisponível neste ambiente.",
+      response.status,
+    )
+  if (error.code === "invalid_request")
+    throw new ExpectedHttpError("Revise os filtros informados.", response.status)
+  throw new Error("Não foi possível concluir a operação.")
 }

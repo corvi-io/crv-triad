@@ -39,5 +39,9 @@ Runtime env:
 - `POSTHOG_PROJECT_KEY` is the public project key used for consent-correlated, server-confirmed
   lead analytics. An empty value disables server-side capture outside production; the deployment
   manifest requires the corresponding source value for the `prd` target.
+- `APP_RELEASE` identifies the deployed API release in sanitized PostHog error reports. General API
+  PostHog capture is limited to unexpected failures; business/product events remain frontend-owned.
+  Trigger.dev deployments synchronize the release, project key, and regional origin into workers so
+  task failures use the same issue grouping and release correlation as the HTTP process.
 
 Availability and scheduling are production modules and are included in the single initial database migration. See [contracts and rollout](../../docs/api/availability-and-scheduling.md).

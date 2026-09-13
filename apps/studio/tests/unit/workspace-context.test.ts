@@ -4,6 +4,7 @@ import { ClientHttpRepository } from "@/modules/clients/http-repository"
 import { getContextDestination } from "@/modules/workspace/context-routing"
 import {
   type AvailableContexts,
+  listAvailableContexts,
   selectTenantWorkspace,
 } from "@/modules/workspace/services/context-client"
 
@@ -59,6 +60,32 @@ describe("workspace context selection", () => {
         method: "POST",
       }),
     )
+  })
+
+  it("classifies denied context reads and selections as expected HTTP outcomes", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 403 })),
+    )
+
+    await expect(listAvailableContexts()).rejects.toMatchObject({
+      name: "ExpectedHttpError",
+      status: 403,
+    })
+    await expect(selectTenantWorkspace("tenant-a")).rejects.toMatchObject({
+      name: "ExpectedHttpError",
+      status: 403,
+    })
+  })
+
+  it("keeps server failures reportable as unexpected errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 500 })),
+    )
+
+    await expect(listAvailableContexts()).rejects.toMatchObject({ name: "Error" })
+    await expect(selectTenantWorkspace("tenant-a")).rejects.toMatchObject({ name: "Error" })
   })
 })
 

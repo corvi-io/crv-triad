@@ -20,6 +20,7 @@ import { useAccessSummary } from "@/modules/access/use-access-summary"
 import { dismissOnboarding, isOnboardingDismissed } from "@/modules/onboarding/dismissal"
 import { PersistentOnboardingDialog } from "@/modules/onboarding/persistent-onboarding-dialog"
 import { useActivationReadiness } from "@/modules/onboarding/readiness"
+import { captureProductEvent } from "@/modules/shared/analytics/posthog"
 import {
   createDataTablePointAnchor,
   DataTable,
@@ -277,6 +278,7 @@ export function BarbershopSetupPage({
   const onboardingTenantScope = activeTenantId ?? "isolated"
   const [dismissedTenantId, setDismissedTenantId] = useState<string | null>(null)
   const onboardingWasRequired = useRef(false)
+  const onboardingCompletedTracked = useRef(false)
   const availabilityAccess = useAccessSummary()
   const canManageAvailability = availabilityAccess.data?.capabilities.some(
     (item) => item.capability === "availability.manage" && item.allowed,
@@ -289,6 +291,16 @@ export function BarbershopSetupPage({
   } | null>(null)
   const entityKind = sectionToEntityKind(search.section)
   if (activationReadiness.data?.outcome === "setup_required") onboardingWasRequired.current = true
+  useEffect(() => {
+    if (
+      onboardingCompletedTracked.current ||
+      !onboardingWasRequired.current ||
+      activationReadiness.data?.outcome !== "schedule_ready"
+    )
+      return
+    onboardingCompletedTracked.current = true
+    captureProductEvent("onboarding_completed")
+  }, [activationReadiness.data?.outcome])
   const showOnboarding =
     activationReadiness.data?.canManage === true &&
     (activationReadiness.data.outcome === "setup_required" || onboardingWasRequired.current) &&

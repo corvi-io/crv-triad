@@ -1,4 +1,5 @@
 import { getApiUrl } from "@/modules/auth/services/auth-client"
+import { ExpectedHttpError } from "@/modules/shared/errors/expected-http-error"
 
 export type TenantWorkspace = {
   id: string
@@ -19,7 +20,11 @@ export async function listAvailableContexts(signal?: AbortSignal): Promise<Avail
     credentials: "include",
     signal,
   })
-  if (!response.ok) throw new Error("Workspace contexts unavailable.")
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403)
+      throw new ExpectedHttpError("Workspace contexts unavailable.", response.status)
+    throw new Error("Workspace contexts unavailable.")
+  }
   return response.json() as Promise<AvailableContexts>
 }
 
@@ -30,7 +35,11 @@ export async function selectTenantWorkspace(organizationId: string) {
     headers: { "Content-Type": "application/json" },
     method: "POST",
   })
-  if (!response.ok) throw new Error("Workspace selection failed.")
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403)
+      throw new ExpectedHttpError("Workspace selection failed.", response.status)
+    throw new Error("Workspace selection failed.")
+  }
   return response.json() as Promise<{
     activeOrganizationId: string
     status: "selected"

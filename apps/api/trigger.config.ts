@@ -3,6 +3,7 @@ import { defineConfig } from "@trigger.dev/sdk"
 
 const workerEnv = [
   { source: "API__APP_ENV", runtime: "APP_ENV" },
+  { source: "API__APP_RELEASE", runtime: "APP_RELEASE" },
   { source: "API__DATABASE_URL", runtime: "DATABASE_URL", isSecret: true },
   { source: "API__IDP_EMAIL_FROM", runtime: "IDP_EMAIL_FROM" },
   { source: "API__IDP_STUDIO_URL", runtime: "IDP_STUDIO_URL" },
@@ -19,6 +20,8 @@ const workerEnv = [
     isSecret: true,
   },
   { source: "API__R2_PRIVATE_BUCKET", runtime: "R2_PRIVATE_BUCKET" },
+  { source: "API__POSTHOG_PROJECT_KEY", runtime: "POSTHOG_PROJECT_KEY", isSecret: true },
+  { source: "API__POSTHOG_UPSTREAM_URL", runtime: "POSTHOG_UPSTREAM_URL" },
 ] as const
 
 export default defineConfig({

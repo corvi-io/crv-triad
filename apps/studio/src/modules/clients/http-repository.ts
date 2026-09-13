@@ -1,4 +1,5 @@
 import { getApiUrl } from "@/modules/auth/services/auth-client"
+import { ExpectedHttpError } from "@/modules/shared/errors/expected-http-error"
 import { FormSubmissionError } from "@/modules/shared/forms/form-submission-error"
 
 import {
@@ -160,7 +161,7 @@ async function request<T>(path: string, options: { body?: unknown; method?: stri
       "Outra alteração foi salva depois que você abriu esta tela. Revise a versão mais recente antes de tentar novamente.",
     )
   if (response.status === 401 || response.status === 403) {
-    throw new Error("Você não tem acesso a esta ação.")
+    throw new ExpectedHttpError("Você não tem acesso a esta ação.", response.status)
   }
   throw new Error(
     `Não foi possível concluir a operação. Referência: ${error.requestId ?? "indisponível"}.`,

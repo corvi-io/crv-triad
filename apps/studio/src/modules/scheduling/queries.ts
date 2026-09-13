@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { type ProductEvent, productAnalyticsMeta } from "@/modules/shared/analytics/posthog"
 import { useWorkspaceTenantId } from "@/modules/workspace/context-provider"
 import type {
   Appointment,
@@ -29,10 +30,14 @@ export function useScheduleDay(query: ScheduleDayQuery) {
   })
 }
 
-function useScheduleMutation<TVariables>(mutationFn: (variables: TVariables) => Promise<unknown>) {
+function useScheduleMutation<TVariables>(
+  analyticsEvent: ProductEvent,
+  mutationFn: (variables: TVariables) => Promise<unknown>,
+) {
   const queryClient = useQueryClient()
   return useMutation({
     networkMode: "always",
+    meta: productAnalyticsMeta(analyticsEvent),
     mutationFn,
     onSuccess: () => invalidateSchedulingConsumers(queryClient),
   })
@@ -40,12 +45,15 @@ function useScheduleMutation<TVariables>(mutationFn: (variables: TVariables) => 
 
 export function useCreateAppointment() {
   const repository = useSchedulingRepository()
-  return useScheduleMutation((input: AppointmentInput) => repository.create(input))
+  return useScheduleMutation("appointment_created", (input: AppointmentInput) =>
+    repository.create(input),
+  )
 }
 
 export function useUpdateAppointment() {
   const repository = useSchedulingRepository()
   return useScheduleMutation(
+    "appointment_updated",
     ({ id, input, reschedule }: { id: string; input: AppointmentInput; reschedule?: boolean }) =>
       reschedule && repository.reschedule
         ? repository.reschedule(id, input)
@@ -56,6 +64,7 @@ export function useUpdateAppointment() {
 export function useCancelAppointment() {
   const repository = useSchedulingRepository()
   return useScheduleMutation(
+    "appointment_cancelled",
     ({
       id,
       reason,
@@ -74,6 +83,7 @@ export function useTransitionAppointment() {
   const repository = useSchedulingRepository()
   const queryClient = useQueryClient()
   return useMutation({
+    meta: productAnalyticsMeta("appointment_status_changed"),
     networkMode: "always",
     mutationFn: (input: AppointmentTransitionInput) => repository.transition(input),
     onMutate: async (input) => {
@@ -155,6 +165,7 @@ export function useRescheduleAppointment() {
   const repository = useSchedulingRepository()
   const queryClient = useQueryClient()
   return useMutation({
+    meta: productAnalyticsMeta("appointment_rescheduled"),
     networkMode: "always",
     mutationFn: ({ appointment, date, professionalId, start }: AppointmentRescheduleInput) =>
       (repository.reschedule?.bind(repository) ?? repository.update.bind(repository))(

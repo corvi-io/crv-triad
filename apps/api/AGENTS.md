@@ -13,3 +13,6 @@
   client and do not leak constraint names, SQL, submitted values, or internals.
 - Return optimistic-concurrency failures as `409 version_conflict`; never silently overwrite a
   stale version.
+- Send only unexpected failures to the analytics `ErrorReporter`. Preserve expected public error
+  contracts, pass a narrow allowlisted context, never attach request bodies or private headers, and
+  report failures from HTTP, background, and Trigger boundaries where they are owned.

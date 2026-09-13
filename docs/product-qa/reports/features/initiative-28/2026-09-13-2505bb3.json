@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "mode": "feature",
+  "run": {
+    "date": "2026-09-13",
+    "branch": "feature/posthog-observability",
+    "commit": "2505bb3",
+    "environment": "Isolated local PostgreSQL; API 8000; Studio 3000; PostHog US project 587522",
+    "data_mode": "Two synthetic tenants and users; fixtures and sessions removed after QA",
+    "evaluator": "Codex",
+    "baseline": null,
+    "limitations": []
+  },
+  "scope": {
+    "initiative": "28",
+    "apps": ["api", "web", "site"],
+    "modules": ["product analytics", "error tracking", "identity continuity", "source maps"],
+    "personas": ["Anonymous visitor", "Authenticated tenant user"],
+    "tenants": ["Synthetic tenant A", "Synthetic tenant B"],
+    "out_of_scope": ["Public landing-page self-registration form"]
+  },
+  "journeys": [
+    {"id":"PH-J1","apps":["web","api"],"module":"identity continuity","persona":"Authenticated tenant user","tenant":"Synthetic tenant A","kind":"happy_path","name":"Login and establish user plus tenant analytics identity","result":"passed","evidence":["Real local browser journey with isolated PostgreSQL"]},
+    {"id":"PH-J2","apps":["web"],"module":"error tracking","persona":"Authenticated tenant user","tenant":"Synthetic tenant A","kind":"edge_case","name":"Capture and sanitize browser exceptions","result":"passed","evidence":["PostHog Activity browser Exception marker"]},
+    {"id":"PH-J3","apps":["api"],"module":"error tracking","persona":"Authenticated tenant user","tenant":"Synthetic tenant A","kind":"edge_case","name":"Capture and sanitize backend exceptions","result":"passed","evidence":["PostHog Activity posthog-node Exception marker"]},
+    {"id":"PH-J4","apps":["site","web"],"module":"identity continuity","persona":"Anonymous visitor","tenant":"None","kind":"regression","name":"Share a PostHog project for future anonymous-to-authenticated continuity","result":"passed","evidence":["Shared public project key and documented identify contract"]}
+  ],
+  "screenshots": [
+    {"journey_id":"PH-J1","checkpoint":"Authenticated Studio desktop","viewport":"desktop","artifact":"Inline CUA inspection","inspected":true,"result":"passed","observations":["Clean console and stable authenticated shell."]},
+    {"journey_id":"PH-J1","checkpoint":"Authenticated Studio mobile","viewport":"mobile","artifact":"Inline CUA inspection","inspected":true,"result":"passed","observations":["No horizontal overflow or analytics-visible UI regression."]},
+    {"journey_id":"PH-J2","checkpoint":"PostHog Activity","viewport":"desktop","artifact":"Live PostHog project 587522","inspected":true,"result":"passed","observations":["Product, ingestion, browser exception, and backend exception events were visible."]}
+  ],
+  "access_checks": [
+    {"actor":"Authenticated tenant A user","resource_tenant":"Synthetic tenant A","vector":"Studio identify and tenant group","result":"passed","evidence":"Real login plus focused identity tests."},
+    {"actor":"Logged-out browser","resource_tenant":"None","vector":"Analytics identity reset","result":"passed","evidence":"Focused identity observer tests."},
+    {"actor":"CI source-map uploader","resource_tenant":"PostHog project 587522","vector":"Personal API key","result":"passed","evidence":"Project-only access with Error tracking Write scope."}
+  ],
+  "findings": [
+    {"id":"PH-001","type":"environment_limitation","severity":"high","app":"web","module":"source maps","title":"PostHog CLI personal key was initially absent","status":"fixed","evidence":["Infisical dev, hml, and prd each report a configured 53-byte value"],"attempts":1}
+  ],
+  "scores": {
+    "product_outcome": 9.6,
+    "functional_reliability_persistence": 9.5,
+    "ux_visual_integrity": 9.3,
+    "access_privacy_tenant_isolation": 9.6,
+    "accessibility": 9.3,
+    "operability_regression_protection": 9.7,
+    "weighted_total": 9.5
+  },
+  "verification": [
+    {"check":"API check","result":"passed","evidence":"458 tests; coverage 87.34/80.11/86.98/89.24"},
+    {"check":"Studio check","result":"passed","evidence":"849 tests; coverage 84.59/80.05/82.44/86.16"},
+    {"check":"Workspace and CI checks","result":"passed","evidence":"All builds; 25 CI tests; security gate"},
+    {"check":"Source map boundary","result":"passed","evidence":"104 hidden maps; zero public references"},
+    {"check":"Provider ingestion","result":"passed","evidence":"Product, ingestion, browser Exception, and posthog-node Exception visible in PostHog"}
+  ],
+  "decision": "approved"
+}

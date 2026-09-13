@@ -4,6 +4,12 @@ The public Astro site uses PostHog for consent-gated, anonymous product analytic
 bundled with the site but initializes only after an explicit analytics opt-in. Localhost and
 `127.0.0.1` never initialize the provider.
 
+The site and Studio share the accepted PostHog project but retain different consent contracts. A
+future public-sign-up initiative may identify a consented anonymous visitor with the created internal
+user UUID after confirmed registration and before redirecting to Studio. No registration UI exists
+today, and identity/distinct/session values must never be placed in redirect URLs. Visitors who deny
+site analytics remain untracked on the site even though configured Studio telemetry begins at login.
+
 ## Runtime contract
 
 - `PUBLIC_POSTHOG_KEY` is the browser-safe project key.

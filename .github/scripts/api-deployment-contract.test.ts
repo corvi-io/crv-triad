@@ -78,6 +78,9 @@ describe("API deployment contract", () => {
       "deploy_trigger_tasks",
       deployGate.indexOf('if [[ "$app" == "api" ]]'),
     )
+    const releaseExport = deployGate.indexOf(
+      'export API__APP_RELEASE="$' + '{GITHUB_SHA:?GITHUB_SHA is required}"',
+    )
     const flyDeploy = deployGate.indexOf("flyctl deploy")
 
     expect(deployGate).toContain("INFRA__TRIGGER_ACCESS_TOKEN")
@@ -89,8 +92,22 @@ describe("API deployment contract", () => {
     expect(deployGate).toContain('--external-id "$' + "{GITHUB_SHA:?GITHUB_SHA is required}" + '"')
     expect(healthGate).toBeGreaterThan(-1)
     expect(triggerDeploy).toBeGreaterThan(-1)
+    expect(releaseExport).toBeGreaterThan(-1)
+    expect(releaseExport).toBeLessThan(triggerDeploy)
     expect(triggerDeploy).toBeLessThan(flyDeploy)
     expect(healthGate).toBeGreaterThan(flyDeploy)
+  })
+
+  it("synchronizes PostHog error reporting into Trigger.dev workers", () => {
+    const triggerConfig = readFileSync("apps/api/trigger.config.ts", "utf8")
+
+    expect(triggerConfig).toContain('{ source: "API__APP_RELEASE", runtime: "APP_RELEASE" }')
+    expect(triggerConfig).toContain(
+      '{ source: "API__POSTHOG_PROJECT_KEY", runtime: "POSTHOG_PROJECT_KEY", isSecret: true }',
+    )
+    expect(triggerConfig).toContain(
+      '{ source: "API__POSTHOG_UPSTREAM_URL", runtime: "POSTHOG_UPSTREAM_URL" }',
+    )
   })
 
   it("deploys Backstage at environment boundaries after affected API delivery", () => {

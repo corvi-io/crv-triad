@@ -87,6 +87,9 @@ export default defineConfig(({ command, mode }) => {
     : "./src/modules/shared/config/operational-notifications-source-disabled.ts"
 
   return {
+    build: {
+      sourcemap: process.env.POSTHOG_SOURCE_MAPS === "true" ? "hidden" : false,
+    },
     plugins: [
       ...devtools({ removeDevtoolsOnBuild: true }),
       tanstackRouter({

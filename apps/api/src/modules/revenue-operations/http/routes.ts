@@ -45,6 +45,7 @@ export function createRevenueOperationsRoutes(
   resolve: TenantContextResolver,
   authorize: TenantActionAuthorizer,
   observe: (event: RevenueOperationsTelemetry) => void = () => undefined,
+  reportUnexpected: (error: unknown, request: Request, requestId: string) => void = () => undefined,
 ) {
   const traces = new WeakMap<
     Headers,
@@ -140,6 +141,7 @@ export function createRevenueOperationsRoutes(
           requestId: id,
         }
       }
+      reportUnexpected(error, request, id)
       set.status = 500
       return { code: "internal_error", requestId: id }
     })

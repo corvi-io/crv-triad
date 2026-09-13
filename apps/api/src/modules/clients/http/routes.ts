@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia"
 
 import type { TenantActionAuthorizer } from "../../access/application/authorize-tenant-action.js"
 import type { AccessDenialReason, Capability } from "../../access/domain/access-decision.js"
+import { resolveRequestId } from "../../idp/http/middleware/request-context.js"
 import type { TenantContextResolver } from "../../tenancy/application/create-tenant-context-resolver.js"
 import type { TenantContext } from "../../tenancy/domain/business-context.js"
 import type { ClientService } from "../application/client-service.js"
@@ -37,10 +38,14 @@ export function createClientRoutes(
   service: ClientService,
   resolveContext: TenantContextResolver,
   authorizeAction?: TenantActionAuthorizer,
+  reportUnexpected: (error: unknown, request: Request, requestId: string) => void = () => undefined,
 ) {
   const app = new Elysia({ name: "client-routes", prefix: "/api/clients" }).onError(
     ({ code, error, request, set }) => {
-      const requestId = request.headers.get("x-request-id") ?? "unavailable"
+      const requestId =
+        typeof set.headers["x-request-id"] === "string"
+          ? set.headers["x-request-id"]
+          : resolveRequestId(request.headers, () => crypto.randomUUID())
       if (error instanceof ClientAccessError) {
         set.status =
           error.reason === "unauthenticated" ? 401 : error.reason === "quota_reached" ? 409 : 403
@@ -70,6 +75,7 @@ export function createClientRoutes(
           requestId,
         }
       }
+      reportUnexpected(error, request, requestId)
       set.status = 500
       return { code: "internal_error", requestId }
     },
