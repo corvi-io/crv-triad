@@ -119,8 +119,8 @@ if [[ "$app" == "api" ]]; then
   fi
 
   bun .github/scripts/env-management.ts validate --app api --target "$target"
-  deploy_trigger_tasks
   export API__APP_RELEASE="${GITHUB_SHA:?GITHUB_SHA is required}"
+  deploy_trigger_tasks
   FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" bun .github/scripts/env-management.ts sync-fly --app api --target "$target"
   FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" flyctl deploy . --config "$api_config" --dockerfile apps/api/Dockerfile --remote-only
   wait_for_health "$api_health_url"

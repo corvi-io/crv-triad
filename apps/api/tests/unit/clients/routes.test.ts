@@ -233,6 +233,40 @@ describe("client routes", () => {
     expect(serialized).not.toContain("private sentinel")
   })
 
+  it("reports the original unexpected exception before returning a safe response", async () => {
+    const failure = new Error("private sentinel")
+    const reportUnexpected = vi.fn()
+    const app = createClientRoutes(
+      { get: vi.fn(async () => Promise.reject(failure)) } as never,
+      vi.fn(async () => ({ allowed: true, context: tenantContext })) as never,
+      undefined,
+      reportUnexpected,
+    )
+
+    const response = await app.handle(request("/api/clients/client-a"))
+
+    expect(response.status).toBe(500)
+    expect(reportUnexpected).toHaveBeenCalledWith(failure, expect.any(Request), "request-a")
+  })
+
+  it("replaces an unsafe inbound request ID before reporting an exception", async () => {
+    const reportUnexpected = vi.fn()
+    const app = createClientRoutes(
+      { get: vi.fn(async () => Promise.reject(new Error("failure"))) } as never,
+      vi.fn(async () => ({ allowed: true, context: tenantContext })) as never,
+      undefined,
+      reportUnexpected,
+    )
+
+    const response = await app.handle(
+      request("/api/clients/client-a", { headers: { "x-request-id": "private@example.test" } }),
+    )
+    const body = (await response.json()) as { requestId: string }
+
+    expect(body.requestId).not.toBe("private@example.test")
+    expect(reportUnexpected.mock.calls[0]?.[2]).toBe(body.requestId)
+  })
+
   it.each([
     ["permission_denied", 403],
     ["subscription_inactive", 403],

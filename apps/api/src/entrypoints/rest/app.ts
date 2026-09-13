@@ -85,6 +85,18 @@ export function createRestApp(input: CreateRestAppInput) {
   const captureAcceptedLead = createPostHogLeadCapture(input.env)
   const errorReporter = input.errorReporter ?? createPostHogErrorReporter(input.env)
   const reportedRequests = new WeakSet<Request>()
+  const reportHandledHttpError =
+    (module: string) => (error: unknown, request: Request, requestId: string) => {
+      errorReporter.capture(error, {
+        boundary: "http",
+        method: request.method,
+        module,
+        requestId,
+        route: request.url,
+        status: 500,
+      })
+      reportedRequests.add(request)
+    }
   const clientService = createClientService(
     createDrizzleClientRepository(input.db, nextClientAppointment),
   )
@@ -188,9 +200,7 @@ export function createRestApp(input: CreateRestAppInput) {
       const numericStatus = typeof set.status === "number" ? set.status : undefined
       if (!shouldReportHttpError(code, numericStatus)) return
       const requestId =
-        request.headers.get("x-request-id") ??
-        (set.headers as Record<string, string> | undefined)?.["x-request-id"] ??
-        "unavailable"
+        (set.headers as Record<string, string> | undefined)?.["x-request-id"] ?? "unavailable"
       errorReporter.capture(error, {
         boundary: "http",
         method: request.method,
@@ -211,9 +221,7 @@ export function createRestApp(input: CreateRestAppInput) {
         boundary: "http",
         method: request.method,
         requestId:
-          request.headers.get("x-request-id") ??
-          (set.headers as Record<string, string> | undefined)?.["x-request-id"] ??
-          "unavailable",
+          (set.headers as Record<string, string> | undefined)?.["x-request-id"] ?? "unavailable",
         route: request.url,
         status: numericStatus,
       })
@@ -257,7 +265,14 @@ export function createRestApp(input: CreateRestAppInput) {
         authorizeTenantAction,
       ),
     )
-    .use(createClientRoutes(clientService, resolveTenantContext, authorizeTenantAction))
+    .use(
+      createClientRoutes(
+        clientService,
+        resolveTenantContext,
+        authorizeTenantAction,
+        reportHandledHttpError("clients"),
+      ),
+    )
     .use(
       createCatalogRoutes(
         catalogService,
@@ -266,6 +281,7 @@ export function createRestApp(input: CreateRestAppInput) {
         input.authEmailSender,
         createCatalogAuditWriter(input.db),
         invitationEmailDisplayContext,
+        reportHandledHttpError("catalog"),
       ),
     )
     .use(
@@ -280,6 +296,7 @@ export function createRestApp(input: CreateRestAppInput) {
         resolveTenantContext,
         authorizeTenantAction,
         observeBusinessRequest,
+        reportHandledHttpError("scheduling"),
       ),
     )
     .use(
@@ -288,6 +305,7 @@ export function createRestApp(input: CreateRestAppInput) {
         resolveTenantContext,
         authorizeTenantAction,
         observeBusinessRequest,
+        reportHandledHttpError("service_desk"),
       ),
     )
     .use(
@@ -296,6 +314,7 @@ export function createRestApp(input: CreateRestAppInput) {
         resolveTenantContext,
         authorizeTenantAction,
         observeBusinessRequest,
+        reportHandledHttpError("revenue_operations"),
       ),
     )
     .use(

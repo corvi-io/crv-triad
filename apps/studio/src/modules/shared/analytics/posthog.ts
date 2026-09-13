@@ -152,8 +152,7 @@ export function setAnalyticsTenant(tenantId: string | null) {
 }
 
 export function resetAnalyticsIdentity() {
-  if (!identifiedUserId && !activeTenantId) return
-  posthog?.reset(true)
+  if (initialized) posthog?.reset(true)
   identifiedUserId = null
   activeTenantId = null
 }

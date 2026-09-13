@@ -78,6 +78,9 @@ describe("API deployment contract", () => {
       "deploy_trigger_tasks",
       deployGate.indexOf('if [[ "$app" == "api" ]]'),
     )
+    const releaseExport = deployGate.indexOf(
+      'export API__APP_RELEASE="$' + '{GITHUB_SHA:?GITHUB_SHA is required}"',
+    )
     const flyDeploy = deployGate.indexOf("flyctl deploy")
 
     expect(deployGate).toContain("INFRA__TRIGGER_ACCESS_TOKEN")
@@ -89,6 +92,8 @@ describe("API deployment contract", () => {
     expect(deployGate).toContain('--external-id "$' + "{GITHUB_SHA:?GITHUB_SHA is required}" + '"')
     expect(healthGate).toBeGreaterThan(-1)
     expect(triggerDeploy).toBeGreaterThan(-1)
+    expect(releaseExport).toBeGreaterThan(-1)
+    expect(releaseExport).toBeLessThan(triggerDeploy)
     expect(triggerDeploy).toBeLessThan(flyDeploy)
     expect(healthGate).toBeGreaterThan(flyDeploy)
   })

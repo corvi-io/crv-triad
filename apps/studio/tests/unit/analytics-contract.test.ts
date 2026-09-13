@@ -128,6 +128,7 @@ describe("configured Studio analytics", () => {
     window.dispatchEvent(new ErrorEvent("error", { error: new Error("runtime private detail") }))
     expect(sdk.captureException).toHaveBeenCalledTimes(3)
     expect(sdk.captureException.mock.calls[2]?.[0].stack).not.toContain("runtime private detail")
+    expect(sdk.reset).toHaveBeenCalledTimes(2)
     expect(sdk.reset).toHaveBeenCalledWith(true)
     expect(sdk.resetGroups).toHaveBeenCalledOnce()
   })
