@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/corvi-io/crv-triad/compare/v0.6.0...v0.7.0) (2026-09-13)
+
+
+### Features
+
+* **analytics:** instrument product and error telemetry ([2503737](https://github.com/corvi-io/crv-triad/commit/2503737f91b680b9c9e37c3b0421ff23f90c17e0))
+* **analytics:** instrument product and error telemetry ([2505bb3](https://github.com/corvi-io/crv-triad/commit/2505bb32dd07227fbede9500bbb184b3d224376e))
+
+
+### Bug Fixes
+
+* **analytics:** address observability review findings ([ca0e612](https://github.com/corvi-io/crv-triad/commit/ca0e612d3cb965a8a7f07e637436628c9b69c40e))
+* **analytics:** preserve error context across boundaries ([a728f47](https://github.com/corvi-io/crv-triad/commit/a728f476ce95361d367c53f63ea5664002986f7a))
+
 ## [0.6.0](https://github.com/corvi-io/crv-triad/compare/v0.5.0...v0.6.0) (2026-09-01)
 
 
