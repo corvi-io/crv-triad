@@ -1,5 +1,6 @@
 import { queue, schemaTask } from "@trigger.dev/sdk"
 import { z } from "zod"
+import { createPostHogErrorReporter } from "../modules/analytics/error-reporter.js"
 import { createDatabase } from "../modules/idp/database/client.js"
 import { createReportWorker } from "../modules/reporting/application/report-worker.js"
 import { createReportingService } from "../modules/reporting/application/reporting-service.js"
@@ -28,6 +29,7 @@ export const generateManagementReport = schemaTask({
   },
   run: async (payload) => {
     const env = loadReportWorkerEnv()
+    const errorReporter = createPostHogErrorReporter(env)
     const { db, pool } = createDatabase(env)
     const storage = createR2ArtifactStorage({
       endpoint: env.R2_PRIVATE_ENDPOINT,
@@ -44,7 +46,15 @@ export const generateManagementReport = schemaTask({
         env.IDP_STUDIO_URL,
         (event) => console.info(JSON.stringify({ ...event, appEnvironment: env.APP_ENV })),
       ).run(payload)
+    } catch (error) {
+      errorReporter.capture(error, {
+        boundary: "trigger",
+        module: "reporting",
+        tenantId: payload.organizationId,
+      })
+      throw error
     } finally {
+      await errorReporter.shutdown()
       await pool.end()
     }
   },
@@ -64,6 +74,7 @@ export const deliverManagementReportEmail = schemaTask({
   retry: { maxAttempts: 3, factor: 1, minTimeoutInMs: 300_000, maxTimeoutInMs: 300_000 },
   run: async (payload) => {
     const env = loadReportWorkerEnv()
+    const errorReporter = createPostHogErrorReporter(env)
     const { db, pool } = createDatabase(env)
     const storage = createR2ArtifactStorage({
       endpoint: env.R2_PRIVATE_ENDPOINT,
@@ -79,7 +90,15 @@ export const deliverManagementReportEmail = schemaTask({
         createReportEmailSender(env),
         env.IDP_STUDIO_URL,
       ).deliver(payload)
+    } catch (error) {
+      errorReporter.capture(error, {
+        boundary: "trigger",
+        module: "reporting",
+        tenantId: payload.organizationId,
+      })
+      throw error
     } finally {
+      await errorReporter.shutdown()
       await pool.end()
     }
   },

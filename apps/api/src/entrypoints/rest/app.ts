@@ -3,6 +3,11 @@ import type { Pool } from "pg"
 import { createTenantActionAuthorizer } from "../../modules/access/application/authorize-tenant-action.js"
 import { createOwnershipRoutes } from "../../modules/access/http/ownership-routes.js"
 import { createAccessRoutes } from "../../modules/access/http/routes.js"
+import {
+  createPostHogErrorReporter,
+  type ErrorReporter,
+  shouldReportHttpError,
+} from "../../modules/analytics/error-reporter.js"
 import { createAnalyticsRoutes } from "../../modules/analytics/http/routes.js"
 import { createPostHogLeadCapture } from "../../modules/analytics/lead-capture.js"
 import { createAvailabilityService } from "../../modules/availability/application/availability-service.js"
@@ -73,10 +78,13 @@ export type CreateRestAppInput = {
   db: IdpDatabase
   pool: Pool
   onInvitationAccepted?: InvitationAcceptedObserver
+  errorReporter?: ErrorReporter
 }
 
 export function createRestApp(input: CreateRestAppInput) {
   const captureAcceptedLead = createPostHogLeadCapture(input.env)
+  const errorReporter = input.errorReporter ?? createPostHogErrorReporter(input.env)
+  const reportedRequests = new WeakSet<Request>()
   const clientService = createClientService(
     createDrizzleClientRepository(input.db, nextClientAppointment),
   )
@@ -142,7 +150,16 @@ export function createRestApp(input: CreateRestAppInput) {
             idempotencyKey: string,
           ) {
             const run = await fakeReportDispatcher.dispatch(payload, idempotencyKey)
-            queueMicrotask(() => void reportWorker.run(payload).catch(() => undefined))
+            queueMicrotask(
+              () =>
+                void reportWorker.run(payload).catch((error) =>
+                  errorReporter.capture(error, {
+                    boundary: "background",
+                    module: "reporting",
+                    tenantId: payload.organizationId,
+                  }),
+                ),
+            )
             return run
           },
           async dispatchDelivery(
@@ -152,12 +169,55 @@ export function createRestApp(input: CreateRestAppInput) {
             idempotencyKey: string,
           ) {
             const run = await fakeReportDispatcher.dispatchDelivery?.(payload, idempotencyKey)
-            queueMicrotask(() => void reportWorker.deliver(payload).catch(() => undefined))
+            queueMicrotask(
+              () =>
+                void reportWorker.deliver(payload).catch((error) =>
+                  errorReporter.capture(error, {
+                    boundary: "background",
+                    module: "reporting",
+                    tenantId: payload.organizationId,
+                  }),
+                ),
+            )
             return run ?? { runReference: "fake_email_unavailable" }
           },
         }
 
   return new Elysia({ name: "crv-triad-api" })
+    .onError(({ code, error, request, set, status }) => {
+      const numericStatus = typeof set.status === "number" ? set.status : undefined
+      if (!shouldReportHttpError(code, numericStatus)) return
+      const requestId =
+        request.headers.get("x-request-id") ??
+        (set.headers as Record<string, string> | undefined)?.["x-request-id"] ??
+        "unavailable"
+      errorReporter.capture(error, {
+        boundary: "http",
+        method: request.method,
+        requestId,
+        route: request.url,
+        status: numericStatus ?? 500,
+      })
+      reportedRequests.add(request)
+      return status(500, {
+        code: "internal_error",
+        requestId,
+      })
+    })
+    .onAfterResponse(({ request, set }) => {
+      const numericStatus = typeof set.status === "number" ? set.status : undefined
+      if (!numericStatus || numericStatus < 500 || reportedRequests.has(request)) return
+      errorReporter.capture(new Error("Unexpected server response"), {
+        boundary: "http",
+        method: request.method,
+        requestId:
+          request.headers.get("x-request-id") ??
+          (set.headers as Record<string, string> | undefined)?.["x-request-id"] ??
+          "unavailable",
+        route: request.url,
+        status: numericStatus,
+      })
+    })
     .use(requestContextMiddleware)
     .use(
       createIdpRoutes({

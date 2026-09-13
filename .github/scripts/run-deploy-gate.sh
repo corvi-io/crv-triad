@@ -120,6 +120,7 @@ if [[ "$app" == "api" ]]; then
 
   bun .github/scripts/env-management.ts validate --app api --target "$target"
   deploy_trigger_tasks
+  export API__APP_RELEASE="${GITHUB_SHA:?GITHUB_SHA is required}"
   FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" bun .github/scripts/env-management.ts sync-fly --app api --target "$target"
   FLY_API_TOKEN="$INFRA__FLY_API_TOKEN" flyctl deploy . --config "$api_config" --dockerfile apps/api/Dockerfile --remote-only
   wait_for_health "$api_health_url"
@@ -188,7 +189,19 @@ if [[ "$app" == "studio" ]]; then
     exit 1
   fi
 
-  bun --filter studio build
+  POSTHOG_SOURCE_MAPS=true VITE_RELEASE="${GITHUB_SHA:?GITHUB_SHA is required}" bun --filter studio build
+  if [[ -n "${INFRA__POSTHOG_CLI_API_KEY:-}" && -n "${INFRA__POSTHOG_CLI_PROJECT_ID:-}" ]]; then
+    POSTHOG_CLI_API_KEY="$INFRA__POSTHOG_CLI_API_KEY" \
+      POSTHOG_CLI_PROJECT_ID="$INFRA__POSTHOG_CLI_PROJECT_ID" \
+      apps/studio/node_modules/.bin/posthog-cli sourcemap process \
+      --directory apps/studio/dist \
+      --release-name crv-triad-studio \
+      --release-version "$GITHUB_SHA" \
+      --delete-after
+  elif [[ "$target" == "prd" ]]; then
+    echo "PostHog source map credentials are required for the production Studio deploy."
+    exit 1
+  fi
   CLOUDFLARE_API_TOKEN="$INFRA__CLOUDFLARE_API_TOKEN" \
     CLOUDFLARE_ACCOUNT_ID="$INFRA__CLOUDFLARE_ACCOUNT_ID" \
     bunx wrangler pages deploy apps/studio/dist \

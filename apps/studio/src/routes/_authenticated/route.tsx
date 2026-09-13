@@ -1,6 +1,7 @@
 import { createOperationalNotificationsRepository } from "virtual:studio-operational-notifications-source"
 import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router"
 import { useAccessSummary } from "@/modules/access/use-access-summary"
+import { AnalyticsTenantObserver } from "@/modules/analytics/analytics-observer"
 import { AuthGate } from "@/modules/auth/components/auth-gate"
 import { PersistentOnboardingBoundary } from "@/modules/onboarding/persistent-onboarding-boundary"
 import { OperationalNotificationTrigger } from "@/modules/operational-notifications/notification-trigger"
@@ -27,6 +28,7 @@ function AuthenticatedRoute() {
   const content = (
     <AuthGate>
       <WorkspaceContextProvider>
+        <AnalyticsTenantObserver />
         <WorkspaceContextGate>
           <AuthenticatedContent scenarioId={scenarioId} />
         </WorkspaceContextGate>

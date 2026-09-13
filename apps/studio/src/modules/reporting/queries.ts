@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { productAnalyticsMeta } from "@/modules/shared/analytics/posthog"
 import type { ReportingQuery } from "./contracts"
 import { useReportingRepository } from "./repository-context"
 
@@ -48,17 +49,20 @@ export function useReportExportActions() {
   const client = useQueryClient()
   const invalidate = () => client.invalidateQueries({ queryKey: reportingQueryKeys.exports() })
   const create = useMutation({
+    meta: productAnalyticsMeta("report_export_requested"),
     mutationFn: (input: Parameters<NonNullable<typeof repository.createExport>>[0]) =>
       repository.createExport?.(input) ??
       Promise.reject(new Error("A exportação está indisponível.")),
     onSuccess: invalidate,
   })
   const retry = useMutation({
+    meta: productAnalyticsMeta("report_export_retried"),
     mutationFn: (id: string) =>
       repository.retryExport?.(id) ?? Promise.reject(new Error("A repetição está indisponível.")),
     onSuccess: invalidate,
   })
   const retryDelivery = useMutation({
+    meta: productAnalyticsMeta("report_export_retried"),
     mutationFn: (id: string) =>
       repository.retryExportDelivery?.(id) ??
       Promise.reject(new Error("O reenvio do e-mail está indisponível.")),

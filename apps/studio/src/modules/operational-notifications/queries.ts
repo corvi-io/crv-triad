@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { productAnalyticsMeta } from "@/modules/shared/analytics/posthog"
 import type { MarkReadInput, NotificationQuery } from "./contracts"
 import { useOperationalNotificationsRepository } from "./repository-context"
 
@@ -36,10 +37,12 @@ export function useNotificationMutations() {
     queryClient.invalidateQueries({ queryKey: operationalNotificationKeys.all })
   return {
     markAllRead: useMutation({
+      meta: productAnalyticsMeta("notification_read"),
       mutationFn: (scenarioId?: string) => repository.markAllActiveRead({ scenarioId }),
       onSuccess: invalidate,
     }),
     markRead: useMutation({
+      meta: productAnalyticsMeta("notification_read"),
       mutationFn: (input: MarkReadInput) => repository.markRead(input),
       onSuccess: invalidate,
     }),

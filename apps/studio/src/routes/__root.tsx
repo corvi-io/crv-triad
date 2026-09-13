@@ -2,11 +2,33 @@ import { TanStackDevtools } from "@tanstack/react-devtools"
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools"
 import { createRootRoute, Outlet, useLocation } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
+import { AnalyticsRouteObserver } from "@/modules/analytics/analytics-observer"
+import { captureUnexpectedError } from "@/modules/shared/analytics/posthog"
 import { Toaster } from "@/modules/shared/components/ui/sonner"
 import { env } from "@/modules/shared/config/env"
 
 export const Route = createRootRoute({
   component: RootRoute,
+  errorComponent: ({ error, reset }) => {
+    captureUnexpectedError(error, { boundary: "router" })
+    return (
+      <main className="flex min-h-svh items-center justify-center p-6" id="main-content">
+        <div className="max-w-md space-y-4 text-center" role="alert">
+          <h1 className="text-xl font-semibold">Não foi possível abrir esta página</h1>
+          <p className="text-sm text-muted-foreground">
+            Tente novamente. Se o problema continuar, fale com o suporte.
+          </p>
+          <button
+            className="rounded-md bg-primary px-4 py-2 text-primary-foreground"
+            onClick={reset}
+            type="button"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </main>
+    )
+  },
 })
 
 function RootRoute() {
@@ -15,6 +37,7 @@ function RootRoute() {
 
   return (
     <>
+      <AnalyticsRouteObserver />
       <a
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow"
         href="#main-content"

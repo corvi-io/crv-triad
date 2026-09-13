@@ -43,3 +43,21 @@ This API-hosted proxy is accepted for the initial, currently unmeasured marketin
 Monitor API latency, error rate, and analytics request volume after production ingestion begins.
 Move to a dedicated or managed PostHog proxy before analytics traffic competes materially with
 identity or lead intake workloads.
+
+Studio may use this endpoint for configured product analytics, sampled replay, and browser error
+ingestion. API error tracking uses the regional PostHog origin server-side. This does not authorize
+API product events: apart from the existing accepted-lead contract, backend PostHog capture is
+limited to sanitized unexpected exceptions. Review proxy traffic and latency after Studio rollout.
+
+## Backend error tracking
+
+The API uses the same PostHog project for unexpected errors only. The reporter accepts a narrow,
+allowlisted context and normalizes routes before capture; it never forwards request or response
+bodies, credentials, cookies, private headers, or business payloads. Expected validation,
+authentication, authorization, not-found, rate-limit, conflict, and domain outcomes retain their
+existing public contracts and are not reported as issues.
+
+Unhandled Elysia failures are captured at REST composition. Locally queued report work and deployed
+Trigger.dev report tasks capture at their own boundaries because they do not share the HTTP lifecycle.
+The server and tasks flush the provider on controlled shutdown without allowing telemetry failures to
+change application or job results.

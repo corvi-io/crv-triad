@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { type ProductEvent, productAnalyticsMeta } from "@/modules/shared/analytics/posthog"
 import type {
   CancelReceiptInput,
   CheckoutAdjustmentInput,
@@ -73,10 +74,12 @@ export function useRevenueUnits() {
 
 function useCashMutation<TInput>(
   query: OperationalDayQuery,
+  analyticsEvent: ProductEvent,
   mutationFn: (input: TInput) => Promise<unknown>,
 ) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: productAnalyticsMeta(analyticsEvent),
     mutationFn,
     onSuccess: async () => {
       await queryClient.invalidateQueries({
@@ -89,16 +92,21 @@ function useCashMutation<TInput>(
 
 export function useOpenCashDay(query: OperationalDayQuery) {
   const repository = useRevenueOperationsRepository()
-  return useCashMutation(query, (input: { openingCashCents: number; operationId: string }) => {
-    if (!repository.openCashDay) throw new Error("Cash opening is unavailable.")
-    return repository.openCashDay(query.unitId, input.openingCashCents, input.operationId)
-  })
+  return useCashMutation(
+    query,
+    "cash_day_opened",
+    (input: { openingCashCents: number; operationId: string }) => {
+      if (!repository.openCashDay) throw new Error("Cash opening is unavailable.")
+      return repository.openCashDay(query.unitId, input.openingCashCents, input.operationId)
+    },
+  )
 }
 
 export function useCashMovement(query: OperationalDayQuery) {
   const repository = useRevenueOperationsRepository()
   return useCashMutation(
     query,
+    "cash_movement_recorded",
     (input: {
       cashDayId: string
       kind: "supply" | "withdrawal"
@@ -116,6 +124,7 @@ export function useReopenCashDay(query: OperationalDayQuery) {
   const repository = useRevenueOperationsRepository()
   return useCashMutation(
     query,
+    "cash_day_reopened",
     (input: { cashDayId: string; operationId: string; reason: string }) => {
       if (!repository.reopenDay) throw new Error("Cash reopening is unavailable.")
       return repository.reopenDay(input.cashDayId, input.operationId, input.reason)
@@ -146,6 +155,7 @@ export function useCloseDay(query: OperationalDayQuery) {
   const repository = useRevenueOperationsRepository()
   const queryClient = useQueryClient()
   return useMutation({
+    meta: productAnalyticsMeta("cash_day_closed"),
     mutationFn: (input: CloseDayInput) => repository.closeDay(input),
     onSuccess: async (closing) => {
       queryClient.setQueryData(
@@ -194,10 +204,12 @@ export function useRevenueDashboardProjection() {
 
 function useCheckoutMutation<TInput>(
   sessionId: string,
+  analyticsEvent: ProductEvent,
   mutationFn: (input: TInput) => Promise<unknown>,
 ) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: productAnalyticsMeta(analyticsEvent),
     mutationFn,
     onSuccess: async () => {
       await Promise.all([
@@ -220,35 +232,35 @@ function useCheckoutMutation<TInput>(
 
 export function useUpdateCheckoutLine(sessionId: string) {
   const repository = useRevenueOperationsRepository()
-  return useCheckoutMutation(sessionId, (input: CheckoutLinePriceInput) =>
+  return useCheckoutMutation(sessionId, "checkout_updated", (input: CheckoutLinePriceInput) =>
     repository.updateLinePrice(input),
   )
 }
 
 export function useUpdateCheckoutAdjustments(sessionId: string) {
   const repository = useRevenueOperationsRepository()
-  return useCheckoutMutation(sessionId, (input: CheckoutAdjustmentInput) =>
+  return useCheckoutMutation(sessionId, "checkout_updated", (input: CheckoutAdjustmentInput) =>
     repository.updateAdjustments(input),
   )
 }
 
 export function useReplaceTenders(sessionId: string) {
   const repository = useRevenueOperationsRepository()
-  return useCheckoutMutation(sessionId, (input: ReplaceTendersInput) =>
+  return useCheckoutMutation(sessionId, "checkout_updated", (input: ReplaceTendersInput) =>
     repository.replaceTenders(input),
   )
 }
 
 export function useCompletePayment(sessionId: string) {
   const repository = useRevenueOperationsRepository()
-  return useCheckoutMutation(sessionId, (input: CompletePaymentInput) =>
+  return useCheckoutMutation(sessionId, "checkout_completed", (input: CompletePaymentInput) =>
     repository.completePayment(input),
   )
 }
 
 export function useCancelReceipt(sessionId: string) {
   const repository = useRevenueOperationsRepository()
-  return useCheckoutMutation(sessionId, (input: CancelReceiptInput) => {
+  return useCheckoutMutation(sessionId, "checkout_updated", (input: CancelReceiptInput) => {
     if (!repository.cancelReceipt) throw new Error("Receipt correction is unavailable.")
     return repository.cancelReceipt(input)
   })

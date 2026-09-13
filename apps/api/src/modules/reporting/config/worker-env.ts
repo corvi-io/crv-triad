@@ -2,6 +2,7 @@ import { z } from "zod"
 
 const workerEnvSchema = z.object({
   APP_ENV: z.enum(["local", "development", "staging", "production", "test"]).default("local"),
+  APP_RELEASE: z.string().trim().default("development"),
   DATABASE_URL: z
     .string()
     .url()
@@ -16,6 +17,10 @@ const workerEnvSchema = z.object({
   R2_PRIVATE_ACCESS_KEY_ID: z.string().min(1),
   R2_PRIVATE_SECRET_ACCESS_KEY: z.string().min(1),
   R2_PRIVATE_BUCKET: z.string().min(1),
+  POSTHOG_PROJECT_KEY: z.string().trim().default(""),
+  POSTHOG_UPSTREAM_URL: z
+    .enum(["https://us.i.posthog.com", "https://eu.i.posthog.com"])
+    .default("https://us.i.posthog.com"),
 })
 
 export type ReportWorkerEnv = z.infer<typeof workerEnvSchema>

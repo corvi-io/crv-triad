@@ -4,6 +4,7 @@ import { useState } from "react"
 
 import { signOut } from "@/modules/auth/services/auth-client"
 import { useAuth } from "@/modules/auth/services/auth-provider"
+import { resetAnalyticsIdentity } from "@/modules/shared/analytics/posthog"
 import { SidebarInset, SidebarProvider } from "@/modules/shared/components/ui/sidebar"
 import { TooltipProvider } from "@/modules/shared/components/ui/tooltip"
 
@@ -44,6 +45,7 @@ export function WorkspaceShell({
     }
 
     setIsSigningOut(true)
+    resetAnalyticsIdentity()
     await signOut()
     refetch()
     await navigate({ to: "/login", replace: true })

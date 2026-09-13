@@ -74,3 +74,7 @@
 - Treat `version_conflict` as a recoverable form state. Preserve the draft, explain that the record
   changed after the screen was opened, and offer an explicit reload-latest action; never overwrite
   silently or describe the editor as necessarily being another person.
+- Route Studio product analytics and unexpected errors through
+  `src/modules/shared/analytics/posthog.ts`. Keep events explicit and typed, properties allowlisted,
+  replay content masked, identity limited to internal UUIDs, and reset analytics identity on logout
+  or session loss. Expected validation and domain outcomes are not Error Tracking issues.
