@@ -9,27 +9,44 @@ import { acceptProfessionalInvitation } from "./modules/professionals/applicatio
 
 const env = loadEnv()
 const errorReporter = createPostHogErrorReporter(env)
-const { db, pool } = createDatabase(env)
-const authEmailSender = createAuthEmailSender(env)
-const onInvitationAccepted = async (invitationId: string | undefined, userId: string) => {
-  await acceptProfessionalInvitation(db, invitationId, userId)
+let database: ReturnType<typeof createDatabase>
+try {
+  database = createDatabase(env)
+} catch (error) {
+  errorReporter.capture(error, { boundary: "process", module: "database_startup" })
+  await errorReporter.shutdown()
+  throw error
 }
-const auth = createAuth(env, db, authEmailSender, undefined, onInvitationAccepted)
-const app = createRestApp({
-  env,
-  auth,
-  authEmailSender,
-  db,
-  errorReporter,
-  onInvitationAccepted,
-  pool,
-})
+const { db, pool } = database
+let app: ReturnType<typeof createRestApp>
 
-app.listen({
-  hostname: env.API_HOST,
-  maxRequestBodySize: PROFILE_IMAGE_MAX_BYTES + 65_536,
-  port: env.API_PORT,
-})
+try {
+  const authEmailSender = createAuthEmailSender(env)
+  const onInvitationAccepted = async (invitationId: string | undefined, userId: string) => {
+    await acceptProfessionalInvitation(db, invitationId, userId)
+  }
+  const auth = createAuth(env, db, authEmailSender, undefined, onInvitationAccepted)
+  app = createRestApp({
+    env,
+    auth,
+    authEmailSender,
+    db,
+    errorReporter,
+    onInvitationAccepted,
+    pool,
+  })
+
+  app.listen({
+    hostname: env.API_HOST,
+    maxRequestBodySize: PROFILE_IMAGE_MAX_BYTES + 65_536,
+    port: env.API_PORT,
+  })
+} catch (error) {
+  errorReporter.capture(error, { boundary: "process", module: "server_startup" })
+  await pool.end().catch(() => undefined)
+  await errorReporter.shutdown()
+  throw error
+}
 
 console.info(JSON.stringify({ event: "api_started", host: env.API_HOST, port: env.API_PORT }))
 
@@ -37,9 +54,23 @@ let stopping = false
 async function stop() {
   if (stopping) return
   stopping = true
-  await errorReporter.shutdown()
-  await app.stop()
+  try {
+    const results = await Promise.allSettled([app.stop(), pool.end()])
+    const failure = results.find((result) => result.status === "rejected")
+    if (failure?.status === "rejected") {
+      errorReporter.capture(failure.reason, { boundary: "process", module: "server_shutdown" })
+      throw failure.reason
+    }
+  } finally {
+    await errorReporter.shutdown()
+  }
 }
 
-process.once("SIGTERM", () => void stop())
-process.once("SIGINT", () => void stop())
+function stopFromSignal() {
+  void stop().catch(() => {
+    process.exitCode = 1
+  })
+}
+
+process.once("SIGTERM", stopFromSignal)
+process.once("SIGINT", stopFromSignal)

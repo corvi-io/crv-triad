@@ -60,4 +60,6 @@ existing public contracts and are not reported as issues.
 Unhandled Elysia failures are captured at REST composition. Locally queued report work and deployed
 Trigger.dev report tasks capture at their own boundaries because they do not share the HTTP lifecycle.
 The server and tasks flush the provider on controlled shutdown without allowing telemetry failures to
-change application or job results.
+change application or job results. Signal shutdown stops new HTTP work, closes the PostgreSQL pool,
+and then flushes PostHog; startup and shutdown failures are captured at the process boundary without
+changing the failure exit status.

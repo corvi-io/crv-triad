@@ -36,7 +36,9 @@ available, it is an Infisical reference to the environment's canonical
 `/api/API__TRIGGER_SECRET_KEY`, so rotation has one source of truth. Split it into a dedicated
 deploy-only credential when scoped keys become available. Runtime task variables are synced from
 the already loaded `/api` values by `trigger.config.ts`, with database, R2, and Resend credentials
-marked secret. The API receives its environment-specific `TRIGGER_SECRET_KEY`; only `dev` also
+marked secret. The same mapping sends the PostHog project key, upstream origin, and application
+release to workers; the project key remains secret in Trigger.dev. The API receives its
+environment-specific `TRIGGER_SECRET_KEY`; only `dev` also
 receives `TRIGGER_PREVIEW_BRANCH=dev`. Infisical `dev:/api` also keeps the separate local-only
 `API__TRIGGER_DEVELOPMENT_SECRET_KEY`; `bun dev` maps it to the runtime key and removes Preview
 targeting so API requests reach the local Development worker.

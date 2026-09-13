@@ -91,6 +91,18 @@ describe("configured Studio analytics", () => {
     analytics.captureUnexpectedError(
       Object.assign(new Error("expected"), { name: "FormSubmissionError" }),
     )
+    analytics.captureUnexpectedError(
+      Object.assign(new Error("expected domain outcome"), {
+        code: "not-ready",
+        name: "RevenueOperationsError",
+      }),
+    )
+    analytics.captureUnexpectedError(
+      Object.assign(new Error("expected access outcome"), { name: "ExpectedHttpError" }),
+    )
+    analytics.captureUnexpectedError(
+      Object.assign(new Error("unexpected server outcome"), { code: "internal_error" }),
+    )
     analytics.identifyAnalyticsUser("user-id")
     analytics.setAnalyticsTenant("tenant-id")
     analytics.setAnalyticsTenant(null)
@@ -106,7 +118,7 @@ describe("configured Studio analytics", () => {
       "client_created",
       expect.objectContaining({ app: "studio" }),
     )
-    expect(sdk.captureException).toHaveBeenCalledOnce()
+    expect(sdk.captureException).toHaveBeenCalledTimes(2)
     expect(sdk.captureException.mock.calls[0]?.[0]).toMatchObject({
       message: "Unexpected application error",
       name: "TypeError",
@@ -114,8 +126,8 @@ describe("configured Studio analytics", () => {
     expect(sdk.captureException.mock.calls[0]?.[0].stack).not.toContain("private detail")
     expect(sdk.captureException.mock.calls[0]?.[1]).not.toHaveProperty("email")
     window.dispatchEvent(new ErrorEvent("error", { error: new Error("runtime private detail") }))
-    expect(sdk.captureException).toHaveBeenCalledTimes(2)
-    expect(sdk.captureException.mock.calls[1]?.[0].stack).not.toContain("runtime private detail")
+    expect(sdk.captureException).toHaveBeenCalledTimes(3)
+    expect(sdk.captureException.mock.calls[2]?.[0].stack).not.toContain("runtime private detail")
     expect(sdk.reset).toHaveBeenCalledWith(true)
     expect(sdk.resetGroups).toHaveBeenCalledOnce()
   })

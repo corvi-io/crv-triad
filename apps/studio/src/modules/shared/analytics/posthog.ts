@@ -231,14 +231,45 @@ function sanitizeError(error: unknown) {
 function isExpectedError(error: unknown) {
   if (error instanceof DOMException && error.name === "AbortError") return true
   if (!(error instanceof Error)) return false
-  return [
-    "FormSubmissionError",
-    "SetupValidationError",
-    "ServiceDeskTransitionError",
-    "ServiceSessionNotFoundError",
-    "OperationalNotificationError",
-  ].includes(error.name)
+  if (
+    [
+      "FormSubmissionError",
+      "ClientOperationInvalidatedError",
+      "ClientValidationError",
+      "ExpectedHttpError",
+      "ReportingOperationInvalidatedError",
+      "RevenueOperationsError",
+      "ScheduleConflictError",
+      "ScheduleRangeError",
+      "SetupDependencyError",
+      "SetupValidationError",
+      "SetupOperationInvalidatedError",
+      "ServiceDeskTransitionError",
+      "ServiceSessionNotFoundError",
+      "OperationalNotificationError",
+    ].includes(error.name)
+  )
+    return true
+  const code = "code" in error && typeof error.code === "string" ? error.code : undefined
+  return code ? expectedDomainErrorCodes.has(code) : false
 }
+
+const expectedDomainErrorCodes = new Set([
+  "already-paid",
+  "already-closed",
+  "cash-day-closed",
+  "cash-day-required",
+  "declined",
+  "forbidden",
+  "idempotency-conflict",
+  "invalid-adjustment",
+  "invalid-cash-count",
+  "invalid-tender",
+  "network-error",
+  "not-found",
+  "not-ready",
+  "stale",
+])
 
 export function analyticsTestState() {
   return { activeTenantId, identifiedUserId, initialized }

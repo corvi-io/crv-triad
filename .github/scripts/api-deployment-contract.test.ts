@@ -93,6 +93,18 @@ describe("API deployment contract", () => {
     expect(healthGate).toBeGreaterThan(flyDeploy)
   })
 
+  it("synchronizes PostHog error reporting into Trigger.dev workers", () => {
+    const triggerConfig = readFileSync("apps/api/trigger.config.ts", "utf8")
+
+    expect(triggerConfig).toContain('{ source: "API__APP_RELEASE", runtime: "APP_RELEASE" }')
+    expect(triggerConfig).toContain(
+      '{ source: "API__POSTHOG_PROJECT_KEY", runtime: "POSTHOG_PROJECT_KEY", isSecret: true }',
+    )
+    expect(triggerConfig).toContain(
+      '{ source: "API__POSTHOG_UPSTREAM_URL", runtime: "POSTHOG_UPSTREAM_URL" }',
+    )
+  })
+
   it("deploys Backstage at environment boundaries after affected API delivery", () => {
     const workflow = readFileSync(".github/workflows/reusable-delivery.yml", "utf8")
 
